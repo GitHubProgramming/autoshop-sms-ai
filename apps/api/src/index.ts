@@ -11,6 +11,7 @@ import { stripeRoute } from "./routes/webhooks/stripe";
 import { provisionNumberRoute } from "./routes/internal/provision-number";
 import { db } from "./db/client";
 import { redis } from "./queues/redis";
+import { startSmsInboundWorker } from "./workers/sms-inbound.worker";
 
 const app = Fastify({
   logger: {
@@ -23,6 +24,9 @@ const app = Fastify({
 });
 
 async function bootstrap() {
+  // ── BullMQ workers ────────────────────────────────────────
+  const smsWorker = startSmsInboundWorker();
+
   // ── Security ──────────────────────────────────────────────
   await app.register(helmet);
   await app.register(rateLimit, {
@@ -48,6 +52,7 @@ async function bootstrap() {
     process.on(signal, async () => {
       app.log.info(`Received ${signal}, shutting down...`);
       await app.close();
+      await smsWorker.close();
       await db.end();
       redis.disconnect();
       process.exit(0);
