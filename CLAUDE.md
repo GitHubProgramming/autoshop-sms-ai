@@ -1,5 +1,23 @@
 # CLAUDE.md
 
+## Operating rules (must follow)
+
+1) Work ONLY on a new branch: ai/<task-name>
+2) Do NOT refactor unrelated code
+3) Minimal patch only
+4) Always run:
+
+docker compose -f infra/docker-compose.yml build api
+docker compose -f infra/docker-compose.yml up -d
+
+5) Output must include:
+- files changed
+- git diff
+- commands executed
+- docker build result
+
+6) Never invent secrets or API keys
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Commands
