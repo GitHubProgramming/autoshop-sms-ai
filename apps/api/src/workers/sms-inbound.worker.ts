@@ -1,8 +1,9 @@
 import { Worker, Job } from "bullmq";
 import { redis } from "../queues/redis";
 
-const N8N_INTERNAL_URL = process.env.N8N_INTERNAL_URL ?? "http://localhost:5678";
+const N8N_INTERNAL_URL = process.env.N8N_INTERNAL_URL ?? "http://n8n:5678";
 const N8N_SMS_WEBHOOK = `${N8N_INTERNAL_URL}/webhook/sms-inbound`;
+console.info(`[sms-worker] posting to ${N8N_SMS_WEBHOOK}`);
 
 /**
  * BullMQ worker: consumes jobs from "sms-inbound" queue and forwards
