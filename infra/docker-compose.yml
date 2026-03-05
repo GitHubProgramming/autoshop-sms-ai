@@ -1,0 +1,175 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: autoshop_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-autoshop}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-autoshop_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-autoshop}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-autoshop} -d ${POSTGRES_DB:-autoshop}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - autoshop_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: autoshop_redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis_secret} --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_secret}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - autoshop_net
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: autoshop_n8n
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Queue mode
+      EXECUTIONS_MODE: queue
+      QUEUE_BULL_REDIS_HOST: redis
+      QUEUE_BULL_REDIS_PORT: 6379
+      QUEUE_BULL_REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret}
+      QUEUE_BULL_REDIS_DB: 1
+
+      # DB
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB:-autoshop}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-autoshop}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD:-autoshop_secret}
+      DB_POSTGRESDB_SCHEMA: n8n
+
+      # Auth
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER:-admin}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD:-admin_secret}
+
+      # Encryption
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-change_me_32_chars_minimum_here!}
+
+      # URLs
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://localhost:5678}
+      N8N_HOST: 0.0.0.0
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+
+      # Timezone
+      GENERIC_TIMEZONE: America/Chicago
+
+      # Logging
+      N8N_LOG_LEVEL: info
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ../n8n/workflows:/workflows:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5678/healthz || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - autoshop_net
+
+  n8n_worker:
+    image: n8nio/n8n:latest
+    container_name: autoshop_n8n_worker
+    restart: unless-stopped
+    command: worker
+    depends_on:
+      n8n:
+        condition: service_healthy
+    environment:
+      EXECUTIONS_MODE: queue
+      QUEUE_BULL_REDIS_HOST: redis
+      QUEUE_BULL_REDIS_PORT: 6379
+      QUEUE_BULL_REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret}
+      QUEUE_BULL_REDIS_DB: 1
+
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB:-autoshop}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-autoshop}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD:-autoshop_secret}
+      DB_POSTGRESDB_SCHEMA: n8n
+
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-change_me_32_chars_minimum_here!}
+      GENERIC_TIMEZONE: America/Chicago
+    networks:
+      - autoshop_net
+
+  api:
+    build:
+      context: ../apps/api
+      dockerfile: Dockerfile
+    container_name: autoshop_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-autoshop}:${POSTGRES_PASSWORD:-autoshop_secret}@postgres:5432/${POSTGRES_DB:-autoshop}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/0
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_MESSAGING_SERVICE_SID: ${TWILIO_MESSAGING_SERVICE_SID}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
+      N8N_INTERNAL_URL: http://n8n:5678
+      JWT_SECRET: ${JWT_SECRET:-change_me_jwt_secret}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../apps/api/src:/app/src:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - autoshop_net
+
+volumes:
+  postgres_data:
+  redis_data:
+  n8n_data:
+
+networks:
+  autoshop_net:
+    driver: bridge

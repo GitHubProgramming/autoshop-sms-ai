@@ -1,0 +1,20 @@
+{
+  "name": "autoshop-sms-ai",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "services/api",
+    "services/worker",
+    "packages/shared"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace=services/api\" \"npm run dev --workspace=services/worker\" \"npm run dev --workspace=apps/web\"",
+    "build": "npm run build --workspaces",
+    "db:migrate": "npm run migrate --workspace=services/api",
+    "db:seed": "npm run seed --workspace=services/api"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

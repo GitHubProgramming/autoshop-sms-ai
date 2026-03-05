@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  api:
+    name: API — Lint, Typecheck, Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: autoshop
+          POSTGRES_PASSWORD: autoshop_secret
+          POSTGRES_DB: autoshop_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 6379:6379
+
+    defaults:
+      run:
+        working-directory: apps/api
+
+    env:
+      DATABASE_URL: postgresql://autoshop:autoshop_secret@localhost:5432/autoshop_test
+      REDIS_URL: redis://localhost:6379/0
+      NODE_ENV: test
+      JWT_SECRET: ci_test_secret
+      SKIP_TWILIO_VALIDATION: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: apps/api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run DB migrations
+        working-directory: .
+        run: |
+          for f in db/migrations/*.sql; do
+            echo "Running migration: $f"
+            PGPASSWORD=autoshop_secret psql -h localhost -U autoshop -d autoshop_test -f "$f"
+          done
+
+      - name: Unit tests
+        run: npm run test
+
+  docker-compose-smoke:
+    name: Docker Compose Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy env example
+        run: cp .env.example .env
+
+      - name: Start services
+        working-directory: infra
+        run: |
+          docker compose up -d postgres redis
+          sleep 10
+
+      - name: Check postgres health
+        run: docker compose -f infra/docker-compose.yml exec -T postgres pg_isready -U autoshop
+
+      - name: Check redis health
+        run: docker compose -f infra/docker-compose.yml exec -T redis redis-cli -a redis_secret ping
+
+      - name: Tear down
+        if: always()
+        working-directory: infra
+        run: docker compose down -v

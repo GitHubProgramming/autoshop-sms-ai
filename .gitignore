@@ -1,0 +1,40 @@
+# Environment — NEVER commit
+.env
+.env.local
+.env.production
+.env.staging
+*.env
+
+# Node
+node_modules/
+dist/
+build/
+.npm
+npm-debug.log*
+
+# n8n credentials (example only is committed)
+n8n/credentials.json
+
+# DB dumps
+*.sql.bak
+*.dump
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker volumes (local)
+postgres_data/
+redis_data/
+
+# Secrets
+*.pem
+*.key
+*.cert
+secrets/

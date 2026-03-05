@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoShop SMS AI — Setup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #0D1B2A;
+      color: #E8E8E0;
+      font-family: 'Barlow', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+    .wizard-container {
+      width: 100%;
+      max-width: 640px;
+    }
+    .wizard-header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .wizard-logo {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: #C1440E;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+    .wizard-title {
+      font-size: 22px;
+      font-weight: 600;
+      color: #E8E8E0;
+    }
+    /* Progress steps */
+    .steps-bar {
+      display: flex;
+      align-items: center;
+      margin-bottom: 40px;
+      gap: 0;
+    }
+    .step-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+    .step-item:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      width: 100%;
+      height: 2px;
+      background: #1e2d3d;
+      z-index: 0;
+    }
+    .step-item.done::after { background: #C1440E; }
+    .step-circle {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 2px solid #1e2d3d;
+      background: #0D1B2A;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      z-index: 1;
+      position: relative;
+      color: #555;
+    }
+    .step-item.active .step-circle {
+      border-color: #C1440E;
+      background: #C1440E;
+      color: #fff;
+    }
+    .step-item.done .step-circle {
+      border-color: #C1440E;
+      background: #0D1B2A;
+      color: #C1440E;
+    }
+    .step-label {
+      font-size: 11px;
+      color: #555;
+      margin-top: 6px;
+      text-align: center;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+    .step-item.active .step-label, .step-item.done .step-label { color: #C1440E; }
+    /* Card */
+    .wizard-card {
+      background: #0f1e2d;
+      border: 1px solid #1e2d3d;
+      border-radius: 8px;
+      padding: 32px;
+    }
+    .step-panel { display: none; }
+    .step-panel.active { display: block; }
+    h2 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: #E8E8E0;
+      margin: 0 0 8px;
+    }
+    .step-desc {
+      color: #888;
+      font-size: 14px;
+      margin-bottom: 28px;
+    }
+    /* Form */
+    .form-group { margin-bottom: 20px; }
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #D4820A;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+    input[type="text"], input[type="tel"], select {
+      width: 100%;
+      background: #0a1520;
+      border: 1px solid #1e2d3d;
+      border-radius: 4px;
+      padding: 10px 14px;
+      color: #E8E8E0;
+      font-family: 'Barlow', sans-serif;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus, select:focus { border-color: #C1440E; }
+    .checkbox-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #0a1520;
+      border: 1px solid #1e2d3d;
+      border-radius: 4px;
+      padding: 8px 12px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .checkbox-item input[type="checkbox"] { accent-color: #C1440E; }
+    .checkbox-item:has(input:checked) { border-color: #C1440E; }
+    .checkbox-label { font-size: 13px; color: #E8E8E0; }
+    /* Buttons */
+    .btn-primary {
+      background: #C1440E;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 12px 28px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-primary:hover { background: #a33a0c; }
+    .btn-primary:disabled { background: #555; cursor: not-allowed; }
+    .btn-secondary {
+      background: transparent;
+      color: #888;
+      border: 1px solid #1e2d3d;
+      border-radius: 4px;
+      padding: 11px 20px;
+      font-family: 'Barlow', sans-serif;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .btn-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      margin-top: 28px;
+    }
+    /* Number display */
+    .number-display {
+      background: #0a1520;
+      border: 1px solid #C1440E;
+      border-radius: 6px;
+      padding: 20px;
+      text-align: center;
+      margin: 16px 0;
+    }
+    .number-display .phone-num {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 28px;
+      font-weight: 700;
+      color: #D4820A;
+      letter-spacing: 0.1em;
+    }
+    .number-display .phone-label {
+      font-size: 12px;
+      color: #888;
+      margin-top: 4px;
+    }
+    /* Carrier instructions */
+    .carrier-card {
+      background: #0a1520;
+      border: 1px solid #1e2d3d;
+      border-radius: 6px;
+      padding: 14px 16px;
+      margin-bottom: 8px;
+    }
+    .carrier-name {
+      font-weight: 700;
+      color: #D4820A;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+    .carrier-code {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      color: #E8E8E0;
+      background: #0D1B2A;
+      padding: 4px 8px;
+      border-radius: 3px;
+      margin-bottom: 4px;
+      display: inline-block;
+    }
+    .carrier-inst { font-size: 12px; color: #888; }
+    /* Status indicators */
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid #1e2d3d;
+      font-size: 14px;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot-green { background: #2a7a4b; }
+    .dot-yellow { background: #D4820A; }
+    .dot-red { background: #C1440E; }
+    .dot-gray { background: #555; }
+    /* Alert */
+    .alert {
+      background: #0f1e10;
+      border: 1px solid #2a7a4b;
+      border-radius: 4px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #5aac6a;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .alert-warn {
+      background: #1e1500;
+      border-color: #D4820A;
+      color: #D4820A;
+    }
+    .error-text { color: #C1440E; font-size: 13px; margin-top: 6px; }
+    .loader { display: inline-block; width: 16px; height: 16px; border: 2px solid #555; border-top-color: #C1440E; border-radius: 50%; animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+<div class="wizard-container">
+  <div class="wizard-header">
+    <div class="wizard-logo">AUTOSHOP SMS AI</div>
+    <div class="wizard-title">Set Up Your Shop</div>
+  </div>
+
+  <!-- Progress Steps -->
+  <div class="steps-bar" id="steps-bar">
+    <div class="step-item active" data-step="1">
+      <div class="step-circle">1</div>
+      <div class="step-label">PROFILE</div>
+    </div>
+    <div class="step-item" data-step="2">
+      <div class="step-circle">2</div>
+      <div class="step-label">SMS NUMBER</div>
+    </div>
+    <div class="step-item" data-step="3">
+      <div class="step-circle">3</div>
+      <div class="step-label">CALENDAR</div>
+    </div>
+    <div class="step-item" data-step="4">
+      <div class="step-circle">4</div>
+      <div class="step-label">FORWARDING</div>
+    </div>
+  </div>
+
+  <div class="wizard-card">
+
+    <!-- STEP 1: Shop Profile -->
+    <div class="step-panel active" id="step-1">
+      <h2>Shop Profile</h2>
+      <p class="step-desc">Tell us about your auto shop so we can personalize your AI assistant.</p>
+
+      <div class="form-group">
+        <label>Shop Name</label>
+        <input type="text" id="shop_name" placeholder="Joe's Auto Repair" />
+      </div>
+
+      <div class="form-group">
+        <label>Business Phone Number</label>
+        <input type="tel" id="shop_phone" placeholder="(214) 555-0100" />
+      </div>
+
+      <div class="form-group">
+        <label>Timezone</label>
+        <select id="shop_timezone">
+          <option value="America/Chicago">Central Time (most of Texas)</option>
+          <option value="America/Denver">Mountain Time (El Paso area)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Services Offered</label>
+        <div class="checkbox-group">
+          <label class="checkbox-item"><input type="checkbox" name="service" value="Oil Change"> <span class="checkbox-label">Oil Change</span></label>
+          <label class="checkbox-item"><input type="checkbox" name="service" value="Brakes"> <span class="checkbox-label">Brakes</span></label>
+          <label class="checkbox-item"><input type="checkbox" name="service" value="Tires"> <span class="checkbox-label">Tires</span></label>
+          <label class="checkbox-item"><input type="checkbox" name="service" value="AC Repair"> <span class="checkbox-label">AC Repair</span></label>
+          <label class="checkbox-item"><input type="checkbox" name="service" value="Transmission"> <span class="checkbox-label">Transmission</span></label>
+          <label class="checkbox-item"><input type="checkbox" name="service" value="General Repair"> <span class="checkbox-label">General Repair</span></label>
+          <label class="checkbox-item"><input type="checkbox" name="service" value="Engine Diagnostic"> <span class="checkbox-label">Engine Diagnostic</span></label>
+          <label class="checkbox-item"><input type="checkbox" name="service" value="Electrical"> <span class="checkbox-label">Electrical</span></label>
+        </div>
+      </div>
+
+      <div id="step1-error" class="error-text" style="display:none"></div>
+
+      <div class="btn-actions">
+        <button class="btn-primary" onclick="submitStep1()">Continue →</button>
+      </div>
+    </div>
+
+    <!-- STEP 2: SMS Number -->
+    <div class="step-panel" id="step-2">
+      <h2>Your SMS Number</h2>
+      <p class="step-desc">We'll provision a dedicated phone number for your shop. Customers who miss your call will be texted from this number.</p>
+
+      <div class="form-group">
+        <label>Preferred Area Code</label>
+        <input type="text" id="area_code" placeholder="214" maxlength="3" pattern="\d{3}" />
+        <div style="color:#888;font-size:12px;margin-top:4px">Enter your local area code to get a familiar number</div>
+      </div>
+
+      <div id="step2-result" style="display:none">
+        <div class="number-display">
+          <div class="phone-num" id="provisioned-number">—</div>
+          <div class="phone-label">Your dedicated SMS number</div>
+        </div>
+        <div class="alert">✓ This number has been provisioned and is ready to receive texts.</div>
+      </div>
+
+      <div id="step2-error" class="error-text" style="display:none"></div>
+
+      <div class="btn-actions">
+        <button class="btn-secondary" onclick="goToStep(1)">← Back</button>
+        <button class="btn-primary" id="btn-get-number" onclick="submitStep2()">Get My Number</button>
+      </div>
+    </div>
+
+    <!-- STEP 3: Google Calendar -->
+    <div class="step-panel" id="step-3">
+      <h2>Connect Google Calendar</h2>
+      <p class="step-desc">When a customer books an appointment, it automatically appears in your Google Calendar. You can skip this and connect later.</p>
+
+      <div id="step3-connected" style="display:none">
+        <div class="alert">✓ Google Calendar connected: <strong id="calendar-account"></strong></div>
+      </div>
+
+      <div id="step3-not-connected">
+        <button class="btn-primary" onclick="connectCalendar()" style="width:100%;text-align:center;margin-bottom:12px">
+          Connect Google Calendar
+        </button>
+        <div style="text-align:center;font-size:12px;color:#888">
+          Opens Google sign-in in a new tab. Come back when complete.
+        </div>
+      </div>
+
+      <div id="step3-error" class="error-text" style="display:none"></div>
+
+      <div class="btn-actions">
+        <button class="btn-secondary" onclick="goToStep(2)">← Back</button>
+        <button class="btn-secondary" onclick="goToStep(4)" id="btn-skip-calendar">Skip for now</button>
+        <button class="btn-primary" id="btn-calendar-next" onclick="goToStep(4)" style="display:none">Continue →</button>
+      </div>
+    </div>
+
+    <!-- STEP 4: Call Forwarding -->
+    <div class="step-panel" id="step-4">
+      <h2>Set Up Call Forwarding</h2>
+      <p class="step-desc">Forward missed calls from your business phone to your AutoShop SMS AI number so the system activates automatically.</p>
+
+      <div style="margin-bottom:16px">
+        <label>Your AutoShop Number</label>
+        <div class="number-display">
+          <div class="phone-num" id="forwarding-display-number">—</div>
+        </div>
+      </div>
+
+      <div id="carrier-instructions"></div>
+
+      <div style="margin:24px 0;padding:16px;background:#0a1520;border:1px solid #1e2d3d;border-radius:6px">
+        <label>Send a Test SMS</label>
+        <div style="display:flex;gap:8px">
+          <input type="tel" id="test-phone" placeholder="Your mobile number" style="flex:1" />
+          <button class="btn-primary" onclick="sendTestSms()" style="padding:10px 16px;white-space:nowrap">Send Test</button>
+        </div>
+        <div id="test-sms-result" style="margin-top:8px;font-size:13px;display:none"></div>
+      </div>
+
+      <div id="step4-error" class="error-text" style="display:none"></div>
+
+      <div class="btn-actions">
+        <button class="btn-secondary" onclick="goToStep(3)">← Back</button>
+        <button class="btn-primary" onclick="finishSetup()">I'm Ready — Go to Dashboard →</button>
+      </div>
+    </div>
+
+  </div><!-- /wizard-card -->
+</div><!-- /wizard-container -->
+
+<script>
+const API_BASE = window.AUTOSHOP_API_BASE || 'http://localhost:3001';
+let currentStep = 1;
+let provisionedNumber = null;
+
+// ──────────────────────────────────────────────────────────
+// Auth
+// ──────────────────────────────────────────────────────────
+async function getHeaders() {
+  const token = await window.Clerk?.session?.getToken();
+  return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+}
+
+async function api(method, path, body) {
+  const headers = await getHeaders();
+  const res = await fetch(API_BASE + path, {
+    method, headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+// ──────────────────────────────────────────────────────────
+// Step navigation
+// ──────────────────────────────────────────────────────────
+function goToStep(n) {
+  document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+  document.querySelector(`#step-${n}`).classList.add('active');
+
+  document.querySelectorAll('.step-item').forEach(item => {
+    const s = parseInt(item.dataset.step);
+    item.classList.remove('active', 'done');
+    if (s === n) item.classList.add('active');
+    else if (s < n) item.classList.add('done');
+  });
+
+  currentStep = n;
+  if (n === 4) loadForwardingInstructions();
+}
+
+// ──────────────────────────────────────────────────────────
+// Step 1: Shop Profile
+// ──────────────────────────────────────────────────────────
+async function submitStep1() {
+  const btn = document.querySelector('#step-1 .btn-primary');
+  const errEl = document.getElementById('step1-error');
+  errEl.style.display = 'none';
+
+  const shop_name = document.getElementById('shop_name').value.trim();
+  const phone = document.getElementById('shop_phone').value.trim();
+  const timezone = document.getElementById('shop_timezone').value;
+  const services = [...document.querySelectorAll('input[name="service"]:checked')].map(c => c.value);
+
+  if (!shop_name || !phone) {
+    errEl.textContent = 'Shop name and phone number are required.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loader"></span>';
+
+  try {
+    await api('POST', '/api/onboarding/shop', { shop_name, phone, timezone, services_offered: services, business_hours: {} });
+    goToStep(2);
+    // Pre-fill area code from phone number
+    const areaCode = phone.replace(/\D/g, '').slice(-10, -7);
+    if (areaCode) document.getElementById('area_code').value = areaCode;
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Continue →';
+  }
+}
+
+// ──────────────────────────────────────────────────────────
+// Step 2: Provision Number
+// ──────────────────────────────────────────────────────────
+async function submitStep2() {
+  const btn = document.getElementById('btn-get-number');
+  const errEl = document.getElementById('step2-error');
+  errEl.style.display = 'none';
+
+  const area_code = document.getElementById('area_code').value.trim();
+  if (!area_code || !/^\d{3}$/.test(area_code)) {
+    errEl.textContent = 'Please enter a valid 3-digit area code.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loader"></span> Getting number...';
+
+  try {
+    const result = await api('POST', '/api/onboarding/provision-number', { area_code });
+    provisionedNumber = result.phone_number;
+    const formatted = formatPhone(result.phone_number);
+    document.getElementById('provisioned-number').textContent = formatted;
+    document.getElementById('step2-result').style.display = 'block';
+    btn.textContent = 'Continue →';
+    btn.disabled = false;
+    btn.onclick = () => goToStep(3);
+    // Check calendar status for step 3
+    checkCalendarStatus();
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Get My Number';
+  }
+}
+
+// ──────────────────────────────────────────────────────────
+// Step 3: Google Calendar
+// ──────────────────────────────────────────────────────────
+async function connectCalendar() {
+  try {
+    const result = await api('GET', '/api/onboarding/google/oauth-url');
+    const popup = window.open(result.url, 'google-oauth', 'width=500,height=600');
+    // Poll for completion
+    const poll = setInterval(async () => {
+      if (popup.closed) {
+        clearInterval(poll);
+        await checkCalendarStatus();
+      }
+    }, 1000);
+  } catch (err) {
+    document.getElementById('step3-error').textContent = err.message;
+    document.getElementById('step3-error').style.display = 'block';
+  }
+}
+
+async function checkCalendarStatus() {
+  try {
+    const status = await api('GET', '/api/onboarding/status');
+    if (status.steps.calendar_connected) {
+      document.getElementById('calendar-account').textContent = status.calendar_account || '';
+      document.getElementById('step3-connected').style.display = 'block';
+      document.getElementById('step3-not-connected').style.display = 'none';
+      document.getElementById('btn-calendar-next').style.display = 'inline-block';
+      document.getElementById('btn-skip-calendar').style.display = 'none';
+    }
+  } catch {}
+}
+
+// ──────────────────────────────────────────────────────────
+// Step 4: Forwarding
+// ──────────────────────────────────────────────────────────
+async function loadForwardingInstructions() {
+  try {
+    const data = await api('GET', '/api/onboarding/forwarding-instructions');
+    document.getElementById('forwarding-display-number').textContent = formatPhone(data.number);
+    document.getElementById('carrier-instructions').innerHTML = data.carriers.map(c => `
+      <div class="carrier-card">
+        <div class="carrier-name">${c.name}</div>
+        <div class="carrier-code">${c.code}</div>
+        <div class="carrier-inst">${c.instructions}</div>
+      </div>
+    `).join('');
+  } catch {}
+}
+
+async function sendTestSms() {
+  const toPhone = document.getElementById('test-phone').value.trim();
+  const resultEl = document.getElementById('test-sms-result');
+  resultEl.style.display = 'none';
+
+  if (!toPhone) return;
+
+  try {
+    await api('POST', '/api/onboarding/test-sms', { to_phone: toPhone });
+    resultEl.style.color = '#2a7a4b';
+    resultEl.textContent = '✓ Test SMS sent! Check your phone.';
+    resultEl.style.display = 'block';
+  } catch (err) {
+    resultEl.style.color = '#C1440E';
+    resultEl.textContent = `✗ ${err.message}`;
+    resultEl.style.display = 'block';
+  }
+}
+
+function finishSetup() {
+  window.location.href = '/dashboard';
+}
+
+function formatPhone(phone) {
+  const d = phone.replace(/\D/g, '').slice(-10);
+  if (d.length === 10) return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`;
+  return phone;
+}
+
+// ──────────────────────────────────────────────────────────
+// Init: check existing onboarding state on load
+// ──────────────────────────────────────────────────────────
+async function init() {
+  if (!window.Clerk) return;
+  await window.Clerk.load({ publishableKey: window.CLERK_PUBLISHABLE_KEY });
+  if (!window.Clerk.user) {
+    window.location.href = '/login';
+    return;
+  }
+
+  try {
+    const status = await api('GET', '/api/onboarding/status');
+    // Resume from furthest incomplete step
+    if (status.steps.forwarding_confirmed) {
+      window.location.href = '/dashboard';
+    } else if (status.steps.number_provisioned) {
+      provisionedNumber = status.twilio_number;
+      goToStep(status.steps.calendar_connected ? 4 : 3);
+    } else if (status.steps.shop_profile) {
+      goToStep(2);
+    }
+  } catch {}
+}
+
+init();
+</script>
+</body>
+</html>

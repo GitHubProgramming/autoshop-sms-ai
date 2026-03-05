@@ -1,0 +1,199 @@
+{
+  "name": "WF-001: Twilio SMS Ingest",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "trigger-node",
+      "name": "BullMQ Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "notes": "TODO: Replace with BullMQ/Redis queue trigger when n8n queue mode supports it. In production, the API enqueues jobs to 'sms-inbound' queue. Use n8n webhook trigger as bridge: API calls n8n webhook → n8n processes."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3000/internal/n8n-bridge",
+        "authentication": "none",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook: SMS Inbound",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "webhookId": "sms-inbound-wf001",
+      "parameters": {
+        "path": "sms-inbound",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": false
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT t.*, sp.prompt_text as system_prompt\nFROM tenants t\nLEFT JOIN system_prompts sp ON sp.tenant_id = t.id AND sp.is_active = TRUE\nWHERE t.id = '{{ $json.tenantId }}'::uuid\nLIMIT 1",
+        "options": {}
+      },
+      "id": "db-lookup-tenant",
+      "name": "DB: Lookup Tenant + System Prompt",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [500, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "AutoShop Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Set tenant context variable for all downstream nodes\n// This is the RLS boundary — all DB queries after this use this tenant_id\nconst tenant = $('DB: Lookup Tenant + System Prompt').first().json;\n\nif (!tenant || !tenant.id) {\n  throw new Error(`Tenant not found: ${$json.tenantId}`);\n}\n\n// Set RLS context\n$vars.set('current_tenant_id', tenant.id);\n$vars.set('tenant_billing_status', tenant.billing_status);\n$vars.set('tenant_conv_used', tenant.conv_used_this_cycle);\n$vars.set('tenant_conv_limit', tenant.conv_limit_this_cycle);\n$vars.set('system_prompt', tenant.system_prompt);\n\nreturn [{\n  json: {\n    tenantId: tenant.id,\n    billingStatus: tenant.billing_status,\n    convUsed: tenant.conv_used_this_cycle,\n    convLimit: tenant.conv_limit_this_cycle,\n    systemPrompt: tenant.system_prompt,\n    customerPhone: $('Webhook: SMS Inbound').first().json.customerPhone,\n    messageBody: $('Webhook: SMS Inbound').first().json.body,\n    messageSid: $('Webhook: SMS Inbound').first().json.messageSid,\n    atSoftLimit: $('Webhook: SMS Inbound').first().json.atSoftLimit ?? false,\n    triggerType: $('Webhook: SMS Inbound').first().json.triggerType ?? 'sms_reply',\n  }\n}];"
+      },
+      "id": "set-tenant-context",
+      "name": "Set Tenant Context (RLS)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SET LOCAL app.current_tenant_id = '{{ $vars.current_tenant_id }}';\nSELECT * FROM get_or_create_conversation(\n  '{{ $json.tenantId }}'::uuid,\n  '{{ $json.customerPhone }}'\n);",
+        "options": {}
+      },
+      "id": "db-get-conversation",
+      "name": "DB: Get or Create Conversation",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [1000, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "AutoShop Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-soft-limit",
+              "leftValue": "={{ $json.atSoftLimit }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-soft-limit",
+      "name": "At Soft Limit?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Soft limit response — paid plan, 100% used\n// Do NOT count this as a new conversation\nreturn [{\n  json: {\n    responseText: 'Hi! We\\'ve reached our monthly booking limit. Our team will call you back to schedule your appointment. Thank you!',\n    conversationId: $('DB: Get or Create Conversation').first().json.conversation_id,\n    tenantId: $('Set Tenant Context (RLS)').first().json.tenantId,\n    customerPhone: $('Set Tenant Context (RLS)').first().json.customerPhone,\n  }\n}];"
+      },
+      "id": "soft-limit-response",
+      "name": "Compose Soft-Limit Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 150]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SET LOCAL app.current_tenant_id = '{{ $vars.current_tenant_id }}';\nSELECT body, direction, sent_at\nFROM messages\nWHERE conversation_id = '{{ $('DB: Get or Create Conversation').first().json.conversation_id }}'::uuid\nORDER BY sent_at ASC\nLIMIT 8;",
+        "options": {}
+      },
+      "id": "db-fetch-history",
+      "name": "DB: Fetch Conversation History",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [1500, 450],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "AutoShop Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n-ai-worker-webhook-url/ai-worker",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "tenantId", "value": "={{ $('Set Tenant Context (RLS)').first().json.tenantId }}" },
+            { "name": "conversationId", "value": "={{ $('DB: Get or Create Conversation').first().json.conversation_id }}" },
+            { "name": "systemPrompt", "value": "={{ $('Set Tenant Context (RLS)').first().json.systemPrompt }}" },
+            { "name": "history", "value": "={{ $('DB: Fetch Conversation History').all().map(m => m.json) }}" },
+            { "name": "newMessage", "value": "={{ $('Set Tenant Context (RLS)').first().json.messageBody }}" },
+            { "name": "customerPhone", "value": "={{ $('Set Tenant Context (RLS)').first().json.customerPhone }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "call-ai-worker",
+      "name": "Call AI Worker (WF-002)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1750, 450],
+      "notes": "Triggers WF-002 (ai-worker workflow) via webhook"
+    }
+  ],
+  "connections": {
+    "Webhook: SMS Inbound": {
+      "main": [[{ "node": "DB: Lookup Tenant + System Prompt", "type": "main", "index": 0 }]]
+    },
+    "DB: Lookup Tenant + System Prompt": {
+      "main": [[{ "node": "Set Tenant Context (RLS)", "type": "main", "index": 0 }]]
+    },
+    "Set Tenant Context (RLS)": {
+      "main": [[{ "node": "DB: Get or Create Conversation", "type": "main", "index": 0 }]]
+    },
+    "DB: Get or Create Conversation": {
+      "main": [[{ "node": "At Soft Limit?", "type": "main", "index": 0 }]]
+    },
+    "At Soft Limit?": {
+      "main": [
+        [{ "node": "Compose Soft-Limit Reply", "type": "main", "index": 0 }],
+        [{ "node": "DB: Fetch Conversation History", "type": "main", "index": 0 }]
+      ]
+    },
+    "DB: Fetch Conversation History": {
+      "main": [[{ "node": "Call AI Worker (WF-002)", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": ["autoshop", "sms", "core"],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "wf001-v1"
+}

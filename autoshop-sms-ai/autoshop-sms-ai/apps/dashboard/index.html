@@ -1,0 +1,1828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoShop SMS AI — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:         #070E16;
+  --bg-mid:     #0C1620;
+  --bg-panel:   #111D2C;
+  --bg-hover:   #162336;
+  --rust:       #C94B1F;
+  --rust-light: #E05A2B;
+  --amber:      #D97706;
+  --green:      #22C55E;
+  --green-dim:  rgba(34,197,94,0.12);
+  --red:        #EF4444;
+  --red-dim:    rgba(239,68,68,0.12);
+  --steel:      #64748B;
+  --steel-mid:  #94A3B8;
+  --steel-light:#CBD5E1;
+  --white:      #F1F5F9;
+  --border:     rgba(100,116,139,0.14);
+  --border-mid: rgba(100,116,139,0.24);
+  --mono:       'IBM Plex Mono', monospace;
+  --display:    'Barlow Condensed', sans-serif;
+  --body:       'Barlow', sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:15px;}
+body{background:var(--bg);color:var(--white);font-family:var(--body);line-height:1.5;-webkit-font-smoothing:antialiased;min-height:100vh;}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border-mid);border-radius:3px;}
+
+/* ── BANNERS ── */
+.banner{padding:10px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid;}
+.banner.trial{background:linear-gradient(90deg,rgba(201,75,31,.15),rgba(217,119,6,.1));border-color:rgba(201,75,31,.3);}
+.banner.warning-80{background:rgba(217,119,6,.1);border-color:rgba(217,119,6,.3);}
+.banner.warning-100{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.3);}
+.banner.paused{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.4);}
+.banner.reconnect{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.3);}
+.banner-left{display:flex;align-items:center;gap:16px;}
+.banner-label{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;}
+.banner-label.rust{color:var(--rust-light);}
+.banner-label.amber{color:var(--amber);}
+.banner-label.red{color:var(--red);}
+.banner-bar-bg{width:160px;height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden;}
+.banner-bar-fill{height:100%;border-radius:2px;transition:width .4s;}
+.banner-count{font-family:var(--mono);font-size:12px;color:var(--steel-mid);white-space:nowrap;}
+.banner-count strong{color:var(--white);}
+.banner-days{font-family:var(--mono);font-size:11px;color:var(--steel);letter-spacing:.06em;}
+.banner-msg{font-size:13px;font-weight:500;}
+.banner-msg.amber{color:var(--amber);}
+.banner-msg.red{color:var(--red);}
+.btn-upgrade{background:var(--rust);color:var(--white);font-family:var(--display);font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:7px 18px;border:none;cursor:pointer;clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px));transition:background .2s;text-decoration:none;display:inline-block;}
+.btn-upgrade:hover{background:var(--rust-light);}
+.btn-upgrade.amber{background:var(--amber);}
+.btn-upgrade.amber:hover{background:#F59E0B;}
+.btn-upgrade.red{background:var(--red);}
+
+/* ── TOP NAV ── */
+.topnav{background:var(--bg-mid);border-bottom:1px solid var(--border);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.nav-left{display:flex;align-items:center;gap:24px;}
+.nav-logo{font-family:var(--display);font-size:18px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--white);text-decoration:none;white-space:nowrap;}
+.nav-logo span{color:var(--rust);}
+.nav-divider{width:1px;height:24px;background:var(--border);}
+.nav-shop{font-family:var(--display);font-size:17px;font-weight:700;color:var(--steel-light);letter-spacing:.03em;}
+.plan-badge{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:3px 10px;border-radius:2px;}
+.plan-badge.trial{background:rgba(217,119,6,.15);color:var(--amber);border:1px solid rgba(217,119,6,.3);}
+.plan-badge.starter{background:rgba(100,116,139,.15);color:var(--steel-mid);border:1px solid var(--border-mid);}
+.plan-badge.pro{background:rgba(201,75,31,.15);color:var(--rust-light);border:1px solid rgba(201,75,31,.3);}
+.plan-badge.premium{background:rgba(34,197,94,.1);color:var(--green);border:1px solid rgba(34,197,94,.25);}
+.plan-badge.past-due{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3);}
+.plan-badge.suspended{background:rgba(239,68,68,.2);color:var(--red);border:1px solid rgba(239,68,68,.4);}
+.nav-right{display:flex;align-items:center;gap:16px;}
+.nav-usage{display:flex;align-items:center;gap:10px;background:var(--bg-panel);border:1px solid var(--border);padding:6px 14px;border-radius:2px;}
+.nav-usage-text{font-family:var(--mono);font-size:12px;color:var(--steel);}
+.nav-usage-text strong{color:var(--white);}
+.nav-usage-mini{width:64px;height:3px;background:var(--border-mid);border-radius:2px;overflow:hidden;}
+.nav-usage-mini-fill{height:100%;background:var(--rust);border-radius:2px;transition:width .4s,background .4s;}
+.nav-account{display:flex;align-items:center;gap:6px;cursor:pointer;padding:6px 10px;border:1px solid var(--border);border-radius:2px;transition:border-color .2s;position:relative;}
+.nav-account:hover{border-color:var(--border-mid);}
+.nav-avatar{width:28px;height:28px;background:var(--rust);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:13px;font-weight:800;color:var(--white);flex-shrink:0;}
+.nav-account-name{font-size:13px;font-weight:500;color:var(--steel-light);}
+.nav-dropdown{display:none;position:absolute;top:calc(100% + 8px);right:0;background:var(--bg-panel);border:1px solid var(--border-mid);min-width:160px;z-index:200;}
+.nav-account:hover .nav-dropdown{display:block;}
+.nav-dropdown a{display:block;padding:11px 16px;font-size:13px;color:var(--steel-light);text-decoration:none;border-bottom:1px solid var(--border);transition:background .15s,color .15s;}
+.nav-dropdown a:last-child{border-bottom:none;}
+.nav-dropdown a:hover{background:var(--bg-hover);color:var(--white);}
+.nav-dropdown a.danger{color:var(--red);}
+
+/* ── LAYOUT ── */
+.layout{display:flex;min-height:calc(100vh - 60px);}
+.sidebar{width:220px;flex-shrink:0;background:var(--bg-mid);border-right:1px solid var(--border);padding:24px 0;display:flex;flex-direction:column;position:sticky;top:60px;height:calc(100vh - 60px);overflow-y:auto;}
+.sidebar-section{padding:0 12px;margin-bottom:8px;}
+.sidebar-label{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--steel);text-transform:uppercase;padding:6px 12px;margin-bottom:4px;}
+.sidebar-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:3px;cursor:pointer;text-decoration:none;transition:background .15s;color:var(--steel-mid);font-size:14px;font-weight:500;border:1px solid transparent;}
+.sidebar-item:hover{background:var(--bg-hover);color:var(--white);}
+.sidebar-item.active{background:rgba(201,75,31,.12);color:var(--white);border-color:rgba(201,75,31,.2);}
+.sidebar-item.active .sidebar-icon{color:var(--rust);}
+.sidebar-icon{width:16px;height:16px;flex-shrink:0;color:var(--steel);}
+.sidebar-badge{margin-left:auto;background:var(--rust);color:var(--white);font-family:var(--mono);font-size:10px;padding:1px 6px;border-radius:10px;}
+.sidebar-status{margin-top:auto;padding:16px 16px 0;border-top:1px solid var(--border);}
+.system-status{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--bg-panel);border:1px solid var(--border);border-radius:3px;}
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.status-dot.green{background:var(--green);box-shadow:0 0 6px rgba(34,197,94,.5);animation:pulse-green 2s infinite;}
+.status-dot.red{background:var(--red);box-shadow:0 0 6px rgba(239,68,68,.5);}
+.status-dot.amber{background:var(--amber);}
+@keyframes pulse-green{0%,100%{box-shadow:0 0 6px rgba(34,197,94,.5);}50%{box-shadow:0 0 12px rgba(34,197,94,.8);}}
+.status-text{font-family:var(--mono);font-size:11px;letter-spacing:.06em;}
+.status-text.green{color:var(--green);}
+.status-text.red{color:var(--red);}
+.status-text.amber{color:var(--amber);}
+.status-sub{font-family:var(--mono);font-size:10px;color:var(--steel);margin-top:1px;}
+
+/* ── MAIN ── */
+.main{flex:1;padding:28px 28px 60px;overflow-x:hidden;}
+.page-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:24px;}
+.page-title{font-family:var(--display);font-size:28px;font-weight:900;text-transform:uppercase;color:var(--white);letter-spacing:.02em;line-height:1;}
+.page-subtitle{font-family:var(--mono);font-size:12px;color:var(--steel);letter-spacing:.06em;margin-top:6px;}
+.page-actions{display:flex;gap:10px;align-items:center;}
+.btn-sm{font-family:var(--display);font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:8px 16px;border:1px solid var(--border-mid);background:transparent;color:var(--steel-light);cursor:pointer;transition:border-color .2s,color .2s;text-decoration:none;}
+.btn-sm:hover{border-color:var(--steel-light);color:var(--white);}
+.btn-sm.primary{background:var(--rust);border-color:var(--rust);color:var(--white);clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px));}
+.btn-sm.primary:hover{background:var(--rust-light);border-color:var(--rust-light);}
+.btn-sm.green{background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.3);color:var(--green);}
+.btn-sm.green:hover{background:rgba(34,197,94,.2);}
+.btn-sm.amber-btn{background:rgba(217,119,6,.1);border-color:rgba(217,119,6,.3);color:var(--amber);}
+.btn-sm.red-btn{background:var(--red-dim);border-color:rgba(239,68,68,.3);color:var(--red);}
+.section-label{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--steel);margin-bottom:14px;display:flex;align-items:center;gap:10px;}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* ── ACTIVATION CHECKLIST ── */
+.checklist-card{background:var(--bg-panel);border:1px solid var(--border);margin-bottom:28px;overflow:hidden;}
+.checklist-header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;background:var(--bg-mid);border-bottom:1px solid var(--border);}
+.checklist-title{font-family:var(--display);font-size:20px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--white);}
+.checklist-sub{font-family:var(--mono);font-size:11px;color:var(--steel);letter-spacing:.06em;margin-top:3px;}
+.checklist-progress{font-family:var(--mono);font-size:12px;color:var(--steel-mid);}
+.checklist-progress strong{color:var(--green);}
+.checklist-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:0;background:var(--border);}
+.checklist-step{background:var(--bg-panel);padding:20px 22px;border-right:1px solid var(--border);transition:background .2s;}
+.checklist-step:last-child{border-right:none;}
+.checklist-step:hover{background:var(--bg-hover);}
+.checklist-step.complete{border-top:2px solid var(--green);}
+.checklist-step.pending{border-top:2px solid var(--amber);}
+.checklist-step.failed{border-top:2px solid var(--red);}
+.step-num{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--steel);margin-bottom:10px;}
+.step-label{font-family:var(--display);font-size:16px;font-weight:700;text-transform:uppercase;color:var(--white);letter-spacing:.03em;margin-bottom:10px;line-height:1.2;}
+.step-pill{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:2px;margin-bottom:14px;}
+.step-pill::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.step-pill.done{background:var(--green-dim);color:var(--green);}
+.step-pill.done::before{background:var(--green);}
+.step-pill.warn{background:rgba(217,119,6,.12);color:var(--amber);}
+.step-pill.warn::before{background:var(--amber);}
+.step-pill.fail{background:var(--red-dim);color:var(--red);}
+.step-pill.fail::before{background:var(--red);}
+.step-pill.info{background:rgba(100,116,139,.12);color:var(--steel-mid);}
+.step-pill.info::before{background:var(--steel);}
+
+/* ── KPI CARDS ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;background:var(--border);margin-bottom:28px;}
+.kpi-card{background:var(--bg-panel);padding:24px 22px;position:relative;overflow:hidden;transition:background .2s;}
+.kpi-card:hover{background:var(--bg-hover);}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.kpi-card.revenue::before{background:linear-gradient(90deg,var(--rust),var(--amber));}
+.kpi-card.calls::before{background:var(--amber);}
+.kpi-card.booked::before{background:var(--green);}
+.kpi-card.health-card{padding:0;overflow:hidden;}
+.kpi-card.health-card::before{background:var(--green);}
+.kpi-tag{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--steel);margin-bottom:14px;}
+.kpi-value{font-family:var(--display);font-size:48px;font-weight:900;color:var(--white);line-height:1;margin-bottom:8px;letter-spacing:-.01em;}
+.kpi-value .curr{font-size:28px;color:var(--steel-mid);vertical-align:top;margin-top:6px;display:inline-block;}
+.kpi-change{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:12px;margin-bottom:8px;}
+.kpi-change.up{color:var(--green);}
+.kpi-change.down{color:var(--red);}
+.kpi-sub{font-size:12px;color:var(--steel);line-height:1.4;}
+
+/* ── HEALTH CARD (KPI slot 4) ── */
+.health-header{padding:14px 22px 12px;border-bottom:1px solid var(--border);}
+.health-row{display:flex;align-items:center;justify-content:space-between;padding:9px 22px;border-bottom:1px solid var(--border);gap:8px;}
+.health-row:last-child{border-bottom:none;}
+.health-label{font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--steel);text-transform:uppercase;}
+.health-val{font-family:var(--mono);font-size:11px;display:flex;align-items:center;gap:5px;}
+.health-val.ok{color:var(--green);}
+.health-val.warn{color:var(--amber);}
+.health-val.err{color:var(--red);}
+.health-val.neutral{color:var(--steel-mid);}
+.hdot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.hdot.green{background:var(--green);box-shadow:0 0 5px rgba(34,197,94,.5);animation:pulse-green 2s infinite;}
+.hdot.amber{background:var(--amber);}
+.hdot.red{background:var(--red);}
+
+/* ── TODAY ACTIVITY ── */
+.today-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;background:var(--border);margin-bottom:28px;}
+.today-card{background:var(--bg-mid);padding:18px 20px;border-bottom:2px solid transparent;transition:background .2s;}
+.today-card:hover{background:var(--bg-hover);}
+.today-tag{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--steel);margin-bottom:10px;}
+.today-num{font-family:var(--display);font-size:36px;font-weight:900;color:var(--white);line-height:1;}
+.today-num.amber{color:var(--amber);}
+.today-num.green{color:var(--green);}
+
+/* ── PIPELINE ── */
+.pipeline-wrap{background:var(--bg-panel);border:1px solid var(--border);padding:24px;margin-bottom:28px;}
+.pipeline-title{font-family:var(--display);font-size:18px;font-weight:800;text-transform:uppercase;color:var(--white);letter-spacing:.03em;margin-bottom:24px;}
+.pipeline-stages{display:flex;align-items:stretch;gap:0;}
+.pipeline-stage{flex:1;position:relative;}
+.pipeline-stage-inner{background:var(--bg-mid);border:1px solid var(--border);border-right:none;padding:20px 18px;height:100%;}
+.pipeline-stage:last-child .pipeline-stage-inner{border-right:1px solid var(--border);}
+.pipeline-arrow{position:absolute;right:-12px;top:50%;transform:translateY(-50%);z-index:2;width:24px;height:24px;background:var(--bg);border:1px solid var(--border-mid);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--steel);}
+.pipeline-stage:last-child .pipeline-arrow{display:none;}
+.p-stage-name{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--steel);margin-bottom:12px;}
+.p-stage-count{font-family:var(--display);font-size:36px;font-weight:900;color:var(--white);line-height:1;margin-bottom:6px;}
+.p-stage-conv{font-family:var(--mono);font-size:12px;margin-bottom:4px;}
+.p-stage-drop{font-family:var(--mono);font-size:11px;color:var(--steel);}
+.p-stage-drop.warn{color:var(--amber);}
+.p-stage-drop.danger{color:var(--red);}
+.p-stage-bar{height:3px;background:var(--border);margin-top:14px;border-radius:1px;overflow:hidden;}
+.p-stage-bar-fill{height:100%;border-radius:1px;}
+.pipeline-stage.lost .pipeline-stage-inner{border-color:rgba(239,68,68,.2);background:rgba(239,68,68,.04);}
+.pipeline-stage.lost .p-stage-count{color:var(--red);}
+
+/* ── TWO-COL ── */
+.two-col{display:grid;grid-template-columns:1fr 360px;gap:16px;margin-bottom:28px;}
+
+/* ── INTEGRATIONS + HEALTH PANEL ── */
+.integrations-panel{background:var(--bg-panel);border:1px solid var(--border);margin-bottom:28px;overflow:hidden;}
+.int-panel-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--bg-mid);}
+.int-panel-title{font-family:var(--display);font-size:17px;font-weight:800;text-transform:uppercase;color:var(--white);letter-spacing:.03em;}
+.int-panel-note{font-family:var(--mono);font-size:10px;color:var(--steel);letter-spacing:.05em;margin-top:3px;}
+.int-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0;background:var(--border);}
+.int-cell{background:var(--bg-panel);padding:18px 20px;border-right:1px solid var(--border);transition:background .2s;}
+.int-cell:last-child{border-right:none;}
+.int-cell:hover{background:var(--bg-hover);}
+.int-cell-name{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--steel);margin-bottom:12px;}
+.int-status-pill{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;letter-spacing:.06em;padding:4px 10px;border-radius:2px;margin-bottom:10px;}
+.int-status-pill::before{content:'';width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.int-status-pill.healthy{background:var(--green-dim);color:var(--green);}
+.int-status-pill.healthy::before{background:var(--green);box-shadow:0 0 4px rgba(34,197,94,.5);}
+.int-status-pill.degraded{background:rgba(217,119,6,.12);color:var(--amber);}
+.int-status-pill.degraded::before{background:var(--amber);}
+.int-status-pill.failing{background:var(--red-dim);color:var(--red);}
+.int-status-pill.failing::before{background:var(--red);}
+.int-meta{font-family:var(--mono);font-size:11px;color:var(--steel);line-height:1.6;}
+.int-meta span{color:var(--steel-mid);}
+
+/* ── LOG TABLE ── */
+.log-wrap{background:var(--bg-panel);border:1px solid var(--border);overflow:hidden;}
+.log-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px;}
+.log-title{font-family:var(--display);font-size:17px;font-weight:800;text-transform:uppercase;color:var(--white);letter-spacing:.03em;}
+.log-filters{display:flex;gap:6px;flex-wrap:wrap;}
+.filter-chip{font-family:var(--mono);font-size:11px;letter-spacing:.06em;padding:4px 10px;border:1px solid var(--border);color:var(--steel);cursor:pointer;transition:border-color .15s,color .15s;background:transparent;border-radius:2px;}
+.filter-chip:hover{border-color:var(--border-mid);color:var(--steel-light);}
+.filter-chip.active{border-color:var(--rust);color:var(--rust-light);background:rgba(201,75,31,.08);}
+.log-search{display:flex;gap:8px;align-items:center;}
+.log-search input{background:var(--bg);border:1px solid var(--border-mid);color:var(--white);font-family:var(--mono);font-size:12px;padding:5px 12px;outline:none;width:180px;transition:border-color .15s;}
+.log-search input:focus{border-color:var(--rust);}
+.log-search input::placeholder{color:var(--steel);}
+.log-table{width:100%;border-collapse:collapse;}
+.log-table th{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--steel);padding:10px 16px;text-align:left;border-bottom:1px solid var(--border);background:var(--bg-mid);white-space:nowrap;}
+.log-table td{padding:13px 16px;font-size:13px;color:var(--steel-light);border-bottom:1px solid var(--border);vertical-align:middle;}
+.log-table tr:last-child td{border-bottom:none;}
+.log-table tr:hover td{background:var(--bg-hover);}
+.td-date{font-family:var(--mono);font-size:12px;color:var(--steel);white-space:nowrap;}
+.td-phone{font-family:var(--mono);font-size:12px;color:var(--steel-mid);}
+.td-issue{color:var(--white);font-weight:500;}
+.status-pill{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:2px;white-space:nowrap;}
+.status-pill::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.status-pill.booked{background:var(--green-dim);color:var(--green);}
+.status-pill.booked::before{background:var(--green);}
+.status-pill.no-response{background:rgba(100,116,139,.12);color:var(--steel-mid);}
+.status-pill.no-response::before{background:var(--steel);}
+.status-pill.lost{background:var(--red-dim);color:var(--red);}
+.status-pill.lost::before{background:var(--red);}
+.status-pill.active{background:rgba(217,119,6,.12);color:var(--amber);}
+.status-pill.active::before{background:var(--amber);animation:pulse-green 1.5s infinite;}
+.status-pill.resolved{background:rgba(100,116,139,.1);color:var(--steel);}
+.status-pill.resolved::before{background:var(--steel);}
+.status-pill.synced{background:var(--green-dim);color:var(--green);}
+.status-pill.synced::before{background:var(--green);}
+.status-pill.pending{background:rgba(217,119,6,.12);color:var(--amber);}
+.status-pill.pending::before{background:var(--amber);}
+.status-pill.failed{background:var(--red-dim);color:var(--red);}
+.status-pill.failed::before{background:var(--red);}
+.td-aro{font-family:var(--mono);font-size:13px;color:var(--amber);}
+.td-aro.empty{color:var(--steel);}
+.view-btn{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border:1px solid var(--border);background:transparent;color:var(--steel);cursor:pointer;transition:border-color .15s,color .15s;}
+.view-btn:hover{border-color:var(--rust);color:var(--rust-light);}
+.view-btn.red:hover{border-color:var(--red);color:var(--red);}
+.row-actions{display:flex;gap:4px;}
+
+/* ── EMPTY STATE ── */
+.empty-state{padding:60px 24px;text-align:center;}
+.empty-icon{font-size:32px;margin-bottom:16px;opacity:.4;}
+.empty-title{font-family:var(--display);font-size:24px;font-weight:800;text-transform:uppercase;color:var(--white);letter-spacing:.03em;margin-bottom:8px;}
+.empty-sub{font-size:14px;color:var(--steel);line-height:1.7;max-width:420px;margin:0 auto 24px;}
+.empty-steps{display:inline-flex;flex-direction:column;gap:10px;text-align:left;margin-bottom:24px;}
+.empty-step{font-family:var(--mono);font-size:12px;color:var(--steel-mid);letter-spacing:.06em;}
+.empty-step span{color:var(--rust-light);margin-right:8px;}
+
+/* ── REVENUE SIDEBAR ── */
+.revenue-sidebar{display:flex;flex-direction:column;gap:16px;}
+.rev-card{background:var(--bg-panel);border:1px solid var(--border);padding:20px;}
+.rev-card-title{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--steel);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;}
+.rev-stat{margin-bottom:14px;}
+.rev-stat:last-child{margin-bottom:0;}
+.rev-stat-label{font-family:var(--mono);font-size:11px;color:var(--steel);letter-spacing:.06em;margin-bottom:4px;}
+.rev-stat-value{font-family:var(--display);font-size:28px;font-weight:900;color:var(--white);line-height:1;}
+.rev-stat-value.green{color:var(--green);}
+.rev-stat-value.amber{color:var(--amber);}
+.roi-highlight{background:linear-gradient(135deg,rgba(201,75,31,.1),rgba(217,119,6,.06));border:1px solid rgba(201,75,31,.25);padding:20px;}
+.roi-x{font-family:var(--display);font-size:64px;font-weight:900;color:var(--white);line-height:1;margin-bottom:4px;}
+.roi-x span{color:var(--rust);}
+.roi-desc{font-family:var(--mono);font-size:11px;color:var(--steel);letter-spacing:.06em;line-height:1.6;}
+.rev-sub-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);gap:12px;}
+.rev-sub-label{font-family:var(--mono);font-size:11px;color:var(--steel);letter-spacing:.06em;}
+.rev-sub-value{font-family:var(--mono);font-size:14px;color:var(--white);font-weight:600;}
+.rev-sub-value.green{color:var(--green);}
+
+/* ── CHART ── */
+.chart-wrap{background:var(--bg-panel);border:1px solid var(--border);padding:20px;margin-bottom:28px;}
+.chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.chart-title{font-family:var(--display);font-size:17px;font-weight:800;text-transform:uppercase;color:var(--white);letter-spacing:.03em;}
+.chart-toggles{display:flex;gap:4px;}
+.toggle-btn{font-family:var(--mono);font-size:11px;letter-spacing:.08em;padding:5px 12px;border:1px solid var(--border);background:transparent;color:var(--steel);cursor:pointer;transition:all .15s;}
+.toggle-btn:hover{color:var(--white);border-color:var(--border-mid);}
+.toggle-btn.active{background:var(--rust);border-color:var(--rust);color:var(--white);}
+.chart-area{height:140px;position:relative;overflow:hidden;}
+.chart-svg{width:100%;height:100%;}
+.chart-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:var(--border);margin-top:16px;}
+.chart-meta-item{background:var(--bg-mid);padding:14px 16px;}
+.chart-meta-label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--steel);margin-bottom:6px;}
+.chart-meta-value{font-family:var(--display);font-size:24px;font-weight:900;color:var(--white);line-height:1;}
+.chart-meta-value.green{color:var(--green);}
+.chart-meta-value.amber{color:var(--amber);}
+
+/* ── BILLING PAGE ── */
+.billing-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px;}
+.billing-card{background:var(--bg-panel);border:1px solid var(--border);overflow:hidden;}
+.billing-card-header{padding:14px 20px;border-bottom:1px solid var(--border);background:var(--bg-mid);font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--steel);}
+.billing-card-body{padding:20px;}
+.billing-plan-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.billing-plan-name{font-family:var(--display);font-size:36px;font-weight:900;text-transform:uppercase;color:var(--white);}
+.billing-plan-price{font-family:var(--display);font-size:28px;font-weight:800;color:var(--white);}
+.billing-plan-price span{font-family:var(--mono);font-size:13px;color:var(--steel);}
+.billing-detail-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px;}
+.billing-detail-row:last-child{border-bottom:none;}
+.billing-detail-label{color:var(--steel);}
+.billing-detail-value{font-family:var(--mono);font-size:13px;color:var(--white);}
+.usage-bar-wrap{margin:16px 0;}
+.usage-bar-label{display:flex;justify-content:space-between;margin-bottom:6px;}
+.usage-bar-label span{font-family:var(--mono);font-size:11px;color:var(--steel);}
+.usage-bar-label strong{color:var(--white);}
+.usage-bar-bg{height:6px;background:var(--border-mid);border-radius:3px;overflow:hidden;}
+.usage-bar-fill{height:100%;border-radius:3px;transition:width .4s,background .4s;}
+.usage-bar-fill.normal{background:var(--rust);}
+.usage-bar-fill.warn{background:var(--amber);}
+.usage-bar-fill.over{background:var(--red);}
+.billing-warning{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-radius:2px;margin-bottom:12px;}
+.billing-warning.amber{background:rgba(217,119,6,.1);border:1px solid rgba(217,119,6,.25);}
+.billing-warning.red{background:var(--red-dim);border:1px solid rgba(239,68,68,.25);}
+.billing-warning-icon{font-size:16px;flex-shrink:0;margin-top:1px;}
+.billing-warning-text{font-size:13px;line-height:1.6;}
+.billing-warning-text strong{display:block;margin-bottom:2px;}
+.billing-warning.amber .billing-warning-text strong{color:var(--amber);}
+.billing-warning.red .billing-warning-text strong{color:var(--red);}
+.billing-warning-text p{color:var(--steel-mid);}
+.plan-options{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:var(--border);}
+.plan-option{background:var(--bg-panel);padding:18px 16px;cursor:pointer;transition:background .2s;border-bottom:2px solid transparent;}
+.plan-option:hover{background:var(--bg-hover);}
+.plan-option.recommended{border-bottom-color:var(--rust);}
+.plan-option-name{font-family:var(--display);font-size:18px;font-weight:800;text-transform:uppercase;color:var(--white);letter-spacing:.03em;margin-bottom:4px;}
+.plan-option-price{font-family:var(--display);font-size:24px;font-weight:900;color:var(--white);}
+.plan-option-price span{font-family:var(--mono);font-size:11px;color:var(--steel);}
+.plan-option-limit{font-family:var(--mono);font-size:11px;color:var(--steel);margin-top:6px;letter-spacing:.05em;}
+.plan-option-tag{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--rust-light);margin-top:8px;}
+
+/* ── BOOKINGS PAGE ── */
+.bookings-alert{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 20px;margin-bottom:20px;border-radius:2px;}
+.bookings-alert.red{background:var(--red-dim);border:1px solid rgba(239,68,68,.3);}
+.bookings-alert-text{font-size:13px;font-weight:500;color:var(--red);}
+.bookings-alert-sub{font-size:12px;color:var(--steel-mid);margin-top:2px;}
+
+/* ── SETTINGS ── */
+.settings-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:24px;}
+.tab-btn{font-family:var(--display);font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:12px 20px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--steel);cursor:pointer;transition:color .15s,border-color .15s;margin-bottom:-1px;}
+.tab-btn:hover{color:var(--white);}
+.tab-btn.active{color:var(--white);border-bottom-color:var(--rust);}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+.settings-group{background:var(--bg-panel);border:1px solid var(--border);margin-bottom:16px;overflow:hidden;}
+.settings-group-title{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--steel);padding:12px 18px;border-bottom:1px solid var(--border);background:var(--bg-mid);}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);gap:16px;}
+.settings-row:last-child{border-bottom:none;}
+.settings-row-label{font-size:14px;font-weight:500;color:var(--white);}
+.settings-row-sub{font-size:12px;color:var(--steel);margin-top:2px;}
+.s-input{background:var(--bg);border:1px solid var(--border-mid);color:var(--white);font-family:var(--mono);font-size:13px;padding:7px 12px;width:140px;outline:none;transition:border-color .15s;}
+.s-input:focus{border-color:var(--rust);}
+.s-select{background:var(--bg);border:1px solid var(--border-mid);color:var(--white);font-family:var(--mono);font-size:13px;padding:7px 12px;outline:none;width:180px;cursor:pointer;}
+.s-toggle{width:40px;height:22px;background:var(--border-mid);border-radius:11px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;}
+.s-toggle.on{background:var(--green);}
+.s-toggle::after{content:'';position:absolute;width:16px;height:16px;background:var(--white);border-radius:50%;top:3px;left:3px;transition:transform .2s;}
+.s-toggle.on::after{transform:translateX(18px);}
+.int-connected{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12px;color:var(--green);letter-spacing:.06em;}
+.int-connected::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--green);}
+
+/* ── MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(7,14,22,.88);z-index:500;backdrop-filter:blur(4px);align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--bg-panel);border:1px solid var(--border-mid);width:520px;max-width:95vw;max-height:85vh;overflow-y:auto;position:relative;}
+.modal-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:16px;background:var(--bg-mid);}
+.modal-title{font-family:var(--display);font-size:20px;font-weight:800;text-transform:uppercase;color:var(--white);letter-spacing:.03em;}
+.modal-meta{font-family:var(--mono);font-size:11px;color:var(--steel);letter-spacing:.06em;margin-top:4px;}
+.modal-close{background:transparent;border:1px solid var(--border);color:var(--steel);cursor:pointer;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:16px;transition:border-color .15s,color .15s;flex-shrink:0;}
+.modal-close:hover{border-color:var(--red);color:var(--red);}
+.modal-body{padding:20px 24px;}
+.modal-info-row{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:var(--border);margin-bottom:20px;}
+.modal-info-cell{background:var(--bg-mid);padding:12px 14px;}
+.modal-info-label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--steel);text-transform:uppercase;margin-bottom:4px;}
+.modal-info-value{font-family:var(--display);font-size:18px;font-weight:700;color:var(--white);}
+.modal-info-value.green{color:var(--green);}
+.modal-info-value.amber{color:var(--amber);}
+.thread-label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--steel);margin-bottom:14px;}
+.msg-row{display:flex;margin-bottom:10px;}
+.msg-row.right{justify-content:flex-end;}
+.msg-bubble{max-width:80%;padding:10px 14px;font-size:13px;line-height:1.5;color:var(--white);}
+.msg-bubble.ai{background:var(--bg-hover);border:1px solid var(--border-mid);border-radius:3px 12px 12px 12px;}
+.msg-bubble.ai .msg-sender{font-family:var(--mono);font-size:10px;color:var(--rust-light);letter-spacing:.06em;margin-bottom:4px;}
+.msg-bubble.customer{background:rgba(201,75,31,.15);border:1px solid rgba(201,75,31,.25);border-radius:12px 3px 12px 12px;}
+.msg-time{font-family:var(--mono);font-size:10px;color:var(--steel);text-align:center;margin:8px 0 14px;letter-spacing:.05em;}
+.modal-result{background:var(--green-dim);border:1px solid rgba(34,197,94,.2);padding:12px 16px;margin-top:16px;display:flex;align-items:center;gap:10px;border-radius:2px;}
+.modal-result-text{font-family:var(--mono);font-size:12px;color:var(--green);letter-spacing:.06em;}
+.modal-result-text strong{color:var(--white);}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:28px;right:28px;background:var(--bg-panel);border:1px solid var(--border-mid);padding:14px 20px;font-family:var(--mono);font-size:13px;color:var(--white);z-index:999;transform:translateY(80px);opacity:0;transition:all .3s;border-left:3px solid var(--rust);}
+.toast.show{transform:translateY(0);opacity:1;}
+
+/* ── PAUSED OVERLAY ── */
+.paused-overlay{position:relative;}
+.paused-overlay::after{content:'Service Paused';position:absolute;inset:0;background:rgba(7,14,22,.7);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:24px;font-weight:900;letter-spacing:.1em;color:var(--red);z-index:10;border:1px solid rgba(239,68,68,.3);}
+
+/* ── VIEWS ── */
+.view{display:none;}
+.view.active{display:block;}
+
+/* ── ANIMATIONS ── */
+.fade-in{opacity:0;transform:translateY(12px);animation:fadeInUp .4s ease forwards;}
+.fade-in:nth-child(1){animation-delay:.05s;}
+.fade-in:nth-child(2){animation-delay:.1s;}
+.fade-in:nth-child(3){animation-delay:.15s;}
+.fade-in:nth-child(4){animation-delay:.2s;}
+@keyframes fadeInUp{to{opacity:1;transform:translateY(0);}}
+
+  /* ── ACTIVATION COMPLETE SUMMARY ── */
+  .activation-summary {
+    background: var(--green-dim);
+    border: 1px solid rgba(34,197,94,.25);
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 28px;
+  }
+  .activation-summary.hidden { display: none; }
+  .activation-summary-left { display: flex; align-items: center; gap: 16px; }
+  .activation-summary-icon {
+    width: 36px; height: 36px;
+    background: rgba(34,197,94,.15);
+    border: 1px solid rgba(34,197,94,.3);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
+  }
+  .activation-summary-title {
+    font-family: var(--display);
+    font-size: 20px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--green);
+    letter-spacing: .03em;
+  }
+  .activation-summary-sub {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--steel-mid);
+    letter-spacing: .05em;
+    margin-top: 3px;
+  }
+
+  /* ── SYSTEM HERO STRIP ── */
+  .system-hero {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 14px 20px;
+    margin-bottom: 28px;
+    border-left: 3px solid;
+  }
+  .system-hero.success {
+    background: rgba(34,197,94,.06);
+    border-color: var(--green);
+    border-top: 1px solid rgba(34,197,94,.15);
+    border-right: 1px solid rgba(34,197,94,.15);
+    border-bottom: 1px solid rgba(34,197,94,.15);
+  }
+  .system-hero.error {
+    background: rgba(239,68,68,.06);
+    border-color: var(--red);
+    border-top: 1px solid rgba(239,68,68,.15);
+    border-right: 1px solid rgba(239,68,68,.15);
+    border-bottom: 1px solid rgba(239,68,68,.15);
+  }
+  .hero-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--display);
+    font-size: 18px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    white-space: nowrap;
+  }
+  .hero-status.green { color: var(--green); }
+  .hero-status.red   { color: var(--red); }
+  .hero-divider { width: 1px; height: 32px; background: var(--border); flex-shrink: 0; }
+  .hero-desc {
+    font-size: 14px;
+    color: var(--steel-light);
+    font-weight: 500;
+  }
+  .hero-metrics {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--steel-mid);
+    letter-spacing: .06em;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .hero-metrics a {
+    color: var(--rust-light);
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .hero-metrics a:hover { color: var(--white); }
+
+  /* ── REVENUE SINCE ACTIVATION ── */
+  .kpi-card.since-activation {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 32px;
+    padding: 22px 28px;
+  }
+  .kpi-card.since-activation::before {
+    background: linear-gradient(90deg, var(--green), var(--rust));
+  }
+  .since-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--steel);
+    margin-bottom: 6px;
+  }
+  .since-value {
+    font-family: var(--display);
+    font-size: 52px;
+    font-weight: 900;
+    color: var(--white);
+    line-height: 1;
+    letter-spacing: -.01em;
+  }
+  .since-value .curr { font-size: 30px; color: var(--steel-mid); vertical-align: top; margin-top: 8px; display: inline-block; }
+  .since-sub {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--steel);
+    margin-top: 6px;
+    letter-spacing: .05em;
+  }
+  .since-sub span { color: var(--steel-mid); }
+  .since-sub span + span::before { content: ' · '; }
+  .since-right {
+    display: flex;
+    gap: 40px;
+    flex-shrink: 0;
+  }
+  .since-stat { text-align: right; }
+  .since-stat-val {
+    font-family: var(--display);
+    font-size: 32px;
+    font-weight: 900;
+    color: var(--amber);
+    line-height: 1;
+  }
+  .since-stat-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .1em;
+    color: var(--steel);
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+<!-- BANNERS (rendered by JS based on tenantState) -->
+<div id="bannerContainer"></div>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <div class="nav-left">
+    <a href="/" class="nav-logo">AutoShop <span>SMS</span> AI</a>
+    <div class="nav-divider"></div>
+    <span class="nav-shop" id="navShopName">Dallas Auto Care</span>
+    <span class="plan-badge" id="navPlanBadge">Trial</span>
+  </div>
+  <div class="nav-right">
+    <div class="nav-usage" id="navUsage">
+      <span class="nav-usage-text" id="navUsageText"></span>
+      <div class="nav-usage-mini"><div class="nav-usage-mini-fill" id="navUsageFill"></div></div>
+    </div>
+    <div class="nav-account">
+      <div class="nav-avatar">M</div>
+      <span class="nav-account-name">Mike R.</span>
+      <span style="font-size:10px;color:var(--steel);margin-left:2px;">▾</span>
+      <div class="nav-dropdown">
+        <a href="#" onclick="switchView('billing');return false;">Billing</a>
+        <a href="#" onclick="switchView('settings');return false;">Settings</a>
+        <a href="/">Back to Website</a>
+        <a href="/login" class="danger">Log Out</a>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- LAYOUT -->
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Overview</div>
+      <a class="sidebar-item active" href="#" onclick="switchView('dashboard');return false;">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </a>
+      <a class="sidebar-item" href="#" onclick="switchView('conversations');return false;">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        Conversations
+        <span class="sidebar-badge" id="sidebarConvBadge">3</span>
+      </a>
+      <a class="sidebar-item" href="#" onclick="switchView('bookings');return false;">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Bookings
+      </a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Revenue</div>
+      <a class="sidebar-item" href="#" onclick="switchView('revenue');return false;">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+        Analytics
+      </a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Account</div>
+      <a class="sidebar-item" href="#" onclick="switchView('billing');return false;">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Billing
+      </a>
+      <a class="sidebar-item" href="#" onclick="switchView('settings');return false;">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M20 12h2M2 12h2M17.66 17.66l-1.41-1.41M6.34 17.66l1.41-1.41"/></svg>
+        Settings
+      </a>
+    </div>
+    <div class="sidebar-status">
+      <div class="system-status" id="sidebarSystemStatus">
+        <div class="status-dot green"></div>
+        <div>
+          <div class="status-text green">System Active</div>
+          <div class="status-sub">Recovering missed calls</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+
+    <!-- ═══ DASHBOARD ═══ -->
+    <div class="view active" id="view-dashboard">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Revenue Recovery</div>
+          <div class="page-subtitle" id="dashSubtitle">June 2025 · Dallas Auto Care</div>
+        </div>
+        <div class="page-actions">
+          <a href="#" class="btn-sm">Export CSV</a>
+          <a href="#" onclick="switchView('billing');return false;" class="btn-sm primary">Upgrade Plan</a>
+        </div>
+      </div>
+
+      <!-- SYSTEM HERO STRIP -->
+      <div class="system-hero" id="systemHeroStrip">
+        <div class="hero-status" id="heroStatusLabel"></div>
+        <div class="hero-divider"></div>
+        <div class="hero-desc" id="heroDesc"></div>
+        <div class="hero-metrics" id="heroMetrics"></div>
+      </div>
+
+      <!-- REVENUE SINCE ACTIVATION -->
+      <div class="section-label">All-Time Performance</div>
+      <div class="kpi-grid" style="grid-template-columns:1fr;margin-bottom:2px;">
+        <div class="kpi-card since-activation">
+          <div>
+            <div class="since-label">Revenue Recovered Since Activation</div>
+            <div class="since-value"><span class="curr">$</span>27,540</div>
+            <div class="since-sub"><span>82 appointments booked</span><span>System active 64 days</span></div>
+          </div>
+          <div class="since-right">
+            <div class="since-stat"><div class="since-stat-val">$336</div><div class="since-stat-label">Daily Avg</div></div>
+            <div class="since-stat"><div class="since-stat-val">92x</div><div class="since-stat-label">Lifetime ROI</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACTIVATION CHECKLIST -->
+      <div class="section-label">Setup Status</div>
+
+      <!-- Fully activated summary (collapses checklist) -->
+      <div id="activationComplete" class="activation-summary hidden">
+        <div class="activation-summary-left">
+          <div class="activation-summary-icon">✓</div>
+          <div>
+            <div class="activation-summary-title">System Fully Activated</div>
+            <div class="activation-summary-sub">Missed call recovery is live · AI responding within 5–20 seconds</div>
+          </div>
+        </div>
+        <button class="btn-sm" onclick="toggleChecklist()">View Setup Checklist</button>
+      </div>
+
+      <!-- Collapsible checklist -->
+      <div id="checklistWrapper">
+      <div class="checklist-card" id="checklistCard">
+        <div class="checklist-header">
+          <div>
+            <div class="checklist-title">Activation Checklist</div>
+            <div class="checklist-sub">Complete all steps to start recovering missed-call revenue.</div>
+          </div>
+          <div class="checklist-progress"><strong id="checklistDone">3</strong> / 4 complete</div>
+        </div>
+        <div class="checklist-steps" id="checklistSteps"></div>
+      </div>
+      </div><!-- /checklistWrapper -->
+
+      <!-- KPI CARDS -->
+      <div class="section-label">Performance Snapshot</div>
+      <div class="kpi-grid">
+        <div class="kpi-card revenue fade-in">
+          <div class="kpi-tag">Recovered Revenue — This Month</div>
+          <div class="kpi-value"><span class="curr">$</span>4,320</div>
+          <div class="kpi-change up">▲ 18% vs last month</div>
+          <div class="kpi-sub">Estimated from 8 booked appointments × avg ARO</div>
+        </div>
+        <div class="kpi-card calls fade-in">
+          <div class="kpi-tag">Missed Calls Captured</div>
+          <div class="kpi-value">32</div>
+          <div class="kpi-change up">▲ 5 vs last month</div>
+          <div class="kpi-sub">Calls that triggered instant SMS response</div>
+        </div>
+        <div class="kpi-card booked fade-in">
+          <div class="kpi-tag">Appointments Booked</div>
+          <div class="kpi-value">8</div>
+          <div class="kpi-change up">▲ 2 vs last month</div>
+          <div class="kpi-sub">Confirmed &amp; added to Google Calendar</div>
+        </div>
+        <div class="kpi-card health-card fade-in">
+          <div class="health-header">
+            <div class="kpi-tag" style="margin-bottom:0;">System Health</div>
+          </div>
+          <div class="health-row">
+            <span class="health-label">Twilio SMS</span>
+            <span class="health-val ok"><span class="hdot green"></span>Connected</span>
+          </div>
+          <div class="health-row">
+            <span class="health-label">Google Calendar</span>
+            <span class="health-val ok"><span class="hdot green"></span>Connected</span>
+          </div>
+          <div class="health-row">
+            <span class="health-label">Last SMS Sent</span>
+            <span class="health-val neutral">2 min ago</span>
+          </div>
+          <div class="health-row">
+            <span class="health-label">Last Appt Booked</span>
+            <span class="health-val neutral">Today 10:32 AM</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- TODAY ACTIVITY -->
+      <div class="section-label">Today's Activity</div>
+      <div class="today-grid">
+        <div class="today-card">
+          <div class="today-tag">Missed Calls Today</div>
+          <div class="today-num">4</div>
+        </div>
+        <div class="today-card">
+          <div class="today-tag">SMS Sent</div>
+          <div class="today-num">4</div>
+        </div>
+        <div class="today-card" style="border-bottom-color:var(--amber);">
+          <div class="today-tag">Active Conversations</div>
+          <div class="today-num amber">3</div>
+        </div>
+        <div class="today-card">
+          <div class="today-tag">Appointments Booked</div>
+          <div class="today-num green">2</div>
+        </div>
+      </div>
+
+      <!-- PIPELINE -->
+      <div class="section-label">Conversion Pipeline — June 2025</div>
+      <div class="pipeline-wrap">
+        <div class="pipeline-stages">
+          <div class="pipeline-stage">
+            <div class="pipeline-stage-inner">
+              <div class="p-stage-name">Missed Calls</div>
+              <div class="p-stage-count">32</div>
+              <div class="p-stage-conv" style="color:var(--steel-mid);">Baseline</div>
+              <div class="p-stage-drop">100% entered</div>
+              <div class="p-stage-bar"><div class="p-stage-bar-fill" style="width:100%;background:var(--green);"></div></div>
+            </div><div class="pipeline-arrow">→</div>
+          </div>
+          <div class="pipeline-stage">
+            <div class="pipeline-stage-inner">
+              <div class="p-stage-name">SMS Sent</div>
+              <div class="p-stage-count">32</div>
+              <div class="p-stage-conv" style="color:var(--green);">100% delivery</div>
+              <div class="p-stage-drop">0 failed sends</div>
+              <div class="p-stage-bar"><div class="p-stage-bar-fill" style="width:100%;background:var(--green);"></div></div>
+            </div><div class="pipeline-arrow">→</div>
+          </div>
+          <div class="pipeline-stage">
+            <div class="pipeline-stage-inner">
+              <div class="p-stage-name">Replied</div>
+              <div class="p-stage-count">21</div>
+              <div class="p-stage-conv" style="color:var(--green);">66% reply rate</div>
+              <div class="p-stage-drop warn">↓ 34% no reply</div>
+              <div class="p-stage-bar"><div class="p-stage-bar-fill" style="width:66%;background:var(--green);"></div></div>
+            </div><div class="pipeline-arrow">→</div>
+          </div>
+          <div class="pipeline-stage">
+            <div class="pipeline-stage-inner">
+              <div class="p-stage-name">Booked</div>
+              <div class="p-stage-count">8</div>
+              <div class="p-stage-conv" style="color:var(--amber);">38% of replies</div>
+              <div class="p-stage-drop warn">↓ 62% not booked</div>
+              <div class="p-stage-bar"><div class="p-stage-bar-fill" style="width:38%;background:var(--amber);"></div></div>
+            </div><div class="pipeline-arrow">→</div>
+          </div>
+          <div class="pipeline-stage lost">
+            <div class="pipeline-stage-inner">
+              <div class="p-stage-name">Lost</div>
+              <div class="p-stage-count">24</div>
+              <div class="p-stage-conv" style="color:var(--red);">75% of all calls</div>
+              <div class="p-stage-drop danger">Est. $14,400 lost ARO</div>
+              <div class="p-stage-bar"><div class="p-stage-bar-fill" style="width:75%;background:var(--red);"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- INTEGRATIONS & HEALTH PANEL -->
+      <div class="section-label">Integrations &amp; Health</div>
+      <div class="integrations-panel">
+        <div class="int-panel-header">
+          <div>
+            <div class="int-panel-title">System Infrastructure</div>
+            <div class="int-panel-note">Webhook dedupe enabled — prevents double-counting conversations.</div>
+          </div>
+          <button class="btn-sm" onclick="showToast('Log viewer coming in next release.')">View Logs</button>
+        </div>
+        <div class="int-grid" id="healthGrid"></div>
+      </div>
+
+      <!-- TWO-COL: LOG + REVENUE -->
+      <div class="section-label">Recent Conversations &amp; Revenue Summary</div>
+      <div class="two-col">
+        <div class="log-wrap">
+          <div class="log-header">
+            <div class="log-title">Conversation Log</div>
+            <div class="log-filters">
+              <button class="filter-chip active" onclick="filterConvTable(this,'all')">All</button>
+              <button class="filter-chip" onclick="filterConvTable(this,'booked')">Booked</button>
+              <button class="filter-chip" onclick="filterConvTable(this,'lost')">Lost</button>
+            </div>
+          </div>
+          <table class="log-table" id="dashConvTable">
+            <thead><tr><th>Date</th><th>Phone</th><th>Issue</th><th>Status</th><th>Est. ARO</th><th></th></tr></thead>
+            <tbody id="dashConvBody"></tbody>
+          </table>
+        </div>
+        <div class="revenue-sidebar">
+          <div class="rev-card">
+            <div class="rev-card-title">Revenue Summary — June</div>
+            <div class="rev-stat"><div class="rev-stat-label">Recovered (This Month)</div><div class="rev-stat-value green">$4,320</div></div>
+            <div class="rev-stat"><div class="rev-stat-label">Avg Revenue Per Booking</div><div class="rev-stat-value amber">$540</div></div>
+            <div class="rev-stat"><div class="rev-stat-label">Recovered YTD</div><div class="rev-stat-value">$18,760</div></div>
+          </div>
+          <div class="roi-highlight">
+            <div class="rev-card-title" style="margin-bottom:12px;">ROI vs Subscription</div>
+            <div class="roi-x"><span>14</span>x</div>
+            <div class="roi-desc">$4,320 recovered vs $299/mo subscription cost. Every dollar spent returns fourteen.</div>
+          </div>
+          <div class="rev-card" style="border-top:none;margin-top:-1px;">
+            <div class="rev-card-title">Revenue vs Subscription</div>
+            <div class="rev-sub-row"><span class="rev-sub-label">Recovered (This Month)</span><span class="rev-sub-value green">$4,320</span></div>
+            <div class="rev-sub-row"><span class="rev-sub-label">Subscription Cost</span><span class="rev-sub-value" style="color:var(--steel-mid);">$299</span></div>
+            <div class="rev-sub-row" style="border-bottom:none;padding-bottom:0;"><span class="rev-sub-label" style="color:var(--white);font-weight:600;">ROI</span><span class="rev-sub-value" style="color:var(--green);font-size:20px;font-family:var(--display);font-weight:900;">14.4x</span></div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--steel);letter-spacing:.05em;line-height:1.6;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">Estimated from booked appointments and average repair order.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ CONVERSATIONS ═══ -->
+    <div class="view" id="view-conversations">
+      <div class="page-header">
+        <div><div class="page-title">Conversations</div><div class="page-subtitle">All SMS threads — June 2025</div></div>
+        <div class="page-actions"><button class="btn-sm" onclick="showToast('Export coming soon.')">Export CSV</button></div>
+      </div>
+      <div class="log-wrap">
+        <div class="log-header">
+          <div class="log-title">All Conversations</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <div class="log-filters">
+              <button class="filter-chip active" onclick="filterFullConv(this,'all')">All</button>
+              <button class="filter-chip" onclick="filterFullConv(this,'booked')">Booked</button>
+              <button class="filter-chip" onclick="filterFullConv(this,'active')">Active</button>
+              <button class="filter-chip" onclick="filterFullConv(this,'no-response')">No Response</button>
+              <button class="filter-chip" onclick="filterFullConv(this,'lost')">Lost</button>
+            </div>
+            <div class="log-search">
+              <input type="text" id="convSearchInput" placeholder="Search by phone..." oninput="searchConv(this.value)">
+            </div>
+          </div>
+        </div>
+        <div id="convTableContainer">
+          <table class="log-table">
+            <thead><tr><th>Date</th><th>Phone</th><th>Issue</th><th>Status</th><th>Est. ARO</th><th>Duration</th><th>Actions</th></tr></thead>
+            <tbody id="fullConvBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ BOOKINGS ═══ -->
+    <div class="view" id="view-bookings">
+      <div class="page-header">
+        <div><div class="page-title">Bookings</div><div class="page-subtitle">Appointments booked by AI — synced to Google Calendar</div></div>
+        <div class="page-actions"><button class="btn-sm" onclick="showToast('Export coming soon.')">Export CSV</button></div>
+      </div>
+      <div id="bookingsCalendarAlert"></div>
+      <div class="log-wrap">
+        <div class="log-header">
+          <div class="log-title">Appointment Log</div>
+        </div>
+        <table class="log-table">
+          <thead><tr><th>Date / Time</th><th>Customer</th><th>Service</th><th>Vehicle</th><th>Sync Status</th><th>Actions</th></tr></thead>
+          <tbody id="bookingsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ REVENUE ═══ -->
+    <div class="view" id="view-revenue">
+      <div class="page-header">
+        <div><div class="page-title">Revenue Analytics</div><div class="page-subtitle">Recovered revenue tracking — Dallas Auto Care</div></div>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-header">
+          <div class="chart-title">Revenue Recovered</div>
+          <div class="chart-toggles">
+            <button class="toggle-btn active" onclick="switchChart(this)">7D</button>
+            <button class="toggle-btn" onclick="switchChart(this)">30D</button>
+            <button class="toggle-btn" onclick="switchChart(this)">90D</button>
+          </div>
+        </div>
+        <div class="chart-area">
+          <svg class="chart-svg" viewBox="0 0 800 140" preserveAspectRatio="none">
+            <defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#C94B1F" stop-opacity="0.3"/><stop offset="100%" stop-color="#C94B1F" stop-opacity="0"/></linearGradient></defs>
+            <line x1="0" y1="35" x2="800" y2="35" stroke="rgba(100,116,139,0.1)" stroke-width="1"/>
+            <line x1="0" y1="70" x2="800" y2="70" stroke="rgba(100,116,139,0.1)" stroke-width="1"/>
+            <line x1="0" y1="105" x2="800" y2="105" stroke="rgba(100,116,139,0.1)" stroke-width="1"/>
+            <path d="M0,120 C50,110 80,90 130,75 C180,60 200,50 250,55 C300,60 320,40 380,30 C440,20 460,35 520,45 C580,55 600,25 650,20 C700,15 740,30 800,25 L800,140 L0,140 Z" fill="url(#cg)"/>
+            <path d="M0,120 C50,110 80,90 130,75 C180,60 200,50 250,55 C300,60 320,40 380,30 C440,20 460,35 520,45 C580,55 600,25 650,20 C700,15 740,30 800,25" fill="none" stroke="#C94B1F" stroke-width="2"/>
+            <circle cx="130" cy="75" r="4" fill="#C94B1F"/><circle cx="250" cy="55" r="4" fill="#C94B1F"/>
+            <circle cx="380" cy="30" r="4" fill="#C94B1F"/><circle cx="520" cy="45" r="4" fill="#C94B1F"/>
+            <circle cx="650" cy="20" r="5" fill="#D97706"/><circle cx="800" cy="25" r="4" fill="#C94B1F"/>
+          </svg>
+        </div>
+        <div class="chart-meta">
+          <div class="chart-meta-item"><div class="chart-meta-label">Total Recovered YTD</div><div class="chart-meta-value">$18,760</div></div>
+          <div class="chart-meta-item"><div class="chart-meta-label">Avg Revenue Per Booking</div><div class="chart-meta-value amber">$540</div></div>
+          <div class="chart-meta-item"><div class="chart-meta-label">ROI vs Subscription</div><div class="chart-meta-value green">14x</div></div>
+        </div>
+      </div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">
+        <div class="kpi-card revenue"><div class="kpi-tag">Best Month (YTD)</div><div class="kpi-value"><span class="curr">$</span>5,040</div><div class="kpi-sub">May 2025 — 10 appointments booked</div></div>
+        <div class="kpi-card calls"><div class="kpi-tag">Total Bookings (YTD)</div><div class="kpi-value">38</div><div class="kpi-sub">Across 6 months of operation</div></div>
+        <div class="kpi-card booked"><div class="kpi-tag">Subscription Cost (YTD)</div><div class="kpi-value"><span class="curr">$</span>1,794</div><div class="kpi-sub">$299/mo × 6 months — $18,760 returned</div></div>
+      </div>
+    </div>
+
+    <!-- ═══ BILLING ═══ -->
+    <div class="view" id="view-billing">
+      <div class="page-header">
+        <div><div class="page-title">Billing</div><div class="page-subtitle">Subscription, usage, and payment</div></div>
+        <div class="page-actions"><a href="/billing-portal" class="btn-sm primary">Open Billing Portal</a></div>
+      </div>
+      <div id="billingContent"></div>
+    </div>
+
+    <!-- ═══ SETTINGS ═══ -->
+    <div class="view" id="view-settings">
+      <div class="page-header">
+        <div><div class="page-title">Settings</div><div class="page-subtitle">Configure your AutoShop SMS AI system</div></div>
+        <div class="page-actions"><button class="btn-sm primary" onclick="showToast('Settings saved.')">Save Changes</button></div>
+      </div>
+      <div class="settings-tabs">
+        <button class="tab-btn active" onclick="switchTab(this,'tab-ai')">AI Settings</button>
+        <button class="tab-btn" onclick="switchTab(this,'tab-integrations')">Integrations</button>
+      </div>
+      <div class="tab-panel active" id="tab-ai">
+        <div class="settings-group">
+          <div class="settings-group-title">Business Hours</div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">Open Hours</div><div class="settings-row-sub">AI operates within these hours</div></div>
+            <div style="display:flex;gap:8px;align-items:center;"><input class="s-input" type="text" value="7:30 AM" style="width:100px;"><span style="color:var(--steel);font-family:var(--mono);">to</span><input class="s-input" type="text" value="6:00 PM" style="width:100px;"></div>
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">Operating Days</div></div>
+            <select class="s-select"><option>Monday – Saturday</option><option>Monday – Friday</option><option>7 Days</option></select>
+          </div>
+        </div>
+        <div class="settings-group">
+          <div class="settings-group-title">Booking Configuration</div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">Booking Buffer Time</div><div class="settings-row-sub">Minimum time between appointments</div></div>
+            <select class="s-select"><option>30 minutes</option><option>45 minutes</option><option selected>1 hour</option><option>2 hours</option></select>
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">Default ARO</div><div class="settings-row-sub">Used for revenue recovery estimates</div></div>
+            <div style="display:flex;align-items:center;background:var(--bg);border:1px solid var(--border-mid);"><span style="font-family:var(--mono);font-size:13px;color:var(--steel);padding:0 8px;">$</span><input class="s-input" type="number" value="540" style="border:none;width:80px;"></div>
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">SMS Response Delay</div><div class="settings-row-sub">Time after missed call before first SMS</div></div>
+            <select class="s-select"><option>Immediately (5 sec)</option><option selected>10 seconds</option><option>20 seconds</option></select>
+          </div>
+        </div>
+        <div class="settings-group">
+          <div class="settings-group-title">AI Tone</div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">SMS Tone</div></div>
+            <select class="s-select"><option>Professional</option><option selected>Friendly</option><option>Direct</option></select>
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">Shop Name in Messages</div></div>
+            <input class="s-input" type="text" value="Dallas Auto Care" style="width:200px;">
+          </div>
+        </div>
+      </div>
+      <div class="tab-panel" id="tab-integrations">
+        <div class="settings-group">
+          <div class="settings-group-title">Twilio SMS</div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">SMS Number</div><div class="settings-row-sub">Dedicated number provisioned for your shop</div></div>
+            <div style="display:flex;gap:10px;align-items:center;"><span class="int-connected">+1 (214) 555-0182</span><button class="btn-sm">View Number</button></div>
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">Connection Status</div></div>
+            <span class="int-connected">Connected</span>
+          </div>
+        </div>
+        <div class="settings-group">
+          <div class="settings-group-title">Google Calendar</div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">Connected Account</div></div>
+            <div style="display:flex;gap:10px;align-items:center;"><span class="int-connected">mike@dallasautocare.com</span><button class="btn-sm">Reconnect</button></div>
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">Last Sync</div></div>
+            <span style="font-family:var(--mono);font-size:12px;color:var(--steel);">2 minutes ago</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="convModal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div><div class="modal-title" id="modalTitle">SMS Conversation</div><div class="modal-meta" id="modalMeta"></div></div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-info-row" id="modalInfo"></div>
+      <div class="thread-label">SMS Thread</div>
+      <div id="modalThread"></div>
+      <div id="modalResult"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toastEl"></div>
+
+<script>
+// ════════════════════════════════════════════
+// TENANT STATE — edit this to change everything
+// ════════════════════════════════════════════
+const tenantState = {
+  shopName:    'Dallas Auto Care',
+  plan:        'trial',         // trial | starter | pro | premium
+  status:      'trial',         // trial | active | past_due | suspended | canceled | trial_expired
+  trialEndsAt: '2025-06-23',
+  convUsed:    32,
+  convLimit:   150,             // paid plan limit
+  trialLimit:  50,
+  billingRenewalDate: '2025-07-14',
+  warnings:    { at80: false, at100: false },
+  integrations: {
+    googleCalendar: 'connected',    // connected | token_expired | revoked | failed
+    twilioNumber:   'active',       // active | provisioning | released
+    callForwarding: 'verified',     // not_verified | verified
+    testSms:        'passed'        // passed | failed
+  },
+  health: {
+    twilioWebhooks: { status: 'healthy',  lastAt: '2 minutes ago' },
+    calendarSync:   { status: 'healthy',  lastAt: '2 minutes ago' },
+    aiEngine:       { status: 'healthy',  lastMs: 312 },
+    queue:          { status: 'healthy',  queuedJobs: 0 }
+  }
+};
+
+// ════════════════════════════════════════════
+// DEMO DATA
+// ════════════════════════════════════════════
+const conversationsData = [
+  { id:'conv1', date:'Jun 14, 8:22 AM', phone:'(214) 555-0147', issue:'Check Engine Light',      status:'booked',      aro:'$640',   duration:'3m 42s' },
+  { id:'conv2', date:'Jun 14, 9:07 AM', phone:'(972) 555-0293', issue:'Brake Service',            status:'booked',      aro:'$420',   duration:'2m 18s' },
+  { id:'conv3', date:'Jun 13, 5:48 PM', phone:'(469) 555-0381', issue:'Oil Change + Inspection',  status:'active',      aro:'—',      duration:'Ongoing' },
+  { id:'conv4', date:'Jun 13, 2:15 PM', phone:'(817) 555-0512', issue:'AC Not Working',           status:'no-response', aro:'—',      duration:'—' },
+  { id:'conv5', date:'Jun 12, 11:30 AM',phone:'(214) 555-0774', issue:'Transmission Issue',       status:'booked',      aro:'$1,240', duration:'5m 09s' },
+  { id:'conv6', date:'Jun 12, 8:55 AM', phone:'(972) 555-0866', issue:'Battery Dead',             status:'lost',        aro:'—',      duration:'—' },
+  { id:'conv7', date:'Jun 11, 7:40 AM', phone:'(214) 555-0321', issue:'Tire Rotation',            status:'booked',      aro:'$180',   duration:'1m 55s' },
+  { id:'conv8', date:'Jun 10, 4:22 PM', phone:'(469) 555-0914', issue:'Strange Noise, Front End', status:'booked',      aro:'$520',   duration:'4m 11s' },
+];
+
+const bookingsData = [
+  { date:'Jun 19, 9:00 AM', phone:'(214) 555-0147', service:'Diagnostic — Check Engine Light', vehicle:'2019 Ford F-150',     syncStatus:'synced' },
+  { date:'Jun 14, 1:00 PM', phone:'(972) 555-0293', service:'Brake Service — Front & Rear',    vehicle:'2021 Chevrolet Silverado', syncStatus:'synced' },
+  { date:'Jun 13, 8:00 AM', phone:'(214) 555-0774', service:'Transmission Diagnostic',          vehicle:'2017 Ram 1500',        syncStatus:'synced' },
+  { date:'Jun 11, 7:30 AM', phone:'(214) 555-0321', service:'Tire Rotation + Balance',          vehicle:'2020 Toyota Tundra',   syncStatus:'synced' },
+  { date:'Jun 10, 2:00 PM', phone:'(469) 555-0914', service:'Front End Inspection',             vehicle:'2018 Ford Explorer',   syncStatus:'failed', failNote:'Token expired — reconnect calendar.' },
+  { date:'Jun 7, 10:00 AM', phone:'(972) 555-0512', service:'Full Synthetic Oil Change',        vehicle:'2022 GMC Sierra',      syncStatus:'synced' },
+  { date:'Jun 5, 8:30 AM',  phone:'(214) 555-0888', service:'AC Diagnostic + Recharge',        vehicle:'2016 Dodge Ram',       syncStatus:'pending' },
+];
+
+const convThreads = {
+  conv1: {
+    title:'Check Engine Light', meta:'Jun 14, 2025 · 8:22 AM · (214) 555-0147',
+    info:[{l:'Status',v:'Booked',c:'green'},{l:'Est. ARO',v:'$640',c:'amber'},{l:'Duration',v:'3m 42s',c:''}],
+    thread:[
+      {d:'ai',t:"Hey — you just called Dallas Auto Care and we missed you. What can we help you with today?",ts:'8:22 AM'},
+      {d:'cu',t:"Check engine light came on this morning, driving a 2019 F-150."},
+      {d:'ai',t:"Got it. We can run a full diagnostic on that. We have Thursday at 9 AM or Friday at 2 PM open — which works?"},
+      {d:'cu',t:"Thursday at 9 works."},
+      {d:'ai',t:"Confirmed — Thursday June 19 at 9 AM for a diagnostic on your F-150. We'll send a reminder the day before. Anything else?"},
+      {d:'cu',t:"Nope that's it, thanks."},
+    ],
+    result:'Appointment booked — Thu Jun 19, 9:00 AM · Added to Google Calendar'
+  },
+  conv2: {
+    title:'Brake Service', meta:'Jun 14, 2025 · 9:07 AM · (972) 555-0293',
+    info:[{l:'Status',v:'Booked',c:'green'},{l:'Est. ARO',v:'$420',c:'amber'},{l:'Duration',v:'2m 18s',c:''}],
+    thread:[
+      {d:'ai',t:"Hi, you called Dallas Auto Care — we missed you. What brings you in?",ts:'9:07 AM'},
+      {d:'cu',t:"Brakes are squealing real bad. Front and back I think."},
+      {d:'ai',t:"Understood. Brake jobs are same-day for most vehicles. We have this afternoon at 1 PM or Monday morning at 8 AM. Which works?"},
+      {d:'cu',t:"This afternoon works."},
+      {d:'ai',t:"Perfect — today at 1 PM for brake service. What's your vehicle make and model?"},
+      {d:'cu',t:"2021 Silverado."},
+      {d:'ai',t:"Booked. See you at 1 PM today. We'll have you squared away."},
+    ],
+    result:'Appointment booked — Today, 1:00 PM · Added to Google Calendar'
+  },
+  conv3: {
+    title:'Oil Change + Inspection', meta:'Jun 13, 2025 · 5:48 PM · (469) 555-0381',
+    info:[{l:'Status',v:'Active',c:''},{l:'Est. ARO',v:'—',c:''},{l:'Messages',v:'3 sent',c:''}],
+    thread:[
+      {d:'ai',t:"Hey — missed your call at Dallas Auto Care. What can we help with?",ts:'5:48 PM'},
+      {d:'cu',t:"Need an oil change and probably a full inspection. Been a while."},
+      {d:'ai',t:"No problem. We do full synthetic oil + 30-point inspection together. Slots available this Saturday at 8 AM or Monday at 11 AM — which works?"},
+    ],
+    result: null
+  },
+  conv4: {
+    title:'AC Not Working', meta:'Jun 13, 2025 · 2:15 PM · (817) 555-0512',
+    info:[{l:'Status',v:'No Response',c:''},{l:'Est. ARO',v:'—',c:''},{l:'SMS Sent',v:'1 message',c:''}],
+    thread:[{d:'ai',t:"Hi — you called Dallas Auto Care and we missed you. What's going on with your vehicle?",ts:'2:15 PM'}],
+    result: null
+  },
+  conv5: {
+    title:'Transmission Issue', meta:'Jun 12, 2025 · 11:30 AM · (214) 555-0774',
+    info:[{l:'Status',v:'Booked',c:'green'},{l:'Est. ARO',v:'$1,240',c:'amber'},{l:'Duration',v:'5m 09s',c:''}],
+    thread:[
+      {d:'ai',t:"Hey — missed your call at Dallas Auto Care. How can we help?",ts:'11:30 AM'},
+      {d:'cu',t:"My truck is slipping gears bad. Getting worse every day."},
+      {d:'ai',t:"That sounds like it needs attention soon. A transmission diagnostic takes about an hour. Can you come in tomorrow morning or Thursday?"},
+      {d:'cu',t:"Tomorrow morning if possible."},
+      {d:'ai',t:"We can fit you in Thursday June 13 at 8 AM. Sound good?"},
+      {d:'cu',t:"Yeah works. 2017 Ram 1500."},
+      {d:'ai',t:"Booked — Thu Jun 13 at 8 AM, transmission diagnostic on your Ram 1500. See you then."},
+    ],
+    result:'Appointment booked — Thu Jun 13, 8:00 AM · Added to Google Calendar'
+  },
+  conv6: {
+    title:'Battery Dead', meta:'Jun 12, 2025 · 8:55 AM · (972) 555-0866',
+    info:[{l:'Status',v:'Lost',c:''},{l:'Est. ARO',v:'—',c:''},{l:'SMS Sent',v:'1 message',c:''}],
+    thread:[{d:'ai',t:"Hey — missed your call at Dallas Auto Care. What's going on?",ts:'8:55 AM'}],
+    result: null
+  },
+  conv7: {
+    title:'Tire Rotation', meta:'Jun 11, 2025 · 7:40 AM · (214) 555-0321',
+    info:[{l:'Status',v:'Booked',c:'green'},{l:'Est. ARO',v:'$180',c:'amber'},{l:'Duration',v:'1m 55s',c:''}],
+    thread:[
+      {d:'ai',t:"Hey — missed your call at Dallas Auto Care. What can we help with?",ts:'7:40 AM'},
+      {d:'cu',t:"Need a tire rotation, I think I'm overdue."},
+      {d:'ai',t:"Easy one. We can get you in today at 2 PM or tomorrow at 8 AM — which is better?"},
+      {d:'cu',t:"Today at 2 is fine."},
+      {d:'ai',t:"Booked — today at 2 PM for a tire rotation. What vehicle?"},
+      {d:'cu',t:"2020 Tundra."},
+      {d:'ai',t:"Perfect. See you at 2 PM today."},
+    ],
+    result:'Appointment booked — Today, 2:00 PM · Added to Google Calendar'
+  },
+  conv8: {
+    title:'Strange Noise — Front End', meta:'Jun 10, 2025 · 4:22 PM · (469) 555-0914',
+    info:[{l:'Status',v:'Booked',c:'green'},{l:'Est. ARO',v:'$520',c:'amber'},{l:'Duration',v:'4m 11s',c:''}],
+    thread:[
+      {d:'ai',t:"Hi — missed your call at Dallas Auto Care. What's going on?",ts:'4:22 PM'},
+      {d:'cu',t:"There's a clunking sound coming from the front end when I go over bumps."},
+      {d:'ai',t:"Sounds like it could be a sway bar link or strut. We can do a full front end inspection. Tomorrow at 2 PM work?"},
+      {d:'cu',t:"Yeah that works, 2018 Explorer."},
+      {d:'ai',t:"Booked — tomorrow at 2 PM, front end inspection on your Explorer. We'll find it."},
+    ],
+    result:'Appointment booked — Jun 11, 2:00 PM · Added to Google Calendar'
+  },
+};
+
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function() {
+  renderBanners();
+  renderNav();
+  renderChecklist();
+  renderHealthGrid();
+  renderDashConvTable(conversationsData.slice(0,6));
+  renderFullConvTable(conversationsData);
+  renderBookings();
+  renderBillingPage();
+  renderBookingsCalendarAlert();
+  renderSystemHero();
+  checkActivationState();
+});
+
+// ════════════════════════════════════════════
+// BANNERS
+// ════════════════════════════════════════════
+function renderBanners() {
+  const s = tenantState;
+  let html = '';
+  const isSuspended = ['suspended','canceled','trial_expired'].includes(s.status);
+
+  if (isSuspended) {
+    const msgs = { suspended:'Your account has been suspended. Service is paused — no new conversations will be started.', canceled:'Your subscription is canceled. Reactivate to resume missed-call recovery.', trial_expired:'Your trial has expired. Upgrade to continue recovering missed-call revenue.' };
+    html += `<div class="banner paused"><div class="banner-left"><span class="banner-label red">⚠ Service Paused</span><span class="banner-msg red">${msgs[s.status]}</span></div><a href="/signup" class="btn-upgrade red">Reactivate Now</a></div>`;
+  } else if (s.plan === 'trial') {
+    const limit = s.trialLimit;
+    const pct = Math.round((s.convUsed / limit) * 100);
+    html += `<div class="banner trial"><div class="banner-left"><span class="banner-label rust">14-Day Trial</span><div style="display:flex;align-items:center;gap:10px;"><div class="banner-bar-bg"><div class="banner-bar-fill" style="width:${pct}%;background:linear-gradient(90deg,var(--rust),var(--amber));"></div></div><span class="banner-count"><strong>${s.convUsed}</strong> / ${limit} conversations used</span></div><span class="banner-days">Ends ${s.trialEndsAt}</span></div><a href="/signup" class="btn-upgrade">Upgrade Now</a></div>`;
+  } else if (s.status === 'past_due') {
+    html += `<div class="banner warning-80"><div class="banner-left"><span class="banner-label amber">Payment Past Due</span><span class="banner-msg amber">Update your payment method to prevent service interruption.</span></div><a href="/billing-portal" class="btn-upgrade amber">Update Payment</a></div>`;
+  }
+
+  // Usage warnings (paid only)
+  if (s.plan !== 'trial' && !isSuspended) {
+    const pct = (s.convUsed / s.convLimit) * 100;
+    if (pct >= 100 && s.warnings.at100) {
+      html += `<div class="banner warning-100"><div class="banner-left"><span class="banner-label red">Usage Limit Reached</span><span class="banner-msg red">You've used all ${s.convLimit} conversations this month. New conversations are still accepted — upgrade to increase your limit.</span></div><a href="#" onclick="switchView('billing');return false;" class="btn-upgrade red">Upgrade Plan</a></div>`;
+    } else if (pct >= 80 && s.warnings.at80) {
+      html += `<div class="banner warning-80"><div class="banner-left"><span class="banner-label amber">Approaching Usage Limit</span><span class="banner-msg amber">${s.convUsed} of ${s.convLimit} conversations used this month. Service continues — no hard block.</span></div><a href="#" onclick="switchView('billing');return false;" class="btn-upgrade amber">View Usage</a></div>`;
+    }
+  }
+
+  document.getElementById('bannerContainer').innerHTML = html;
+}
+
+// ════════════════════════════════════════════
+// NAV
+// ════════════════════════════════════════════
+function renderNav() {
+  const s = tenantState;
+  // Plan badge
+  const badgeMap = { trial:'trial', starter:'starter', pro:'pro', premium:'premium', past_due:'past-due', suspended:'suspended' };
+  const badgeKey = ['suspended','canceled','trial_expired'].includes(s.status) ? 'suspended' : s.status === 'past_due' ? 'past-due' : s.plan;
+  const badgeEl = document.getElementById('navPlanBadge');
+  badgeEl.className = 'plan-badge ' + (badgeMap[badgeKey] || 'starter');
+  badgeEl.textContent = badgeKey === 'past-due' ? 'Past Due' : badgeKey.charAt(0).toUpperCase() + badgeKey.slice(1);
+
+  // Usage
+  const isTrial = s.plan === 'trial';
+  const limit = isTrial ? s.trialLimit : s.convLimit;
+  const pct = Math.min((s.convUsed / limit) * 100, 100);
+  document.getElementById('navUsageText').innerHTML = `<strong>${s.convUsed}</strong> / ${limit} conversations`;
+  const fill = document.getElementById('navUsageFill');
+  fill.style.width = pct + '%';
+  fill.style.background = pct >= 100 ? 'var(--red)' : pct >= 80 ? 'var(--amber)' : 'var(--rust)';
+}
+
+// ════════════════════════════════════════════
+// CHECKLIST
+// ════════════════════════════════════════════
+function renderChecklist() {
+  const s = tenantState;
+  const steps = [
+    {
+      num: '01',
+      label: 'Connect Google Calendar',
+      status: s.integrations.googleCalendar,
+      pills: { connected:{cls:'done',text:'Connected'}, token_expired:{cls:'warn',text:'Needs Reconnect'}, revoked:{cls:'fail',text:'Revoked'}, failed:{cls:'fail',text:'Failed'} },
+      ctas:  { connected:'', token_expired:'<button class="btn-sm amber-btn" onclick="showToast(\'Redirecting to Google OAuth...\')">Reconnect</button>', revoked:'<button class="btn-sm red-btn" onclick="showToast(\'Redirecting to Google OAuth...\')">Reconnect</button>', failed:'<button class="btn-sm red-btn" onclick="showToast(\'Redirecting to Google OAuth...\')">Reconnect</button>' },
+      defaultCta: '<button class="btn-sm" onclick="showToast(\'Redirecting to Google OAuth...\')">Connect</button>'
+    },
+    {
+      num: '02',
+      label: 'Provision Twilio Number',
+      status: s.integrations.twilioNumber,
+      pills: { active:{cls:'done',text:'Active'}, provisioning:{cls:'warn',text:'Provisioning...'}, released:{cls:'fail',text:'Released'} },
+      ctas:  { active:'', provisioning:'<button class="btn-sm amber-btn" disabled>Provisioning...</button>', released:'<button class="btn-sm red-btn" onclick="showToast(\'Requesting new number...\')">Re-provision</button>' },
+      defaultCta: '<button class="btn-sm primary" onclick="showToast(\'Requesting number...\')">Provision Number</button>'
+    },
+    {
+      num: '03',
+      label: 'Set Call Forwarding',
+      status: s.integrations.callForwarding,
+      pills: { verified:{cls:'done',text:'Verified'}, not_verified:{cls:'warn',text:'Not Verified'} },
+      ctas:  { verified:'', not_verified:'<button class="btn-sm amber-btn" onclick="showToast(\'Opening call forwarding instructions...\')">View Instructions</button>' },
+      defaultCta: '<button class="btn-sm" onclick="showToast(\'Opening call forwarding instructions...\')">View Instructions</button>'
+    },
+    {
+      num: '04',
+      label: 'Send Test SMS',
+      status: s.integrations.testSms,
+      pills: { passed:{cls:'done',text:'Passed'}, failed:{cls:'fail',text:'Failed'} },
+      ctas:  { passed:'', failed:'<button class="btn-sm red-btn" onclick="showToast(\'Sending test SMS...\')">Retry Test</button>' },
+      defaultCta: '<button class="btn-sm primary" onclick="showToast(\'Sending test SMS to your shop number...\')">Send Test SMS</button>'
+    }
+  ];
+
+  let done = 0;
+  let html = '';
+  steps.forEach(step => {
+    const p = step.pills[step.status] || {cls:'info', text:'Pending'};
+    const isComplete = p.cls === 'done';
+    if (isComplete) done++;
+    const stateClass = isComplete ? 'complete' : (p.cls === 'fail' ? 'failed' : 'pending');
+    const cta = step.ctas[step.status] !== undefined ? step.ctas[step.status] : step.defaultCta;
+    html += `<div class="checklist-step ${stateClass}">
+      <div class="step-num">STEP ${step.num}</div>
+      <div class="step-label">${step.label}</div>
+      <div class="step-pill ${p.cls}">${p.text}</div>
+      ${cta ? `<div>${cta}</div>` : ''}
+    </div>`;
+  });
+
+  document.getElementById('checklistSteps').innerHTML = html;
+  document.getElementById('checklistDone').textContent = done;
+  if (done === 4) {
+    document.getElementById('checklistCard').style.borderColor = 'rgba(34,197,94,0.3)';
+  }
+}
+
+// ════════════════════════════════════════════
+// HEALTH GRID
+// ════════════════════════════════════════════
+function renderHealthGrid() {
+  const h = tenantState.health;
+  const cells = [
+    {
+      name: 'Twilio Webhooks',
+      status: h.twilioWebhooks.status,
+      meta: `Last webhook: <span>${h.twilioWebhooks.lastAt}</span>`
+    },
+    {
+      name: 'Google Calendar Sync',
+      status: h.calendarSync.status,
+      meta: `Last sync: <span>${h.calendarSync.lastAt}</span>`
+    },
+    {
+      name: 'AI Engine',
+      status: h.aiEngine.status,
+      meta: `Last response: <span>${h.aiEngine.lastMs}ms</span>`
+    },
+    {
+      name: 'Job Queue',
+      status: h.queue.status,
+      meta: `Queued jobs: <span>${h.queue.queuedJobs}</span>`
+    }
+  ];
+
+  const statusMap = {
+    healthy:       {cls:'healthy',     label:'Healthy'},
+    delayed:       {cls:'degraded',    label:'Delayed'},
+    failing:       {cls:'failing',     label:'Failing'},
+    degraded:      {cls:'degraded',    label:'Degraded'},
+    token_expired: {cls:'failing',     label:'Token Expired'},
+    revoked:       {cls:'failing',     label:'Revoked'},
+    backlog:       {cls:'degraded',    label:'Backlog'},
+  };
+
+  let html = '';
+  cells.forEach(cell => {
+    const s = statusMap[cell.status] || {cls:'healthy', label:'Healthy'};
+    html += `<div class="int-cell">
+      <div class="int-cell-name">${cell.name}</div>
+      <div class="int-status-pill ${s.cls}">${s.label}</div>
+      <div class="int-meta">${cell.meta}</div>
+    </div>`;
+  });
+  document.getElementById('healthGrid').innerHTML = html;
+}
+
+// ════════════════════════════════════════════
+// CONVERSATION TABLES
+// ════════════════════════════════════════════
+function convRow(c, showActions) {
+  const aroHtml = c.aro === '—' ? `<td class="td-aro empty">—</td>` : `<td class="td-aro">${c.aro}</td>`;
+  const actions = showActions
+    ? `<td><div class="row-actions">
+        <button class="view-btn" onclick="openModal('${c.id}')">View</button>
+        <button class="view-btn" onclick="markResolved(this, '${c.id}')">Resolve</button>
+       </div></td>`
+    : `<td><button class="view-btn" onclick="openModal('${c.id}')">View</button></td>`;
+  const dur = showActions ? `<td class="td-date">${c.duration}</td>` : '';
+  return `<tr data-status="${c.status}" data-phone="${c.phone}">
+    <td class="td-date">${c.date}</td>
+    <td class="td-phone">${c.phone}</td>
+    <td class="td-issue">${c.issue}</td>
+    <td><span class="status-pill ${c.status}">${pillLabel(c.status)}</span></td>
+    ${aroHtml}${dur}${actions}
+  </tr>`;
+}
+
+function pillLabel(s) {
+  return {booked:'Booked', active:'Active', 'no-response':'No Response', lost:'Lost', resolved:'Resolved'}[s] || s;
+}
+
+function renderDashConvTable(data) {
+  document.getElementById('dashConvBody').innerHTML = data.map(c => convRow(c, false)).join('');
+}
+
+function renderFullConvTable(data) {
+  const tbody = document.getElementById('fullConvBody');
+  if (!data.length) {
+    document.getElementById('convTableContainer').innerHTML = emptyConvState();
+    return;
+  }
+  tbody.innerHTML = data.map(c => convRow(c, true)).join('');
+}
+
+function emptyConvState() {
+  return `<div class="empty-state">
+    <div class="empty-icon">📱</div>
+    <div class="empty-title">No Conversations Yet</div>
+    <div class="empty-sub">Once your setup is complete, every missed call will trigger an AI SMS conversation. Here's how to get your first one:</div>
+    <div class="empty-steps">
+      <div class="empty-step"><span>01</span>Enable call forwarding on your shop phone</div>
+      <div class="empty-step"><span>02</span>Call your shop number and let it ring through</div>
+      <div class="empty-step"><span>03</span>Watch the first AI SMS conversation appear here</div>
+    </div>
+    <button class="btn-sm primary" onclick="showToast('Sending test missed call to +1 (214) 555-0182...')">Send Test Missed Call</button>
+  </div>`;
+}
+
+function filterConvTable(btn, status) {
+  document.querySelectorAll('#view-dashboard .filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  const rows = document.querySelectorAll('#dashConvBody tr');
+  rows.forEach(r => { r.style.display = (status === 'all' || r.dataset.status === status) ? '' : 'none'; });
+}
+
+function filterFullConv(btn, status) {
+  document.querySelectorAll('#view-conversations .filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  const rows = document.querySelectorAll('#fullConvBody tr');
+  rows.forEach(r => { r.style.display = (status === 'all' || r.dataset.status === status) ? '' : 'none'; });
+}
+
+function searchConv(val) {
+  const rows = document.querySelectorAll('#fullConvBody tr');
+  rows.forEach(r => { r.style.display = r.dataset.phone.includes(val) ? '' : 'none'; });
+}
+
+function markResolved(btn, id) {
+  const row = btn.closest('tr');
+  row.querySelector('.status-pill').className = 'status-pill resolved';
+  row.querySelector('.status-pill').textContent = 'Resolved';
+  row.dataset.status = 'resolved';
+  btn.remove();
+  showToast('Conversation marked as resolved.');
+}
+
+// ════════════════════════════════════════════
+// BOOKINGS
+// ════════════════════════════════════════════
+function renderBookingsCalendarAlert() {
+  const cal = tenantState.integrations.googleCalendar;
+  const el = document.getElementById('bookingsCalendarAlert');
+  if (['token_expired','revoked','failed'].includes(cal)) {
+    el.innerHTML = `<div class="bookings-alert red">
+      <div><div class="bookings-alert-text">Calendar sync failed — reconnect to prevent lost bookings.</div>
+      <div class="bookings-alert-sub">${cal === 'token_expired' ? 'Token expired.' : cal === 'revoked' ? 'Access revoked by Google.' : 'Connection failed.'} Appointments are queued but not synced.</div></div>
+      <button class="btn-sm red-btn" onclick="showToast('Redirecting to Google OAuth...')">Reconnect Calendar</button>
+    </div>`;
+  }
+}
+
+function renderBookings() {
+  const html = bookingsData.map(b => {
+    const syncEl = `<span class="status-pill ${b.syncStatus}">${b.syncStatus.charAt(0).toUpperCase() + b.syncStatus.slice(1)}</span>`;
+    const failNote = b.failNote ? `<div style="font-family:var(--mono);font-size:11px;color:var(--red);margin-top:4px;">${b.failNote}</div>` : '';
+    const action = b.syncStatus === 'failed'
+      ? `<button class="view-btn red" onclick="showToast('Retrying calendar sync...')">Retry Sync</button>`
+      : `<span style="font-family:var(--mono);font-size:11px;color:var(--steel);">—</span>`;
+    return `<tr>
+      <td class="td-date">${b.date}</td>
+      <td class="td-phone">${b.phone}</td>
+      <td class="td-issue">${b.service}</td>
+      <td class="td-date">${b.vehicle}</td>
+      <td>${syncEl}${failNote}</td>
+      <td>${action}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('bookingsBody').innerHTML = html;
+}
+
+// ════════════════════════════════════════════
+// BILLING PAGE
+// ════════════════════════════════════════════
+function renderBillingPage() {
+  const s = tenantState;
+  const isTrial = s.plan === 'trial';
+  const isSuspended = ['suspended','canceled','trial_expired'].includes(s.status);
+  const limit = isTrial ? s.trialLimit : s.convLimit;
+  const pct = Math.min((s.convUsed / limit) * 100, 100);
+  const barCls = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : 'normal';
+
+  let warningsHtml = '';
+  if (isSuspended) {
+    warningsHtml = `<div class="billing-warning red"><div class="billing-warning-icon">⚠</div><div class="billing-warning-text"><strong>Service Paused</strong><p>Your account is ${s.status.replace('_',' ')}. Reactivate to resume recovering missed-call revenue. No conversations are being started.</p></div></div>`;
+  } else if (pct >= 100 && !isTrial && s.warnings.at100) {
+    warningsHtml = `<div class="billing-warning red"><div class="billing-warning-icon">⚠</div><div class="billing-warning-text"><strong>Usage Limit Reached</strong><p>All ${limit} conversations used this month. Service continues — new conversations are still started. Upgrade to increase your limit.</p></div></div>`;
+  } else if (pct >= 80 && !isTrial && s.warnings.at80) {
+    warningsHtml = `<div class="billing-warning amber"><div class="billing-warning-icon">⚡</div><div class="billing-warning-text"><strong>Approaching Usage Limit</strong><p>${s.convUsed} of ${limit} conversations used. No service disruption — paid plans are never hard-blocked by usage alone.</p></div></div>`;
+  }
+
+  const currentPlanHtml = isTrial
+    ? `<div class="billing-card-body">
+        ${warningsHtml}
+        <div class="billing-plan-row">
+          <div><div class="billing-plan-name">Trial</div><span class="plan-badge trial" style="display:inline-block;margin-top:6px;">14-Day Free Trial</span></div>
+          <div style="text-align:right;"><div class="billing-plan-price">$0<span>/mo</span></div><div style="font-family:var(--mono);font-size:11px;color:var(--steel);margin-top:4px;">Ends ${s.trialEndsAt}</div></div>
+        </div>
+        <div class="usage-bar-wrap">
+          <div class="usage-bar-label"><span>Conversations Used</span><span><strong>${s.convUsed}</strong> / ${limit}</span></div>
+          <div class="usage-bar-bg"><div class="usage-bar-fill ${barCls}" style="width:${pct}%"></div></div>
+        </div>
+        <div class="billing-detail-row"><span class="billing-detail-label">Trial ends</span><span class="billing-detail-value">${s.trialEndsAt}</span></div>
+        <div class="billing-detail-row" style="border-bottom:none;"><span class="billing-detail-label">After trial</span><span class="billing-detail-value" style="color:var(--rust-light);">System pauses — upgrade to continue</span></div>
+      </div>`
+    : `<div class="billing-card-body">
+        ${warningsHtml}
+        <div class="billing-plan-row">
+          <div><div class="billing-plan-name">${s.plan.charAt(0).toUpperCase()+s.plan.slice(1)}</div><span class="plan-badge ${s.plan}" style="display:inline-block;margin-top:6px;">${s.plan.toUpperCase()}</span></div>
+          <div style="text-align:right;"><div class="billing-plan-price">${{starter:'$199',pro:'$299',premium:'$499'}[s.plan]||'Custom'}<span>/mo</span></div></div>
+        </div>
+        <div class="usage-bar-wrap">
+          <div class="usage-bar-label"><span>Conversations Used</span><span><strong>${s.convUsed}</strong> / ${limit}</span></div>
+          <div class="usage-bar-bg"><div class="usage-bar-fill ${barCls}" style="width:${pct}%"></div></div>
+        </div>
+        <div class="billing-detail-row"><span class="billing-detail-label">Next renewal</span><span class="billing-detail-value">${s.billingRenewalDate}</span></div>
+        <div class="billing-detail-row" style="border-bottom:none;"><span class="billing-detail-label">Usage reset</span><span class="billing-detail-value">${s.billingRenewalDate}</span></div>
+      </div>`;
+
+  const html = `
+    <div class="billing-grid">
+      <div class="billing-card">
+        <div class="billing-card-header">Current Plan</div>
+        ${currentPlanHtml}
+      </div>
+      <div class="billing-card">
+        <div class="billing-card-header">Billing Actions</div>
+        <div class="billing-card-body">
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <a href="/billing-portal" class="btn-sm primary" style="text-align:center;">Open Billing Portal</a>
+            <button class="btn-sm" onclick="showToast('Opening invoice history...')">View Invoices</button>
+            <button class="btn-sm" onclick="showToast('Opening payment method update...')">Update Payment Method</button>
+          </div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--steel);margin-top:20px;line-height:1.8;letter-spacing:.04em;">
+            Billing secured by Stripe.<br>
+            No card data stored on our servers.<br>
+            Paid plans: usage warnings only — no hard block.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="section-label">Available Plans</div>
+    <div class="billing-card" style="margin-bottom:28px;">
+      <div class="billing-card-header">Upgrade Your Plan</div>
+      <div class="plan-options">
+        <div class="plan-option">
+          <div class="plan-option-name">Starter</div>
+          <div class="plan-option-price">$199<span>/mo</span></div>
+          <div class="plan-option-limit">150 conversations/mo</div>
+          <button class="btn-sm" style="margin-top:14px;" onclick="showToast('Redirecting to Stripe checkout...')">Select</button>
+        </div>
+        <div class="plan-option recommended">
+          <div class="plan-option-name">Pro</div>
+          <div class="plan-option-price">$299<span>/mo</span></div>
+          <div class="plan-option-limit">400 conversations/mo</div>
+          <div class="plan-option-tag">Most Popular</div>
+          <button class="btn-sm primary" style="margin-top:14px;" onclick="showToast('Redirecting to Stripe checkout...')">Upgrade</button>
+        </div>
+        <div class="plan-option">
+          <div class="plan-option-name">Premium</div>
+          <div class="plan-option-price">$499<span>/mo</span></div>
+          <div class="plan-option-limit">1,000 conversations/mo</div>
+          <button class="btn-sm" style="margin-top:14px;" onclick="showToast('Redirecting to Stripe checkout...')">Select</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('billingContent').innerHTML = html;
+}
+
+// ════════════════════════════════════════════
+// MODAL
+// ════════════════════════════════════════════
+function openModal(id) {
+  const data = convThreads[id];
+  if (!data) return;
+  document.getElementById('modalTitle').textContent = data.title;
+  document.getElementById('modalMeta').textContent = data.meta;
+  document.getElementById('modalInfo').innerHTML = data.info.map(i =>
+    `<div class="modal-info-cell"><div class="modal-info-label">${i.l}</div><div class="modal-info-value ${i.c}">${i.v}</div></div>`
+  ).join('');
+  let thread = '';
+  data.thread.forEach((m, idx) => {
+    if (m.ts) thread += `<div class="msg-time">${m.ts}</div>`;
+    if (m.d === 'ai') thread += `<div class="msg-row"><div class="msg-bubble ai"><div class="msg-sender">AutoShop AI</div>${m.t}</div></div>`;
+    else thread += `<div class="msg-row right"><div class="msg-bubble customer">${m.t}</div></div>`;
+  });
+  document.getElementById('modalThread').innerHTML = thread;
+  document.getElementById('modalResult').innerHTML = data.result
+    ? `<div class="modal-result"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><div class="modal-result-text"><strong>${data.result}</strong></div></div>`
+    : '';
+  document.getElementById('convModal').classList.add('open');
+}
+function closeModal() { document.getElementById('convModal').classList.remove('open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ════════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════════
+function switchView(view) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+  const el = document.getElementById('view-' + view);
+  if (el) el.classList.add('active');
+  const map = { dashboard:0, conversations:1, bookings:2, revenue:3, billing:4, settings:5 };
+  const items = document.querySelectorAll('.sidebar-item');
+  if (items[map[view]]) items[map[view]].classList.add('active');
+}
+
+// ════════════════════════════════════════════
+// SETTINGS TABS
+// ════════════════════════════════════════════
+function switchTab(btn, tabId) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+}
+
+// ════════════════════════════════════════════
+// CHART
+// ════════════════════════════════════════════
+function switchChart(btn) {
+  document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ════════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════════
+function showToast(msg) {
+  const el = document.getElementById('toastEl');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ════════════════════════════════════════════
+// SYSTEM HERO STRIP
+// ════════════════════════════════════════════
+function renderSystemHero() {
+  const h = tenantState.health;
+  const intg = tenantState.integrations;
+  const strip = document.getElementById('systemHeroStrip');
+  const label = document.getElementById('heroStatusLabel');
+  const desc  = document.getElementById('heroDesc');
+  const metr  = document.getElementById('heroMetrics');
+
+  // Determine worst issue
+  const calFail = ['token_expired','revoked','failed'].includes(intg.googleCalendar);
+  const twilioFail = intg.twilioNumber !== 'active';
+  const webhookFail = h.twilioWebhooks.status === 'failing';
+  const aiDegraded = h.aiEngine.status === 'degraded';
+  const isSuspended = ['suspended','canceled','trial_expired'].includes(tenantState.status);
+
+  if (isSuspended) {
+    strip.className = 'system-hero error';
+    label.className = 'hero-status red';
+    label.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Service Paused';
+    desc.textContent = 'Account suspended — no conversations being started.';
+    metr.innerHTML = '<a onclick="switchView(\'billing\')">Reactivate account →</a>';
+  } else if (calFail) {
+    strip.className = 'system-hero error';
+    label.className = 'hero-status red';
+    label.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Calendar Sync Failed';
+    desc.textContent = 'Reconnect Google Calendar to prevent lost bookings.';
+    metr.innerHTML = '<a onclick="switchView(\'settings\')">Reconnect now →</a>';
+  } else if (webhookFail || twilioFail) {
+    strip.className = 'system-hero error';
+    label.className = 'hero-status red';
+    label.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> SMS Delivery Issue';
+    desc.textContent = 'Twilio webhook degraded — some missed calls may not trigger SMS.';
+    metr.innerHTML = '<a onclick="showToast(\'Opening Twilio diagnostics...\')">View diagnostics →</a>';
+  } else if (aiDegraded) {
+    strip.className = 'system-hero error';
+    label.className = 'hero-status red';
+    label.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> AI Engine Degraded';
+    desc.textContent = 'Response times elevated. Conversations continue but may be slower.';
+    metr.innerHTML = `Last response: <span style="color:var(--amber);">${h.aiEngine.lastMs}ms</span>`;
+  } else {
+    strip.className = 'system-hero success';
+    label.className = 'hero-status green';
+    label.innerHTML = '<span class="status-dot green" style="width:8px;height:8px;"></span> System Active';
+    desc.textContent = 'Recovering missed calls in real time.';
+    metr.innerHTML = `Avg AI response: <span style="color:var(--green);">${h.aiEngine.lastMs}ms</span> &nbsp;·&nbsp; Last SMS: ${h.twilioWebhooks.lastAt}`;
+  }
+}
+
+// ════════════════════════════════════════════
+// ACTIVATION COMPLETE CHECK
+// ════════════════════════════════════════════
+function checkActivationState() {
+  const s = tenantState.integrations;
+  const steps = [
+    s.googleCalendar === 'connected',
+    s.twilioNumber   === 'active',
+    s.callForwarding === 'verified',
+    s.testSms        === 'passed'
+  ];
+  const completed = steps.filter(Boolean).length;
+  if (completed === 4) {
+    document.getElementById('checklistWrapper').style.display = 'none';
+    document.getElementById('activationComplete').classList.remove('hidden');
+  } else {
+    document.getElementById('checklistWrapper').style.display = '';
+    document.getElementById('activationComplete').classList.add('hidden');
+  }
+}
+
+function toggleChecklist() {
+  const w = document.getElementById('checklistWrapper');
+  const btn = document.querySelector('#activationComplete .btn-sm');
+  const visible = w.style.display !== 'none' && w.style.display !== '';
+  // If it was hidden (post-completion), show it now as expanded
+  if (w.style.display === 'none') {
+    w.style.display = '';
+    btn.textContent = 'Hide Checklist';
+  } else {
+    w.style.display = 'none';
+    btn.textContent = 'View Setup Checklist';
+  }
+}
+
+</script>
+
+<!-- AutoShop SMS AI: API Integration -->
+<script src="dashboard.js"></script>
+</body>
+</html>

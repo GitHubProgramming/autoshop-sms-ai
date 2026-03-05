@@ -1,0 +1,196 @@
+{
+  "name": "WF-007: Provision Twilio Number (Async)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "provision-number",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook: Provision Number",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "webhookId": "provision-number-wf007",
+      "notes": "Called by API: POST /internal/enqueue-provision-number → enqueues → this webhook fires"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate input\nconst data = $json;\nif (!data.tenantId || !data.areaCode) {\n  throw new Error('Missing tenantId or areaCode');\n}\n\n// Texas area codes fallback list\nconst TX_AREA_CODES = ['512', '737', '210', '214', '972', '469', '817', '682', '281', '832', '713', '346', '361', '915', '806', '903', '936', '956'];\n\nconst primaryAreaCode = data.areaCode;\nconst fallbacks = TX_AREA_CODES.filter(c => c !== primaryAreaCode).slice(0, 3);\n\nreturn [{\n  json: {\n    tenantId: data.tenantId,\n    areaCode: primaryAreaCode,\n    fallbackAreaCodes: fallbacks,\n    shopName: data.shopName || 'AutoShop',\n    attempt: 0,\n  }\n}];"
+      },
+      "id": "validate-input",
+      "name": "Validate + Prepare",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.twilio.com/2010-04-01/Accounts/{{ $env.TWILIO_ACCOUNT_SID }}/AvailablePhoneNumbers/US/Local.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "AreaCode", "value": "={{ $json.areaCode }}" },
+            { "name": "PageSize", "value": "5" },
+            { "name": "Capabilities.SMS", "value": "true" },
+            { "name": "Capabilities.Voice", "value": "true" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "twilio-search-numbers",
+      "name": "Twilio: Search Available Numbers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [750, 300],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "twilio-http-creds",
+          "name": "Twilio Basic Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.available_phone_numbers?.length ?? 0 }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ]
+        }
+      },
+      "id": "check-availability",
+      "name": "Numbers Available?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.twilio.com/2010-04-01/Accounts/{{ $env.TWILIO_ACCOUNT_SID }}/IncomingPhoneNumbers.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "PhoneNumber",
+              "value": "={{ $('Twilio: Search Available Numbers').first().json.available_phone_numbers[0].phone_number }}"
+            },
+            {
+              "name": "FriendlyName",
+              "value": "=AutoShop-{{ $('Validate + Prepare').first().json.tenantId }}"
+            },
+            {
+              "name": "SmsUrl",
+              "value": "=http://api:3000/webhooks/twilio/sms"
+            },
+            {
+              "name": "SmsMethod",
+              "value": "POST"
+            },
+            {
+              "name": "StatusCallback",
+              "value": "=http://api:3000/webhooks/twilio/voice-status"
+            },
+            {
+              "name": "VoiceUrl",
+              "value": "=http://api:3000/webhooks/twilio/voice-status"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "twilio-purchase-number",
+      "name": "Twilio: Purchase Number",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 200],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "twilio-http-creds",
+          "name": "Twilio Basic Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO tenant_phone_numbers (tenant_id, twilio_sid, phone_number, status)\nVALUES (\n  '{{ $('Validate + Prepare').first().json.tenantId }}'::uuid,\n  '{{ $('Twilio: Purchase Number').first().json.sid }}',\n  '{{ $('Twilio: Purchase Number').first().json.phone_number }}',\n  'active'\n)\nON CONFLICT DO NOTHING\nRETURNING *;",
+        "options": {}
+      },
+      "id": "db-save-number",
+      "name": "DB: Save Phone Number",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [1500, 200],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "AutoShop Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// TODO: Send welcome email via email provider (SendGrid/Resend)\n// Include: assigned phone number, setup instructions, dashboard link\nconsole.log('TODO: Send welcome email to tenant:', $('Validate + Prepare').first().json.tenantId);\nconsole.log('Assigned number:', $('Twilio: Purchase Number').first().json.phone_number);\nreturn [{ json: { status: 'provisioned', number: $('Twilio: Purchase Number').first().json.phone_number } }];"
+      },
+      "id": "send-welcome-email",
+      "name": "TODO: Send Welcome Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1750, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// No numbers available in requested area code\n// TODO: Alert admin via Slack/email for manual resolution\nconsole.error('No numbers available for area code:', $('Validate + Prepare').first().json.areaCode);\nconsole.error('Tenant:', $('Validate + Prepare').first().json.tenantId);\n\n// TODO: Update tenant record with provisioning_status = 'failed'\n// TODO: Send alert to admin\n\nreturn [{ json: { status: 'failed', reason: 'no_numbers_available' } }];"
+      },
+      "id": "handle-no-numbers",
+      "name": "Handle: No Numbers Available",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 450],
+      "notes": "TODO: Try fallback area codes before failing"
+    }
+  ],
+  "connections": {
+    "Webhook: Provision Number": {
+      "main": [[{ "node": "Validate + Prepare", "type": "main", "index": 0 }]]
+    },
+    "Validate + Prepare": {
+      "main": [[{ "node": "Twilio: Search Available Numbers", "type": "main", "index": 0 }]]
+    },
+    "Twilio: Search Available Numbers": {
+      "main": [[{ "node": "Numbers Available?", "type": "main", "index": 0 }]]
+    },
+    "Numbers Available?": {
+      "main": [
+        [{ "node": "Twilio: Purchase Number", "type": "main", "index": 0 }],
+        [{ "node": "Handle: No Numbers Available", "type": "main", "index": 0 }]
+      ]
+    },
+    "Twilio: Purchase Number": {
+      "main": [[{ "node": "DB: Save Phone Number", "type": "main", "index": 0 }]]
+    },
+    "DB: Save Phone Number": {
+      "main": [[{ "node": "TODO: Send Welcome Email", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "errorWorkflow": ""
+  },
+  "tags": ["autoshop", "onboarding", "twilio"],
+  "versionId": "wf007-v1"
+}
