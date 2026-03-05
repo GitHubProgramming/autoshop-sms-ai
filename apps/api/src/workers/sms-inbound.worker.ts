@@ -1,5 +1,10 @@
 import { Worker, Job } from "bullmq";
-import { redis } from "../queues/redis";
+import { redis as _redis } from "../queues/redis";
+
+const connection = {
+  host: process.env.REDIS_HOST || "redis",
+  port: Number(process.env.REDIS_PORT || 6379),
+};
 
 const N8N_INTERNAL_URL = process.env.N8N_INTERNAL_URL ?? "http://n8n:5678";
 const N8N_SMS_WEBHOOK = `${N8N_INTERNAL_URL}/webhook/sms-inbound`;
@@ -30,7 +35,7 @@ export function startSmsInboundWorker(): Worker {
       }
     },
     {
-      connection: redis,
+      connection,
       concurrency: 10,
     }
   );

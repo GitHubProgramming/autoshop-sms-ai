@@ -67,7 +67,8 @@ export async function stripeRoute(app: FastifyInstance) {
 
     // ── Log to billing_events ────────────────────────────────────────────────
     // TODO: extract tenantId from event metadata
-    const tenantId = (event.data.object as Record<string, unknown>)?.metadata?.tenant_id as string | undefined;
+    const obj = event.data.object as any;
+    const tenantId = obj?.metadata?.tenant_id as string | undefined;
 
     await query(
       `INSERT INTO billing_events (stripe_event_id, tenant_id, event_type, payload)

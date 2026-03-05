@@ -10,10 +10,16 @@ export const redis = new Redis(process.env.REDIS_URL, {
   enableReadyCheck: false,
 });
 
+// Plain connection options for BullMQ (avoids Redis instance type conflict)
+const connection = {
+  host: process.env.REDIS_HOST || "redis",
+  port: Number(process.env.REDIS_PORT || 6379),
+};
+
 // ── Queue definitions ─────────────────────────────────────────────────────────
 
 const queueDefaults = {
-  connection: redis,
+  connection,
   defaultJobOptions: {
     attempts: 3,
     backoff: { type: "exponential" as const, delay: 2000 },
