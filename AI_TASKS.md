@@ -18,13 +18,14 @@ Workflow:
 - Fix CI lint step when ESLint config is missing
 - Extract service_type + scheduled_at from conversation messages in WF-003
 - Add Google Calendar booking confirmation logic (WF-004 + confirmation SMS)
+- Fix tenants.test.ts (add vi.mock for db/client; 9/9 tests now pass)
+- Add voice-status.test.ts (6 tests covering missed-call-trigger path)
+- Add Google OAuth callback endpoint (GET /auth/google/start + /callback with AES-256-GCM token encryption)
 
 ## BLOCKED
 - Configure n8n credentials (postgres-creds, openai-creds, twilio-creds) — requires real API keys (manual n8n UI setup)
-- Google Calendar OAuth flow for tenant — requires real GOOGLE_CLIENT_ID/SECRET + tenant completing OAuth consent
+- Google Calendar OAuth flow for tenant — requires GOOGLE_CLIENT_ID/SECRET in .env + tenant completing OAuth flow at /auth/google/start
 
 ## OPEN
-- Add Google OAuth callback endpoint in API (POST /auth/google/callback) to store tokens in tenant_calendar_tokens
-- Add Stripe checkout endpoint for subscription creation
-- Add Twilio inbound webhook test coverage
+- Add Stripe checkout endpoint for subscription creation (POST /billing/checkout)
 - Improve SMS conversation logging

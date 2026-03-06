@@ -1,4 +1,97 @@
-# CLAUDE.md
+# CLAUDE EXECUTION RULES
+
+## ROLE
+You are the execution agent for this repository.
+
+Your job is to move the project toward a working MVP and first paying customer with the smallest safe steps possible.
+
+You are not here to brainstorm.
+You are here to inspect, verify, fix, commit, and report with evidence.
+
+## PRODUCT
+AutoShop SMS AI
+
+Target market:
+Texas independent auto repair shops
+
+Core promise:
+Missed call -> instant SMS -> AI conversation -> appointment booked -> Google Calendar updated
+
+## EXECUTION MODE
+Autonomous.
+
+Act with urgency, but not recklessness.
+Prefer concrete progress over long planning.
+Prefer repository truth over assumptions.
+
+## WHAT TO OPTIMIZE FOR
+1. working demo path
+2. system reliability on core flow
+3. visibility of blockers
+4. speed to pilot customer
+5. speed to first payment
+
+## WHAT NOT TO DO
+- do not refactor unrelated systems
+- do not polish low-value surfaces before core flow works
+- do not create fake "done"
+- do not expand scope unless required by the core flow
+- do not stop after analysis if execution is possible
+
+## CORE TECHNICAL PRINCIPLES
+- billing state should not be checked live from Stripe on every message
+- webhook handling must be idempotent
+- conversation counting must be atomic
+- tenant isolation must remain intact
+- failure states must be visible, not silent
+- Google Calendar failures must surface clearly
+- trial / usage logic must not break demo flow
+- queue-backed reliability is preferred over fragile synchronous orchestration
+
+## MVP PATH TO PROTECT
+The only flow that matters first:
+
+1. shop misses customer call
+2. system triggers SMS to customer
+3. customer replies by SMS
+4. AI continues conversation
+5. booking intent is detected
+6. appointment is created
+7. Google Calendar is updated or explicit sync failure is recorded
+
+## WORK CYCLE
+When you start a session:
+1. read AI_WORK.md
+2. read CLAUDE.md
+3. read AI_STATUS.md
+4. inspect the repo
+5. choose the next highest-value blocker
+6. execute the smallest safe fix
+7. verify
+8. update AI_STATUS.md
+9. commit
+10. push
+11. continue
+
+## FILE OWNERSHIP RULE
+AI_STATUS.md must stay current.
+After every meaningful change:
+- update current status
+- update blocker list
+- update next recommended action
+- update what was verified
+
+## DECISION RULE
+If unsure between two tasks, choose the one closer to:
+missed call -> SMS -> AI -> booking -> calendar
+
+## OUTPUT STANDARD
+Every meaningful completed step must leave:
+- code or repo change
+- verification evidence
+- updated AI_STATUS.md
+- commit
+- push
 
 ## Operating rules (must follow)
 
@@ -18,15 +111,13 @@ docker compose -f infra/docker-compose.yml up -d
 
 6) Never invent secrets or API keys
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Commands
 
 All commands run from `apps/api/`:
 
 ```bash
 npm run dev          # Start API with hot reload (tsx watch)
-npm run build        # Compile TypeScript → dist/
+npm run build        # Compile TypeScript -> dist/
 npm run typecheck    # Type-check without emitting
 npm run lint         # ESLint on src/
 npm run test         # Run all tests (vitest)
@@ -45,9 +136,9 @@ cd infra && docker compose up
 
 ## Architecture
 
-**Flow:** Twilio (missed call / SMS) → Fastify API → BullMQ queue → n8n worker → OpenAI → Twilio SMS reply → Google Calendar
+**Flow:** Twilio (missed call / SMS) -> Fastify API -> BullMQ queue -> n8n worker -> OpenAI -> Twilio SMS reply -> Google Calendar
 
-The API (`apps/api/`) is purely an ingress and enqueue layer — it does no AI processing itself. All heavy work (AI, SMS sending, calendar sync, Twilio provisioning) runs asynchronously in n8n workflows that consume BullMQ queues.
+The API (`apps/api/`) is purely an ingress and enqueue layer -- it does no AI processing itself. All heavy work (AI, SMS sending, calendar sync, Twilio provisioning) runs asynchronously in n8n workflows that consume BullMQ queues.
 
 **Key architectural rules:**
 - Every Twilio webhook must respond with `<Response/>` TwiML within ~15s or Twilio retries. The API always returns 200 immediately and enqueues a job.
@@ -59,20 +150,20 @@ The API (`apps/api/`) is purely an ingress and enqueue layer — it does no AI p
 
 **Billing state machine** (`db/tenants.ts` + `routes/webhooks/stripe.ts`):
 - Trial: hard block at 50 conversations or 14 days
-- Paid (starter/pro/premium): soft limit only — AI sends upgrade nudge, never drops silently
-- `past_due` → 3-day grace period → `past_due_blocked` if unpaid
+- Paid (starter/pro/premium): soft limit only -- AI sends upgrade nudge, never drops silently
+- `past_due` -> 3-day grace period -> `past_due_blocked` if unpaid
 - Stripe price IDs map to plan slugs via env vars `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_PREMIUM`
 
 **BullMQ queues** (defined in `queues/redis.ts`):
-- `sms-inbound` — inbound SMS and missed-call triggers (consumed by n8n WF-001/WF-002)
-- `provision-number` — async Twilio number provisioning (n8n WF-007)
-- `billing-events` — grace period checks
-- `calendar-sync` — Google Calendar sync jobs
+- `sms-inbound` -- inbound SMS and missed-call triggers (consumed by n8n WF-001/WF-002)
+- `provision-number` -- async Twilio number provisioning (n8n WF-007)
+- `billing-events` -- grace period checks
+- `calendar-sync` -- Google Calendar sync jobs
 
 **n8n workflows** (import via n8n UI from `n8n/workflows/`):
-- `twilio-sms-ingest.json` (WF-001): SMS → tenant lookup → set RLS context → AI
-- `ai-worker.json` (WF-002): OpenAI `gpt-4o-mini` → booking detection → send reply → close conversation
-- `provision-number.json` (WF-007): Buy Twilio number → save to DB → welcome email
+- `twilio-sms-ingest.json` (WF-001): SMS -> tenant lookup -> set RLS context -> AI
+- `ai-worker.json` (WF-002): OpenAI `gpt-4o-mini` -> booking detection -> send reply -> close conversation
+- `provision-number.json` (WF-007): Buy Twilio number -> save to DB -> welcome email
 
 **DB schema** key tables: `tenants`, `tenant_phone_numbers`, `conversations`, `messages`, `appointments`, `tenant_calendar_tokens`, `billing_events`, `system_prompts`, `conversation_cooldowns`. Migrations auto-apply on Postgres container start (mounted to `/docker-entrypoint-initdb.d`).
 
