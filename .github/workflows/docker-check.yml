@@ -1,0 +1,25 @@
+name: Docker Smoke Test
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  docker-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build containers
+        run: docker compose build
+
+      - name: Start stack
+        run: docker compose up -d
+
+      - name: Wait for services
+        run: sleep 20
+
+      - name: Health check
+        run: curl -f http://localhost:3000/health || exit 1

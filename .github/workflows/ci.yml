@@ -4,38 +4,43 @@ on:
   push:
     branches:
       - main
+      - ai/**
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  ci:
+  api-check:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/api
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Set up Node.js 20
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: apps/api/package-lock.json
+          node-version: 20
 
       - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
+        run: |
+          cd apps/api
+          npm ci
 
       - name: Lint
-        run: npm run lint
+        run: |
+          cd apps/api
+          npm run lint --if-present
+
+      - name: Build
+        run: |
+          cd apps/api
+          npm run build
 
       - name: Test
-        run: npm run test
+        run: |
+          cd apps/api
+          npm test --if-present
         env:
-          # client.ts throws at module-load time if DATABASE_URL is unset.
-          # The test suite only exercises pure functions (getBlockReason) —
-          # no real DB connection is made, so a placeholder URL is sufficient.
           DATABASE_URL: postgresql://localhost/ci_test
           NODE_ENV: test

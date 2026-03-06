@@ -103,3 +103,13 @@ Claude should always prefer:
 - small patches
 - minimal changes
 - preserving working systems
+
+## Mandatory verification before committing
+
+Before committing any code Claude MUST run:
+
+```bash
+bash scripts/ai-verify.sh
+```
+
+If verification fails Claude must fix the problem before pushing.
