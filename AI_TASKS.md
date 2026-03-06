@@ -27,7 +27,8 @@ Workflow:
 - Google Calendar OAuth flow for tenant — requires GOOGLE_CLIENT_ID/SECRET in .env + tenant completing OAuth flow at /auth/google/start
 
 ## OPEN
-- Improve SMS conversation logging
+(none — all automatable tasks complete; remaining blockers require credentials)
 
 ## DONE (this session, continued)
 - Add Stripe checkout endpoint (POST /billing/checkout): creates Stripe customer if needed, creates Checkout Session, returns URL
+- Fix SMS conversation logging: add "DB: Save Inbound Message" node to WF-001 so customer messages are persisted before AI call

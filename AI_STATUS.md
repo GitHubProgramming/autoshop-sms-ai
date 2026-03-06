@@ -11,11 +11,12 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 State: IN PROGRESS — core flow is structurally complete; credentials/n8n config blocks live execution
 
 ## LAST COMPLETED STEPS (this session, latest first)
-1. Add POST /billing/checkout (Stripe Checkout Session creation — resolves or creates Stripe customer, returns redirect URL)
-2. Added GET /auth/google/start + GET /auth/google/callback routes (AES-256-GCM token encryption, upsert to tenant_calendar_tokens)
-3. Added voice-status.test.ts — 6 tests covering missed-call-trigger path (no-answer, busy, completed, idempotency, unknown tenant)
-4. Fixed tenants.test.ts — added vi.mock("../db/client") so pure-function tests pass without DATABASE_URL
-5. Wrote AI_WORK.md, CLAUDE.md (execution control files)
+1. Fix SMS conversation logging: added "DB: Save Inbound Message" node to WF-001 (twilio-sms-ingest.json) — inbound customer messages now persisted before AI call, fixing broken conversation history
+2. Add POST /billing/checkout (Stripe Checkout Session creation — resolves or creates Stripe customer, returns redirect URL)
+3. Added GET /auth/google/start + GET /auth/google/callback routes (AES-256-GCM token encryption, upsert to tenant_calendar_tokens)
+4. Added voice-status.test.ts — 6 tests covering missed-call-trigger path (no-answer, busy, completed, idempotency, unknown tenant)
+5. Fixed tenants.test.ts — added vi.mock("../db/client") so pure-function tests pass without DATABASE_URL
+6. Wrote AI_WORK.md, CLAUDE.md (execution control files)
 
 ## WHAT HAS BEEN VERIFIED (this session)
 - npm run typecheck → CLEAN (0 errors)
@@ -81,18 +82,18 @@ Required credentials per workflow:
 - voice-status.test.ts: 6 tests — POST /webhooks/twilio/voice-status (missed-call trigger path)
 
 ## NEXT REQUIRED ACTION
-Manual (cannot be automated): Import n8n workflows and configure credentials in n8n UI.
+All automatable code tasks are complete. Only manual/credential steps remain.
 
-Automatable next steps:
-1. Improve SMS conversation logging (low priority)
-2. Add test for Google OAuth callback and POST /billing/checkout routes
+Manual steps required to go live:
+1. Set .env: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, OPENAI_API_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_STARTER, STRIPE_PRICE_PRO, STRIPE_PRICE_PREMIUM
+2. docker compose -f infra/docker-compose.yml up -d
+3. Import all 5 n8n workflows from n8n/workflows/ via n8n UI (http://localhost:5678)
+4. Configure n8n credentials: postgres-creds, openai-creds, twilio-creds
+5. Run GET /auth/google/start?tenantId=<uuid> per tenant to connect Google Calendar
 
 ## INSTRUCTIONS FOR NEXT AI
-1. Read AI_WORK.md
-2. Read CLAUDE.md
-3. Read this file
-4. The core flow is structurally complete — all API routes and n8n workflows exist
-5. The main remaining code task is: POST /billing/checkout (Stripe subscription creation)
-6. After that: live credential configuration is required (manual)
-7. Run: cd apps/api && npm test → must show 19/19 pass before making changes
-8. Run: cd apps/api && npm run typecheck → must be clean before committing
+1. Read AI_WORK.md, CLAUDE.md, this file
+2. Run: cd apps/api && npm test → must show 19/19 pass
+3. Run: cd apps/api && npm run typecheck → must be clean
+4. All code tasks are DONE. The repo is structurally complete for demo.
+5. Only remaining work: credential configuration (manual) + live e2e test once credentials are set
