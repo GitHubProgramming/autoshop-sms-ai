@@ -33,3 +33,9 @@ jobs:
 
       - name: Test
         run: npm run test
+        env:
+          # client.ts throws at module-load time if DATABASE_URL is unset.
+          # The test suite only exercises pure functions (getBlockReason) —
+          # no real DB connection is made, so a placeholder URL is sufficient.
+          DATABASE_URL: postgresql://localhost/ci_test
+          NODE_ENV: test
