@@ -4,6 +4,7 @@ import { redis as _redis } from "../queues/redis";
 const connection = {
   host: process.env.REDIS_HOST || "redis",
   port: Number(process.env.REDIS_PORT || 6379),
+  password: process.env.REDIS_PASSWORD || undefined,
 };
 
 const N8N_INTERNAL_URL = process.env.N8N_INTERNAL_URL ?? "http://n8n:5678";
