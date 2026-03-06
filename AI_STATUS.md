@@ -10,12 +10,12 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 ## CURRENT STATUS
 State: IN PROGRESS — core flow is structurally complete; credentials/n8n config blocks live execution
 
-## LAST COMPLETED STEPS (this session)
-1. Wrote AI_WORK.md, CLAUDE.md (execution control files)
-2. Fixed tenants.test.ts — added vi.mock("../db/client") so pure-function tests pass without DATABASE_URL
+## LAST COMPLETED STEPS (this session, latest first)
+1. Add POST /billing/checkout (Stripe Checkout Session creation — resolves or creates Stripe customer, returns redirect URL)
+2. Added GET /auth/google/start + GET /auth/google/callback routes (AES-256-GCM token encryption, upsert to tenant_calendar_tokens)
 3. Added voice-status.test.ts — 6 tests covering missed-call-trigger path (no-answer, busy, completed, idempotency, unknown tenant)
-4. Added GET /auth/google/start + GET /auth/google/callback routes (AES-256-GCM token encryption, upsert to tenant_calendar_tokens)
-5. Registered googleAuthRoute in index.ts
+4. Fixed tenants.test.ts — added vi.mock("../db/client") so pure-function tests pass without DATABASE_URL
+5. Wrote AI_WORK.md, CLAUDE.md (execution control files)
 
 ## WHAT HAS BEEN VERIFIED (this session)
 - npm run typecheck → CLEAN (0 errors)
@@ -84,8 +84,8 @@ Required credentials per workflow:
 Manual (cannot be automated): Import n8n workflows and configure credentials in n8n UI.
 
 Automatable next steps:
-1. Add Stripe checkout session endpoint (POST /billing/checkout) for subscription creation
-2. Add test for Google OAuth callback route
+1. Improve SMS conversation logging (low priority)
+2. Add test for Google OAuth callback and POST /billing/checkout routes
 
 ## INSTRUCTIONS FOR NEXT AI
 1. Read AI_WORK.md

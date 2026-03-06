@@ -27,5 +27,7 @@ Workflow:
 - Google Calendar OAuth flow for tenant — requires GOOGLE_CLIENT_ID/SECRET in .env + tenant completing OAuth flow at /auth/google/start
 
 ## OPEN
-- Add Stripe checkout endpoint for subscription creation (POST /billing/checkout)
 - Improve SMS conversation logging
+
+## DONE (this session, continued)
+- Add Stripe checkout endpoint (POST /billing/checkout): creates Stripe customer if needed, creates Checkout Session, returns URL

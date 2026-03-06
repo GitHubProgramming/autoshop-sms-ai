@@ -10,6 +10,7 @@ import { twilioVoiceStatusRoute } from "./routes/webhooks/twilio-voice-status";
 import { stripeRoute } from "./routes/webhooks/stripe";
 import { provisionNumberRoute } from "./routes/internal/provision-number";
 import { googleAuthRoute } from "./routes/auth/google";
+import { billingCheckoutRoute } from "./routes/billing/checkout";
 import { db } from "./db/client";
 import { redis } from "./queues/redis";
 import { startSmsInboundWorker } from "./workers/sms-inbound.worker";
@@ -47,6 +48,7 @@ async function bootstrap() {
   await app.register(stripeRoute, { prefix: "/webhooks" });
   await app.register(provisionNumberRoute, { prefix: "/internal" });
   await app.register(googleAuthRoute, { prefix: "/auth/google" });
+  await app.register(billingCheckoutRoute, { prefix: "/billing" });
 
   // ── Graceful shutdown ─────────────────────────────────────
   const signals: NodeJS.Signals[] = ["SIGINT", "SIGTERM"];
