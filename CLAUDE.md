@@ -79,3 +79,27 @@ The API (`apps/api/`) is purely an ingress and enqueue layer — it does no AI p
 ## Environment Variables
 
 Required at minimum: `DATABASE_URL`, `REDIS_URL`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `OPENAI_API_KEY`. See `.env.example` for the full list.
+
+## Autonomous execution rules
+
+Claude should operate in execution-first mode.
+
+Do NOT ask routine confirmation questions if the repository context is sufficient.
+
+Claude must only ask for clarification when:
+1. Secrets or credentials are required
+2. A destructive database operation is required
+3. Multiple architecture paths exist with major business impact
+
+After every completed task Claude MUST:
+
+1. Update AI_WORK.md with:
+   - What was implemented
+   - What files changed
+   - What passed/failed
+2. Suggest the next highest-value task for the repository.
+
+Claude should always prefer:
+- small patches
+- minimal changes
+- preserving working systems
