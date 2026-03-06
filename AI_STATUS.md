@@ -1,19 +1,18 @@
 # AI Work Status
 
 ## Last completed task
-- Task: MVP end-to-end verification — fix n8n webhook methods + add WF-003
-- Branch: ai/mvp-end-to-end-verification
-- Commit: e56ec76
+- Task: Extract service_type + scheduled_at from conversation messages in WF-003
+- Branch: ai/extract-service-type-scheduled-at
+- Commit: TBD
 - Verification: AI VERIFY PASSED
 - Checks passed:
-  - docker compose build api → SUCCESS
+  - docker compose build api → SUCCESS (cached)
   - docker compose up -d → all 5 containers healthy
   - curl /health → status ok, postgres ok, redis ok
-  - n8n POST webhooks: sms-inbound / ai-worker / close-conversation active
 - Files changed:
-  - n8n/workflows/twilio-sms-ingest.json (httpMethod: POST added to webhook)
-  - n8n/workflows/ai-worker.json (httpMethod: POST added to webhook)
-  - n8n/workflows/close-conversation.json (new WF-003)
+  - n8n/workflows/ai-worker.json (detect-booking-intent: added serviceType+scheduledAt extraction; trigger-close-booked: pass serviceType+scheduledAt)
+  - n8n/workflows/close-conversation.json (db-create-appointment: use passed serviceType+scheduledAt with COALESCE fallback)
+  - scripts/update-workflows.js (build helper)
 - Date: 2026-03-06
 
 ## Previous task
