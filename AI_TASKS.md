@@ -8,10 +8,16 @@ Workflow:
 3. Run verification
 4. Commit
 5. Mark task DONE
-6. Move to next task
+6. Update AI_STATUS.md
+7. Move to next task
+
+## DONE
+- Fix CI reliability and workflow stability
+- Add Docker smoke verification and fix compose path
+- Add autonomous AI workflow files
+- Fix CI lint step when ESLint config is missing
 
 ## OPEN
-- Fix CI reliability and workflow stability
 - Add Stripe checkout endpoint for subscription creation
 - Add Twilio inbound webhook test coverage
 - Add Google Calendar booking confirmation logic

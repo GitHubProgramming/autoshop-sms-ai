@@ -16,3 +16,7 @@ bash scripts/ai-verify.sh
 5. Always produce the smallest safe patch
 6. Do not refactor unrelated areas
 7. Do not rewrite architecture unless explicitly required
+8. After each completed task, Claude must update AI_STATUS.md
+9. After each completed task, Claude must move the task in AI_TASKS.md from OPEN to DONE
+10. Commit messages for AI work should start with:
+    AI:
