@@ -8,20 +8,37 @@ Demo-ready MVP for:
 missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ## CURRENT STATUS
-State: IN PROGRESS — core flow is structurally complete; credentials/n8n config blocks live execution
+State: LOCAL STACK VERIFIED RUNNING — all containers healthy, DB schema applied, API+n8n reachable. Only live credentials block end-to-end demo.
 
 ## LAST COMPLETED STEPS (this session, latest first)
-1. Fix SMS conversation logging: added "DB: Save Inbound Message" node to WF-001 (twilio-sms-ingest.json) — inbound customer messages now persisted before AI call, fixing broken conversation history
-2. Add POST /billing/checkout (Stripe Checkout Session creation — resolves or creates Stripe customer, returns redirect URL)
-3. Added GET /auth/google/start + GET /auth/google/callback routes (AES-256-GCM token encryption, upsert to tenant_calendar_tokens)
-4. Added voice-status.test.ts — 6 tests covering missed-call-trigger path (no-answer, busy, completed, idempotency, unknown tenant)
-5. Fixed tenants.test.ts — added vi.mock("../db/client") so pure-function tests pass without DATABASE_URL
-6. Wrote AI_WORK.md, CLAUDE.md (execution control files)
+1. [2026-03-06] LOCAL DEMO VERIFICATION — branch ai/local-demo-verification
+   - npm ci → clean
+   - npm run build (tsc) → clean, 0 errors
+   - npm test → 19/19 passed (3 files: tenants, sms-inbound, voice-status)
+   - docker compose build api → SUCCESS (node:20-alpine, prod image built)
+   - docker compose up -d → ALL 5 containers healthy
+     - autoshop_postgres: healthy (port 5432)
+     - autoshop_redis: healthy (port 6379)
+     - autoshop_n8n: healthy (port 5678, /healthz → {"status":"ok"})
+     - autoshop_n8n_worker: up
+     - autoshop_api: healthy (port 3000, /health → {"status":"ok","checks":{"postgres":"ok","redis":"ok"}})
+   - DB migrations confirmed: all 9 tables present (tenants, conversations, messages, appointments, tenant_calendar_tokens, billing_events, system_prompts, tenant_phone_numbers, conversation_cooldowns)
+   - Workflow JSON files confirmed in repo: WF-001 through WF-004 + WF-007
+2. Fix SMS conversation logging: added "DB: Save Inbound Message" node to WF-001 (twilio-sms-ingest.json)
+3. Add POST /billing/checkout (Stripe Checkout Session creation)
+4. Added GET /auth/google/start + GET /auth/google/callback routes
+5. Added voice-status.test.ts — 6 tests covering missed-call-trigger path
+6. Fixed tenants.test.ts — vi.mock("../db/client") for pure-function tests
 
-## WHAT HAS BEEN VERIFIED (this session)
-- npm run typecheck → CLEAN (0 errors)
-- npm test → 19/19 passed (3 test files: tenants, sms-inbound, voice-status)
-- All tests pass without live DB or Redis (full mocking)
+## WHAT HAS BEEN VERIFIED (2026-03-06)
+- npm run build → CLEAN (0 TypeScript errors)
+- npm test → 19/19 passed (tenants, sms-inbound, voice-status)
+- docker compose build api → SUCCESS (exit 0)
+- docker compose up -d → ALL HEALTHY
+- GET http://localhost:3000/health → {"status":"ok","checks":{"postgres":"ok","redis":"ok"},"version":"0.1.0","env":"production"}
+- GET http://localhost:5678/healthz → {"status":"ok"}
+- DB: 9 tables confirmed via psql \dt
+- n8n worker: running, connected to Redis queue
 
 ## MVP FLOW CHECKLIST
 - [x] missed call trigger path confirmed (twilio-voice-status.ts + voice-status.test.ts)
@@ -81,19 +98,73 @@ Required credentials per workflow:
 - sms-inbound.test.ts: 4 tests — POST /webhooks/twilio/sms (200, enqueue, idempotency)
 - voice-status.test.ts: 6 tests — POST /webhooks/twilio/voice-status (missed-call trigger path)
 
-## NEXT REQUIRED ACTION
-All automatable code tasks are complete. Only manual/credential steps remain.
+## NEXT REQUIRED ACTION (manual — credentials required)
 
-Manual steps required to go live:
-1. Set .env: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, OPENAI_API_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_STARTER, STRIPE_PRICE_PRO, STRIPE_PRICE_PREMIUM
-2. docker compose -f infra/docker-compose.yml up -d
-3. Import all 5 n8n workflows from n8n/workflows/ via n8n UI (http://localhost:5678)
-4. Configure n8n credentials: postgres-creds, openai-creds, twilio-creds
-5. Run GET /auth/google/start?tenantId=<uuid> per tenant to connect Google Calendar
+Stack is running locally. Only credentials and n8n workflow import remain.
+
+### Step 1 — Create .env file (copy from .env.example, fill real values)
+```
+cp .env.example .env
+```
+Required credentials to fill:
+- TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_MESSAGING_SERVICE_SID
+- OPENAI_API_KEY
+- GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+- GOOGLE_REDIRECT_URI=http://localhost:3000/auth/google/callback
+- STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_STARTER, STRIPE_PRICE_PRO, STRIPE_PRICE_PREMIUM
+- N8N_ENCRYPTION_KEY (any 32-char random string)
+- JWT_SECRET (any 64-char random string)
+
+### Step 2 — Restart stack with credentials
+```
+docker compose -f infra/docker-compose.yml up -d
+```
+
+### Step 3 — Import n8n workflows
+1. Open http://localhost:5678 (login: admin / admin_secret)
+2. Import each file from n8n/workflows/:
+   - twilio-sms-ingest.json (WF-001)
+   - ai-worker.json (WF-002)
+   - close-conversation.json (WF-003)
+   - calendar-sync.json (WF-004)
+   - provision-number.json (WF-007)
+
+### Step 4 — Configure n8n credentials (in n8n UI)
+- postgres-creds: host=postgres, port=5432, db=autoshop, user=autoshop, password=autoshop_secret
+- openai-creds: OPENAI_API_KEY value
+- twilio-creds: TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN
+
+### Step 5 — Seed a test tenant
+```sql
+INSERT INTO tenants (id, name, phone, plan, trial_ends_at)
+VALUES (gen_random_uuid(), 'Test Shop', '+15551234567', 'trial', NOW() + INTERVAL '14 days');
+INSERT INTO tenant_phone_numbers (tenant_id, phone_number)
+SELECT id, '+15551234567' FROM tenants WHERE name='Test Shop';
+```
+
+### Step 6 — Connect Google Calendar (per tenant)
+```
+GET http://localhost:3000/auth/google/start?tenantId=<uuid>
+```
+Complete the OAuth flow in browser.
+
+### Step 7 — Configure Twilio webhook
+Set Twilio number voice status callback to your ngrok/public URL:
+- Voice status: POST https://<your-tunnel>/webhooks/twilio/voice-status
+- SMS: POST https://<your-tunnel>/webhooks/twilio/sms
+
+### Step 8 — Test the flow
+Simulate a missed call by posting to the voice-status webhook:
+```bash
+curl -X POST http://localhost:3000/webhooks/twilio/voice-status \
+  -d "CallSid=CA_test_001&To=+15551234567&CallStatus=no-answer" \
+  -H "Content-Type: application/x-www-form-urlencoded"
+```
+Expected: SMS sent to customer, AI conversation starts.
 
 ## INSTRUCTIONS FOR NEXT AI
 1. Read AI_WORK.md, CLAUDE.md, this file
 2. Run: cd apps/api && npm test → must show 19/19 pass
-3. Run: cd apps/api && npm run typecheck → must be clean
-4. All code tasks are DONE. The repo is structurally complete for demo.
-5. Only remaining work: credential configuration (manual) + live e2e test once credentials are set
+3. Run: cd apps/api && npm run build → must be clean
+4. All code tasks are DONE. Stack runs locally without credentials (health checks pass).
+5. Only remaining work: credential configuration (manual) per steps above, then live e2e test
