@@ -1,0 +1,110 @@
+{
+  "name": "WF-003: Close Conversation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "close-conversation",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook: Close Conversation",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "webhookId": "close-conversation-wf003"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SET LOCAL app.current_tenant_id = '{{ $json.body.tenantId }}';\nUPDATE conversations\nSET\n  status = '{{ $json.body.status }}',\n  close_reason = '{{ $json.body.closeReason }}',\n  closed_at = NOW()\nWHERE id = '{{ $json.body.conversationId }}'::uuid\n  AND tenant_id = '{{ $json.body.tenantId }}'::uuid\n  AND status = 'open';",
+        "options": {}
+      },
+      "id": "db-close-conversation",
+      "name": "DB: Close Conversation",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [500, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "AutoShop Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $('Webhook: Close Conversation').first().json.body.status }}",
+              "rightValue": "booked",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "check-if-booked",
+      "name": "Is Booking?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SET LOCAL app.current_tenant_id = '{{ $('Webhook: Close Conversation').first().json.body.tenantId }}';\nINSERT INTO appointments (\n  tenant_id,\n  conversation_id,\n  customer_phone,\n  service_type,\n  scheduled_at,\n  calendar_synced\n)\nSELECT\n  '{{ $('Webhook: Close Conversation').first().json.body.tenantId }}'::uuid,\n  '{{ $('Webhook: Close Conversation').first().json.body.conversationId }}'::uuid,\n  c.customer_phone,\n  'Oil Change',\n  NOW() + INTERVAL '1 day',\n  FALSE\nFROM conversations c\nWHERE c.id = '{{ $('Webhook: Close Conversation').first().json.body.conversationId }}'::uuid\nRETURNING id;",
+        "options": {}
+      },
+      "id": "db-create-appointment",
+      "name": "DB: Create Appointment",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [1000, 200],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "AutoShop Postgres"
+        }
+      },
+      "notes": "TODO: Extract real service_type + scheduled_at from conversation messages"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"ok\": true }"
+      },
+      "id": "respond-ok",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "Webhook: Close Conversation": {
+      "main": [[{ "node": "DB: Close Conversation", "type": "main", "index": 0 }]]
+    },
+    "DB: Close Conversation": {
+      "main": [[{ "node": "Is Booking?", "type": "main", "index": 0 }]]
+    },
+    "Is Booking?": {
+      "main": [
+        [{ "node": "DB: Create Appointment", "type": "main", "index": 0 }],
+        [{ "node": "Respond 200", "type": "main", "index": 0 }]
+      ]
+    },
+    "DB: Create Appointment": {
+      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  }
+}

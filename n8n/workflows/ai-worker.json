@@ -3,6 +3,7 @@
   "nodes": [
     {
       "parameters": {
+        "httpMethod": "POST",
         "path": "ai-worker",
         "responseMode": "responseNode",
         "options": {}

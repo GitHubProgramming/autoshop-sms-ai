@@ -26,6 +26,7 @@
       "position": [250, 300],
       "webhookId": "sms-inbound-wf001",
       "parameters": {
+        "httpMethod": "POST",
         "path": "sms-inbound",
         "responseMode": "responseNode",
         "options": {
