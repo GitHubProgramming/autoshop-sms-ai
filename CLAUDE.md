@@ -99,6 +99,28 @@ After every completed task Claude MUST:
    - What passed/failed
 2. Suggest the next highest-value task for the repository.
 
+## AI Audit Trail
+
+Claude must leave a repository-visible audit trail after every completed task.
+
+Required updates after each completed task:
+1. Update AI_STATUS.md with:
+   - task name
+   - branch
+   - commit hash
+   - verification result
+   - checks passed
+   - files changed
+   - date
+
+2. Update AI_TASKS.md:
+   - move completed task from OPEN to DONE
+
+3. Use commit messages starting with:
+   AI:
+
+Do not rewrite unrelated sections.
+
 Claude should always prefer:
 - small patches
 - minimal changes
