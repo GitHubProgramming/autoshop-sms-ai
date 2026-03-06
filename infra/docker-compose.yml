@@ -82,6 +82,10 @@ services:
       # Timezone
       GENERIC_TIMEZONE: America/Chicago
 
+      # Google OAuth (needed for per-tenant Calendar sync in Code node via $env)
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+
       # Logging
       N8N_LOG_LEVEL: info
     ports:
@@ -123,6 +127,9 @@ services:
 
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-change_me_32_chars_minimum_here!}
       GENERIC_TIMEZONE: America/Chicago
+      # Google OAuth (needed for per-tenant Calendar sync in Code node via $env)
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
     networks:
       - autoshop_net
 
