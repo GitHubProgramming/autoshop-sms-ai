@@ -20,8 +20,8 @@ npm test --if-present || true
 cd ../..
 
 echo "Docker smoke test"
-docker compose build
-docker compose up -d
+docker compose -f infra/docker-compose.yml build
+docker compose -f infra/docker-compose.yml up -d
 
 sleep 10
 
