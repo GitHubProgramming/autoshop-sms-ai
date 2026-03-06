@@ -11,18 +11,24 @@
       "name": "Webhook: AI Worker Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1.1,
-      "position": [250, 300],
+      "position": [
+        250,
+        300
+      ],
       "webhookId": "ai-worker-wf002"
     },
     {
       "parameters": {
-        "jsCode": "// Build OpenAI messages array from conversation history\n// Sanitize customer input (prevent prompt injection)\nconst data = $('Webhook: AI Worker Trigger').first().json;\n\nconst systemPrompt = data.systemPrompt || 'You are an auto shop scheduling assistant.';\nconst history = Array.isArray(data.history) ? data.history : [];\nconst newMessage = String(data.newMessage || '').substring(0, 500); // truncate\n\n// Build messages array\nconst messages = [\n  { role: 'system', content: systemPrompt }\n];\n\n// Add history (last 8 messages)\nfor (const msg of history.slice(-8)) {\n  messages.push({\n    role: msg.direction === 'inbound' ? 'user' : 'assistant',\n    content: msg.body\n  });\n}\n\n// Add current message (sanitized)\nmessages.push({ role: 'user', content: newMessage });\n\nreturn [{\n  json: {\n    tenantId: data.tenantId,\n    conversationId: data.conversationId,\n    customerPhone: data.customerPhone,\n    messages,\n    rawMessage: newMessage,\n  }\n}];"
+        "jsCode": "// Build OpenAI messages array from conversation history\n// Sanitize customer input (prevent prompt injection)\nconst data = $('Webhook: AI Worker Trigger').first().json;\n\nconst systemPrompt = data.systemPrompt || 'You are an auto shop scheduling assistant.';\nconst history = Array.isArray(data.history) ? data.history : [];\nconst newMessage = String(data.newMessage || '').substring(0, 500); // truncate\n\n// Build messages array\nconst messages = [\n  { role: 'system', content: systemPrompt }\n];\n\n// Add history (last 8 messages)\nfor (const msg of history.slice(-8)) {\n  messages.push({\n    role: msg.direction === 'inbound' ? 'user' : 'assistant',\n    content: msg.body\n  });\n}\n\n// Add current message (sanitized)\nmessages.push({ role: 'user', content: newMessage });\n\nreturn [{\n  json: {\n    tenantId: data.tenantId,\n    conversationId: data.conversationId,\n    customerPhone: data.customerPhone,\n    ourPhone: data.ourPhone,\n    messages,\n    rawMessage: newMessage,\n  }\n}];"
       },
       "id": "build-openai-messages",
       "name": "Build OpenAI Messages",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [500, 300]
+      "position": [
+        500,
+        300
+      ]
     },
     {
       "parameters": {
@@ -41,7 +47,10 @@
       "name": "OpenAI: Chat Completion",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1.4,
-      "position": [750, 300],
+      "position": [
+        750,
+        300
+      ],
       "credentials": {
         "openAiApi": {
           "id": "openai-creds",
@@ -51,13 +60,16 @@
     },
     {
       "parameters": {
-        "jsCode": "// Detect booking intent from AI response\n// Simple keyword detection — TODO: replace with structured output / function calling\nconst aiResponse = $('OpenAI: Chat Completion').first().json.message?.content || '';\nconst lowerResponse = aiResponse.toLowerCase();\n\n// Booking confirmed keywords\nconst bookingKeywords = [\n  'appointment is confirmed',\n  'booked for',\n  'scheduled for',\n  'see you on',\n  'appointment set',\n  'confirmed for',\n];\n\nconst isBooked = bookingKeywords.some(k => lowerResponse.includes(k));\n\n// Close intent keywords (user wants to stop)\nconst closeKeywords = ['stop', 'cancel', 'nevermind', 'never mind', 'no thanks', 'not interested'];\nconst rawMessage = $('Build OpenAI Messages').first().json.rawMessage.toLowerCase();\nconst userWantsClose = closeKeywords.some(k => rawMessage.includes(k));\n\nreturn [{\n  json: {\n    tenantId: $('Build OpenAI Messages').first().json.tenantId,\n    conversationId: $('Build OpenAI Messages').first().json.conversationId,\n    customerPhone: $('Build OpenAI Messages').first().json.customerPhone,\n    aiResponse,\n    isBooked,\n    userWantsClose,\n    tokensUsed: $('OpenAI: Chat Completion').first().json.usage?.total_tokens ?? 0,\n  }\n}];"
+        "jsCode": "// Detect booking intent from AI response\n// Simple keyword detection — TODO: replace with structured output / function calling\nconst aiResponse = $('OpenAI: Chat Completion').first().json.message?.content || '';\nconst lowerResponse = aiResponse.toLowerCase();\n\n// Booking confirmed keywords\nconst bookingKeywords = [\n  'appointment is confirmed',\n  'booked for',\n  'scheduled for',\n  'see you on',\n  'appointment set',\n  'confirmed for',\n];\n\nconst isBooked = bookingKeywords.some(k => lowerResponse.includes(k));\n\n// Close intent keywords (user wants to stop)\nconst closeKeywords = ['stop', 'cancel', 'nevermind', 'never mind', 'no thanks', 'not interested'];\nconst rawMessage = $('Build OpenAI Messages').first().json.rawMessage.toLowerCase();\nconst userWantsClose = closeKeywords.some(k => rawMessage.includes(k));\n\nreturn [{\n  json: {\n    tenantId: $('Build OpenAI Messages').first().json.tenantId,\n    conversationId: $('Build OpenAI Messages').first().json.conversationId,\n    customerPhone: $('Build OpenAI Messages').first().json.customerPhone,\n    ourPhone: $('Build OpenAI Messages').first().json.ourPhone,\n    aiResponse,\n    isBooked,\n    userWantsClose,\n    tokensUsed: $('OpenAI: Chat Completion').first().json.usage?.total_tokens ?? 0,\n  }\n}];"
       },
       "id": "detect-booking-intent",
       "name": "Detect Booking Intent",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1000, 300]
+      "position": [
+        1000,
+        300
+      ]
     },
     {
       "parameters": {
@@ -69,7 +81,10 @@
       "name": "DB: Save AI Response",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.3,
-      "position": [1250, 300],
+      "position": [
+        1250,
+        300
+      ],
       "credentials": {
         "postgres": {
           "id": "postgres-creds",
@@ -89,7 +104,10 @@
       "name": "Twilio: Send SMS Reply",
       "type": "n8n-nodes-base.twilio",
       "typeVersion": 1,
-      "position": [1500, 300],
+      "position": [
+        1500,
+        300
+      ],
       "credentials": {
         "twilioApi": {
           "id": "twilio-creds",
@@ -105,7 +123,10 @@
             {
               "leftValue": "={{ $('Detect Booking Intent').first().json.isBooked }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "equal" }
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
             }
           ]
         }
@@ -114,7 +135,10 @@
       "name": "Booking Confirmed?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1750, 300]
+      "position": [
+        1750,
+        300
+      ]
     },
     {
       "parameters": {
@@ -123,10 +147,22 @@
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            { "name": "conversationId", "value": "={{ $('Detect Booking Intent').first().json.conversationId }}" },
-            { "name": "tenantId", "value": "={{ $('Detect Booking Intent').first().json.tenantId }}" },
-            { "name": "status", "value": "booked" },
-            { "name": "closeReason", "value": "booking_completed" }
+            {
+              "name": "conversationId",
+              "value": "={{ $('Detect Booking Intent').first().json.conversationId }}"
+            },
+            {
+              "name": "tenantId",
+              "value": "={{ $('Detect Booking Intent').first().json.tenantId }}"
+            },
+            {
+              "name": "status",
+              "value": "booked"
+            },
+            {
+              "name": "closeReason",
+              "value": "booking_completed"
+            }
           ]
         }
       },
@@ -134,7 +170,10 @@
       "name": "Trigger: Close (Booked)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [2000, 200],
+      "position": [
+        2000,
+        200
+      ],
       "notes": "Calls WF-003 close-conversation webhook"
     },
     {
@@ -144,7 +183,10 @@
             {
               "leftValue": "={{ $('Detect Booking Intent').first().json.userWantsClose }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "equal" }
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
             }
           ]
         }
@@ -153,7 +195,10 @@
       "name": "User Wants to Close?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [2000, 400]
+      "position": [
+        2000,
+        400
+      ]
     },
     {
       "parameters": {
@@ -162,10 +207,22 @@
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            { "name": "conversationId", "value": "={{ $('Detect Booking Intent').first().json.conversationId }}" },
-            { "name": "tenantId", "value": "={{ $('Detect Booking Intent').first().json.tenantId }}" },
-            { "name": "status", "value": "closed" },
-            { "name": "closeReason", "value": "user_closed" }
+            {
+              "name": "conversationId",
+              "value": "={{ $('Detect Booking Intent').first().json.conversationId }}"
+            },
+            {
+              "name": "tenantId",
+              "value": "={{ $('Detect Booking Intent').first().json.tenantId }}"
+            },
+            {
+              "name": "status",
+              "value": "closed"
+            },
+            {
+              "name": "closeReason",
+              "value": "user_closed"
+            }
           ]
         }
       },
@@ -173,37 +230,106 @@
       "name": "Trigger: Close (User)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [2250, 400]
+      "position": [
+        2250,
+        400
+      ]
     }
   ],
   "connections": {
     "Webhook: AI Worker Trigger": {
-      "main": [[{ "node": "Build OpenAI Messages", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build OpenAI Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build OpenAI Messages": {
-      "main": [[{ "node": "OpenAI: Chat Completion", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "OpenAI: Chat Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "OpenAI: Chat Completion": {
-      "main": [[{ "node": "Detect Booking Intent", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Detect Booking Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Detect Booking Intent": {
-      "main": [[{ "node": "DB: Save AI Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "DB: Save AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "DB: Save AI Response": {
-      "main": [[{ "node": "Twilio: Send SMS Reply", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Twilio: Send SMS Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Twilio: Send SMS Reply": {
-      "main": [[{ "node": "Booking Confirmed?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Booking Confirmed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Booking Confirmed?": {
       "main": [
-        [{ "node": "Trigger: Close (Booked)", "type": "main", "index": 0 }],
-        [{ "node": "User Wants to Close?", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Trigger: Close (Booked)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "User Wants to Close?",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "User Wants to Close?": {
       "main": [
-        [{ "node": "Trigger: Close (User)", "type": "main", "index": 0 }],
+        [
+          {
+            "node": "Trigger: Close (User)",
+            "type": "main",
+            "index": 0
+          }
+        ],
         []
       ]
     }
@@ -213,6 +339,10 @@
     "executionOrder": "v1",
     "saveManualExecutions": true
   },
-  "tags": ["autoshop", "ai", "core"],
+  "tags": [
+    "autoshop",
+    "ai",
+    "core"
+  ],
   "versionId": "wf002-v1"
 }

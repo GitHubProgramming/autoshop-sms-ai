@@ -139,7 +139,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://n8n-ai-worker-webhook-url/ai-worker",
+        "url": "http://n8n:5678/webhook/ai-worker",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -148,7 +148,8 @@
             { "name": "systemPrompt", "value": "={{ $('Set Tenant Context (RLS)').first().json.systemPrompt }}" },
             { "name": "history", "value": "={{ $('DB: Fetch Conversation History').all().map(m => m.json) }}" },
             { "name": "newMessage", "value": "={{ $('Set Tenant Context (RLS)').first().json.messageBody }}" },
-            { "name": "customerPhone", "value": "={{ $('Set Tenant Context (RLS)').first().json.customerPhone }}" }
+            { "name": "customerPhone", "value": "={{ $('Set Tenant Context (RLS)').first().json.customerPhone }}" },
+            { "name": "ourPhone", "value": "={{ $('Webhook: SMS Inbound').first().json.ourPhone }}" }
           ]
         },
         "options": {}

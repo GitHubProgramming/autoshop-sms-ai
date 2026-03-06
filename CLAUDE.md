@@ -79,3 +79,56 @@ The API (`apps/api/`) is purely an ingress and enqueue layer — it does no AI p
 ## Environment Variables
 
 Required at minimum: `DATABASE_URL`, `REDIS_URL`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `OPENAI_API_KEY`. See `.env.example` for the full list.
+
+## Autonomous execution rules
+
+Claude should operate in execution-first mode.
+
+Do NOT ask routine confirmation questions if the repository context is sufficient.
+
+Claude must only ask for clarification when:
+1. Secrets or credentials are required
+2. A destructive database operation is required
+3. Multiple architecture paths exist with major business impact
+
+After every completed task Claude MUST:
+
+1. Update AI_WORK.md with:
+   - What was implemented
+   - What files changed
+   - What passed/failed
+2. Suggest the next highest-value task for the repository.
+
+Claude should always prefer:
+- small patches
+- minimal changes
+- preserving working systems
+
+## Mandatory verification before committing
+
+Before committing any code Claude MUST run:
+
+```bash
+bash scripts/ai-verify.sh
+```
+
+If verification fails Claude must fix the problem before pushing.
+
+## Autonomous AI Workflow
+
+Claude must follow this workflow:
+
+1. Read AI_TASKS.md
+2. Select the first OPEN task
+3. Create branch ai/<task-name>
+4. Implement the smallest safe patch
+5. Run verification:
+
+```bash
+bash scripts/ai-verify.sh
+```
+
+6. Commit changes
+7. Push branch
+8. Open PR
+9. Mark the task DONE in AI_TASKS.md
