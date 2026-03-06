@@ -3,7 +3,7 @@
 ## Last completed task
 - Task: Extract service_type + scheduled_at from conversation messages in WF-003
 - Branch: ai/extract-service-type-scheduled-at
-- Commit: TBD
+- Commit: 5f3e68e
 - Verification: AI VERIFY PASSED
 - Checks passed:
   - docker compose build api → SUCCESS (cached)
