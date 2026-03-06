@@ -11,7 +11,14 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 State: LOCAL STACK VERIFIED RUNNING — all containers healthy, DB schema applied, API+n8n reachable. Only live credentials block end-to-end demo.
 
 ## LAST COMPLETED STEPS (this session, latest first)
-1. [2026-03-06] LOCAL DEMO VERIFICATION — branch ai/local-demo-verification
+1. [2026-03-06] DEMO_SETUP.md created — branch ai/local-demo-verification
+   - DEMO_SETUP.md: exact copy-paste steps, verified against repo (SQL, credential names, URLs)
+   - Fixed .env.example: GOOGLE_REDIRECT_URI was /oauth/google/callback → corrected to /auth/google/callback (actual route)
+   - Fixed seed SQL: tenants table requires shop_name/owner_name/owner_email NOT NULL; tenant_phone_numbers requires twilio_sid NOT NULL
+   - Confirmed n8n credential names from workflow JSON: AutoShop Postgres, AutoShop OpenAI, AutoShop Twilio
+   - Confirmed voice-status webhook requires From field (documented in DEMO_SETUP.md)
+   - Documented Twilio validation bypass: only works with NODE_ENV=development (docker runs production — real Twilio required for demo)
+2. [2026-03-06] LOCAL DEMO VERIFICATION — branch ai/local-demo-verification
    - npm ci → clean
    - npm run build (tsc) → clean, 0 errors
    - npm test → 19/19 passed (3 files: tenants, sms-inbound, voice-status)
@@ -60,11 +67,11 @@ Required credentials per workflow:
 - google-calendar-creds (WF-004): per-tenant tokens via /auth/google/start flow
 
 ## BLOCKER LIST
-1. [BLOCKED — manual] n8n workflow import: must import WF-001 through WF-004 via n8n UI (http://localhost:5678)
-2. [BLOCKED — manual] n8n credential config: postgres-creds, openai-creds, twilio-creds must be set in n8n UI
-3. [BLOCKED — credentials] Google OAuth: GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET must be in .env; shop owner must complete OAuth flow at /auth/google/start?tenantId=<uuid>
-4. [TODO] Stripe checkout endpoint not yet implemented (needed for paid plan activation)
-5. [TODO] No rate limiting on /auth/google routes (low risk for MVP)
+1. [BLOCKED — manual] n8n workflow import: must import WF-001 through WF-004 via n8n UI (http://localhost:5678) — exact steps in DEMO_SETUP.md Step 4
+2. [BLOCKED — manual] n8n credential config: must create "AutoShop Postgres", "AutoShop OpenAI", "AutoShop Twilio" in n8n UI — exact steps in DEMO_SETUP.md Step 5
+3. [BLOCKED — credentials] Google OAuth: GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET + redirect URI must be in .env; complete flow at http://localhost:3000/auth/google/start?tenantId=<uuid> — exact steps in DEMO_SETUP.md Step 6
+4. [BLOCKED — infrastructure] Twilio webhook bypass only works with NODE_ENV=development; docker runs NODE_ENV=production; real Twilio + ngrok required for demo — see DEMO_SETUP.md Step 7
+5. [NOT BLOCKING DEMO] Stripe checkout: only needed for paid plan activation, not demo flow
 
 ## REPO STATE AUDIT (2026-03-06)
 ### API (apps/api/src/)
