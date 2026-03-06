@@ -16,9 +16,12 @@ Workflow:
 - Add Docker smoke verification and fix compose path
 - Add autonomous AI workflow files
 - Fix CI lint step when ESLint config is missing
+- MVP end-to-end verification: fix n8n webhook POST methods + add WF-003 close-conversation
 
 ## OPEN
+- Configure n8n credentials (postgres-creds, openai-creds, twilio-creds) — requires real API keys
+- Add Google Calendar booking confirmation logic (OAuth flow + n8n calendar workflow)
+- Extract service_type + scheduled_at from conversation messages in WF-003
 - Add Stripe checkout endpoint for subscription creation
 - Add Twilio inbound webhook test coverage
-- Add Google Calendar booking confirmation logic
 - Improve SMS conversation logging

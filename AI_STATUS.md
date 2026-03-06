@@ -1,6 +1,22 @@
 # AI Work Status
 
 ## Last completed task
+- Task: MVP end-to-end verification — fix n8n webhook methods + add WF-003
+- Branch: ai/mvp-end-to-end-verification
+- Commit: e56ec76
+- Verification: AI VERIFY PASSED
+- Checks passed:
+  - docker compose build api → SUCCESS
+  - docker compose up -d → all 5 containers healthy
+  - curl /health → status ok, postgres ok, redis ok
+  - n8n POST webhooks: sms-inbound / ai-worker / close-conversation active
+- Files changed:
+  - n8n/workflows/twilio-sms-ingest.json (httpMethod: POST added to webhook)
+  - n8n/workflows/ai-worker.json (httpMethod: POST added to webhook)
+  - n8n/workflows/close-conversation.json (new WF-003)
+- Date: 2026-03-06
+
+## Previous task
 - Task: Finalize Claude automation system and fix Docker compose path
 - Branch: ai/final-automation-system
 - Commit: 4105a71
