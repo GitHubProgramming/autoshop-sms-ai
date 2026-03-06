@@ -113,3 +113,22 @@ bash scripts/ai-verify.sh
 ```
 
 If verification fails Claude must fix the problem before pushing.
+
+## Autonomous AI Workflow
+
+Claude must follow this workflow:
+
+1. Read AI_TASKS.md
+2. Select the first OPEN task
+3. Create branch ai/<task-name>
+4. Implement the smallest safe patch
+5. Run verification:
+
+```bash
+bash scripts/ai-verify.sh
+```
+
+6. Commit changes
+7. Push branch
+8. Open PR
+9. Mark the task DONE in AI_TASKS.md

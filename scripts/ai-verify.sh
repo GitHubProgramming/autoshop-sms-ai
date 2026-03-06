@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "Running API checks..."
+echo "Running AI verification..."
 
 cd apps/api
 
