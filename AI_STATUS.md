@@ -1000,3 +1000,34 @@ The demo webhook is already proven — it's ready for live pilot.
 *Branch: ai/local-demo-verification*
 *Method: workflow import → REST API activation → live curl test → Twilio MessageSid verified*
 
+
+---
+
+# DEMO RECIPIENT UPDATED — 2026-03-07
+
+Changed demo Twilio send target from `+13257523890` (shop loop-back) to `+37067577829` (real phone).
+
+**File changed:** `n8n/workflows/demo-sms.json` — one line in `Compose Demo Reply` node.
+**Production untouched.**
+
+## LIVE PROOF
+
+Execution ID: **37** | Status: **success** | Duration: 2.9s
+
+```json
+{
+  "inbound_message": "Hi, my car is making a grinding noise when I brake. Can I bring it in tomorrow morning?",
+  "ai_reply": "Thanks for reaching out! Can you confirm a specific time tomorrow morning for your brake service?",
+  "booking_intent": true,
+  "service_type": "brake service",
+  "requested_time_text": "tomorrow morning",
+  "twilio_to": "+37067577829",
+  "twilio_message_sid": "SM54304c800720ac8222666c35e799a8d0",
+  "twilio_status": "accepted",
+  "twilio_error": null
+}
+```
+
+Twilio accepted outbound to `+37067577829`. SMS is in flight.
+
+*Updated: 2026-03-07*

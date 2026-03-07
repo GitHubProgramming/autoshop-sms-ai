@@ -59,7 +59,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Set final_reply_text and override To with the shop's own Twilio number.\n// This is the safe demo target: the SMS loops back to our own number,\n// visible in the Twilio console, without sending to any random phone.\nconst DEMO_TO = '+13257523890'; // Shop's actual Twilio number (safe loop-back target)\n\nreturn [{\n  json: {\n    ...$json,\n    final_reply_text: $json.reply_text,\n    demo_to: DEMO_TO\n  }\n}];"
+        "jsCode": "// Set final_reply_text and override To with the shop's own Twilio number.\n// This is the safe demo target: the SMS loops back to our own number,\n// visible in the Twilio console, without sending to any random phone.\nconst DEMO_TO = '+37067577829'; // Demo recipient — real phone for live demo\n\nreturn [{\n  json: {\n    ...$json,\n    final_reply_text: $json.reply_text,\n    demo_to: DEMO_TO\n  }\n}];"
       },
       "id": "d-compose",
       "name": "Compose Demo Reply",
