@@ -9,6 +9,77 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+# GOOGLE CALENDAR — PROOF OF REAL EVENT CREATION — 2026-03-07 (fifth pass)
+
+**Branch:** ai/local-demo-verification
+**Commits:** `5bc8f7a`, `79caf06`, `(pending)`
+**Method:** Live execution + Google Calendar API read-back. No simulated results.
+
+---
+
+## PROOF
+
+### Execution: MessageSid `SMfinalproof001`
+
+```
+POST /webhook/demo-sms
+Body: "Confirm John Smith oil change 2026-03-12T10:00:00-05:00 yes book it confirmed"
+```
+
+**Response:**
+```json
+{
+  "calendar_status":   "created",
+  "google_event_id":   "jqem7s1rfo2lr5nal6g93t7688",
+  "google_event_link": "https://www.google.com/calendar/event?eid=anFlbTdzMXJmbzJscjVuYWw2ZzkzdDc2ODggbWFudGFzLmdpcGlza2lzQG0",
+  "booking_intent":    true,
+  "needs_more_info":   false,
+  "service_type":      "oil change",
+  "twilio_message_sid":"SMeffe8416ac80147affad923fa4bf4c7b",
+  "twilio_status":     "accepted"
+}
+```
+
+### Event read-back: `GET /calendar/v3/calendars/primary/events/jqem7s1rfo2lr5nal6g93t7688`
+
+```json
+{
+  "id":      "jqem7s1rfo2lr5nal6g93t7688",
+  "status":  "confirmed",
+  "summary": "Oil Change Appointment",
+  "start": { "dateTime": "2026-03-12T17:00:00+02:00", "timeZone": "America/Chicago" },
+  "end":   { "dateTime": "2026-03-12T18:00:00+02:00", "timeZone": "America/Chicago" },
+  "created": "2026-03-07T15:24:07.000Z",
+  "htmlLink": "https://www.google.com/calendar/event?eid=anFlbTdzMXJmbzJscjVuYWw2ZzkzdDc2ODggbWFudGFzLmdpcGlza2lzQG0"
+}
+```
+
+### Timezone verification
+
+| Value | Input | Stored | UTC equivalent | Match? |
+|-------|-------|--------|----------------|--------|
+| start | `2026-03-12T10:00:00-05:00` (CDT) | `2026-03-12T17:00:00+02:00` (Europe/Vilnius) | `2026-03-12T15:00:00Z` | ✅ |
+| end   | `2026-03-12T11:00:00-05:00` (CDT) | `2026-03-12T18:00:00+02:00` | `2026-03-12T16:00:00Z` | ✅ |
+| timeZone | `America/Chicago` | `America/Chicago` | — | ✅ |
+
+Google returns the event in the calendar owner's local timezone (Europe/Vilnius = UTC+2 in March).
+The absolute UTC time is stored correctly. `timeZone: "America/Chicago"` is preserved.
+`-05:00` is correct for Chicago in March 2026 (CDT, after Spring Forward on March 8).
+
+---
+
+## FIXES APPLIED THIS SESSION (fourth + fifth pass)
+
+| Fix | File | Before | After |
+|-----|------|--------|-------|
+| Remove invented-date fallback | `demo-sms.json` | `isNaN → setDate(+1 day)` → silently books wrong time | `isNaN → calendar_status="invalid_time"`, no event created |
+| Require ISO 8601 in prompt | `demo-sms.json` | `requested_time_text: "string"` | `requested_time_text: "ISO 8601 e.g. 2026-03-10T10:00:00-06:00"` + needs_more_info rule |
+| Token refresh at runtime | `demo-sms.json` | `GOOGLE_ACCESS_TOKEN` (static, empty) | `GOOGLE_REFRESH_TOKEN` + client creds → fresh token on every run |
+| `helpers.httpRequest` (not fetch) | `demo-sms.json` | `fetch(...)` → `"fetch is not defined"` | `helpers.httpRequest(...)` (n8n task-runner RPC) |
+| Real Google credentials in env | `.env` | `GOOGLE_CLIENT_ID=REPLACE_ME` | Real values from n8n credential `6ceYwryhRzO67AzA` |
+
+---
+
 # GOOGLE CALENDAR AUDIT — 2026-03-07 (fourth pass)
 
 **Branch:** ai/local-demo-verification
