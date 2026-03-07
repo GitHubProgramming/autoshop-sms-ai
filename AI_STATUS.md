@@ -874,3 +874,129 @@ curl -s http://localhost:5678/api/v1/workflows/demo-sms-001/activate \
 
 *Demo mode added: 2026-03-07*
 *Branch: ai/local-demo-verification*
+
+---
+
+# LOCAL DEMO MODE v2 — FULL FLOW — 2026-03-07
+
+**Replaces:** "Demo Mode (No SMS Send)" — previous version skipped Twilio entirely.
+**Now:** Runs the complete production pipeline including a real Twilio outbound send.
+
+---
+
+## GAP FOUND
+
+Prior demo workflow (`demo-sms-001` v1) replaced the Twilio send step with a
+`twilio_status: "skipped"` response. Requirement was the **same downstream logic**,
+including the actual Twilio send step.
+
+## FIX APPLIED
+
+Upgraded `demo-sms-001` to v2:
+
+**Node chain (7 nodes, all real logic):**
+```
+Webhook - Demo SMS        (responseMode: lastNode — returns after all nodes complete)
+  → Prepare AI Prompt     (same code as mvp001 — builds openai_bearer + twilio_auth)
+  → OpenAI - Generate Reply + Booking JSON  (same HTTP request as mvp001)
+  → Parse AI JSON         (same code as mvp001)
+  → Compose Demo Reply    (sets final_reply_text; overrides To → +13257523890)
+  → Twilio - Send Reply SMS  (same HTTP request config as mvp001 — real Twilio call)
+  → Format Demo Response  (extracts MessageSid + status, returns clean JSON)
+```
+
+**Safe Twilio target:** `+13257523890` — the shop's own Twilio number
+(account SID `AC04bd1b...`, discovered via `GET /2010-04-01/Accounts/.../IncomingPhoneNumbers`).
+SMS loops back to the shop's own inbox. Visible in Twilio console. No random recipient.
+No carrier dependency. No personal phone needed.
+
+**Production workflow `mvp001` untouched.**
+
+---
+
+## DEMO COMMAND
+
+### One script:
+```bash
+bash scripts/demo.sh
+bash scripts/demo.sh "My brakes are grinding, need service Monday morning"
+bash scripts/demo.sh "Need a battery replaced ASAP"
+```
+
+### One curl (raw JSON):
+```bash
+curl -s -X POST http://localhost:5678/webhook/demo-sms \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "From=%2B15005550006&Body=I+need+an+oil+change+tomorrow+at+10am"
+```
+
+---
+
+## PROOF — LIVE EXECUTIONS (2026-03-07)
+
+**Test 1 — oil change (via curl):**
+```json
+{
+  "inbound_message": "I need an oil change tomorrow at 10am",
+  "ai_reply": "Got it! I can book your oil change for tomorrow at 10am. Can I have your name and phone number to confirm?",
+  "booking_intent": true,
+  "service_type": "oil change",
+  "requested_time_text": "2026-03-08T10:00:00-06:00",
+  "twilio_to": "+13257523890",
+  "twilio_message_sid": "SM8bbc2b39e9317c6528f7caef9d02b01d",
+  "twilio_status": "accepted"
+}
+```
+
+**Test 2 — brake service (via scripts/demo.sh):**
+```json
+{
+  "inbound_message": "My brakes are grinding, need service Monday morning",
+  "ai_reply": "Thanks for reaching out! What time on Monday morning works for you?",
+  "booking_intent": true,
+  "service_type": "brake service",
+  "requested_time_text": "Monday morning",
+  "twilio_to": "+13257523890",
+  "twilio_message_sid": "SM66b5b860338c1eaf57ba4b81c8e7d9ca",
+  "twilio_status": "accepted"
+}
+```
+
+Both executions returned real Twilio MessageSids. Twilio accepted outbound delivery.
+SMS routed to shop's own number — verifiable in Twilio console.
+
+---
+
+## RE-IMPORT INSTRUCTIONS (if DB volume is wiped)
+
+```bash
+cd infra
+
+# Import
+MSYS_NO_PATHCONV=1 docker compose exec n8n n8n import:workflow \
+  --input=/workflows/demo-sms.json \
+  --userId=f793534b-0ab7-4bb7-964b-1c7ea9a5fa6c
+
+# Activate
+curl -s -X POST http://localhost:5678/api/v1/workflows/demo-sms-001/activate \
+  -H "X-N8N-API-KEY: n8n_api_demo_key_autoshop2026"
+```
+
+---
+
+## ONE NEXT ACTION
+
+Wire a real Twilio inbound number to the demo by running:
+```bash
+ngrok http 5678
+# Set Twilio SMS webhook to: https://<ngrok-id>.ngrok.io/webhook/twilio-sms
+```
+Then texting the shop number will trigger the production flow end-to-end.
+The demo webhook is already proven — it's ready for live pilot.
+
+---
+
+*Full flow demo completed: 2026-03-07*
+*Branch: ai/local-demo-verification*
+*Method: workflow import → REST API activation → live curl test → Twilio MessageSid verified*
+

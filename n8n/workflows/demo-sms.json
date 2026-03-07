@@ -1,6 +1,6 @@
 {
   "id": "demo-sms-001",
-  "name": "AutoShop AI - Demo Mode (No SMS Send)",
+  "name": "AutoShop AI - Demo Mode (Full Flow)",
   "nodes": [
     {
       "parameters": {
@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const from = ($json.body?.From || $json.From || '').toString();\nconst to = ($json.body?.To || $json.To || '').toString();\nconst text = ($json.body?.Body || $json.Body || '').toString().trim();\nconst messageSid = ($json.body?.MessageSid || $json.MessageSid || 'SMdemo').toString();\nconst profileName = ($json.body?.ProfileName || $json.ProfileName || '').toString();\n\nconst bookingIntent = /(book|appointment|schedule|tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|am|pm|oil|brake|tires?|diagnostic|repair|service)/i.test(text);\n\nlet serviceType = 'general service';\nif (/oil/i.test(text)) serviceType = 'oil change';\nelse if (/brake/i.test(text)) serviceType = 'brake service';\nelse if (/tire|tyre/i.test(text)) serviceType = 'tire service';\nelse if (/diagnostic/i.test(text)) serviceType = 'diagnostic';\nelse if (/battery/i.test(text)) serviceType = 'battery service';\nelse if (/engine/i.test(text)) serviceType = 'engine repair';\n\nconst currentDate = new Date().toISOString();\n\nconst systemPrompt = `You are AutoShop AI, an SMS booking assistant for an auto repair shop.\\nYour job:\\n1. Reply like a real service advisor by SMS.\\n2. Be concise, helpful, and natural.\\n3. If the customer wants to book, collect missing info.\\n4. Extract booking info when present.\\n5. Never use markdown.\\n6. Return STRICT JSON only.\\n\\nBusiness context:\\n- Shop name: AutoShop AI\\n- Channel: SMS\\n- Goal: convert inbound SMS into appointment booking\\n- Timezone: America/Chicago\\n- Current timestamp: ${currentDate}\\n\\nReturn JSON exactly in this shape:\\n{\\n  \"reply_text\": \"string\",\\n  \"booking_intent\": true,\\n  \"customer_name\": \"string\",\\n  \"service_type\": \"string\",\\n  \"requested_time_text\": \"string\",\\n  \"needs_more_info\": true,\\n  \"calendar_summary\": \"string\",\\n  \"calendar_description\": \"string\"\\n}\\n\\nRules:\\n- booking_intent = true if the person appears to want service or scheduling.\\n- If date/time is unclear, ask for it in reply_text and set needs_more_info = true.\\n- If service type is unclear, ask for it.\\n- Keep reply_text short enough for SMS.\\n- calendar_summary should be short.\\n- calendar_description should include the original SMS.`;\n\nconst userPrompt = `Inbound customer SMS:\\nFrom: ${from}\\nProfile Name: ${profileName}\\nMessage: ${text}\\n\\nHeuristic booking intent: ${bookingIntent}\\nHeuristic service type: ${serviceType}`;\n\nconst openaiKey = $env.OPENAI_API_KEY || '';\n\nreturn [{\n  json: {\n    from,\n    to,\n    body: text,\n    message_sid: messageSid,\n    booking_intent_heuristic: bookingIntent,\n    service_type_heuristic: serviceType,\n    openai_system_prompt: systemPrompt,\n    openai_user_prompt: userPrompt,\n    openai_bearer: 'Bearer ' + openaiKey\n  }\n}];"
+        "jsCode": "// Identical logic to production mvp001 Prepare AI Prompt node\nconst from = ($json.body?.From || $json.From || '').toString();\nconst to = ($json.body?.To || $json.To || '').toString();\nconst text = ($json.body?.Body || $json.Body || '').toString().trim();\nconst messageSid = ($json.body?.MessageSid || $json.MessageSid || 'SMdemo').toString();\nconst profileName = ($json.body?.ProfileName || $json.ProfileName || '').toString();\n\nconst bookingIntent = /(book|appointment|schedule|tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|am|pm|oil|brake|tires?|diagnostic|repair|service)/i.test(text);\n\nlet serviceType = 'general service';\nif (/oil/i.test(text)) serviceType = 'oil change';\nelse if (/brake/i.test(text)) serviceType = 'brake service';\nelse if (/tire|tyre/i.test(text)) serviceType = 'tire service';\nelse if (/diagnostic/i.test(text)) serviceType = 'diagnostic';\nelse if (/battery/i.test(text)) serviceType = 'battery service';\nelse if (/engine/i.test(text)) serviceType = 'engine repair';\n\nconst currentDate = new Date().toISOString();\n\nconst systemPrompt = `You are AutoShop AI, an SMS booking assistant for an auto repair shop.\\nYour job:\\n1. Reply like a real service advisor by SMS.\\n2. Be concise, helpful, and natural.\\n3. If the customer wants to book, collect missing info.\\n4. Extract booking info when present.\\n5. Never use markdown.\\n6. Return STRICT JSON only.\\n\\nBusiness context:\\n- Shop name: AutoShop AI\\n- Channel: SMS\\n- Goal: convert inbound SMS into appointment booking\\n- Timezone: America/Chicago\\n- Current timestamp: ${currentDate}\\n\\nReturn JSON exactly in this shape:\\n{\\n  \"reply_text\": \"string\",\\n  \"booking_intent\": true,\\n  \"customer_name\": \"string\",\\n  \"service_type\": \"string\",\\n  \"requested_time_text\": \"string\",\\n  \"needs_more_info\": true,\\n  \"calendar_summary\": \"string\",\\n  \"calendar_description\": \"string\"\\n}\\n\\nRules:\\n- booking_intent = true if the person appears to want service or scheduling.\\n- If date/time is unclear, ask for it in reply_text and set needs_more_info = true.\\n- If service type is unclear, ask for it.\\n- Keep reply_text short enough for SMS.\\n- calendar_summary should be short.\\n- calendar_description should include the original SMS.`;\n\nconst userPrompt = `Inbound customer SMS:\\nFrom: ${from}\\nProfile Name: ${profileName}\\nMessage: ${text}\\n\\nHeuristic booking intent: ${bookingIntent}\\nHeuristic service type: ${serviceType}`;\n\n// Build credentials exactly as production does\nconst openaiKey = $env.OPENAI_API_KEY || '';\nconst twilioSid = $env.TWILIO_ACCOUNT_SID || '';\nconst twilioToken = $env.TWILIO_AUTH_TOKEN || '';\nconst twilioMsgSid = $env.TWILIO_MESSAGING_SERVICE_SID || '';\nconst twilioAuth = 'Basic ' + Buffer.from(twilioSid + ':' + twilioToken).toString('base64');\n\nreturn [{\n  json: {\n    from,\n    to,\n    body: text,\n    message_sid: messageSid,\n    booking_intent_heuristic: bookingIntent,\n    service_type_heuristic: serviceType,\n    openai_system_prompt: systemPrompt,\n    openai_user_prompt: userPrompt,\n    openai_bearer: 'Bearer ' + openaiKey,\n    twilio_auth: twilioAuth,\n    twilio_sid: twilioSid,\n    twilio_msg_sid: twilioMsgSid\n  }\n}];"
       },
       "id": "d-prepare",
       "name": "Prepare AI Prompt",
@@ -33,14 +33,8 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Authorization",
-              "value": "={{$json.openai_bearer}}"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
+            { "name": "Authorization", "value": "={{$json.openai_bearer}}" },
+            { "name": "Content-Type",  "value": "application/json" }
           ]
         },
         "sendBody": true,
@@ -55,7 +49,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw = $json.choices?.[0]?.message?.content || '{}';\nlet parsed;\ntry {\n  parsed = JSON.parse(raw);\n} catch (e) {\n  parsed = {\n    reply_text: 'Thanks for contacting AutoShop AI. What service do you need and what day/time works for you?',\n    booking_intent: true,\n    customer_name: '',\n    service_type: 'general service',\n    requested_time_text: '',\n    needs_more_info: true,\n    calendar_summary: 'AutoShop appointment inquiry',\n    calendar_description: `Raw AI parse failed. Original response: ${raw}`\n  };\n}\n\nconst base = $('Prepare AI Prompt').first().json;\n\nreturn [{\n  json: {\n    ...base,\n    ai_raw: raw,\n    reply_text: parsed.reply_text || 'Thanks for contacting AutoShop AI. What service do you need?',\n    booking_intent: !!parsed.booking_intent,\n    customer_name: parsed.customer_name || '',\n    service_type: parsed.service_type || base.service_type_heuristic || 'general service',\n    requested_time_text: parsed.requested_time_text || '',\n    needs_more_info: parsed.needs_more_info !== undefined ? !!parsed.needs_more_info : true,\n    calendar_summary: parsed.calendar_summary || 'AutoShop appointment inquiry',\n    calendar_description: parsed.calendar_description || ''\n  }\n}];"
+        "jsCode": "// Identical to production Parse AI JSON\nconst raw = $json.choices?.[0]?.message?.content || '{}';\nlet parsed;\ntry {\n  parsed = JSON.parse(raw);\n} catch (e) {\n  parsed = {\n    reply_text: 'Thanks for contacting AutoShop AI. What service do you need and what day/time works for you?',\n    booking_intent: true,\n    customer_name: '',\n    service_type: 'general service',\n    requested_time_text: '',\n    needs_more_info: true,\n    calendar_summary: 'AutoShop appointment inquiry',\n    calendar_description: `Raw AI parse failed. Original response: ${raw}`\n  };\n}\n\nconst base = $('Prepare AI Prompt').first().json;\n\nreturn [{\n  json: {\n    ...base,\n    ai_raw: raw,\n    reply_text: parsed.reply_text || 'Thanks for contacting AutoShop AI. What service do you need?',\n    booking_intent: !!parsed.booking_intent,\n    customer_name: parsed.customer_name || '',\n    service_type: parsed.service_type || base.service_type_heuristic || 'general service',\n    requested_time_text: parsed.requested_time_text || '',\n    needs_more_info: parsed.needs_more_info !== undefined ? !!parsed.needs_more_info : true,\n    calendar_summary: parsed.calendar_summary || 'AutoShop appointment inquiry',\n    calendar_description: parsed.calendar_description || ''\n  }\n}];"
       },
       "id": "d-parse",
       "name": "Parse AI JSON",
@@ -65,13 +59,49 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $json;\n\nreturn [{\n  json: {\n    demo: true,\n    inbound_message: d.body,\n    from: d.from,\n    ai_reply: d.reply_text,\n    booking_intent: d.booking_intent,\n    service_type: d.service_type,\n    requested_time_text: d.requested_time_text || '',\n    needs_more_info: d.needs_more_info,\n    calendar_summary: d.calendar_summary,\n    twilio_status: 'skipped (demo mode - no SMS sent)',\n    model: 'gpt-4o-mini'\n  }\n}];"
+        "jsCode": "// Set final_reply_text and override To with the shop's own Twilio number.\n// This is the safe demo target: the SMS loops back to our own number,\n// visible in the Twilio console, without sending to any random phone.\nconst DEMO_TO = '+13257523890'; // Shop's actual Twilio number (safe loop-back target)\n\nreturn [{\n  json: {\n    ...$json,\n    final_reply_text: $json.reply_text,\n    demo_to: DEMO_TO\n  }\n}];"
+      },
+      "id": "d-compose",
+      "name": "Compose Demo Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1280, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{\"https://api.twilio.com/2010-04-01/Accounts/\" + $json.twilio_sid + \"/Messages.json\"}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{$json.twilio_auth}}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "To",                "value": "={{$json.demo_to}}" },
+            { "name": "Body",              "value": "={{$json.final_reply_text}}" },
+            { "name": "MessagingServiceSid", "value": "={{$json.twilio_msg_sid}}" }
+          ]
+        }
+      },
+      "id": "d-twilio",
+      "name": "Twilio - Send Reply SMS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1540, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract Twilio result and combine with AI output for clean demo response\nconst tw = $json;\nconst ai = $('Parse AI JSON').first().json;\nconst compose = $('Compose Demo Reply').first().json;\n\nreturn [{\n  json: {\n    demo: true,\n    inbound_message: ai.body,\n    from: ai.from,\n    ai_reply: ai.reply_text,\n    booking_intent: ai.booking_intent,\n    service_type: ai.service_type,\n    requested_time_text: ai.requested_time_text || '',\n    needs_more_info: ai.needs_more_info,\n    calendar_summary: ai.calendar_summary,\n    twilio_to: compose.demo_to,\n    twilio_message_sid: tw.sid || null,\n    twilio_status: tw.status || null,\n    twilio_error: tw.message || null,\n    model: 'gpt-4o-mini'\n  }\n}];"
       },
       "id": "d-format",
       "name": "Format Demo Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1280, 300]
+      "position": [1800, 300]
     }
   ],
   "connections": {
@@ -85,13 +115,17 @@
       "main": [[{ "node": "Parse AI JSON", "type": "main", "index": 0 }]]
     },
     "Parse AI JSON": {
+      "main": [[{ "node": "Compose Demo Reply", "type": "main", "index": 0 }]]
+    },
+    "Compose Demo Reply": {
+      "main": [[{ "node": "Twilio - Send Reply SMS", "type": "main", "index": 0 }]]
+    },
+    "Twilio - Send Reply SMS": {
       "main": [[{ "node": "Format Demo Response", "type": "main", "index": 0 }]]
     }
   },
   "active": true,
-  "settings": {
-    "executionOrder": "v1"
-  },
+  "settings": { "executionOrder": "v1" },
   "pinData": {},
-  "versionId": "demo-sms-v1"
+  "versionId": "demo-sms-v2"
 }
