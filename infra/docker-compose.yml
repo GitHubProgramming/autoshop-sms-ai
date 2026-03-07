@@ -56,6 +56,9 @@ services:
       QUEUE_BULL_REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret}
       QUEUE_BULL_REDIS_DB: 1
 
+      # Allow $env access in expressions (needed for MVP workflow)
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+
       # DB
       DB_TYPE: postgresdb
       DB_POSTGRESDB_HOST: postgres
@@ -114,6 +117,8 @@ services:
       QUEUE_BULL_REDIS_PORT: 6379
       QUEUE_BULL_REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret}
       QUEUE_BULL_REDIS_DB: 1
+
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
 
       DB_TYPE: postgresdb
       DB_POSTGRESDB_HOST: postgres
