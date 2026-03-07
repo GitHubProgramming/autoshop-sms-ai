@@ -59,13 +59,23 @@
     },
     {
       "parameters": {
-        "jsCode": "// Set final_reply_text and override To with the shop's own Twilio number.\n// This is the safe demo target: the SMS loops back to our own number,\n// visible in the Twilio console, without sending to any random phone.\nconst DEMO_TO = '+37067577829'; // Demo recipient — real phone for live demo\n\nreturn [{\n  json: {\n    ...$json,\n    final_reply_text: $json.reply_text,\n    demo_to: DEMO_TO\n  }\n}];"
+        "jsCode": "// Create a real Google Calendar event when booking info is complete.\n// Requires GOOGLE_ACCESS_TOKEN in env (short-lived token from Google OAuth Playground\n// or from the full OAuth flow via /auth/google/start).\n//\n// calendar_status values:\n//   created        — event created, google_event_id + google_event_link are set\n//   needs_more_info — AI says needs_more_info=true, skip calendar\n//   no_token       — GOOGLE_ACCESS_TOKEN not set, skip calendar\n//   api_error:...  — Google API returned error\n//   error:...      — network / parse error\n\nconst ai = $json;\nconst accessToken = $env.GOOGLE_ACCESS_TOKEN || '';\n\nconst canBook = ai.booking_intent && !ai.needs_more_info && ai.requested_time_text;\n\nlet googleEventId = null;\nlet googleEventLink = null;\nlet calendarStatus = 'skipped';\n\nif (canBook && accessToken) {\n  try {\n    // Parse requested_time_text to a Date.\n    // AI returns ISO strings when it has enough info (e.g. \"2026-03-08T10:00:00-06:00\").\n    // Fall back to tomorrow 10am CT if unparseable.\n    let start = new Date(ai.requested_time_text);\n    if (isNaN(start.getTime())) {\n      const d = new Date();\n      d.setDate(d.getDate() + 1);\n      d.setHours(16, 0, 0, 0); // 10:00 CT = 16:00 UTC\n      start = d;\n    }\n    const end = new Date(start.getTime() + 60 * 60 * 1000); // 1-hour slot\n\n    const eventBody = {\n      summary: ai.calendar_summary || (ai.service_type + ' — ' + ai.from),\n      description: [\n        'AutoShop AI Demo Booking',\n        'Service : ' + ai.service_type,\n        'Customer: ' + ai.from,\n        (ai.customer_name ? 'Name    : ' + ai.customer_name : ''),\n        'SMS     : ' + ai.body,\n        '',\n        (ai.calendar_description || '')\n      ].filter(Boolean).join('\\n'),\n      start: { dateTime: start.toISOString(), timeZone: 'America/Chicago' },\n      end:   { dateTime: end.toISOString(),   timeZone: 'America/Chicago' }\n    };\n\n    const res = await fetch(\n      'https://www.googleapis.com/calendar/v3/calendars/primary/events',\n      {\n        method: 'POST',\n        headers: {\n          'Authorization': 'Bearer ' + accessToken,\n          'Content-Type':  'application/json'\n        },\n        body: JSON.stringify(eventBody)\n      }\n    );\n\n    const data = await res.json();\n    if (res.ok && data.id) {\n      googleEventId   = data.id;\n      googleEventLink = data.htmlLink || null;\n      calendarStatus  = 'created';\n    } else {\n      calendarStatus = 'api_error:' + (data.error?.message || String(res.status));\n    }\n  } catch (err) {\n    calendarStatus = 'error:' + err.message;\n  }\n} else if (canBook && !accessToken) {\n  calendarStatus = 'no_token';\n} else {\n  calendarStatus = 'needs_more_info';\n}\n\nreturn [{\n  json: {\n    ...$json,\n    google_event_id:   googleEventId,\n    google_event_link: googleEventLink,\n    calendar_status:   calendarStatus\n  }\n}];"
+      },
+      "id": "d-calendar",
+      "name": "Create Google Calendar Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1280, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Set final_reply_text and override To with demo recipient.\nconst DEMO_TO = '+37067577829'; // Demo recipient — real phone for live demo\n\nreturn [{\n  json: {\n    ...$json,\n    final_reply_text: $json.reply_text,\n    demo_to: DEMO_TO\n  }\n}];"
       },
       "id": "d-compose",
       "name": "Compose Demo Reply",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1280, 300]
+      "position": [1540, 300]
     },
     {
       "parameters": {
@@ -81,8 +91,8 @@
         "contentType": "form-urlencoded",
         "bodyParameters": {
           "parameters": [
-            { "name": "To",                "value": "={{$json.demo_to}}" },
-            { "name": "Body",              "value": "={{$json.final_reply_text}}" },
+            { "name": "To",                  "value": "={{$json.demo_to}}" },
+            { "name": "Body",                "value": "={{$json.final_reply_text}}" },
             { "name": "MessagingServiceSid", "value": "={{$json.twilio_msg_sid}}" }
           ]
         }
@@ -91,17 +101,17 @@
       "name": "Twilio - Send Reply SMS",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1540, 300]
+      "position": [1800, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Extract Twilio result and combine with AI output for clean demo response\nconst tw = $json;\nconst ai = $('Parse AI JSON').first().json;\nconst compose = $('Compose Demo Reply').first().json;\n\nreturn [{\n  json: {\n    demo: true,\n    inbound_message: ai.body,\n    from: ai.from,\n    ai_reply: ai.reply_text,\n    booking_intent: ai.booking_intent,\n    service_type: ai.service_type,\n    requested_time_text: ai.requested_time_text || '',\n    needs_more_info: ai.needs_more_info,\n    calendar_summary: ai.calendar_summary,\n    twilio_to: compose.demo_to,\n    twilio_message_sid: tw.sid || null,\n    twilio_status: tw.status || null,\n    twilio_error: tw.message || null,\n    model: 'gpt-4o-mini'\n  }\n}];"
+        "jsCode": "// Extract Twilio result and combine with AI + calendar output for clean demo response\nconst tw      = $json;\nconst ai      = $('Parse AI JSON').first().json;\nconst cal     = $('Create Google Calendar Event').first().json;\nconst compose = $('Compose Demo Reply').first().json;\n\nreturn [{\n  json: {\n    demo: true,\n    inbound_message:    ai.body,\n    from:               ai.from,\n    ai_reply:           ai.reply_text,\n    booking_intent:     ai.booking_intent,\n    service_type:       ai.service_type,\n    requested_time_text: ai.requested_time_text || '',\n    needs_more_info:    ai.needs_more_info,\n    calendar_summary:   ai.calendar_summary,\n    calendar_status:    cal.calendar_status || 'skipped',\n    google_event_id:    cal.google_event_id   || null,\n    google_event_link:  cal.google_event_link  || null,\n    twilio_to:          compose.demo_to,\n    twilio_message_sid: tw.sid    || null,\n    twilio_status:      tw.status || null,\n    twilio_error:       tw.message || null,\n    model: 'gpt-4o-mini'\n  }\n}];"
       },
       "id": "d-format",
       "name": "Format Demo Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1800, 300]
+      "position": [2060, 300]
     }
   ],
   "connections": {
@@ -115,6 +125,9 @@
       "main": [[{ "node": "Parse AI JSON", "type": "main", "index": 0 }]]
     },
     "Parse AI JSON": {
+      "main": [[{ "node": "Create Google Calendar Event", "type": "main", "index": 0 }]]
+    },
+    "Create Google Calendar Event": {
       "main": [[{ "node": "Compose Demo Reply", "type": "main", "index": 0 }]]
     },
     "Compose Demo Reply": {
@@ -127,5 +140,5 @@
   "active": true,
   "settings": { "executionOrder": "v1" },
   "pinData": {},
-  "versionId": "demo-sms-v2"
+  "versionId": "demo-sms-v3"
 }

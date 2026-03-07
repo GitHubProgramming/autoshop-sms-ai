@@ -1,18 +1,29 @@
 #!/usr/bin/env bash
-# AutoShop AI - Local Demo (Full Flow)
+# AutoShop AI - Local Demo (Full Flow with Google Calendar)
 #
-# Runs the complete SMS AI workflow without needing a real inbound SMS:
-#   webhook -> AI prompt -> OpenAI gpt-4o-mini -> booking extraction -> Twilio send
+# Runs the complete SMS AI workflow:
+#   webhook -> AI prompt -> OpenAI gpt-4o-mini -> booking extraction
+#   -> Google Calendar event (if GOOGLE_ACCESS_TOKEN set) -> Twilio SMS send
 #
-# Twilio sends to the shop's own number (+13257523890) as a safe loop-back.
-# The real Twilio MessageSid is returned in the response.
+# Twilio sends to +37067577829 (real demo phone).
+# Google Calendar event is created in the primary calendar when
+# GOOGLE_ACCESS_TOKEN is set in .env and booking info is complete.
+#
+# To get a GOOGLE_ACCESS_TOKEN (2 minutes):
+#   1. Go to https://developers.google.com/oauthplayground/
+#   2. Select scope: https://www.googleapis.com/auth/calendar.events
+#   3. Click "Authorize APIs" -> sign in with Google
+#   4. Click "Exchange authorization code for tokens"
+#   5. Copy the "Access token" value
+#   6. Add to .env:  GOOGLE_ACCESS_TOKEN=ya29.xxxxx
+#   7. Restart: cd infra && docker compose up -d n8n n8n_worker
 #
 # Usage:
 #   bash scripts/demo.sh
 #   bash scripts/demo.sh "My brakes are grinding, need service Monday"
-#   bash scripts/demo.sh "Need a battery replaced ASAP" "+15005550006"
+#   bash scripts/demo.sh "Oil change Tuesday at 2pm please" "+15005550006"
 
-MESSAGE="${1:-I need an oil change tomorrow at 10am}"
+MESSAGE="${1:-Oil change this Tuesday at 2pm. My name is Mantas.}"
 FROM="${2:-+15005550006}"
 ENDPOINT="http://localhost:5678/webhook/demo-sms"
 
@@ -22,10 +33,10 @@ echo " AutoShop AI - Full Flow Demo"
 echo "======================================"
 echo " Inbound SMS  : $MESSAGE"
 echo " From         : $FROM"
-echo " Twilio send  : +13257523890 (shop's own number)"
+echo " Twilio send  : +37067577829"
 echo "======================================"
 echo ""
-echo "Running full pipeline (OpenAI + Twilio)..."
+echo "Running full pipeline (OpenAI + Calendar + Twilio)..."
 echo ""
 
 RESPONSE=$(node -e "
@@ -80,6 +91,16 @@ console.log('service_type     :', r.service_type);
 console.log('requested_time   :', r.requested_time_text || '(not specified)');
 console.log('needs_more_info  :', r.needs_more_info);
 console.log('calendar_summary :', r.calendar_summary);
+console.log(L);
+console.log('calendar_status  :', r.calendar_status);
+if (r.google_event_id)   console.log('google_event_id  :', r.google_event_id);
+if (r.google_event_link) console.log('google_event_link:', r.google_event_link);
+if (r.calendar_status === 'no_token') {
+  console.log('');
+  console.log('  NOTE: Set GOOGLE_ACCESS_TOKEN in .env to create a real calendar event.');
+  console.log('  Get token: https://developers.google.com/oauthplayground/');
+  console.log('  Scope: https://www.googleapis.com/auth/calendar.events');
+}
 console.log(L);
 console.log('twilio_to        :', r.twilio_to);
 console.log('twilio_sid       :', r.twilio_message_sid);
