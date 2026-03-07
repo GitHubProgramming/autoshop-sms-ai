@@ -1031,3 +1031,82 @@ Execution ID: **37** | Status: **success** | Duration: 2.9s
 Twilio accepted outbound to `+37067577829`. SMS is in flight.
 
 *Updated: 2026-03-07*
+
+---
+
+# INBOUND REPLY PATH TEST — 2026-03-07
+
+**Mission:** Prove inbound reply processing without carrier dependency.
+
+## BEST PATH
+
+Direct POST to production webhook `POST /webhook/twilio-sms` (mvp001).
+This is the exact same HTTP call Twilio makes when a real inbound SMS arrives.
+`SKIP_TWILIO_VALIDATION=true` is already active in the API container — no signature needed.
+
+## WHY THIS IS THE FASTEST
+
+| Option | Setup needed | Carrier dependency | Proves inbound processing |
+|--------|-------------|-------------------|--------------------------|
+| Direct POST to /webhook/twilio-sms | **None** | **None** | **Yes — identical code path** |
+| ngrok + Twilio webhook | 5 min + auth token | Yes (still carrier) | Yes |
+| Twilio Virtual Phone | Console setup | Partial | Yes |
+
+Bonus finding: Twilio already has a static ngrok domain configured on the number:
+`https://older-interlobate-jacoby.ngrok-free.dev/webhook/twilio-sms-mvp`
+When ngrok is started with `--domain=older-interlobate-jacoby.ngrok-free.dev`, real
+carrier inbound SMS will route automatically — zero Twilio console changes needed.
+
+## WHAT WAS CHANGED
+
+Nothing. Used existing production workflow mvp001 + existing SKIP_TWILIO_VALIDATION flag.
+One curl to `/webhook/twilio-sms` — that is all.
+
+## PROOF — Execution 38 (2026-03-07 14:01:47 UTC)
+
+**Simulated inbound SMS:**
+```
+From: +37067577829
+To:   +13257523890
+Body: "10am tomorrow works for me. My name is Mantas."
+```
+
+**Full execution trace:**
+- Status: **success** in 4 seconds
+- OpenAI completion: `chatcmpl-DGmVv43bqXhXBfWQh6lqR99Wj8B89` (441 tokens)
+
+**AI extracted:**
+```json
+{
+  "reply_text": "Thanks, Mantas! Can you confirm the service type? Is it a general service? Also, please provide your vehicle details.",
+  "booking_intent": true,
+  "customer_name": "Mantas",
+  "service_type": "general service",
+  "requested_time_text": "10am tomorrow",
+  "needs_more_info": true,
+  "calendar_summary": "Appointment for Mantas"
+}
+```
+
+**Twilio outbound send:**
+- To: `+37067577829`
+- MessageSid: `SM02e7dda13f07d27b6311f7b344a019b1`
+- Status: `accepted`
+
+AI reply SMS delivered to `+37067577829`:
+*"Thanks, Mantas! Can you confirm the service type? Is it a general service? Also, please provide your vehicle details."*
+
+## ONE NEXT ACTION — enable real carrier inbound with one command
+
+The Twilio number `+13257523890` already has its SMS webhook pointing at static ngrok domain
+`older-interlobate-jacoby.ngrok-free.dev`. Start ngrok with that domain and real inbound SMS
+will route immediately:
+
+```bash
+ngrok http 5678 --domain=older-interlobate-jacoby.ngrok-free.dev
+```
+
+Then texting `+13257523890` from any phone triggers the full real carrier → Twilio → n8n loop.
+
+*Inbound path test completed: 2026-03-07*
+*Execution ID: 38 | MessageSid: SM02e7dda13f07d27b6311f7b344a019b1*
