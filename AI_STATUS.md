@@ -659,3 +659,218 @@ Everything else is already working.
 *Branch: ai/local-demo-verification*
 *Method: live n8n execution trace via API (execution ID 22) + direct OpenAI test*
 *Result: CORE FLOW FULLY WORKING — only ngrok + Twilio console config remains*
+
+---
+
+# 429 INVESTIGATION — 2026-03-07 (fourth pass)
+
+**Question:** Why does "OpenAI - Generate Reply + Booking JSON" return 429 in some executions?
+**Method:** Workflow JSON inspection + n8n execution_data table direct query + fresh live test.
+**No assumptions. Only runtime-proven facts.**
+
+---
+
+## NODE CONFIG — "OpenAI - Generate Reply + Booking JSON" (autoshop-ai-mvp.json, id=5)
+
+**Type:** `n8n-nodes-base.httpRequest` (raw HTTP, NOT the n8n OpenAI node)
+**URL:** `https://api.openai.com/v1/chat/completions`
+**Model:** `gpt-4o-mini` (hardcoded in `JSON.stringify()` body expression)
+
+**How Authorization is built:**
+1. In "Prepare AI Prompt" Code node: `const openaiKey = $env.OPENAI_API_KEY || ''` → `openai_bearer: 'Bearer ' + openaiKey`
+2. In the HTTP Request node: `Authorization: ={{$json.openai_bearer}}`
+3. `$env.OPENAI_API_KEY` is the live runtime env var from the container (proven present)
+
+**No retry logic. No batching. No loop. Single HTTP call per execution.**
+
+---
+
+## EXECUTION AUDIT — ALL EXECUTIONS FOR mvp001
+
+| ID | Timestamp (UTC) | Status | Last Node | Error |
+|----|-----------------|--------|-----------|-------|
+| 14 | 2026-03-07 08:43 | error | (pre-key) | 429 insufficient_quota — old key had no credit |
+| 15 | 2026-03-07 08:44 | error | (pre-key) | 429 insufficient_quota — old key had no credit |
+| 20 | 2026-03-07 10:49 | error | Twilio - Send Reply SMS | 400: +15551234567 not valid phone number |
+| 21 | 2026-03-07 10:49 | error | Twilio - Send Reply SMS | 400: +15551234567 not valid phone number |
+| 22 | 2026-03-07 10:49 | error | Twilio - Send Reply SMS | 400: +15551234567 not valid phone number |
+| 29 | 2026-03-07 13:13 | error | Twilio - Send Reply SMS | 400: +15551234567 not valid phone number |
+
+**Executions 14-15:** OpenAI node was the failing node (429).
+**Executions 20-22, 29:** OpenAI node SUCCEEDS. Last node is Twilio. No OpenAI error.
+
+---
+
+## FRESH TEST — Execution 29 (triggered 2026-03-07 13:13 UTC, after new key loaded)
+
+| # | Node | Duration | Status |
+|---|------|----------|--------|
+| 0 | Webhook - Twilio SMS | 2ms | SUCCESS |
+| 1 | Respond 200 to Twilio | 19ms | SUCCESS |
+| 2 | Prepare AI Prompt | 114ms | SUCCESS |
+| **3** | **OpenAI - Generate Reply + Booking JSON** | **3395ms** | **SUCCESS — real API call** |
+| 4 | Parse AI JSON | 21ms | SUCCESS |
+| 5 | If Ready For Calendar Booking | 28ms | SUCCESS |
+| 6 | Build Calendar Event | 19ms | SUCCESS |
+| 7 | Compose Reply - Calendar Path | 19ms | SUCCESS |
+| 8 | Merge Reply Paths | 35ms | SUCCESS |
+| 9 | Twilio - Send Reply SMS | FAILED | 400: +15551234567 not valid phone number |
+
+3395ms duration on OpenAI node = real live API call with real response. 429 would fail in <100ms.
+
+---
+
+## ROOT CAUSE
+
+The 429 errors came **exclusively from executions 14-15 at 08:43–08:44 UTC**, before the new
+OPENAI_API_KEY was loaded. Those executions used the old key that had no quota.
+
+After the new key was loaded and containers restarted, **every execution (20, 21, 22, 29)
+succeeds at the OpenAI node**. No 429 since the key change.
+
+The workflow node config is **correct**:
+- Reads `$env.OPENAI_API_KEY` at runtime via Code node
+- Passes as `Bearer <key>` Authorization header to HTTP Request node
+- Model is `gpt-4o-mini`, no retries, no loop
+
+## CURRENT STATUS
+
+OpenAI node: **WORKING** — succeeds in 3-4 seconds on every execution since key rotation.
+Failing node: **Twilio - Send Reply SMS** — fails only because test POSTs use fake number `+15551234567`.
+
+## FIX APPLIED
+
+None required for the OpenAI node. The 429 was historical.
+No workflow change needed.
+
+## PROOF
+
+Execution 29 (fresh, post-restart): OpenAI node executionTime = 3395ms, executionStatus = SUCCESS.
+All executions 20-22-29: `lastNodeExecuted` = "Twilio - Send Reply SMS", not OpenAI.
+
+## ONE NEXT ACTION
+
+Use a real phone number in the test POST `From=` parameter to get a full end-to-end success:
+```bash
+curl -X POST http://localhost:5678/webhook/twilio-sms \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "From=%2B1YOURREALNUMBER&To=%2B15125559999&Body=I+need+an+oil+change+tomorrow+at+10am&MessageSid=SMlivetest001"
+```
+
+---
+
+*Investigation completed: 2026-03-07*
+*Branch: ai/local-demo-verification*
+*Method: workflow JSON inspection + n8n.execution_data direct DB query + live curl trigger*
+
+
+---
+
+# LOCAL DEMO MODE — 2026-03-07
+
+**Branch:** ai/local-demo-verification
+**New files:** `n8n/workflows/demo-sms.json`, `scripts/demo.sh`
+
+---
+
+## WHAT THIS IS
+
+A dedicated demo entrypoint that runs the exact same AI logic as the production workflow
+but skips the Twilio outbound SMS send. Returns the full AI result synchronously in the
+HTTP response (~4 seconds). No phone required. No SMS charges. No carrier dependency.
+
+## HOW TO RUN
+
+### Option 1: One script (formatted output)
+
+```bash
+# Default scenario
+bash scripts/demo.sh
+
+# Custom message
+bash scripts/demo.sh "My brakes are grinding, need service Monday morning"
+
+# Custom message + custom from number
+bash scripts/demo.sh "Need a battery replaced ASAP" "+15005550006"
+```
+
+### Option 2: One curl (raw JSON)
+
+```bash
+curl -s -X POST http://localhost:5678/webhook/demo-sms \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "From=%2B15005550006&Body=I+need+an+oil+change+tomorrow+at+10am"
+```
+
+## WHAT THE DEMO PROVES
+
+Every field shown in the response is produced by the real AI logic:
+
+| Field | Source |
+|-------|--------|
+| `inbound_message` | raw webhook input body |
+| `from` | inbound From field |
+| `ai_reply` | OpenAI gpt-4o-mini → Parse AI JSON |
+| `booking_intent` | AI-extracted, boolean |
+| `service_type` | AI-extracted (oil change / brake / tire / etc.) |
+| `requested_time_text` | AI-extracted datetime string |
+| `needs_more_info` | AI flag — true if date/time/name still needed |
+| `calendar_summary` | AI-generated appointment title |
+| `twilio_status` | `skipped (demo mode - no SMS sent)` |
+| `model` | `gpt-4o-mini` |
+
+## DEMO WORKFLOW DETAILS
+
+**File:** `n8n/workflows/demo-sms.json`
+**n8n ID:** `demo-sms-001`
+**Webhook path:** `POST /webhook/demo-sms`
+**Response mode:** `lastNode` — HTTP response holds after OpenAI returns (~4s)
+**Active:** YES (activated via REST API 2026-03-07)
+
+### Node chain (identical logic to production mvp001):
+
+```
+Webhook - Demo SMS
+  → Prepare AI Prompt       (same Code node as mvp001)
+  → OpenAI - Generate Reply + Booking JSON  (same HTTP Request as mvp001)
+  → Parse AI JSON           (same Code node as mvp001)
+  → Format Demo Response    (NEW — returns clean JSON, no Twilio call)
+```
+
+**Production workflow (mvp001) is untouched.** The demo workflow is additive only.
+
+## LIVE PROOF (2026-03-07)
+
+**Test 1 — oil change:**
+```
+IN : I need an oil change tomorrow at 10am
+AI : I can help with that! Just to confirm, is tomorrow March 8th? Also, can I have your name, please?
+     booking_intent=true  service_type=oil change  requested_time=March 8th at 10am
+```
+
+**Test 2 — brake service:**
+```
+IN : My brakes are grinding, need service Monday morning
+AI : I can help with that! What time on Monday morning works for you?
+     booking_intent=true  service_type=brake service  requested_time=Monday morning
+```
+
+## HOW TO RE-IMPORT IF CONTAINERS RESTART
+
+The demo workflow is stored in n8n's Postgres DB and survives restarts.
+If you ever wipe the DB volume, re-import with:
+
+```bash
+cd infra
+MSYS_NO_PATHCONV=1 docker compose exec n8n n8n import:workflow \
+  --input=/workflows/demo-sms.json \
+  --userId=f793534b-0ab7-4bb7-964b-1c7ea9a5fa6c
+
+curl -s http://localhost:5678/api/v1/workflows/demo-sms-001/activate \
+  -X POST -H "X-N8N-API-KEY: n8n_api_demo_key_autoshop2026"
+```
+
+---
+
+*Demo mode added: 2026-03-07*
+*Branch: ai/local-demo-verification*
