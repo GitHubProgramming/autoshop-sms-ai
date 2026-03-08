@@ -12,10 +12,7 @@
       "name": "Webhook: Close Conversation",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1.1,
-      "position": [
-        250,
-        300
-      ],
+      "position": [250, 300],
       "webhookId": "close-conversation-wf003"
     },
     {
@@ -28,55 +25,7 @@
       "name": "DB: Close Conversation",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.3,
-      "position": [
-        500,
-        300
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-creds",
-          "name": "AutoShop Postgres"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "conditions": [
-            {
-              "leftValue": "={{ $('Webhook: Close Conversation').first().json.body.status }}",
-              "rightValue": "booked",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ]
-        }
-      },
-      "id": "check-if-booked",
-      "name": "Is Booking?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        750,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SET LOCAL app.current_tenant_id = '{{ $('Webhook: Close Conversation').first().json.body.tenantId }}';\nINSERT INTO appointments (\n  tenant_id,\n  conversation_id,\n  customer_phone,\n  service_type,\n  scheduled_at,\n  calendar_synced\n)\nSELECT\n  '{{ $('Webhook: Close Conversation').first().json.body.tenantId }}'::uuid,\n  '{{ $('Webhook: Close Conversation').first().json.body.conversationId }}'::uuid,\n  c.customer_phone,\n  COALESCE(NULLIF('{{ $('Webhook: Close Conversation').first().json.body.serviceType }}', ''), 'General Service'),\n  COALESCE(NULLIF('{{ $('Webhook: Close Conversation').first().json.body.scheduledAt }}', '')::timestamptz, NOW() + INTERVAL '1 day'),\n  FALSE\nFROM conversations c\nWHERE c.id = '{{ $('Webhook: Close Conversation').first().json.body.conversationId }}'::uuid\nRETURNING id;",
-        "options": {}
-      },
-      "id": "db-create-appointment",
-      "name": "DB: Create Appointment",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.3,
-      "position": [
-        1000,
-        200
-      ],
+      "position": [500, 300],
       "credentials": {
         "postgres": {
           "id": "postgres-creds",
@@ -93,103 +42,15 @@
       "name": "Respond 200",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1500,
-        300
-      ]
-    },
-    {
-      "id": "trigger-calendar-sync",
-      "name": "Trigger: Calendar Sync (WF-004)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [
-        1250,
-        200
-      ],
-      "parameters": {
-        "method": "POST",
-        "url": "http://n8n:5678/webhook/calendar-sync",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "tenantId",
-              "value": "={{ $('Webhook: Close Conversation').first().json.body.tenantId }}"
-            },
-            {
-              "name": "appointmentId",
-              "value": "={{ $('DB: Create Appointment').first().json.id }}"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "notes": "Calls WF-004 to write Google Calendar event + send confirmation SMS"
+      "position": [750, 300]
     }
   ],
   "connections": {
     "Webhook: Close Conversation": {
-      "main": [
-        [
-          {
-            "node": "DB: Close Conversation",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "DB: Close Conversation", "type": "main", "index": 0}]]
     },
     "DB: Close Conversation": {
-      "main": [
-        [
-          {
-            "node": "Is Booking?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Is Booking?": {
-      "main": [
-        [
-          {
-            "node": "DB: Create Appointment",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond 200",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "DB: Create Appointment": {
-      "main": [
-        [
-          {
-            "node": "Trigger: Calendar Sync (WF-004)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Trigger: Calendar Sync (WF-004)": {
-      "main": [
-        [
-          {
-            "node": "Respond 200",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "Respond 200", "type": "main", "index": 0}]]
     }
   },
   "pinData": {},

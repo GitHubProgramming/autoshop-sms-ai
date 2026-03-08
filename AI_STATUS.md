@@ -9,6 +9,29 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+# FULL PIPELINE VERIFIED — 2026-03-08 (PILOT READY)
+
+**Branch:** ai/local-demo-verification
+**Method:** Live container execution via real BullMQ → WF-001 → WF-002 → WF-003 → WF-004 → Google Calendar API → Postgres
+
+## ALL 4 WORKFLOWS PASSING — 2026-03-08
+
+| Workflow | Status | Fix Applied |
+|----------|--------|-------------|
+| WF-001: Twilio SMS Ingest | ✅ success | Fixed httpRequest responseFormat=text to avoid JSON parse error on WF-002 response |
+| WF-002: AI Worker | ✅ success | No change — working |
+| WF-003: Close Conversation | ✅ success | Stripped to Webhook → UPDATE conversation → Respond 200 (removed duplicate appointment INSERT) |
+| WF-004: Calendar Sync | ✅ success | No change — working |
+
+**Smoke test execution IDs:** 243 (WF-001), 244 (WF-002), 245 (WF-004), 246 (WF-003)
+**Appointment created:** `3e9fee8d` — oil change 2026-04-01 → Google event `4u21am41ud4jeae2dpo91p8o5g` — `calendar_synced=true`
+
+**Duplicate/legacy workflows deactivated:** demo-sms-001, mvp001, 3IsHNc3gzgK6h9NU, 4fxr5gEX482cfzTi, rjUVXglnkMAILZ6Y, vrVGpFXXI7P1XFxY, qhes1fvUtfPhOHrv, rb2pm1Aw5jJwfDoD
+
+**RUNBOOK:** RUNBOOK_FIRST_PILOT.md created
+
+---
+
 # FULL PIPELINE VERIFIED — 2026-03-07 (sixth pass)
 
 **Branch:** ai/local-demo-verification
