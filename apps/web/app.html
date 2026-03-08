@@ -1825,7 +1825,7 @@ function toggleChecklist() {
 <!-- ── AUTH GUARD ── -->
 <script>
 (function() {
-  if (!localStorage.getItem('autoshop_session')) {
+  if (localStorage.getItem('autoshop_demo_login') !== 'true') {
     window.location.replace('login.html');
   }
   // Wire logout
@@ -1834,6 +1834,7 @@ function toggleChecklist() {
       el.addEventListener('click', function(e) {
         e.preventDefault();
         localStorage.removeItem('autoshop_session');
+        localStorage.removeItem('autoshop_demo_login');
         window.location.href = 'login.html';
       });
     });
