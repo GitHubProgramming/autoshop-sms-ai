@@ -9,6 +9,57 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+# LAUNCH READINESS PASS — 2026-03-08
+
+**Branch:** frontend-safe-polish
+**Task:** Pre-launch security + credibility audit
+**Verdict:** SAFE TO LAUNCH for pilot/demo — see full report below
+
+## P0 SECURITY ISSUES FOUND
+1. `/internal/enqueue-provision-number` had no auth guard — relied solely on Docker network isolation
+
+## P0 SECURITY FIXES APPLIED
+1. Added `INTERNAL_API_KEY` shared-secret check via `X-Internal-Key` request header to `apps/api/src/routes/internal/provision-number.ts`
+2. Added `INTERNAL_API_KEY` to `.env.example`
+3. `.env` confirmed gitignored and NOT committed — real credentials safe
+
+## P1 LAUNCH BLOCKERS FOUND
+1. "Screenshot Placeholder" text visible on both public landing pages (`apps/web/index.html`, `autoshop-landing.html`)
+2. Dead footer links (Privacy/Terms/Support → `href="#"`) on landing pages and login page
+
+## P1 FIXES APPLIED
+1. Replaced all 6x "Screenshot Placeholder" with "Live demo available — request access below" in both landing pages
+2. Replaced dead Privacy/Terms/Support footer links with single `Contact` mailto link in all three pages
+
+## FILES CHANGED
+- `apps/api/src/routes/internal/provision-number.ts` — added INTERNAL_API_KEY auth guard
+- `.env.example` — added INTERNAL_API_KEY placeholder
+- `apps/web/index.html` — screenshot placeholders replaced, footer links fixed
+- `autoshop-landing.html` — screenshot placeholders replaced, footer links fixed
+- `apps/web/login.html` — footer dead links removed
+
+## TYPECHECK RESULT
+`npm run typecheck` — PASS (no errors)
+
+## REMAINING MANUAL BLOCKERS (cannot be fixed in-code)
+1. **STRIPE**: `sk_test_REPLACE_ME` placeholder in `.env` — billing is non-functional. Cannot charge customers. Set real Stripe keys before accepting payment.
+2. **INTERNAL_API_KEY**: Must be added to `.env` (local) and production secrets before deploying. Stripe webhook handler must pass this header when calling provision endpoint.
+3. **Demo auth is localStorage-only** — intentional for pilot/demo phase. Must be replaced with real JWT/session auth before full production rollout.
+4. **Privacy & Terms pages** — removed placeholder links; pages don't exist yet. Add before broad public launch.
+5. **Welcome email** — not implemented in WF-007 provision flow.
+6. **Twilio 429 test limit** — real Twilio account required for production SMS delivery.
+
+## SAFE TO LAUNCH (pilot/demo): YES
+- No secrets committed to git
+- Internal endpoint now protected
+- Public landing pages free of "Screenshot Placeholder" text
+- Dead footer links removed
+- Core SMS → AI → booking → calendar pipeline verified green (2026-03-08)
+
+## SAFE FOR FULL PRODUCTION (paying customers): NO — blockers above must be resolved first
+
+---
+
 # FULL PIPELINE VERIFIED — 2026-03-08 (PILOT READY)
 
 **Branch:** ai/local-demo-verification

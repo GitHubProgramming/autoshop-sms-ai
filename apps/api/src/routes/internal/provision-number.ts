@@ -20,8 +20,17 @@ const ProvisionBody = z.object({
  */
 export async function provisionNumberRoute(app: FastifyInstance) {
   app.post("/enqueue-provision-number", async (request, reply) => {
-    // TODO: Add internal auth (e.g., shared secret header or JWT with service role)
-    // For now: only accessible within Docker network (not exposed externally)
+    // Internal shared-secret auth — must match INTERNAL_API_KEY env var
+    const internalKey = process.env.INTERNAL_API_KEY;
+    if (!internalKey) {
+      request.log.error("INTERNAL_API_KEY is not set — rejecting internal request");
+      return reply.status(503).send({ error: "Service not configured" });
+    }
+    const authHeader = (request.headers["x-internal-key"] as string) ?? "";
+    if (authHeader !== internalKey) {
+      request.log.warn({ ip: request.ip }, "Unauthorized internal provision request");
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
 
     const parsed = ProvisionBody.safeParse(request.body);
     if (!parsed.success) {
