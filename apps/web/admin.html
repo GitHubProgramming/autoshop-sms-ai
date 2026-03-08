@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoShop Admin — Internal Ops</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:         #070E16;
+  --bg-mid:     #0C1620;
+  --bg-panel:   #111D2C;
+  --bg-hover:   #162336;
+  --rust:       #C94B1F;
+  --rust-light: #E05A2B;
+  --amber:      #D97706;
+  --green:      #22C55E;
+  --green-dim:  rgba(34,197,94,0.12);
+  --red:        #EF4444;
+  --red-dim:    rgba(239,68,68,0.12);
+  --steel:      #64748B;
+  --steel-mid:  #94A3B8;
+  --steel-light:#CBD5E1;
+  --white:      #F1F5F9;
+  --border:     rgba(100,116,139,0.14);
+  --border-mid: rgba(100,116,139,0.24);
+  --mono:       'IBM Plex Mono', monospace;
+  --display:    'Barlow Condensed', sans-serif;
+  --body:       'Barlow', sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:15px;}
+body{background:var(--bg);color:var(--white);font-family:var(--body);line-height:1.5;-webkit-font-smoothing:antialiased;min-height:100vh;}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border-mid);border-radius:3px;}
+
+/* ── LOCK SCREEN ── */
+.lock-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);}
+.lock-box{background:var(--bg-panel);border:1px solid var(--border-mid);padding:48px 40px;width:360px;text-align:center;}
+.lock-logo{font-family:var(--display);font-size:22px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--white);margin-bottom:4px;}
+.lock-logo span{color:var(--rust);}
+.lock-badge{display:inline-block;font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--steel);background:rgba(100,116,139,.1);border:1px solid var(--border-mid);padding:2px 10px;border-radius:1px;margin-bottom:32px;}
+.lock-label{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--steel);margin-bottom:8px;text-align:left;}
+.lock-input{width:100%;background:var(--bg);border:1px solid var(--border-mid);color:var(--white);font-family:var(--mono);font-size:13px;padding:10px 14px;outline:none;margin-bottom:12px;transition:border-color .15s;}
+.lock-input:focus{border-color:var(--rust);}
+.lock-error{font-family:var(--mono);font-size:11px;color:var(--red);margin-bottom:10px;text-align:left;display:none;}
+.lock-btn{width:100%;background:var(--rust);color:var(--white);font-family:var(--display);font-size:14px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:11px;border:none;cursor:pointer;clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px));transition:background .2s;}
+.lock-btn:hover{background:var(--rust-light);}
+
+/* ── TOP NAV ── */
+.topnav{background:var(--bg-mid);border-bottom:1px solid var(--border);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.nav-left{display:flex;align-items:center;gap:16px;}
+.nav-logo{font-family:var(--display);font-size:18px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--white);text-decoration:none;}
+.nav-logo span{color:var(--rust);}
+.admin-badge{font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--steel);background:rgba(100,116,139,.1);border:1px solid var(--border-mid);padding:2px 10px;border-radius:1px;}
+.nav-right{display:flex;align-items:center;gap:12px;}
+.nav-api-base{font-family:var(--mono);font-size:11px;color:var(--steel);}
+.btn-sm{font-family:var(--display);font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:7px 14px;border:1px solid var(--border-mid);background:transparent;color:var(--steel-light);cursor:pointer;transition:border-color .2s,color .2s;}
+.btn-sm:hover{border-color:var(--steel-light);color:var(--white);}
+.btn-sm.primary{background:var(--rust);border-color:var(--rust);color:var(--white);clip-path:polygon(0 0,calc(100% - 5px) 0,100% 5px,100% 100%,5px 100%,0 calc(100% - 5px));}
+
+/* ── LAYOUT ── */
+.layout{display:flex;min-height:calc(100vh - 60px);}
+
+/* ── SIDEBAR ── */
+.sidebar{width:220px;flex-shrink:0;background:var(--bg-mid);border-right:1px solid var(--border);padding:20px 0;display:flex;flex-direction:column;position:sticky;top:60px;height:calc(100vh - 60px);overflow-y:auto;}
+.sidebar-label{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--steel);text-transform:uppercase;padding:4px 16px 6px;margin-top:10px;}
+.sidebar-item{display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:pointer;color:var(--steel-mid);font-size:13px;font-weight:500;border-left:2px solid transparent;transition:background .15s,color .15s,border-color .15s;}
+.sidebar-item:hover{background:var(--bg-hover);color:var(--white);}
+.sidebar-item.active{background:rgba(201,75,31,.1);color:var(--white);border-left-color:var(--rust);}
+.sidebar-icon{font-size:14px;width:18px;text-align:center;flex-shrink:0;}
+.sidebar-badge{margin-left:auto;background:var(--rust);color:var(--white);font-family:var(--mono);font-size:9px;padding:1px 6px;border-radius:10px;}
+
+/* ── MAIN ── */
+.main{flex:1;padding:28px 28px 60px;overflow-x:hidden;min-width:0;}
+.page-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:24px;gap:16px;flex-wrap:wrap;}
+.page-title{font-family:var(--display);font-size:28px;font-weight:900;text-transform:uppercase;color:var(--white);letter-spacing:.02em;line-height:1;}
+.page-subtitle{font-family:var(--mono);font-size:11px;color:var(--steel);letter-spacing:.06em;margin-top:5px;}
+.section-label{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--steel);margin-bottom:12px;display:flex;align-items:center;gap:10px;}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* ── STAT GRID (overview) ── */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:2px;background:var(--border);margin-bottom:20px;}
+.stat-card{background:var(--bg-panel);padding:18px 18px;border-top:2px solid transparent;transition:background .15s;}
+.stat-card:hover{background:var(--bg-hover);}
+.stat-card.rust{border-top-color:var(--rust);}
+.stat-card.amber{border-top-color:var(--amber);}
+.stat-card.green{border-top-color:var(--green);}
+.stat-card.red{border-top-color:var(--red);}
+.stat-card.steel{border-top-color:var(--steel);}
+.stat-tag{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--steel);margin-bottom:10px;}
+.stat-val{font-family:var(--display);font-size:40px;font-weight:900;color:var(--white);line-height:1;letter-spacing:-.01em;}
+.stat-val.amber{color:var(--amber);}
+.stat-val.red{color:var(--red);}
+.stat-val.green{color:var(--green);}
+.stat-sub{font-family:var(--mono);font-size:11px;color:var(--steel);margin-top:4px;}
+
+/* ── FILTER TABS ── */
+.filter-tabs{display:flex;gap:4px;margin-bottom:16px;flex-wrap:wrap;}
+.filter-tab{font-family:var(--mono);font-size:11px;letter-spacing:.06em;padding:5px 12px;border:1px solid var(--border);color:var(--steel);cursor:pointer;transition:border-color .15s,color .15s,background .15s;background:transparent;border-radius:2px;}
+.filter-tab:hover{border-color:var(--border-mid);color:var(--steel-light);}
+.filter-tab.active{border-color:var(--rust);color:var(--rust-light);background:rgba(201,75,31,.08);}
+
+/* ── DATA TABLE ── */
+.table-wrap{background:var(--bg-panel);border:1px solid var(--border);overflow:hidden;margin-bottom:24px;}
+.table-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);background:var(--bg-mid);gap:12px;flex-wrap:wrap;}
+.table-title{font-family:var(--display);font-size:16px;font-weight:800;text-transform:uppercase;color:var(--white);letter-spacing:.03em;}
+.table-controls{display:flex;gap:8px;align-items:center;}
+.search-input{background:var(--bg);border:1px solid var(--border-mid);color:var(--white);font-family:var(--mono);font-size:12px;padding:5px 12px;outline:none;width:200px;transition:border-color .15s;}
+.search-input:focus{border-color:var(--rust);}
+.search-input::placeholder{color:var(--steel);}
+.data-table{width:100%;border-collapse:collapse;}
+.data-table th{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--steel);padding:9px 14px;text-align:left;border-bottom:1px solid var(--border);background:var(--bg-mid);white-space:nowrap;}
+.data-table td{padding:11px 14px;font-size:13px;color:var(--steel-light);border-bottom:1px solid var(--border);vertical-align:middle;}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tr:hover td{background:var(--bg-hover);cursor:pointer;}
+.data-table .mono{font-family:var(--mono);font-size:11px;}
+.data-table .dim{color:var(--steel);}
+
+/* ── STATUS BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border-radius:2px;white-space:nowrap;}
+.badge::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.badge.trial{background:rgba(217,119,6,.15);color:var(--amber);border:1px solid rgba(217,119,6,.3);}
+.badge.trial::before{background:var(--amber);}
+.badge.active{background:var(--green-dim);color:var(--green);border:1px solid rgba(34,197,94,.25);}
+.badge.active::before{background:var(--green);}
+.badge.past_due,.badge.past-due{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3);}
+.badge.past_due::before,.badge.past-due::before{background:var(--red);}
+.badge.past_due_blocked,.badge.blocked{background:rgba(239,68,68,.2);color:var(--red);border:1px solid rgba(239,68,68,.5);}
+.badge.past_due_blocked::before,.badge.blocked::before{background:var(--red);}
+.badge.trial_expired,.badge.expired{background:rgba(100,116,139,.15);color:var(--steel-mid);border:1px solid var(--border-mid);}
+.badge.trial_expired::before,.badge.expired::before{background:var(--steel);}
+.badge.canceled{background:rgba(100,116,139,.1);color:var(--steel);border:1px solid var(--border);}
+.badge.canceled::before{background:var(--steel);}
+.badge.paused{background:rgba(217,119,6,.1);color:var(--amber);border:1px solid rgba(217,119,6,.2);}
+.badge.paused::before{background:var(--amber);}
+.badge.synced{background:var(--green-dim);color:var(--green);border:1px solid rgba(34,197,94,.25);}
+.badge.synced::before{background:var(--green);}
+.badge.pending{background:rgba(217,119,6,.1);color:var(--amber);border:1px solid rgba(217,119,6,.25);}
+.badge.pending::before{background:var(--amber);}
+.badge.sync_failed,.badge.failed{background:var(--red-dim);color:var(--red);border:1px solid rgba(239,68,68,.3);}
+.badge.sync_failed::before,.badge.failed::before{background:var(--red);}
+.badge.open{background:rgba(201,75,31,.1);color:var(--rust-light);border:1px solid rgba(201,75,31,.25);}
+.badge.open::before{background:var(--rust);}
+.badge.booked{background:var(--green-dim);color:var(--green);border:1px solid rgba(34,197,94,.25);}
+.badge.booked::before{background:var(--green);}
+.badge.closed{background:rgba(100,116,139,.1);color:var(--steel);border:1px solid var(--border);}
+.badge.closed::before{background:var(--steel);}
+.badge.expired-conv{background:rgba(100,116,139,.1);color:var(--steel);border:1px solid var(--border);}
+.badge.expired-conv::before{background:var(--steel);}
+.badge.high{background:var(--red-dim);color:var(--red);border:1px solid rgba(239,68,68,.3);}
+.badge.high::before{background:var(--red);}
+.badge.medium{background:rgba(217,119,6,.15);color:var(--amber);border:1px solid rgba(217,119,6,.3);}
+.badge.medium::before{background:var(--amber);}
+.badge.low{background:rgba(100,116,139,.12);color:var(--steel-mid);border:1px solid var(--border-mid);}
+.badge.low::before{background:var(--steel);}
+
+/* ── USAGE BAR ── */
+.usage-bar-wrap{display:flex;align-items:center;gap:8px;}
+.usage-bar-bg{width:80px;height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden;flex-shrink:0;}
+.usage-bar-fill{height:100%;border-radius:2px;}
+.usage-bar-fill.green{background:var(--green);}
+.usage-bar-fill.amber{background:var(--amber);}
+.usage-bar-fill.red{background:var(--red);}
+.usage-bar-pct{font-family:var(--mono);font-size:11px;color:var(--steel-mid);}
+
+/* ── BOOL ICON ── */
+.bool-ok{color:var(--green);font-size:14px;}
+.bool-fail{color:var(--red);font-size:14px;}
+.bool-neutral{color:var(--steel);font-size:14px;}
+
+/* ── DETAIL PANELS ── */
+.detail-section{margin-bottom:20px;}
+.panel{background:var(--bg-panel);border:1px solid var(--border);overflow:hidden;margin-bottom:16px;}
+.panel-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--bg-mid);}
+.panel-title{font-family:var(--display);font-size:15px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--white);}
+.panel-body{padding:16px;}
+.kv-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.kv-item{}
+.kv-label{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--steel);margin-bottom:3px;}
+.kv-val{font-size:13px;color:var(--white);font-weight:500;word-break:break-all;}
+.kv-val.mono{font-family:var(--mono);font-size:12px;}
+.kv-val.dim{color:var(--steel-mid);}
+
+/* ── DETAIL TABS ── */
+.detail-tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:20px;overflow-x:auto;}
+.detail-tab{font-family:var(--mono);font-size:11px;letter-spacing:.06em;padding:10px 16px;cursor:pointer;color:var(--steel);white-space:nowrap;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s;}
+.detail-tab:hover{color:var(--steel-light);}
+.detail-tab.active{color:var(--white);border-bottom-color:var(--rust);}
+
+/* ── FUNNEL ── */
+.funnel-wrap{display:flex;gap:2px;margin-bottom:24px;background:var(--border);}
+.funnel-bar{flex:1;background:var(--bg-panel);padding:18px 14px;position:relative;}
+.funnel-label{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--steel);margin-bottom:8px;}
+.funnel-val{font-family:var(--display);font-size:32px;font-weight:900;color:var(--white);line-height:1;margin-bottom:8px;}
+.funnel-track{height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden;}
+.funnel-fill{height:100%;border-radius:2px;}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(7,14,22,.85);z-index:500;display:none;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto;}
+.modal-overlay.open{display:flex;}
+.modal-box{background:var(--bg-panel);border:1px solid var(--border-mid);width:100%;max-width:800px;flex-shrink:0;}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--bg-mid);}
+.modal-title{font-family:var(--display);font-size:18px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;}
+.modal-close{background:transparent;border:1px solid var(--border);color:var(--steel-mid);font-size:16px;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .15s,color .15s;}
+.modal-close:hover{border-color:var(--steel-light);color:var(--white);}
+.modal-body{padding:20px;}
+
+/* ── MESSAGES ── */
+.msg-list{display:flex;flex-direction:column;gap:10px;}
+.msg-item{padding:12px 14px;border-radius:3px;max-width:80%;}
+.msg-item.inbound{background:var(--bg-mid);border:1px solid var(--border);align-self:flex-start;}
+.msg-item.outbound{background:rgba(201,75,31,.12);border:1px solid rgba(201,75,31,.2);align-self:flex-end;}
+.msg-body{font-size:13px;line-height:1.5;color:var(--white);margin-bottom:4px;}
+.msg-meta{font-family:var(--mono);font-size:10px;color:var(--steel);}
+
+/* ── LOADING / ERROR / EMPTY ── */
+.loading{display:flex;align-items:center;justify-content:center;padding:60px;gap:12px;color:var(--steel);}
+.spinner{width:20px;height:20px;border:2px solid var(--border-mid);border-top-color:var(--rust);border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.error-msg{background:var(--red-dim);border:1px solid rgba(239,68,68,.3);color:var(--red);padding:16px 20px;font-family:var(--mono);font-size:12px;margin-bottom:16px;border-radius:2px;}
+.empty-state{padding:60px;text-align:center;color:var(--steel);font-family:var(--mono);font-size:12px;letter-spacing:.06em;}
+
+/* ── SYSTEM HEALTH SUMMARY ── */
+.health-summary{display:flex;gap:16px;margin-bottom:20px;}
+.health-pill{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:2px;font-family:var(--mono);font-size:12px;}
+.health-pill.healthy{background:var(--green-dim);color:var(--green);border:1px solid rgba(34,197,94,.25);}
+.health-pill.degraded{background:rgba(217,119,6,.12);color:var(--amber);border:1px solid rgba(217,119,6,.25);}
+.health-pill.failing{background:var(--red-dim);color:var(--red);border:1px solid rgba(239,68,68,.25);}
+
+/* ── TWO-COL GRID ── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+
+/* ── ATTENTION ROW ── */
+.attention-issues{display:flex;flex-wrap:wrap;gap:4px;}
+.issue-tag{font-family:var(--mono);font-size:9px;letter-spacing:.06em;padding:2px 7px;border-radius:1px;}
+.issue-tag.red{background:var(--red-dim);color:var(--red);}
+.issue-tag.amber{background:rgba(217,119,6,.12);color:var(--amber);}
+
+/* ── MINI LINK ── */
+.link-btn{background:transparent;border:none;color:var(--rust-light);font-family:var(--mono);font-size:11px;cursor:pointer;text-decoration:underline;padding:0;}
+.link-btn:hover{color:var(--rust);}
+
+/* ── SMALL LIST ── */
+.small-list{list-style:none;}
+.small-list li{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--border);font-size:13px;}
+.small-list li:last-child{border-bottom:none;}
+.small-list li:hover{background:var(--bg-hover);}
+</style>
+</head>
+<body>
+
+<!-- ── LOCK SCREEN ── -->
+<div id="lockScreen" class="lock-screen">
+  <div class="lock-box">
+    <div class="lock-logo">Auto<span>Shop</span> AI</div>
+    <div class="lock-badge">Internal Admin</div>
+    <div class="lock-label">Internal API Key</div>
+    <input id="lockInput" class="lock-input" type="password" placeholder="Enter INTERNAL_API_KEY" autocomplete="off">
+    <div id="lockError" class="lock-error">Invalid key. Try again.</div>
+    <button class="lock-btn" onclick="submitLock()">Unlock</button>
+  </div>
+</div>
+
+<!-- ── ADMIN LAYOUT ── -->
+<div id="adminLayout" style="display:none">
+
+  <!-- Top Nav -->
+  <nav class="topnav">
+    <div class="nav-left">
+      <div class="nav-logo">Auto<span>Shop</span> Admin</div>
+      <div class="admin-badge">Internal</div>
+    </div>
+    <div class="nav-right">
+      <span class="nav-api-base" id="apiBaseLabel"></span>
+      <button class="btn-sm" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <!-- Layout -->
+  <div class="layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-label">Operations</div>
+      <div class="sidebar-item active" data-section="overview" onclick="navigate('overview')">
+        <span class="sidebar-icon">⊡</span> Overview
+      </div>
+      <div class="sidebar-item" data-section="accounts" onclick="navigate('accounts')">
+        <span class="sidebar-icon">◫</span> Accounts
+      </div>
+      <div class="sidebar-item" data-section="conversations" onclick="navigate('conversations')">
+        <span class="sidebar-icon">◈</span> Conversations
+      </div>
+      <div class="sidebar-item" data-section="bookings" onclick="navigate('bookings')">
+        <span class="sidebar-icon">◷</span> Bookings
+      </div>
+      <div class="sidebar-label">Finance</div>
+      <div class="sidebar-item" data-section="billing" onclick="navigate('billing')">
+        <span class="sidebar-icon">◎</span> Billing &amp; Trial
+      </div>
+      <div class="sidebar-label">System</div>
+      <div class="sidebar-item" data-section="integrations" onclick="navigate('integrations')">
+        <span class="sidebar-icon">◈</span> Integrations
+      </div>
+      <div class="sidebar-item" data-section="errors" onclick="navigate('errors')">
+        <span class="sidebar-icon">⚠</span> Errors
+        <span class="sidebar-badge" id="errorBadge" style="display:none">!</span>
+      </div>
+      <div class="sidebar-label">Growth</div>
+      <div class="sidebar-item" data-section="signup" onclick="navigate('signup')">
+        <span class="sidebar-icon">⊕</span> Signup Funnel
+      </div>
+      <div class="sidebar-label">Logs</div>
+      <div class="sidebar-item" data-section="audit" onclick="navigate('audit')">
+        <span class="sidebar-icon">≡</span> Audit Log
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main" id="mainContent">
+      <div class="loading"><div class="spinner"></div> Loading…</div>
+    </main>
+
+  </div>
+</div>
+
+<!-- ── CONVERSATION DETAIL MODAL ── -->
+<div id="convModal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="convModalTitle">Conversation</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="convModalBody">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+function getApiBase() {
+  const stored = localStorage.getItem('adminApiBase');
+  if (stored) return stored.replace(/\/$/, '');
+  const origin = window.location.origin;
+  const port = window.location.port;
+  if (!port || port === '80' || port === '443') {
+    // Assume API is on 3000 at same host
+    return `${window.location.protocol}//${window.location.hostname}:3000`;
+  }
+  return origin;
+}
+
+const API = getApiBase();
+let adminKey = '';
+let currentSection = 'overview';
+let currentAccountId = null;
+let accountDetailTab = 'summary';
+let _searchTimer = null;
+let _convPage = 0;
+let _bookPage = 0;
+let _convFilter = null;
+let _bookFilter = null;
+let _accountFilter = null;
+let _accountSearch = '';
+let _accountAttention = false;
+
+document.getElementById('apiBaseLabel').textContent = API;
+
+// ── AUTH ─────────────────────────────────────────────────────────────────────
+function initAuth() {
+  const saved = sessionStorage.getItem('adminKey');
+  if (saved) {
+    adminKey = saved;
+    showAdmin();
+  }
+}
+
+function submitLock() {
+  const val = document.getElementById('lockInput').value.trim();
+  if (!val) return;
+  adminKey = val;
+  // Verify by hitting overview
+  apiFetch('/internal/admin/overview')
+    .then(() => {
+      sessionStorage.setItem('adminKey', adminKey);
+      showAdmin();
+    })
+    .catch(err => {
+      document.getElementById('lockError').style.display = 'block';
+      document.getElementById('lockError').textContent =
+        err.message.includes('401') ? 'Invalid key. Try again.' : 'Connection error: ' + err.message;
+    });
+}
+
+document.getElementById('lockInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitLock();
+});
+
+function showAdmin() {
+  document.getElementById('lockScreen').style.display = 'none';
+  document.getElementById('adminLayout').style.display = 'block';
+  navigate('overview');
+}
+
+function logout() {
+  sessionStorage.removeItem('adminKey');
+  adminKey = '';
+  document.getElementById('adminLayout').style.display = 'none';
+  document.getElementById('lockScreen').style.display = 'flex';
+  document.getElementById('lockInput').value = '';
+  document.getElementById('lockError').style.display = 'none';
+}
+
+// ── API FETCH ────────────────────────────────────────────────────────────────
+async function apiFetch(path, params) {
+  const url = new URL(API + path);
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      if (v !== null && v !== undefined && v !== '') url.searchParams.set(k, v);
+    }
+  }
+  const res = await fetch(url.toString(), {
+    headers: { 'X-Internal-Key': adminKey }
+  });
+  if (res.status === 401) {
+    sessionStorage.removeItem('adminKey');
+    throw new Error('401 Unauthorized');
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`${res.status}: ${text}`);
+  }
+  return res.json();
+}
+
+// ── NAVIGATION ───────────────────────────────────────────────────────────────
+function navigate(section, params) {
+  currentSection = section;
+  document.querySelectorAll('.sidebar-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.section === section);
+  });
+  const main = document.getElementById('mainContent');
+  main.innerHTML = '<div class="loading"><div class="spinner"></div> Loading…</div>';
+
+  switch (section) {
+    case 'overview':      loadOverview(); break;
+    case 'accounts':      loadAccounts(); break;
+    case 'account-detail': loadAccountDetail(params.id); break;
+    case 'conversations': loadConversations(); break;
+    case 'bookings':      loadBookings(); break;
+    case 'billing':       loadBilling(); break;
+    case 'integrations':  loadIntegrations(); break;
+    case 'errors':        loadErrors(); break;
+    case 'signup':        loadSignupFunnel(); break;
+    case 'audit':         loadAudit(); break;
+    default: main.innerHTML = '<div class="empty-state">Unknown section</div>';
+  }
+}
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+function statusBadge(status) {
+  const s = (status || 'unknown').toLowerCase().replace(/[_\s]/g, '_');
+  const label = (status || '—').replace(/_/g, ' ');
+  return `<span class="badge ${s}">${label}</span>`;
+}
+
+function relTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d)) return '—';
+  const diff = Date.now() - d.getTime();
+  const abs = Math.abs(diff);
+  if (abs < 60000)    return 'just now';
+  if (abs < 3600000)  return Math.round(abs/60000) + 'm ago';
+  if (abs < 86400000) return Math.round(abs/3600000) + 'h ago';
+  if (abs < 604800000)return Math.round(abs/86400000) + 'd ago';
+  return d.toLocaleDateString();
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d)) return '—';
+  return d.toLocaleString();
+}
+
+function usageBar(used, limit) {
+  if (!limit || limit === 0) return `<span class="mono dim">—</span>`;
+  const pct = Math.min(100, Math.round((used / limit) * 100));
+  const cls = pct >= 100 ? 'red' : pct >= 80 ? 'amber' : 'green';
+  return `<div class="usage-bar-wrap">
+    <div class="usage-bar-bg"><div class="usage-bar-fill ${cls}" style="width:${pct}%"></div></div>
+    <span class="usage-bar-pct">${used}/${limit}</span>
+  </div>`;
+}
+
+function boolIcon(val) {
+  if (val === null || val === undefined) return '<span class="bool-neutral">—</span>';
+  return val ? '<span class="bool-ok">✓</span>' : '<span class="bool-fail">✗</span>';
+}
+
+function escHtml(str) {
+  if (str === null || str === undefined) return '—';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderError(err) {
+  return `<div class="error-msg">Error: ${escHtml(err.message)}</div>`;
+}
+
+function renderEmpty(msg) {
+  return `<div class="empty-state">${msg || 'No data'}</div>`;
+}
+
+// ── SECTION 1: OVERVIEW ──────────────────────────────────────────────────────
+async function loadOverview() {
+  try {
+    const d = await apiFetch('/internal/admin/overview');
+    const sc = d.status_counts || {};
+    const trial     = sc.trial || 0;
+    const active    = sc.active || 0;
+    const pastDue   = (sc.past_due || 0) + (sc.past_due_blocked || 0);
+    const canceled  = sc.canceled || 0;
+    const expired   = sc.trial_expired || 0;
+
+    // Update error badge
+    if (d.failed_calendar_syncs > 0 || d.no_twilio > 0) {
+      document.getElementById('errorBadge').style.display = '';
+    }
+
+    document.getElementById('mainContent').innerHTML = `
+      <div class="page-header">
+        <div>
+          <div class="page-title">Overview</div>
+          <div class="page-subtitle">System status at a glance</div>
+        </div>
+        <button class="btn-sm" onclick="navigate('overview')">↻ Refresh</button>
+      </div>
+
+      <!-- Main stats -->
+      <div class="section-label">Accounts</div>
+      <div class="stat-grid">
+        <div class="stat-card rust"><div class="stat-tag">Total Accounts</div><div class="stat-val">${d.total_accounts}</div></div>
+        <div class="stat-card amber"><div class="stat-tag">Trial</div><div class="stat-val amber">${trial}</div></div>
+        <div class="stat-card green"><div class="stat-tag">Active</div><div class="stat-val green">${active}</div></div>
+        <div class="stat-card red"><div class="stat-tag">Past Due</div><div class="stat-val red">${pastDue}</div></div>
+        <div class="stat-card steel"><div class="stat-tag">Canceled</div><div class="stat-val">${canceled}</div></div>
+        <div class="stat-card steel"><div class="stat-tag">Trial Expired</div><div class="stat-val">${expired}</div></div>
+        <div class="stat-card rust"><div class="stat-tag">New Last 7d</div><div class="stat-val">${d.new_signups_7d}</div></div>
+      </div>
+
+      <div class="section-label">Today's Activity</div>
+      <div class="stat-grid">
+        <div class="stat-card green"><div class="stat-tag">Conversations Today</div><div class="stat-val green">${d.conversations_today}</div></div>
+        <div class="stat-card green"><div class="stat-tag">Bookings Today</div><div class="stat-val green">${d.bookings_today}</div></div>
+      </div>
+
+      <div class="section-label">Alerts</div>
+      <div class="stat-grid">
+        <div class="stat-card red"><div class="stat-tag">Failed Syncs</div><div class="stat-val ${d.failed_calendar_syncs > 0 ? 'red' : ''}">${d.failed_calendar_syncs}</div><div class="stat-sub">cal sync &gt;1h</div></div>
+        <div class="stat-card amber"><div class="stat-tag">No Twilio</div><div class="stat-val ${d.no_twilio > 0 ? 'red' : ''}">${d.no_twilio}</div><div class="stat-sub">no active phone</div></div>
+        <div class="stat-card amber"><div class="stat-tag">No Calendar</div><div class="stat-val ${d.no_calendar > 0 ? 'amber' : ''}">${d.no_calendar}</div><div class="stat-sub">not connected</div></div>
+        <div class="stat-card amber"><div class="stat-tag">Near Expiry</div><div class="stat-val ${d.near_expiry > 0 ? 'amber' : ''}">${d.near_expiry}</div><div class="stat-sub">trial ≤3 days</div></div>
+        <div class="stat-card amber"><div class="stat-tag">High Usage</div><div class="stat-val ${d.high_usage > 0 ? 'amber' : ''}">${d.high_usage}</div><div class="stat-sub">≥80% of limit</div></div>
+      </div>
+
+      <!-- Needs Attention -->
+      <div class="section-label">Needs Attention</div>
+      <div class="table-wrap">
+        <div class="table-header"><span class="table-title">At-Risk Accounts</span></div>
+        ${d.needs_attention && d.needs_attention.length > 0 ? `
+        <table class="data-table">
+          <thead><tr>
+            <th>Shop</th><th>Email</th><th>Status</th><th>Trial Ends</th><th>Usage</th><th>Issues</th>
+          </tr></thead>
+          <tbody>
+          ${d.needs_attention.map(t => {
+            const issues = [];
+            if (!t.has_phone) issues.push('<span class="issue-tag red">No Twilio</span>');
+            if (!t.has_calendar) issues.push('<span class="issue-tag amber">No Calendar</span>');
+            if (t.billing_status === 'past_due' || t.billing_status === 'past_due_blocked') issues.push('<span class="issue-tag red">Past Due</span>');
+            if (t.billing_status === 'trial' && t.trial_ends_at) {
+              const days = Math.max(0, Math.ceil((new Date(t.trial_ends_at) - Date.now()) / 86400000));
+              if (days <= 3) issues.push(`<span class="issue-tag amber">Expires ${days}d</span>`);
+            }
+            if (t.conv_limit_this_cycle > 0) {
+              const pct = t.conv_used_this_cycle / t.conv_limit_this_cycle;
+              if (pct >= 0.8) issues.push('<span class="issue-tag amber">High Usage</span>');
+            }
+            return `<tr onclick="navigate('account-detail',{id:'${t.id}'})">
+              <td>${escHtml(t.shop_name)}</td>
+              <td class="mono dim">${escHtml(t.owner_email)}</td>
+              <td>${statusBadge(t.billing_status)}</td>
+              <td class="mono dim">${t.trial_ends_at ? relTime(t.trial_ends_at) : '—'}</td>
+              <td>${usageBar(t.conv_used_this_cycle, t.conv_limit_this_cycle)}</td>
+              <td><div class="attention-issues">${issues.join('')}</div></td>
+            </tr>`;
+          }).join('')}
+          </tbody>
+        </table>` : renderEmpty('No accounts need attention')}
+      </div>
+
+      <!-- Three-column lists -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+        <!-- Recent Signups -->
+        <div class="table-wrap">
+          <div class="table-header"><span class="table-title">Recent Signups</span></div>
+          ${d.recent_signups && d.recent_signups.length > 0 ?
+            `<ul class="small-list">${d.recent_signups.map(t => `
+              <li onclick="navigate('account-detail',{id:'${t.id}'})" style="cursor:pointer;flex-direction:column;align-items:flex-start;gap:2px">
+                <span style="font-weight:600">${escHtml(t.shop_name)}</span>
+                <span class="mono dim" style="font-size:11px">${escHtml(t.owner_email)}</span>
+                <div style="display:flex;gap:6px;margin-top:4px">${statusBadge(t.billing_status)}<span class="mono dim" style="font-size:10px">${relTime(t.created_at)}</span></div>
+              </li>`).join('')}
+            </ul>` : renderEmpty('No recent signups')}
+        </div>
+
+        <!-- Recent Conversations -->
+        <div class="table-wrap">
+          <div class="table-header"><span class="table-title">Recent Conversations</span></div>
+          ${d.recent_conversations && d.recent_conversations.length > 0 ?
+            `<ul class="small-list">${d.recent_conversations.map(c => `
+              <li onclick="loadConversationDetail('${c.id}')" style="cursor:pointer;flex-direction:column;align-items:flex-start;gap:2px">
+                <span style="font-weight:600">${escHtml(c.shop_name)}</span>
+                <span class="mono dim" style="font-size:11px">${escHtml(c.customer_phone)}</span>
+                <div style="display:flex;gap:6px;margin-top:4px">${statusBadge(c.status)}<span class="mono dim" style="font-size:10px">${relTime(c.opened_at)}</span></div>
+              </li>`).join('')}
+            </ul>` : renderEmpty('No recent conversations')}
+        </div>
+
+        <!-- Recent Billing Events -->
+        <div class="table-wrap">
+          <div class="table-header"><span class="table-title">Recent Billing Events</span></div>
+          ${d.recent_billing_events && d.recent_billing_events.length > 0 ?
+            `<ul class="small-list">${d.recent_billing_events.map(b => `
+              <li style="flex-direction:column;align-items:flex-start;gap:2px">
+                <span style="font-weight:600;font-size:12px;font-family:var(--mono)">${escHtml(b.event_type)}</span>
+                <span class="mono dim" style="font-size:11px">${escHtml(b.shop_name || '—')}</span>
+                <span class="mono dim" style="font-size:10px">${relTime(b.processed_at)}</span>
+              </li>`).join('')}
+            </ul>` : renderEmpty('No billing events')}
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    document.getElementById('mainContent').innerHTML = renderError(err);
+  }
+}
+
+// ── SECTION 2: ACCOUNTS ──────────────────────────────────────────────────────
+function loadAccounts(filter, search, attention) {
+  if (filter !== undefined) _accountFilter = filter;
+  if (search !== undefined) _accountSearch = search;
+  if (attention !== undefined) _accountAttention = attention;
+
+  const params = {};
+  if (_accountFilter) params.status = _accountFilter;
+  if (_accountSearch) params.search = _accountSearch;
+  if (_accountAttention) params.attention = '1';
+
+  const filters = [
+    { label: 'All',          val: null },
+    { label: 'Trial',        val: 'trial' },
+    { label: 'Active',       val: 'active' },
+    { label: 'Past Due',     val: 'past_due' },
+    { label: 'Blocked',      val: 'past_due_blocked' },
+    { label: 'Trial Expired',val: 'trial_expired' },
+    { label: 'Canceled',     val: 'canceled' },
+    { label: 'Paused',       val: 'paused' },
+  ];
+
+  const header = `
+    <div class="page-header">
+      <div><div class="page-title">Accounts</div><div class="page-subtitle">All tenant accounts</div></div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px">
+      <div class="filter-tabs">
+        ${filters.map(f => `<button class="filter-tab ${_accountFilter === f.val ? 'active' : ''}"
+          onclick="loadAccounts('${f.val}',undefined,undefined)">${f.label}</button>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="search-input" id="accountSearch" placeholder="Search shop or email…" value="${escHtml(_accountSearch)}"
+          oninput="debounceSearch(this.value)">
+        <button class="filter-tab ${_accountAttention ? 'active' : ''}"
+          onclick="loadAccounts(undefined,undefined,${!_accountAttention})">Needs Attention</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('mainContent').innerHTML = header + '<div class="loading"><div class="spinner"></div> Loading accounts…</div>';
+
+  apiFetch('/internal/admin/tenants', params)
+    .then(d => {
+      const tbody = d.tenants.length > 0 ? d.tenants.map(t => {
+        const days = t.trial_days_left !== null ? `${t.trial_days_left}d` : '—';
+        return `<tr onclick="navigate('account-detail',{id:'${t.id}'})">
+          <td style="font-weight:600">${escHtml(t.shop_name)}</td>
+          <td class="mono dim">${escHtml(t.owner_email)}</td>
+          <td>${statusBadge(t.billing_status)}</td>
+          <td class="mono dim">${t.plan_id || '—'}</td>
+          <td class="mono dim">${days}</td>
+          <td>${usageBar(t.conv_used_this_cycle, t.conv_limit_this_cycle)}</td>
+          <td>${boolIcon(t.has_phone)}</td>
+          <td>${boolIcon(t.has_calendar)}</td>
+          <td class="mono dim">${t.total_conversations}</td>
+          <td class="mono dim">${t.total_bookings}</td>
+          <td class="mono dim">${relTime(t.created_at)}</td>
+        </tr>`;
+      }).join('') : `<tr><td colspan="11">${renderEmpty('No accounts match filters')}</td></tr>`;
+
+      document.getElementById('mainContent').innerHTML = header + `
+        <div class="table-wrap">
+          <div class="table-header">
+            <span class="table-title">Accounts <span class="mono dim">(${d.count})</span></span>
+          </div>
+          <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr>
+              <th>Shop Name</th><th>Email</th><th>Status</th><th>Plan</th>
+              <th>Trial Left</th><th>Usage</th><th>Twilio</th><th>Calendar</th>
+              <th>Convs</th><th>Bookings</th><th>Created</th>
+            </tr></thead>
+            <tbody>${tbody}</tbody>
+          </table>
+          </div>
+        </div>`;
+
+      // Re-bind search
+      const si = document.getElementById('accountSearch');
+      if (si) si.oninput = e => debounceSearch(e.target.value);
+    })
+    .catch(err => {
+      document.getElementById('mainContent').innerHTML = header + renderError(err);
+    });
+}
+
+function debounceSearch(val) {
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(() => loadAccounts(undefined, val, undefined), 300);
+}
+
+// ── SECTION 3: ACCOUNT DETAIL ────────────────────────────────────────────────
+async function loadAccountDetail(id) {
+  currentAccountId = id;
+  accountDetailTab = 'summary';
+  try {
+    const d = await apiFetch(`/internal/admin/tenants/${id}`);
+    renderAccountDetail(d);
+  } catch (err) {
+    document.getElementById('mainContent').innerHTML =
+      `<button class="btn-sm" style="margin-bottom:16px" onclick="navigate('accounts')">← Back to Accounts</button>` +
+      renderError(err);
+  }
+}
+
+function renderAccountDetail(d) {
+  const t = d.tenant;
+  const tabs = ['summary','usage','billing','conversations','bookings','integrations','billing_events','audit'];
+  const tabLabels = {
+    summary:'Summary', usage:'Usage', billing:'Billing', conversations:'Conversations',
+    bookings:'Bookings', integrations:'Integrations', billing_events:'Billing Events', audit:'Audit Log'
+  };
+
+  let tabContent = '';
+  switch (accountDetailTab) {
+    case 'summary':
+      tabContent = `
+        <div class="two-col">
+          <div class="panel">
+            <div class="panel-header"><span class="panel-title">Shop Info</span></div>
+            <div class="panel-body">
+              <div class="kv-grid">
+                <div class="kv-item"><div class="kv-label">Shop Name</div><div class="kv-val">${escHtml(t.shop_name)}</div></div>
+                <div class="kv-item"><div class="kv-label">Status</div><div class="kv-val">${statusBadge(t.billing_status)}</div></div>
+                <div class="kv-item"><div class="kv-label">Owner Name</div><div class="kv-val">${escHtml(t.owner_name || '—')}</div></div>
+                <div class="kv-item"><div class="kv-label">Owner Email</div><div class="kv-val mono">${escHtml(t.owner_email)}</div></div>
+                <div class="kv-item"><div class="kv-label">Owner Phone</div><div class="kv-val mono">${escHtml(t.owner_phone || '—')}</div></div>
+                <div class="kv-item"><div class="kv-label">Timezone</div><div class="kv-val mono">${escHtml(t.timezone || '—')}</div></div>
+                <div class="kv-item"><div class="kv-label">Plan</div><div class="kv-val">${escHtml(t.plan_id || '—')}</div></div>
+                <div class="kv-item"><div class="kv-label">Tenant ID</div><div class="kv-val mono dim" style="font-size:10px">${escHtml(t.id)}</div></div>
+                <div class="kv-item"><div class="kv-label">Created</div><div class="kv-val mono dim">${fmtDate(t.created_at)}</div></div>
+                <div class="kv-item"><div class="kv-label">Updated</div><div class="kv-val mono dim">${fmtDate(t.updated_at)}</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><span class="panel-title">Users</span></div>
+            <div class="panel-body">
+              ${d.users && d.users.length > 0 ? d.users.map(u => `
+                <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+                  <div style="font-weight:600;margin-bottom:2px">${escHtml(u.email)}</div>
+                  <div class="mono dim" style="font-size:11px">Provider: ${escHtml(u.auth_provider)} · ${relTime(u.created_at)}</div>
+                </div>`).join('') : '<div class="empty-state" style="padding:20px">No users</div>'}
+            </div>
+          </div>
+        </div>`;
+      break;
+
+    case 'usage':
+      tabContent = `
+        <div class="panel">
+          <div class="panel-header"><span class="panel-title">Conversation Usage</span></div>
+          <div class="panel-body">
+            <div style="margin-bottom:20px">
+              ${usageBar(t.conv_used_this_cycle, t.conv_limit_this_cycle)}
+              <div class="mono dim" style="font-size:12px;margin-top:8px">
+                ${t.conv_used_this_cycle} / ${t.conv_limit_this_cycle || '—'} conversations · ${d.usage_pct ?? 0}%
+              </div>
+            </div>
+            <div class="kv-grid">
+              <div class="kv-item"><div class="kv-label">Used This Cycle</div><div class="kv-val">${t.conv_used_this_cycle}</div></div>
+              <div class="kv-item"><div class="kv-label">Limit This Cycle</div><div class="kv-val">${t.conv_limit_this_cycle || '—'}</div></div>
+              <div class="kv-item"><div class="kv-label">Trial Conv Limit</div><div class="kv-val">${t.trial_conv_limit || '—'}</div></div>
+              <div class="kv-item"><div class="kv-label">Cycle Reset At</div><div class="kv-val mono dim">${fmtDate(t.cycle_reset_at)}</div></div>
+              <div class="kv-item"><div class="kv-label">Warned 80%</div><div class="kv-val">${boolIcon(t.warned_80pct)}</div></div>
+              <div class="kv-item"><div class="kv-label">Warned 100%</div><div class="kv-val">${boolIcon(t.warned_100pct)}</div></div>
+            </div>
+          </div>
+        </div>`;
+      break;
+
+    case 'billing':
+      tabContent = `
+        <div class="panel">
+          <div class="panel-header"><span class="panel-title">Billing Details</span></div>
+          <div class="panel-body">
+            <div class="kv-grid">
+              <div class="kv-item"><div class="kv-label">Status</div><div class="kv-val">${statusBadge(t.billing_status)}</div></div>
+              <div class="kv-item"><div class="kv-label">Plan</div><div class="kv-val">${escHtml(t.plan_id || '—')}</div></div>
+              <div class="kv-item"><div class="kv-label">Trial Started</div><div class="kv-val mono dim">${fmtDate(t.trial_started_at)}</div></div>
+              <div class="kv-item"><div class="kv-label">Trial Ends</div><div class="kv-val mono dim">${fmtDate(t.trial_ends_at)}</div></div>
+              <div class="kv-item"><div class="kv-label">Stripe Customer ID</div><div class="kv-val mono dim" style="font-size:11px">${escHtml(t.stripe_customer_id || '—')}</div></div>
+              <div class="kv-item"><div class="kv-label">Stripe Subscription ID</div><div class="kv-val mono dim" style="font-size:11px">${escHtml(t.stripe_subscription_id || '—')}</div></div>
+              <div class="kv-item"><div class="kv-label">Stripe Price ID</div><div class="kv-val mono dim" style="font-size:11px">${escHtml(t.stripe_price_id || '—')}</div></div>
+              <div class="kv-item"><div class="kv-label">Period Start</div><div class="kv-val mono dim">${fmtDate(t.current_period_start)}</div></div>
+              <div class="kv-item"><div class="kv-label">Cancel at Period End</div><div class="kv-val">${boolIcon(t.cancel_at_period_end)}</div></div>
+            </div>
+          </div>
+        </div>`;
+      break;
+
+    case 'conversations':
+      tabContent = `
+        <div class="table-wrap">
+          <div class="table-header"><span class="table-title">Recent Conversations</span></div>
+          ${d.conversations && d.conversations.length > 0 ? `
+          <table class="data-table">
+            <thead><tr><th>Status</th><th>Customer</th><th>Turns</th><th>Opened</th><th>Last Msg</th><th>Closed</th><th>Close Reason</th></tr></thead>
+            <tbody>${d.conversations.map(c => `<tr onclick="loadConversationDetail('${c.id}')">
+              <td>${statusBadge(c.status)}</td>
+              <td class="mono dim">${escHtml(c.customer_phone)}</td>
+              <td class="mono dim">${c.turn_count}</td>
+              <td class="mono dim">${relTime(c.opened_at)}</td>
+              <td class="mono dim">${relTime(c.last_message_at)}</td>
+              <td class="mono dim">${relTime(c.closed_at)}</td>
+              <td class="mono dim">${escHtml(c.close_reason || '—')}</td>
+            </tr>`).join('')}
+            </tbody>
+          </table>` : renderEmpty('No conversations')}
+        </div>`;
+      break;
+
+    case 'bookings':
+      tabContent = `
+        <div class="table-wrap">
+          <div class="table-header"><span class="table-title">Recent Bookings</span></div>
+          ${d.bookings && d.bookings.length > 0 ? `
+          <table class="data-table">
+            <thead><tr><th>Customer</th><th>Name</th><th>Service</th><th>Scheduled</th><th>Cal Synced</th><th>Google Event ID</th><th>Created</th></tr></thead>
+            <tbody>${d.bookings.map(b => `<tr>
+              <td class="mono dim">${escHtml(b.customer_phone)}</td>
+              <td>${escHtml(b.customer_name || '—')}</td>
+              <td>${escHtml(b.service_type || '—')}</td>
+              <td class="mono dim">${fmtDate(b.scheduled_at)}</td>
+              <td>${boolIcon(b.calendar_synced)}</td>
+              <td class="mono dim" style="font-size:10px">${escHtml(b.google_event_id || '—')}</td>
+              <td class="mono dim">${relTime(b.created_at)}</td>
+            </tr>`).join('')}
+            </tbody>
+          </table>` : renderEmpty('No bookings')}
+        </div>`;
+      break;
+
+    case 'integrations':
+      const ph = d.phone_numbers && d.phone_numbers[0];
+      const cal = d.calendar && d.calendar[0];
+      tabContent = `
+        <div class="two-col">
+          <div class="panel">
+            <div class="panel-header"><span class="panel-title">Twilio Phone</span></div>
+            <div class="panel-body">
+              ${ph ? `<div class="kv-grid">
+                <div class="kv-item"><div class="kv-label">Phone Number</div><div class="kv-val mono">${escHtml(ph.phone_number)}</div></div>
+                <div class="kv-item"><div class="kv-label">Status</div><div class="kv-val">${statusBadge(ph.status)}</div></div>
+                <div class="kv-item"><div class="kv-label">Twilio SID</div><div class="kv-val mono dim" style="font-size:11px">${escHtml(ph.twilio_sid || '—')}</div></div>
+                <div class="kv-item"><div class="kv-label">Provisioned</div><div class="kv-val mono dim">${fmtDate(ph.provisioned_at)}</div></div>
+              </div>` : '<div class="empty-state" style="padding:20px">No Twilio number</div>'}
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><span class="panel-title">Google Calendar</span></div>
+            <div class="panel-body">
+              ${cal ? `<div class="kv-grid">
+                <div class="kv-item"><div class="kv-label">Calendar ID</div><div class="kv-val mono dim" style="font-size:11px">${escHtml(cal.calendar_id || '—')}</div></div>
+                <div class="kv-item"><div class="kv-label">Connected</div><div class="kv-val mono dim">${fmtDate(cal.connected_at)}</div></div>
+                <div class="kv-item"><div class="kv-label">Last Refreshed</div><div class="kv-val mono dim">${fmtDate(cal.last_refreshed)}</div></div>
+                <div class="kv-item"><div class="kv-label">Token Expiry</div><div class="kv-val mono dim">${fmtDate(cal.token_expiry)}</div></div>
+              </div>` : '<div class="empty-state" style="padding:20px">Google Calendar not connected</div>'}
+            </div>
+          </div>
+        </div>`;
+      break;
+
+    case 'billing_events':
+      tabContent = `
+        <div class="table-wrap">
+          <div class="table-header"><span class="table-title">Billing Events</span></div>
+          ${d.billing_events && d.billing_events.length > 0 ? `
+          <table class="data-table">
+            <thead><tr><th>Type</th><th>Processed At</th><th>ID</th></tr></thead>
+            <tbody>${d.billing_events.map(e => `<tr>
+              <td class="mono">${escHtml(e.event_type)}</td>
+              <td class="mono dim">${fmtDate(e.processed_at)}</td>
+              <td class="mono dim" style="font-size:10px">${escHtml(e.id)}</td>
+            </tr>`).join('')}
+            </tbody>
+          </table>` : renderEmpty('No billing events recorded')}
+        </div>`;
+      break;
+
+    case 'audit':
+      tabContent = `
+        <div style="margin-bottom:12px;font-family:var(--mono);font-size:11px;color:var(--steel)">
+          Audit log entries written by system on key events (signup, trial, plan change, integration).
+        </div>
+        <div class="table-wrap">
+          <div class="table-header"><span class="table-title">Audit Log</span></div>
+          ${d.audit_log && d.audit_log.length > 0 ? `
+          <table class="data-table">
+            <thead><tr><th>Event Type</th><th>Actor</th><th>Time</th><th>Metadata</th></tr></thead>
+            <tbody>${d.audit_log.map(e => `<tr>
+              <td class="mono">${escHtml(e.event_type)}</td>
+              <td class="mono dim">${escHtml(e.actor || '—')}</td>
+              <td class="mono dim">${fmtDate(e.created_at)}</td>
+              <td class="mono dim" style="font-size:10px">${escHtml(e.metadata ? JSON.stringify(e.metadata) : '—')}</td>
+            </tr>`).join('')}
+            </tbody>
+          </table>` : renderEmpty('No audit events recorded yet')}
+        </div>`;
+      break;
+  }
+
+  document.getElementById('mainContent').innerHTML = `
+    <div style="margin-bottom:16px">
+      <button class="btn-sm" onclick="navigate('accounts')">← Accounts</button>
+    </div>
+    <div class="page-header">
+      <div>
+        <div class="page-title">${escHtml(t.shop_name)}</div>
+        <div class="page-subtitle">${escHtml(t.owner_email)} · ${escHtml(t.id)}</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        ${statusBadge(t.billing_status)}
+      </div>
+    </div>
+    <div class="detail-tabs">
+      ${tabs.map(tab => `<div class="detail-tab ${accountDetailTab === tab ? 'active' : ''}"
+        onclick="switchAccountTab('${tab}')">${tabLabels[tab]}</div>`).join('')}
+    </div>
+    <div id="accountTabContent">${tabContent}</div>
+  `;
+
+  // Store data for tab switching
+  window._accountDetailData = d;
+}
+
+function switchAccountTab(tab) {
+  accountDetailTab = tab;
+  renderAccountDetail(window._accountDetailData);
+}
+
+// ── SECTION 4: CONVERSATIONS ─────────────────────────────────────────────────
+function loadConversations(filter) {
+  if (filter !== undefined) _convFilter = filter;
+  const params = { page: _convPage };
+  if (_convFilter) params.status = _convFilter;
+
+  const filters = [
+    {label:'All',val:null},{label:'Open',val:'open'},{label:'Booked',val:'booked'},
+    {label:'Closed',val:'closed'},{label:'Expired',val:'expired'}
+  ];
+
+  const header = `
+    <div class="page-header">
+      <div><div class="page-title">Conversations</div><div class="page-subtitle">All SMS conversations</div></div>
+    </div>
+    <div class="filter-tabs">
+      ${filters.map(f => `<button class="filter-tab ${_convFilter === f.val ? 'active' : ''}"
+        onclick="loadConversations('${f.val}')">${f.label}</button>`).join('')}
+    </div>`;
+
+  document.getElementById('mainContent').innerHTML = header + '<div class="loading"><div class="spinner"></div> Loading…</div>';
+
+  apiFetch('/internal/admin/conversations', params)
+    .then(d => {
+      const tbody = d.conversations.length > 0 ? d.conversations.map(c => `
+        <tr onclick="loadConversationDetail('${c.id}')">
+          <td style="font-weight:600">${escHtml(c.shop_name)}</td>
+          <td class="mono dim">${escHtml(c.customer_phone)}</td>
+          <td>${statusBadge(c.status)}</td>
+          <td class="mono dim">${c.turn_count}</td>
+          <td class="mono dim">${relTime(c.opened_at)}</td>
+          <td class="mono dim">${relTime(c.last_message_at)}</td>
+          <td>${boolIcon(c.has_booking)}</td>
+          <td>${c.booking_synced !== null ? boolIcon(c.booking_synced) : '<span class="bool-neutral">—</span>'}</td>
+          <td class="mono dim">${c.message_count}</td>
+        </tr>`).join('') : `<tr><td colspan="9">${renderEmpty('No conversations match')}</td></tr>`;
+
+      document.getElementById('mainContent').innerHTML = header + `
+        <div class="table-wrap">
+          <div class="table-header"><span class="table-title">Conversations <span class="mono dim">(${d.count})</span></span></div>
+          <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr>
+              <th>Shop</th><th>Customer</th><th>Status</th><th>Turns</th>
+              <th>Opened</th><th>Last Msg</th><th>Booking</th><th>Sync</th><th>Messages</th>
+            </tr></thead>
+            <tbody>${tbody}</tbody>
+          </table>
+          </div>
+        </div>`;
+    })
+    .catch(err => {
+      document.getElementById('mainContent').innerHTML = header + renderError(err);
+    });
+}
+
+// ── CONVERSATION DETAIL MODAL ─────────────────────────────────────────────────
+async function loadConversationDetail(id) {
+  const modal = document.getElementById('convModal');
+  modal.classList.add('open');
+  document.getElementById('convModalBody').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  try {
+    const d = await apiFetch(`/internal/admin/conversations/${id}`);
+    const c = d.conversation;
+    document.getElementById('convModalTitle').textContent = `${c.customer_phone} — ${c.shop_name}`;
+
+    const apptHtml = d.appointment ? `
+      <div class="panel" style="margin-bottom:16px">
+        <div class="panel-header"><span class="panel-title">Appointment</span></div>
+        <div class="panel-body">
+          <div class="kv-grid">
+            <div class="kv-item"><div class="kv-label">Service</div><div class="kv-val">${escHtml(d.appointment.service_type || '—')}</div></div>
+            <div class="kv-item"><div class="kv-label">Scheduled</div><div class="kv-val mono dim">${fmtDate(d.appointment.scheduled_at)}</div></div>
+            <div class="kv-item"><div class="kv-label">Customer</div><div class="kv-val">${escHtml(d.appointment.customer_name || '—')}</div></div>
+            <div class="kv-item"><div class="kv-label">Calendar Synced</div><div class="kv-val">${boolIcon(d.appointment.calendar_synced)}</div></div>
+          </div>
+        </div>
+      </div>` : '';
+
+    const msgsHtml = d.messages.length > 0 ?
+      `<div class="msg-list">${d.messages.map(m => `
+        <div class="msg-item ${m.direction}">
+          <div class="msg-body">${escHtml(m.body)}</div>
+          <div class="msg-meta">${m.direction} · ${relTime(m.sent_at)}${m.tokens_used ? ` · ${m.tokens_used} tokens` : ''}</div>
+        </div>`).join('')}
+      </div>` : renderEmpty('No messages');
+
+    document.getElementById('convModalBody').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+        <div class="kv-item"><div class="kv-label">Status</div><div class="kv-val">${statusBadge(c.status)}</div></div>
+        <div class="kv-item"><div class="kv-label">Turns</div><div class="kv-val mono">${c.turn_count}</div></div>
+        <div class="kv-item"><div class="kv-label">Opened</div><div class="kv-val mono dim">${fmtDate(c.opened_at)}</div></div>
+        <div class="kv-item"><div class="kv-label">Closed</div><div class="kv-val mono dim">${fmtDate(c.closed_at)}</div></div>
+        ${c.close_reason ? `<div class="kv-item" style="grid-column:span 2"><div class="kv-label">Close Reason</div><div class="kv-val mono dim">${escHtml(c.close_reason)}</div></div>` : ''}
+      </div>
+      ${apptHtml}
+      <div class="section-label">Messages (${d.messages.length})</div>
+      ${msgsHtml}`;
+  } catch (err) {
+    document.getElementById('convModalBody').innerHTML = renderError(err);
+  }
+}
+
+function closeModal() {
+  document.getElementById('convModal').classList.remove('open');
+}
+
+document.getElementById('convModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('convModal')) closeModal();
+});
+
+// ── SECTION 5: BOOKINGS ──────────────────────────────────────────────────────
+function loadBookings(filter) {
+  if (filter !== undefined) _bookFilter = filter;
+  const params = { page: _bookPage };
+  if (_bookFilter) params.filter = _bookFilter;
+
+  const filters = [
+    {label:'All',val:null},{label:'Today',val:'today'},{label:'Upcoming',val:'upcoming'},
+    {label:'Sync Failed',val:'failed'},{label:'Pending',val:'pending'},{label:'Synced',val:'synced'}
+  ];
+
+  const header = `
+    <div class="page-header">
+      <div><div class="page-title">Bookings</div><div class="page-subtitle">All appointments</div></div>
+    </div>
+    <div class="filter-tabs">
+      ${filters.map(f => `<button class="filter-tab ${_bookFilter === f.val ? 'active' : ''}"
+        onclick="loadBookings('${f.val}')">${f.label}</button>`).join('')}
+    </div>`;
+
+  document.getElementById('mainContent').innerHTML = header + '<div class="loading"><div class="spinner"></div> Loading…</div>';
+
+  apiFetch('/internal/admin/bookings', params)
+    .then(d => {
+      const tbody = d.bookings.length > 0 ? d.bookings.map(b => `<tr>
+        <td style="font-weight:600">${escHtml(b.shop_name)}</td>
+        <td>${escHtml(b.customer_name || '—')}</td>
+        <td class="mono dim">${escHtml(b.customer_phone)}</td>
+        <td>${escHtml(b.service_type || '—')}</td>
+        <td class="mono dim">${fmtDate(b.scheduled_at)}</td>
+        <td class="mono dim">${relTime(b.created_at)}</td>
+        <td>${statusBadge(b.sync_status)}</td>
+        <td class="mono dim" style="font-size:10px">${escHtml(b.google_event_id || '—')}</td>
+        <td>${b.conversation_id ? `<button class="link-btn" onclick="loadConversationDetail('${b.conversation_id}')">View</button>` : '—'}</td>
+      </tr>`).join('') : `<tr><td colspan="9">${renderEmpty('No bookings match')}</td></tr>`;
+
+      document.getElementById('mainContent').innerHTML = header + `
+        <div class="table-wrap">
+          <div class="table-header"><span class="table-title">Bookings <span class="mono dim">(${d.count})</span></span></div>
+          <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr>
+              <th>Shop</th><th>Customer Name</th><th>Phone</th><th>Service</th>
+              <th>Scheduled At</th><th>Created</th><th>Sync Status</th><th>Google Event ID</th><th>Conv</th>
+            </tr></thead>
+            <tbody>${tbody}</tbody>
+          </table>
+          </div>
+        </div>`;
+    })
+    .catch(err => {
+      document.getElementById('mainContent').innerHTML = header + renderError(err);
+    });
+}
+
+// ── SECTION 6: BILLING ───────────────────────────────────────────────────────
+async function loadBilling() {
+  try {
+    const d = await apiFetch('/internal/admin/billing');
+
+    const rowColor = (row) => {
+      if (row.billing_status === 'past_due_blocked' || row.billing_status === 'trial_expired' || row.usage_pct >= 100) return 'style="background:rgba(239,68,68,.04)"';
+      if (row.billing_status === 'past_due' || (row.billing_status === 'trial' && row.trial_days_left !== null && row.trial_days_left <= 3) || row.usage_pct >= 80) return 'style="background:rgba(217,119,6,.04)"';
+      return '';
+    };
+
+    const tbody = d.billing.length > 0 ? d.billing.map(row => `<tr ${rowColor(row)}>
+      <td style="font-weight:600" onclick="navigate('account-detail',{id:'${row.id}'})" style="cursor:pointer">${escHtml(row.shop_name)}</td>
+      <td class="mono dim">${escHtml(row.owner_email)}</td>
+      <td>${statusBadge(row.billing_status)}</td>
+      <td class="mono dim">${row.plan_id || '—'}</td>
+      <td class="mono dim">${row.trial_ends_at ? relTime(row.trial_ends_at) : '—'}</td>
+      <td class="mono dim">${row.trial_days_left !== null ? row.trial_days_left + 'd' : '—'}</td>
+      <td>${usageBar(row.conv_used_this_cycle, row.conv_limit_this_cycle)}</td>
+      <td class="mono dim ${row.usage_pct >= 100 ? 'style="color:var(--red)"' : row.usage_pct >= 80 ? 'style="color:var(--amber)"' : ''}">${row.usage_pct}%</td>
+      <td class="mono dim">${row.current_period_start ? relTime(row.current_period_start) : '—'}</td>
+      <td>${boolIcon(row.has_stripe)} ${boolIcon(row.has_subscription)}</td>
+    </tr>`).join('') : `<tr><td colspan="10">${renderEmpty('No billing data')}</td></tr>`;
+
+    document.getElementById('mainContent').innerHTML = `
+      <div class="page-header">
+        <div><div class="page-title">Billing &amp; Trial</div><div class="page-subtitle">Sorted by urgency — past due first</div></div>
+      </div>
+      <div class="table-wrap">
+        <div class="table-header"><span class="table-title">All Accounts <span class="mono dim">(${d.count})</span></span></div>
+        <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead><tr>
+            <th>Shop</th><th>Email</th><th>Status</th><th>Plan</th>
+            <th>Trial Ends</th><th>Days Left</th><th>Usage</th><th>Usage %</th>
+            <th>Period Start</th><th>Stripe</th>
+          </tr></thead>
+          <tbody>${tbody}</tbody>
+        </table>
+        </div>
+      </div>`;
+  } catch (err) {
+    document.getElementById('mainContent').innerHTML = renderError(err);
+  }
+}
+
+// ── SECTION 7: INTEGRATIONS ──────────────────────────────────────────────────
+async function loadIntegrations() {
+  try {
+    const d = await apiFetch('/internal/admin/integrations');
+    let healthy = 0, degraded = 0, failing = 0;
+
+    const rows = d.integrations.map(row => {
+      const hasPhone = !!row.twilio_phone;
+      const hasCal = !!row.calendar_id;
+      const failedSyncs = row.failed_sync_count || 0;
+      const tokenExpiry = row.calendar_token_expiry ? new Date(row.calendar_token_expiry) : null;
+      const tokenSoon = tokenExpiry && (tokenExpiry - Date.now()) < 7 * 86400000;
+
+      let rowClass = '';
+      if (!hasPhone || failedSyncs > 0) { rowClass = 'style="background:rgba(239,68,68,.04)"'; failing++; }
+      else if (!hasCal || tokenSoon) { rowClass = 'style="background:rgba(217,119,6,.04)"'; degraded++; }
+      else { healthy++; }
+
+      return `<tr ${rowClass} onclick="navigate('account-detail',{id:'${row.id}'})">
+        <td style="font-weight:600">${escHtml(row.shop_name)}</td>
+        <td class="mono dim">${row.twilio_phone || '<span style="color:var(--red)">None</span>'}</td>
+        <td>${row.twilio_status ? statusBadge(row.twilio_status) : '<span class="mono dim">—</span>'}</td>
+        <td>${hasCal ? `<span class="bool-ok">✓</span> <span class="mono dim" style="font-size:10px">${escHtml(row.calendar_id.substring(0,30))}…</span>` : '<span class="bool-fail">✗ Not connected</span>'}</td>
+        <td class="mono dim ${tokenSoon ? 'style="color:var(--amber)"' : ''}">${row.calendar_token_expiry ? relTime(row.calendar_token_expiry) : '—'}</td>
+        <td class="mono ${failedSyncs > 0 ? 'style="color:var(--red)"' : 'dim'}">${failedSyncs}</td>
+        <td class="mono dim">${row.synced_count || 0}</td>
+        <td class="mono dim">${relTime(row.last_conversation_at)}</td>
+        <td class="mono dim">${relTime(row.last_booking_at)}</td>
+      </tr>`;
+    });
+
+    document.getElementById('mainContent').innerHTML = `
+      <div class="page-header">
+        <div><div class="page-title">Integrations</div><div class="page-subtitle">Per-tenant integration health</div></div>
+      </div>
+      <div class="health-summary">
+        <div class="health-pill healthy">✓ ${healthy} Healthy</div>
+        <div class="health-pill degraded">⚠ ${degraded} Degraded</div>
+        <div class="health-pill failing">✗ ${failing} Failing</div>
+      </div>
+      <div class="table-wrap">
+        <div class="table-header"><span class="table-title">All Tenants <span class="mono dim">(${d.count})</span></span></div>
+        <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead><tr>
+            <th>Shop</th><th>Twilio Phone</th><th>Twilio Status</th><th>Google Calendar</th>
+            <th>Token Expiry</th><th>Failed Syncs</th><th>Synced</th><th>Last Conv</th><th>Last Booking</th>
+          </tr></thead>
+          <tbody>${rows.length > 0 ? rows.join('') : `<tr><td colspan="9">${renderEmpty('No tenants')}</td></tr>`}</tbody>
+        </table>
+        </div>
+      </div>`;
+  } catch (err) {
+    document.getElementById('mainContent').innerHTML = renderError(err);
+  }
+}
+
+// ── SECTION 8: ERRORS ────────────────────────────────────────────────────────
+async function loadErrors() {
+  try {
+    const d = await apiFetch('/internal/admin/errors');
+    const high   = d.errors.filter(e => e.severity === 'high');
+    const medium = d.errors.filter(e => e.severity === 'medium');
+    const low    = d.errors.filter(e => e.severity === 'low');
+
+    const renderGroup = (label, items) => {
+      if (items.length === 0) return '';
+      return `
+        <div class="section-label">${label}</div>
+        <div class="table-wrap" style="margin-bottom:16px">
+          <table class="data-table">
+            <thead><tr><th>Severity</th><th>Type</th><th>Tenant</th><th>Time</th><th>Summary</th></tr></thead>
+            <tbody>${items.map(e => `<tr>
+              <td>${statusBadge(e.severity)}</td>
+              <td class="mono">${escHtml(e.error_type)}</td>
+              <td>${escHtml(e.shop_name || '—')}${e.tenant_id ? `<br><span class="mono dim" style="font-size:9px">${e.tenant_id}</span>` : ''}</td>
+              <td class="mono dim">${relTime(e.event_time)}</td>
+              <td style="font-size:12px;max-width:400px;word-break:break-word">${escHtml(e.summary)}</td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>`;
+    };
+
+    document.getElementById('mainContent').innerHTML = `
+      <div class="page-header">
+        <div><div class="page-title">Errors &amp; Alerts</div><div class="page-subtitle">System issues requiring attention</div></div>
+        <button class="btn-sm" onclick="navigate('errors')">↻ Refresh</button>
+      </div>
+      ${d.errors.length === 0
+        ? `<div class="table-wrap">${renderEmpty('No active errors — system is healthy')}</div>`
+        : renderGroup('High Severity', high) + renderGroup('Medium Severity', medium) + renderGroup('Low Severity', low)
+      }`;
+  } catch (err) {
+    document.getElementById('mainContent').innerHTML = renderError(err);
+  }
+}
+
+// ── SECTION 9: SIGNUP FUNNEL ─────────────────────────────────────────────────
+async function loadSignupFunnel() {
+  try {
+    const [overview, attempts] = await Promise.all([
+      apiFetch('/internal/admin/overview'),
+      apiFetch('/internal/admin/signup-attempts')
+    ]);
+
+    const sa7 = overview.signup_attempts_7d || [];
+    const get7 = (status) => (sa7.find(r => r.status === status) || {}).count || 0;
+    const started   = get7('started');
+    const completed = get7('completed');
+    const failed    = get7('failed');
+    const abandoned = get7('abandoned');
+    const total7 = started + completed + failed + abandoned;
+
+    const funPct = (n) => total7 > 0 ? Math.round(n / total7 * 100) : 0;
+
+    document.getElementById('mainContent').innerHTML = `
+      <div class="page-header">
+        <div><div class="page-title">Signup Funnel</div><div class="page-subtitle">Last 7 days</div></div>
+      </div>
+
+      <div class="section-label">Last 7 Days</div>
+      <div class="funnel-wrap">
+        ${[
+          {label:'Started',val:started,col:'var(--rust)'},
+          {label:'Completed',val:completed,col:'var(--green)'},
+          {label:'Failed',val:failed,col:'var(--red)'},
+          {label:'Abandoned',val:abandoned,col:'var(--steel)'},
+        ].map(f => `
+          <div class="funnel-bar">
+            <div class="funnel-label">${f.label}</div>
+            <div class="funnel-val">${f.val}</div>
+            <div class="funnel-track">
+              <div class="funnel-fill" style="background:${f.col};width:${funPct(f.val)}%"></div>
+            </div>
+            <div class="mono dim" style="font-size:11px;margin-top:4px">${funPct(f.val)}%</div>
+          </div>`).join('')}
+      </div>
+
+      <div class="section-label">All Attempts (${attempts.count})</div>
+      <div class="table-wrap">
+        <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead><tr>
+            <th>Email</th><th>Provider</th><th>Status</th><th>Failure Reason</th>
+            <th>IP</th><th>Created</th><th>Duration</th>
+          </tr></thead>
+          <tbody>${attempts.attempts.length > 0 ? attempts.attempts.map(a => `<tr>
+            <td class="mono dim">${escHtml(a.email || '—')}</td>
+            <td class="mono dim">${escHtml(a.provider || '—')}</td>
+            <td>${statusBadge(a.status)}</td>
+            <td class="mono dim" style="font-size:11px">${escHtml(a.failure_reason || '—')}</td>
+            <td class="mono dim">${escHtml(a.ip_address || '—')}</td>
+            <td class="mono dim">${relTime(a.created_at)}</td>
+            <td class="mono dim">${a.duration_seconds !== null ? a.duration_seconds + 's' : '—'}</td>
+          </tr>`).join('') : `<tr><td colspan="7">${renderEmpty('No signup attempts')}</td></tr>`}
+          </tbody>
+        </table>
+        </div>
+      </div>`;
+  } catch (err) {
+    document.getElementById('mainContent').innerHTML = renderError(err);
+  }
+}
+
+// ── SECTION 10: AUDIT LOG ─────────────────────────────────────────────────────
+function loadAudit(source) {
+  const params = {};
+  if (source) params.source = source;
+
+  const sources = [
+    {label:'All',val:null},{label:'Billing',val:'billing'},
+    {label:'Signup',val:'signup'},{label:'Audit',val:'audit'}
+  ];
+
+  const header = `
+    <div class="page-header">
+      <div><div class="page-title">Audit Log</div><div class="page-subtitle">Billing events + signup attempts + native audit entries</div></div>
+    </div>
+    <div style="margin-bottom:12px;background:var(--bg-panel);border:1px solid var(--border);padding:12px 16px;font-family:var(--mono);font-size:11px;color:var(--steel);line-height:1.6">
+      Audit log is populated from billing events + signup attempts. The native audit_log table is present
+      but entries are written as the system generates events (signup, trial start/end, plan change, integration connect/disconnect).
+    </div>
+    <div class="filter-tabs">
+      ${sources.map(s => `<button class="filter-tab ${(!source && !s.val) || source === s.val ? 'active' : ''}"
+        onclick="loadAudit('${s.val || ''}')">${s.label}</button>`).join('')}
+    </div>`;
+
+  document.getElementById('mainContent').innerHTML = header + '<div class="loading"><div class="spinner"></div> Loading…</div>';
+
+  apiFetch('/internal/admin/audit', params)
+    .then(d => {
+      const tbody = d.events.length > 0 ? d.events.map(e => `<tr>
+        <td><span class="badge ${e.source === 'billing' ? 'active' : e.source === 'signup' ? 'trial' : 'closed'}">${e.source}</span></td>
+        <td>${escHtml(e.shop_name || '—')}</td>
+        <td class="mono">${escHtml(e.event_type)}</td>
+        <td class="mono dim">${escHtml(e.actor || '—')}</td>
+        <td class="mono dim">${relTime(e.created_at)}</td>
+        <td style="font-size:11px;max-width:300px;word-break:break-word;font-family:var(--mono);color:var(--steel)">${escHtml(e.summary || '—')}</td>
+      </tr>`).join('') : `<tr><td colspan="6">${renderEmpty('No audit events in this range')}</td></tr>`;
+
+      document.getElementById('mainContent').innerHTML = header + `
+        <div class="table-wrap">
+          <div class="table-header"><span class="table-title">Events <span class="mono dim">(${d.count})</span></span></div>
+          <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr><th>Source</th><th>Shop</th><th>Event Type</th><th>Actor</th><th>Time</th><th>Detail</th></tr></thead>
+            <tbody>${tbody}</tbody>
+          </table>
+          </div>
+        </div>`;
+    })
+    .catch(err => {
+      document.getElementById('mainContent').innerHTML = header + renderError(err);
+    });
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+initAuth();
+</script>
+</body>
+</html>

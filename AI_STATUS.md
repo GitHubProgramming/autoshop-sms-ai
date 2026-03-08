@@ -9,6 +9,70 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+# INTERNAL ADMIN DASHBOARD — 2026-03-08
+
+**Branch:** ai/paid-launch-pass (continued)
+**Files changed:** `apps/api/src/routes/internal/admin.ts` (598 lines, full rewrite), `apps/web/admin.html` (1422 lines, new), `db/migrations/008_admin_events.sql` (new)
+**Verification:** typecheck PASS · build PASS · ai-verify.sh PASS
+
+## WHAT WAS BUILT
+
+### Backend: 11 protected admin API routes
+All routes at `/internal/admin/*`, protected by `X-Internal-Key: $INTERNAL_API_KEY` header (server-side check, no bypass possible without the key).
+
+| Route | What it returns |
+|-------|----------------|
+| `GET /admin/overview` | 14 real aggregate queries: status counts, signups, conversations/bookings today, failed syncs, no-Twilio, no-Calendar, near expiry, high usage, needs-attention list |
+| `GET /admin/tenants` | All tenants with trial_days_left, usage, has_phone, has_calendar, total conversations/bookings; filters: ?status, ?search, ?attention=1 |
+| `GET /admin/tenants/:id` | Full tenant detail: users, phone numbers, calendar (no tokens), conversations, bookings, billing_events, audit_log |
+| `GET /admin/conversations` | Paginated conversation list with message count, booking flag, sync status; ?status, ?tenant_id, ?page |
+| `GET /admin/conversations/:id` | Full thread (all messages), related appointment |
+| `GET /admin/bookings` | Bookings with sync status; ?filter=today/upcoming/failed/pending/synced, ?tenant_id |
+| `GET /admin/billing` | All tenants sorted by urgency (past_due_blocked first), trial_days_left, usage_pct, Stripe presence |
+| `GET /admin/integrations` | Per-tenant Twilio + Google Calendar health, failed_sync_count, last activity |
+| `GET /admin/errors` | UNION of 4 error sources: failed cal syncs, Stripe failures, trial expired accounts, failed signups |
+| `GET /admin/signup-attempts` | Existing route kept; ?status, ?provider filters |
+| `GET /admin/audit` | UNION of billing_events + signup_attempts + audit_log; ?tenant_id, ?source filters |
+
+### DB Migration 008
+- `audit_log(id, tenant_id, event_type, actor, metadata JSONB, created_at)` — for future audit event writes
+- Indexed on tenant_id, created_at DESC, event_type
+
+### Frontend: apps/web/admin.html
+- Protected by lock screen — prompts for INTERNAL_API_KEY on first load, stores in sessionStorage
+- 10-section sidebar: Overview, Accounts, Account Detail (drilldown), Conversations, Bookings, Billing, Integrations, Errors, Signup Funnel, Audit Log
+- Identical design language as app.html (same CSS vars, Barlow/IBM Plex Mono, rust/dark theme)
+- All data loaded live from API — zero hardcoded metrics
+- Shows "Not tracked yet" / "—" where data unavailable, never fakes numbers
+
+## HOW TO ACCESS ADMIN DASHBOARD
+1. Set `INTERNAL_API_KEY=<random-secret>` in .env
+2. Open `http://localhost:3000/admin.html` (or wherever the web app is served)
+3. Enter the key at the lock screen
+4. Dashboard loads real live data
+
+## WHERE TO FIND DATA
+| What | Where in UI | API endpoint |
+|------|------------|-------------|
+| Successful signups | Accounts section → All tab | `/admin/tenants` |
+| Signup attempts (all) | Signup Funnel section | `/admin/signup-attempts` |
+| Failed signups | Errors section + Signup Funnel | `/admin/errors` + `/admin/signup-attempts?status=failed` |
+| Trial status / days left | Billing section | `/admin/billing` |
+| Usage consumed | Accounts section (usage bar) + Billing | `/admin/tenants` + `/admin/billing` |
+| Conversations | Conversations section | `/admin/conversations` |
+| Bookings | Bookings section | `/admin/bookings` |
+| Calendar sync failures | Errors section + Integrations | `/admin/errors` + `/admin/integrations` |
+| Accounts needing attention | Overview section "Needs Attention" table | `/admin/overview` |
+
+## NOT YET INSTRUMENTED
+- `last_login_at` — not tracked in DB, shown as "Not tracked" in UI
+- `audit_log` native entries — table exists but API doesn't yet write to it on events (billing_events + signup_attempts serve as the audit feed instead)
+- Webhook retry storms — no `webhook_events` table in schema; would need Twilio webhook logging added
+- OpenAI fallback events — not logged to DB currently
+- Manual intervention flag on conversations — not a column in schema
+
+---
+
 # REAL SIGNUP + TRIAL FLOW — 2026-03-08
 
 **Branch:** ai/paid-launch-pass (continued)
@@ -98,8 +162,9 @@ docker exec autoshop_postgres psql -U autoshop -d autoshop -c \
 1. **L1** (Mantas): Real Stripe credentials in .env
 2. **M12** (Mantas): JWT_SECRET in .env
 3. **M13** (Mantas): Import updated WF-001 + WF-007 into n8n
-4. **DB migrations** (Mantas): Run 005, 006, **007** in production before deploying
+4. **DB migrations** (Mantas): Run 005, 006, 007, **008** in production before deploying
 5. **Google Signup** (Mantas): Set GOOGLE_SIGNUP_REDIRECT_URI + register callback URL in Google Cloud Console
+6. **INTERNAL_API_KEY** (Mantas): Set this env var to access admin dashboard at /admin.html
 
 ## FAKE PARTS / REAL PARTS STATUS
 - Email signup: REAL — creates tenant, hashes password, sets trial, logs attempt
