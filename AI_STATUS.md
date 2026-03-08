@@ -9,6 +9,66 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+# CTA + AUTH PASS — 2026-03-08
+
+**Branch:** ai/paid-launch-pass (continued)
+**Tasks completed:** Stripe CTA fix (correct file), I4 password_hash auth
+**Verification:** typecheck PASS · 19/19 tests PASS · build PASS · docker PASS (ai-verify.sh)
+
+## WHAT WAS FIXED
+
+### Stripe CTA — wrong file (CRITICAL)
+- **Problem:** Previous commits added Stripe payment links to `autoshop-landing.html` (root prototype, not served). Real production landing page `apps/web/index.html` still had all pricing CTAs pointing to `login.html`.
+- **Root cause:** `apps/web/index.html` is the real production file (FRONTEND_STATUS.md confirms it at `/`; Vercel serves `apps/web/` as root). `autoshop-landing.html` is a draft prototype.
+- **Fix:** Updated all 4 CTAs in `apps/web/index.html`:
+  - Starter: `https://buy.stripe.com/test_7sYaEWcoQ5LWedHfnC9Ve01`
+  - Pro: `https://buy.stripe.com/test_6oUeVc9cE4HSglP7Va9Ve02`
+  - Premium: `https://buy.stripe.com/test_7sYbJ074w0rC5HbfnC9Ve03`
+  - FAQ "Start Free Trial": → Pro Stripe link
+- **Also:** Added `autoshop-landing.html` to `.vercelignore` so the prototype is excluded from Vercel deployment.
+
+### I4 — Real password verification in /auth/login
+- **Problem:** Login accepted any known `owner_email` without checking password. Password field was `optional()` and never verified.
+- **Fix:**
+  1. Added `bcryptjs` dependency (pure-JS, no native binding issues in Docker Alpine).
+  2. Created `db/migrations/006_password_hash.sql` — `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS password_hash TEXT`.
+  3. Updated `routes/auth/login.ts` — password field now required (z.string().min(1)). If `password_hash IS SET`: bcrypt.compare() must pass → 401 on mismatch. If `password_hash IS NULL`: pilot mode (any password accepted, warning logged).
+  4. This is backwards-compatible: existing pilot tenants without a hash set can still login. Password enforcement activates per-tenant once hash is set.
+- **To set a password for a tenant:**
+  ```bash
+  node -e "const b=require('bcryptjs'); b.hash('yourpassword',12).then(console.log)"
+  # Then: UPDATE tenants SET password_hash='<hash>' WHERE owner_email='...';
+  ```
+
+## VERIFICATION RESULTS
+- `npm run typecheck` → PASS (0 errors)
+- `npm run build` → PASS
+- `npm test` → PASS (19/19 tests)
+- `bash scripts/ai-verify.sh` → PASS (docker build + health check)
+
+## FILES CHANGED
+- `apps/web/index.html` — Stripe CTA links (Starter/Pro/Premium/FAQ)
+- `.vercelignore` — added `autoshop-landing.html`
+- `apps/api/src/routes/auth/login.ts` — bcrypt password verification (I4)
+- `apps/api/package.json` — added bcryptjs + @types/bcryptjs
+- `apps/api/package-lock.json` — updated lockfile
+- `db/migrations/006_password_hash.sql` — NEW: password_hash column
+
+## REMAINING BLOCKERS
+1. **L1** (Mantas): Real Stripe credentials in .env — billing non-functional without them
+2. **M12** (Mantas): Set `JWT_SECRET` in .env — session auth logs warning if missing
+3. **M13** (Mantas): Import updated WF-001 + WF-007 into n8n
+4. **I4-partial** (Mantas): Run migration 006_password_hash.sql + set password hashes for each tenant
+5. **DB migration** (Mantas): Run `005_subscription_fields.sql` + `006_password_hash.sql` in production before deploying
+
+## STRIPE CTA VERDICT
+**WORKING IN CODE BUT NOT FULLY VERIFIED AT RUNTIME**
+- Source code verified: all 4 CTAs in `apps/web/index.html` now point to correct Stripe test links
+- Cannot browser-verify without live Vercel deployment
+- Links are Stripe TEST links — must be swapped to live links before real charging (requires L1 real Stripe credentials)
+
+---
+
 # LAUNCH-BLOCKERS PASS — 2026-03-08
 
 **Branch:** ai/paid-launch-pass (continued)

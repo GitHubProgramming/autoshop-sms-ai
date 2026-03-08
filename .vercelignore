@@ -1,0 +1,33 @@
+# Internal ops dashboard — must never be deployed
+ops/
+
+# AI task tracking and rules — internal only
+AI_WORK.md
+AI_STATUS.md
+AI_TASKS.md
+AI_RULES.md
+
+# Full system prompt — contains architecture, file paths, execution rules
+CLAUDE.md
+
+# Internal setup and runbook docs — not for public consumption
+DEMO_SETUP.md
+RUNBOOK_FIRST_PILOT.md
+
+# Database migrations — expose full DB schema
+db/
+
+# Internal business documents (Word docs, architecture plans)
+docs/
+
+# Scripts — internal only
+scripts/
+
+# Infrastructure — not deployed via Vercel
+infra/
+n8n/
+apps/api/
+
+# Draft prototype files — not part of shipped product
+autoshop-dashboard-v3-2.html
+autoshop-landing.html
