@@ -9,6 +9,70 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## LAST COMPLETED TASK — Admin Auth Hardening (2026-03-08)
+
+**Branch:** ai/paid-launch-pass
+**Commit:** 04e56be
+**Status:** DONE — verified: 60/60 tests pass, Docker build OK, health OK
+
+### What was done
+Replaced the `X-Internal-Key` browser lock screen admin auth model with a proper server-side model:
+
+1. **`apps/api/src/middleware/admin-guard.ts`** (NEW)
+   - `adminGuard` preHandler: `jwtVerify()` + `ADMIN_EMAILS` env var allowlist check
+   - Returns 401 (no/invalid JWT), 403 (not in allowlist), 503 (ADMIN_EMAILS not set)
+   - Reads env var at call time — change takes effect on API restart, no code change needed
+
+2. **`apps/api/src/routes/internal/admin.ts`** (MODIFIED)
+   - All 11 `/internal/admin/*` routes now use `adminGuard` instead of `internalKeyGuard`
+   - Old `internalKeyGuard` (X-Internal-Key check) fully removed
+
+3. **`apps/web/admin.html`** (MODIFIED)
+   - Removed lock screen HTML, CSS, and JS (no more password box in browser)
+   - `initAuth()` reads `localStorage.getItem('autoshop_jwt')` — redirect to login.html if missing
+   - `apiFetch()` sends `Authorization: Bearer <token>` header (same JWT as app.html)
+   - 401 response: clears token + redirects to login.html
+   - 403 response: shows access-denied screen with message, no redirect loop
+   - `logout()` removes `autoshop_jwt` + `autoshop_session`, redirects to login.html
+
+4. **`apps/api/src/db/audit.ts`** (NEW)
+   - `writeAuditEvent(tenantId, eventType, actor, metadata)` helper
+   - Non-fatal: failures logged, never thrown
+
+5. **`apps/api/src/routes/auth/signup.ts`** (MODIFIED)
+   - Writes `account_created` event to audit_log on successful tenant creation
+
+6. **`apps/api/src/routes/auth/google.ts`** (MODIFIED)
+   - Writes `google_calendar_connected` event to audit_log on successful OAuth callback
+
+7. **`apps/api/src/tests/admin.test.ts`** (NEW — 25 tests)
+   - adminGuard: 401 no token, 401 invalid token, 403 non-admin, 200 admin, 200 case-insensitive, 503 no config
+   - Trial days left calculation: expired=0, active=correct, null for non-trial, rounds up partial days
+   - Usage pct: 0%, 80%, 100%, zero-limit guard, over-100% for paid plans
+   - Attention filter: past_due, past_due_blocked, trial expiring ≤3d, high usage ≥80%
+
+8. **`.env.example`** (MODIFIED)
+   - Documents `ADMIN_EMAILS=you@yourshop.ai` (comma-separated admin email allowlist)
+
+### How admin access works
+- **Grant:** Add email to `ADMIN_EMAILS` env var (comma-separated), restart API
+- **Revoke:** Remove email from `ADMIN_EMAILS`, restart API
+- **Login flow:** Admin logs in at login.html with their existing tenant account → JWT stored in localStorage → admin.html picks it up → server validates JWT + checks email against ADMIN_EMAILS → 200 or 403
+- **Customer isolation:** Normal tenant users get 403 from all `/internal/admin/*` routes because their email is not in ADMIN_EMAILS
+
+### What is still not instrumented
+- trial_started / trial_expired audit events (cron job writes status, not audit_log)
+- payment_failed / payment_recovered (Stripe webhook updates billing_events, not audit_log)
+- google_calendar_disconnected (no disconnect flow implemented yet)
+- admin_detail_viewed (not instrumented — low priority)
+- first_conversation / first_booking (not instrumented — could be inferred from conversations/appointments tables)
+
+### Remaining blockers
+- L1: Stripe credentials still placeholder (billing broken, not MVP-blocking for demo)
+- ADMIN_EMAILS must be set in `.env` before admin.html works — add your email and restart API
+
+---
+
 # INTERNAL ADMIN DASHBOARD — 2026-03-08
 
 **Branch:** ai/paid-launch-pass (continued)
