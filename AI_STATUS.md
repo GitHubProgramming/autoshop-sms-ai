@@ -9,6 +9,107 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+# REAL SIGNUP + TRIAL FLOW — 2026-03-08
+
+**Branch:** ai/paid-launch-pass (continued)
+**Commit:** 4131c3b
+**Tasks completed:** signup route, Google signup OAuth, trial cron, admin visibility, signup.html, onboarding.html
+
+## WHAT WAS IMPLEMENTED
+
+### Email Signup (POST /auth/signup)
+- Validates email + password (min 8 chars) + shopName + ownerName
+- Creates tenant with `billing_status = 'trial'`, `trial_ends_at = NOW() + 14 days`, `conv_limit_this_cycle = 50`
+- Sets `password_hash` (bcrypt, rounds=12) on creation — no pilot-mode bypass for new accounts
+- Creates user record in new `users` table
+- Logs signup attempt as `started` → `completed` or `failed` in `signup_attempts` table
+- Returns `{ token, tenantId, shopName, trialEndsAt }` — same shape as `/auth/login`
+- Duplicate email → 409 with clear message
+
+### Google OAuth Signup (GET /auth/google/signup/start + /callback)
+- **Separate from Calendar OAuth** (different scopes: `openid email profile` not `calendar`)
+- Requires `GOOGLE_SIGNUP_REDIRECT_URI` env var (separate from `GOOGLE_REDIRECT_URI`)
+- CSRF state nonce stored in Redis (10-minute TTL)
+- On callback: get userinfo → look up by google_sub → look up by email → create new tenant
+- New Google user: tenant created with placeholder shop name (from email domain), redirected to onboarding
+- Returning Google user: found by google_sub → JWT issued → redirected to app
+- JWT passed via URL fragment (`#token=...`) — never appears in server logs
+- Returns 503 if GOOGLE_CLIENT_ID/GOOGLE_SIGNUP_REDIRECT_URI not set
+
+### PATCH /auth/onboarding
+- Updates shop_name, owner_phone, timezone after signup
+- Auth-guarded (requireAuth)
+- Non-blocking: all fields optional
+
+### Admin Visibility (GET /internal/admin/tenants + /signup-attempts)
+- Both protected by `X-Internal-Key: $INTERNAL_API_KEY` header
+- `/admin/tenants`: all tenants with trial_days_left (computed), has_phone, auth_provider, billing_status
+- `/admin/signup-attempts`: recent 500 attempts, filterable by ?status= and ?provider=
+- See: curl -H "X-Internal-Key: $INTERNAL_API_KEY" http://localhost:3000/internal/admin/tenants
+
+### DB Migration 007 (users + signup_attempts)
+- `users(id, tenant_id, email, auth_provider, google_sub)` — maps auth identity to tenant
+- `signup_attempts(id, email, provider, status, failure_reason, tenant_id, ip_address, user_agent, created_at, completed_at)`
+- Run: `db/migrations/007_auth_tables.sql` — Postgres container auto-applies on start
+
+### Trial Expiry Worker (BullMQ cron)
+- Runs every hour (`0 * * * *`)
+- `UPDATE tenants SET billing_status='trial_expired' WHERE billing_status='trial' AND trial_ends_at < NOW()`
+- Belt-and-suspenders: `getBlockReason()` already enforces in real-time per SMS
+- Worker started in `index.ts` alongside smsWorker + provisionWorker
+
+### UI Changes
+- `signup.html` — full signup form (email + Google button). Google button links to `/auth/google/signup/start` — real endpoint, 503 if not configured
+- `onboarding.html` — step 2 of signup: shop name, phone, timezone. Reads JWT from URL hash (Google flow) or localStorage (email flow)
+- `index.html` FAQ "Start Free Trial" → `signup.html` (was pointing to Stripe Pro link)
+
+## VERIFICATION RESULTS
+- `npm run typecheck` → PASS (0 errors)
+- `npm run build` → PASS
+- `npm test` → PASS (35/35 — 16 new signup enforcement tests)
+
+## DB TABLES (source of truth)
+| What | Table | Key fields |
+|------|-------|-----------|
+| Tenants / billing state | `tenants` | `billing_status`, `trial_ends_at`, `conv_used_this_cycle` |
+| Auth identities | `users` | `tenant_id`, `auth_provider`, `google_sub` |
+| Signup audit | `signup_attempts` | `email`, `provider`, `status`, `failure_reason` |
+
+## INSPECT SIGNUPS
+```bash
+# Successful signups
+curl -H "X-Internal-Key: $INTERNAL_API_KEY" http://localhost:3000/internal/admin/tenants
+
+# All signup attempts (completed, failed, abandoned)
+curl -H "X-Internal-Key: $INTERNAL_API_KEY" http://localhost:3000/internal/admin/signup-attempts
+
+# Failed attempts only
+curl -H "X-Internal-Key: $INTERNAL_API_KEY" "http://localhost:3000/internal/admin/signup-attempts?status=failed"
+
+# Raw SQL (direct DB)
+docker exec autoshop_postgres psql -U autoshop -d autoshop -c \
+  "SELECT id, owner_email, shop_name, billing_status, trial_ends_at, conv_used_this_cycle, created_at FROM tenants ORDER BY created_at DESC LIMIT 20;"
+
+docker exec autoshop_postgres psql -U autoshop -d autoshop -c \
+  "SELECT email, provider, status, failure_reason, created_at FROM signup_attempts ORDER BY created_at DESC LIMIT 20;"
+```
+
+## REMAINING BLOCKERS
+1. **L1** (Mantas): Real Stripe credentials in .env
+2. **M12** (Mantas): JWT_SECRET in .env
+3. **M13** (Mantas): Import updated WF-001 + WF-007 into n8n
+4. **DB migrations** (Mantas): Run 005, 006, **007** in production before deploying
+5. **Google Signup** (Mantas): Set GOOGLE_SIGNUP_REDIRECT_URI + register callback URL in Google Cloud Console
+
+## FAKE PARTS / REAL PARTS STATUS
+- Email signup: REAL — creates tenant, hashes password, sets trial, logs attempt
+- Google signup: REAL backend — needs GOOGLE_SIGNUP_REDIRECT_URI configured to work end-to-end
+- Trial enforcement: REAL — getBlockReason() checks DB dates + counts; cron marks expired
+- Admin visibility: REAL — queries live DB; no mock data
+- onboarding.html: REAL form, but PATCH /auth/onboarding is optional (non-blocking if server not restarted)
+
+---
+
 # UX / AUTH / ROI FIX PASS — 2026-03-08
 
 **Branch:** ai/paid-launch-pass (continued)
