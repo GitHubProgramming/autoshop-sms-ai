@@ -53,18 +53,19 @@ export async function loginRoute(app: FastifyInstance) {
       return reply.status(401).send({ error: "Invalid credentials" });
     }
 
-    if (tenant.password_hash) {
-      // Real password enforcement
-      const match = await bcrypt.compare(password, tenant.password_hash);
-      if (!match) {
-        return reply.status(401).send({ error: "Invalid credentials" });
-      }
-    } else {
-      // Pilot mode: no password set — allow login, log warning
-      request.log.warn(
+    if (!tenant.password_hash) {
+      // No password set — account is not activatable. Treat as invalid credentials
+      // so the account cannot be accessed until a password_hash is written to the DB.
+      request.log.error(
         { tenantId: tenant.id },
-        "Login without password_hash — pilot mode. Set password_hash in tenants table to enforce authentication."
+        "Login attempt on account with no password_hash — rejecting. Set password_hash in tenants table."
       );
+      return reply.status(401).send({ error: "Invalid credentials" });
+    }
+
+    const match = await bcrypt.compare(password, tenant.password_hash);
+    if (!match) {
+      return reply.status(401).send({ error: "Invalid credentials" });
     }
 
     const token = app.jwt.sign(
