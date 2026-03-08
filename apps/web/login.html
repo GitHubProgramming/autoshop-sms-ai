@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AutoShop AI — Login</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #f1f5f9; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 1rem; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 14px; padding: 2.5rem 2rem; width: 100%; max-width: 400px; }
+    .logo { font-size: 1.3rem; font-weight: 700; color: #38bdf8; margin-bottom: 0.25rem; }
+    h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 1.5rem; }
+    label { display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.4rem; }
+    input[type="email"], input[type="password"] {
+      width: 100%; padding: 0.6rem 0.85rem; background: #0f172a; border: 1px solid #334155;
+      border-radius: 7px; color: #f1f5f9; font-size: 0.95rem; margin-bottom: 1rem;
+    }
+    input:focus { outline: none; border-color: #38bdf8; }
+    .btn { width: 100%; padding: 0.7rem; background: #38bdf8; color: #0f172a; font-weight: 700; font-size: 1rem; border: none; border-radius: 8px; cursor: pointer; }
+    .btn:hover { background: #7dd3fc; }
+    .error { background: #450a0a; border: 1px solid #7f1d1d; color: #fca5a5; padding: 0.6rem 0.85rem; border-radius: 7px; font-size: 0.85rem; margin-bottom: 1rem; display: none; }
+    .demo-box { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 1rem; margin-top: 1.25rem; }
+    .demo-box p { font-size: 0.85rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.3rem; }
+    .demo-box small { color: #64748b; font-size: 0.8rem; display: block; margin-bottom: 0.75rem; }
+    .btn-demo { width: 100%; padding: 0.55rem; background: transparent; border: 1px solid #38bdf8; color: #38bdf8; font-size: 0.9rem; font-weight: 600; border-radius: 7px; cursor: pointer; }
+    .btn-demo:hover { background: #38bdf8; color: #0f172a; }
+    .back { display: block; text-align: center; margin-top: 1.25rem; font-size: 0.85rem; color: #64748b; text-decoration: none; }
+    .back:hover { color: #94a3b8; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo">AutoShop AI</div>
+  <h1>Sign In</h1>
+
+  <div class="error" id="error-msg">Invalid email or password. Please try again.</div>
+
+  <form id="login-form" novalidate>
+    <label for="email">Email</label>
+    <input type="email" id="email" name="email" placeholder="you@yourshop.com" required />
+
+    <label for="password">Password</label>
+    <input type="password" id="password" name="password" placeholder="••••••••" required />
+
+    <button type="submit" class="btn">Sign In</button>
+  </form>
+
+  <div class="demo-box">
+    <p>Demo Access</p>
+    <small>Use the demo account to explore the dashboard.</small>
+    <button type="button" class="btn-demo" onclick="useDemoAccount()">Use Demo Account</button>
+  </div>
+
+  <a href="index.html" class="back">&larr; Back to home</a>
+</div>
+
+<script>
+  const DEMO_EMAIL = 'demo@autoshop.ai';
+  const DEMO_PASSWORD = 'autoshop2024';
+
+  function useDemoAccount() {
+    document.getElementById('email').value = DEMO_EMAIL;
+    document.getElementById('password').value = DEMO_PASSWORD;
+  }
+
+  document.getElementById('login-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const errorEl = document.getElementById('error-msg');
+
+    if (email === DEMO_EMAIL && password === DEMO_PASSWORD) {
+      localStorage.setItem('autoshop_demo_login', 'true');
+      window.location.href = 'app.html';
+    } else {
+      errorEl.style.display = 'block';
+    }
+  });
+</script>
+
+</body>
+</html>

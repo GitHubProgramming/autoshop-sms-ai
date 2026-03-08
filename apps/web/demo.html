@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AutoShop AI — Live Demo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #f1f5f9; }
+    .demo-banner { background: #1e3a5f; border-bottom: 1px solid #1d4ed8; padding: 0.75rem 1.5rem; text-align: center; font-size: 0.9rem; color: #93c5fd; }
+    .demo-banner strong { color: #bfdbfe; }
+    .demo-banner .sub { display: block; font-size: 0.8rem; color: #64748b; margin-top: 0.2rem; }
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 1rem 2rem; border-bottom: 1px solid #1e293b; }
+    .logo { font-weight: 700; font-size: 1.2rem; color: #38bdf8; }
+    .nav-links a { color: #94a3b8; text-decoration: none; margin-left: 1.5rem; font-size: 0.9rem; }
+    .nav-links .cta { background: #38bdf8; color: #0f172a; padding: 0.4rem 1rem; border-radius: 6px; font-weight: 600; }
+    .nav-links .cta:hover { background: #7dd3fc; color: #0f172a; }
+    .dashboard { display: grid; grid-template-columns: 220px 1fr; min-height: calc(100vh - 100px); }
+    .sidebar { background: #1e293b; border-right: 1px solid #334155; padding: 1.5rem 1rem; }
+    .sidebar h2 { font-size: 0.75rem; color: #475569; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.75rem; }
+    .sidebar a { display: block; padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.9rem; color: #94a3b8; text-decoration: none; margin-bottom: 0.25rem; }
+    .sidebar a:hover, .sidebar a.active { background: #334155; color: #f1f5f9; }
+    .main { padding: 2rem; }
+    .shop-name { font-size: 1.4rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .shop-sub { color: #64748b; font-size: 0.9rem; margin-bottom: 2rem; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 1.25rem; }
+    .stat .label { font-size: 0.8rem; color: #64748b; margin-bottom: 0.4rem; }
+    .stat .value { font-size: 1.8rem; font-weight: 700; }
+    .stat .change { font-size: 0.8rem; color: #34d399; margin-top: 0.2rem; }
+    .section-title { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: #cbd5e1; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    th { text-align: left; padding: 0.5rem 0.75rem; color: #64748b; border-bottom: 1px solid #334155; font-weight: 500; }
+    td { padding: 0.6rem 0.75rem; border-bottom: 1px solid #1e293b; }
+    .badge { display: inline-block; padding: 0.2rem 0.55rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+    .badge-green { background: #064e3b; color: #34d399; }
+    .badge-yellow { background: #422006; color: #fbbf24; }
+    .badge-blue { background: #0c1a40; color: #60a5fa; }
+    .cta-bar { background: #1e3a5f; border: 1px solid #1d4ed8; border-radius: 10px; padding: 1.25rem 1.5rem; margin-top: 2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+    .cta-bar p { font-size: 0.95rem; color: #bfdbfe; }
+    .cta-bar a { background: #38bdf8; color: #0f172a; padding: 0.6rem 1.25rem; border-radius: 7px; font-weight: 700; text-decoration: none; font-size: 0.9rem; }
+    .cta-bar a:hover { background: #7dd3fc; }
+    @media (max-width: 640px) { .dashboard { grid-template-columns: 1fr; } .sidebar { display: none; } }
+  </style>
+</head>
+<body>
+
+<div class="demo-banner">
+  <strong>Live Demo</strong> — This is a read-only preview. Data is not saved.
+  <span class="sub">This is a simulated dashboard based on typical repair shop data.</span>
+</div>
+
+<nav>
+  <div class="logo">AutoShop AI</div>
+  <div class="nav-links">
+    <a href="index.html">Home</a>
+    <a href="login.html" class="cta">Start Free Trial</a>
+  </div>
+</nav>
+
+<div class="dashboard">
+  <aside class="sidebar">
+    <h2>Navigation</h2>
+    <a href="#" class="active">Dashboard</a>
+    <a href="#">Conversations</a>
+    <a href="#">Appointments</a>
+    <a href="#">Customers</a>
+    <a href="#">Settings</a>
+  </aside>
+
+  <main class="main">
+    <div class="shop-name" id="shop-name">Austin Quick Lube</div>
+    <div class="shop-sub">Demo account — explore all features</div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="label">Missed Calls (30d)</div>
+        <div class="value">47</div>
+        <div class="change">+12% vs last month</div>
+      </div>
+      <div class="stat">
+        <div class="label">Auto-Replies Sent</div>
+        <div class="value">47</div>
+        <div class="change">100% response rate</div>
+      </div>
+      <div class="stat">
+        <div class="label">Appointments Booked</div>
+        <div class="value">31</div>
+        <div class="change">+8 vs last month</div>
+      </div>
+      <div class="stat">
+        <div class="label">Est. Revenue Saved</div>
+        <div class="value">$4,340</div>
+        <div class="change">@ avg $140/visit</div>
+      </div>
+    </div>
+
+    <div class="section-title">Recent Conversations</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>Message</th>
+          <th>Status</th>
+          <th>Time</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>+1 (512) 888-1234</td>
+          <td>Can I book an oil change for Thursday?</td>
+          <td><span class="badge badge-green">Booked</span></td>
+          <td>2 min ago</td>
+        </tr>
+        <tr>
+          <td>+1 (512) 555-9012</td>
+          <td>How much is a tire rotation?</td>
+          <td><span class="badge badge-blue">Replied</span></td>
+          <td>18 min ago</td>
+        </tr>
+        <tr>
+          <td>+1 (512) 444-6789</td>
+          <td>Do you do brake pads?</td>
+          <td><span class="badge badge-blue">Replied</span></td>
+          <td>1 hr ago</td>
+        </tr>
+        <tr>
+          <td>+1 (737) 201-4455</td>
+          <td>Missed call — no voicemail</td>
+          <td><span class="badge badge-yellow">Pending</span></td>
+          <td>2 hr ago</td>
+        </tr>
+        <tr>
+          <td>+1 (512) 333-7700</td>
+          <td>Schedule transmission service Friday 9am</td>
+          <td><span class="badge badge-green">Booked</span></td>
+          <td>3 hr ago</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="cta-bar">
+      <p>Ready to connect your real shop phone number?</p>
+      <a href="login.html">Start Your Free Trial</a>
+    </div>
+  </main>
+</div>
+
+<script>
+  // Personalize shop name from URL param: demo.html?shop=My+Shop
+  const params = new URLSearchParams(window.location.search);
+  const shop = params.get('shop');
+  if (shop) {
+    document.getElementById('shop-name').textContent = decodeURIComponent(shop);
+  }
+</script>
+
+</body>
+</html>
