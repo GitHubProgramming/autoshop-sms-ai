@@ -318,8 +318,8 @@
 })();
 
 function fillDemoCredentials() {
-  document.getElementById('email').value = 'demo@autoshop.ai';
-  document.getElementById('password').value = 'demo';
+  document.getElementById('email').value = 'dev@autoshop.local';
+  document.getElementById('password').value = 'devpass2026';
 }
 
 async function handleLogin(e) {
@@ -335,8 +335,6 @@ async function handleLogin(e) {
 
   try {
     // POST /auth/login — real server-side auth. Returns signed JWT.
-    // NOTE: password field is accepted but not yet validated server-side
-    // (no password_hash column in tenants table). Email-only auth for pilot.
     var res = await fetch('/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

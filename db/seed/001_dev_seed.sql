@@ -5,11 +5,12 @@
 BEGIN;
 
 -- Dev tenant
+-- password_hash is bcrypt('devpass2026', 12) — dev login: dev@autoshop.local / devpass2026
 INSERT INTO tenants (
   id, shop_name, owner_name, owner_email, owner_phone,
   billing_status, plan_id,
   conv_used_this_cycle, conv_limit_this_cycle,
-  trial_ends_at
+  trial_ends_at, password_hash
 ) VALUES (
   '00000000-0000-0000-0000-000000000001',
   'Austin Quick Lube (DEV)',
@@ -20,7 +21,8 @@ INSERT INTO tenants (
   'pro',
   3,
   400,
-  NOW() + INTERVAL '14 days'
+  NOW() + INTERVAL '14 days',
+  '$2b$12$hElU/BT5ogK4D0T3ApSODulhPDNcbCiQncwI7.Q1AbGlNhsCiUd1m'
 ) ON CONFLICT (id) DO NOTHING;
 
 -- Dev phone number (fake Twilio number for local testing)
