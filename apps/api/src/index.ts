@@ -36,12 +36,16 @@ async function bootstrap() {
 
   // ── Security ──────────────────────────────────────────────
   // ── JWT auth ──────────────────────────────────────────────
-  // JWT_SECRET must be set in production; at minimum 32 random chars
+  // JWT_SECRET is required — minimum 32 random chars.
+  // Generate: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
   if (!process.env.JWT_SECRET) {
-    app.log.warn("JWT_SECRET not set — session auth will not work correctly");
+    throw new Error(
+      "JWT_SECRET env var is required. " +
+      "Generate one: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
+    );
   }
   await app.register(fastifyJwt, {
-    secret: process.env.JWT_SECRET ?? "INSECURE_DEFAULT_DO_NOT_USE_IN_PRODUCTION",
+    secret: process.env.JWT_SECRET,
   });
 
   // CORS: restrict to explicit allowlist; set CORS_ORIGINS=https://yourdomain.com in production
