@@ -1,4 +1,13 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+
+// db/client throws at module level when DATABASE_URL is missing.
+// getBlockReason is a pure function; no real DB connection needed.
+vi.mock("../db/client", () => ({
+  db: { end: vi.fn() },
+  query: vi.fn(),
+  withTenant: vi.fn(),
+}));
+
 import { getBlockReason } from "../db/tenants";
 import type { Tenant, BillingStatus } from "../db/tenants";
 

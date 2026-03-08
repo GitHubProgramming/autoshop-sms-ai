@@ -1,0 +1,344 @@
+{
+  "id": "mvp001",
+  "name": "AutoShop AI MVP - SMS to AI Booking (TEST)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "twilio-sms",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook - Twilio SMS",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "webhookId": "twilio-sms-mvp",
+      "position": [
+        260,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"ok\":true,\"received\":true}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "2",
+      "name": "Respond 200 to Twilio",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        520,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const from = ($json.body?.From || $json.From || '').toString();\nconst to = ($json.body?.To || $json.To || '').toString();\nconst text = ($json.body?.Body || $json.Body || '').toString().trim();\nconst messageSid = ($json.body?.MessageSid || $json.MessageSid || '').toString();\nconst profileName = ($json.body?.ProfileName || $json.ProfileName || '').toString();\n\nconst bookingIntent = /(book|appointment|schedule|tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|am|pm|oil|brake|tires?|diagnostic|repair|service)/i.test(text);\n\nlet serviceType = 'general service';\nif (/oil/i.test(text)) serviceType = 'oil change';\nelse if (/brake/i.test(text)) serviceType = 'brake service';\nelse if (/tire|tyre/i.test(text)) serviceType = 'tire service';\nelse if (/diagnostic/i.test(text)) serviceType = 'diagnostic';\nelse if (/battery/i.test(text)) serviceType = 'battery service';\nelse if (/engine/i.test(text)) serviceType = 'engine repair';\n\nconst currentDate = new Date().toISOString();\n\nconst systemPrompt = `You are AutoShop AI, an SMS booking assistant for an auto repair shop.\\nYour job:\\n1. Reply like a real service advisor by SMS.\\n2. Be concise, helpful, and natural.\\n3. If the customer wants to book, collect missing info.\\n4. Extract booking info when present.\\n5. Never use markdown.\\n6. Return STRICT JSON only.\\n\\nBusiness context:\\n- Shop name: AutoShop AI\\n- Channel: SMS\\n- Goal: convert inbound SMS into appointment booking\\n- Timezone: America/Chicago\\n- Current timestamp: ${currentDate}\\n\\nReturn JSON exactly in this shape:\\n{\\n  \"reply_text\": \"string\",\\n  \"booking_intent\": true,\\n  \"customer_name\": \"string\",\\n  \"service_type\": \"string\",\\n  \"requested_time_text\": \"string\",\\n  \"needs_more_info\": true,\\n  \"calendar_summary\": \"string\",\\n  \"calendar_description\": \"string\"\\n}\\n\\nRules:\\n- booking_intent = true if the person appears to want service or scheduling.\\n- If date/time is unclear, ask for it in reply_text and set needs_more_info = true.\\n- If service type is unclear, ask for it.\\n- Keep reply_text short enough for SMS.\\n- calendar_summary should be short.\\n- calendar_description should include the original SMS.`;\n\nconst userPrompt = `Inbound customer SMS:\\nFrom: ${from}\\nProfile Name: ${profileName}\\nMessage: ${text}\\n\\nHeuristic booking intent: ${bookingIntent}\\nHeuristic service type: ${serviceType}`;\n\nconst openaiBody = JSON.stringify({\n  model: 'gpt-4o-mini',\n  temperature: 0.2,\n  messages: [\n    { role: 'system', content: systemPrompt },\n    { role: 'user', content: userPrompt }\n  ]\n});\n\nconst twilioSid = $env.TWILIO_ACCOUNT_SID || '';\nconst twilioToken = $env.TWILIO_AUTH_TOKEN || '';\nconst twilioMsgSid = $env.TWILIO_MESSAGING_SERVICE_SID || '';\nconst openaiKey = $env.OPENAI_API_KEY || '';\nconst twilioAuth = 'Basic ' + Buffer.from(twilioSid + ':' + twilioToken).toString('base64');\n\nreturn [{\n  json: {\n    from,\n    to,\n    body: text,\n    message_sid: messageSid,\n    profile_name: profileName,\n    booking_intent_heuristic: bookingIntent,\n    service_type_heuristic: serviceType,\n    openai_system_prompt: systemPrompt,\n    openai_user_prompt: userPrompt,\n    openai_body: openaiBody,\n    openai_bearer: 'Bearer ' + openaiKey,\n    twilio_auth: twilioAuth,\n    twilio_sid: twilioSid,\n    twilio_msg_sid: twilioMsgSid\n  }\n}];"
+      },
+      "id": "4",
+      "name": "Prepare AI Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{$json.openai_bearer}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{JSON.stringify({model:'gpt-4o-mini',temperature:0.2,messages:[{role:'system',content:$json.openai_system_prompt},{role:'user',content:$json.openai_user_prompt}]})}}"
+      },
+      "id": "5",
+      "name": "OpenAI - Generate Reply + Booking JSON",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.choices?.[0]?.message?.content || '{}';\nlet parsed;\ntry {\n  parsed = JSON.parse(raw);\n} catch (e) {\n  parsed = {\n    reply_text: 'Thanks for contacting AutoShop AI. What service do you need and what day/time works for you?',\n    booking_intent: true,\n    customer_name: '',\n    service_type: 'general service',\n    requested_time_text: '',\n    needs_more_info: true,\n    calendar_summary: 'AutoShop appointment inquiry',\n    calendar_description: `Raw AI parse failed. Original response: ${raw}`\n  };\n}\n\nreturn [{\n  json: {\n    ...$('Prepare AI Prompt').first().json,\n    ai_raw: raw,\n    reply_text: parsed.reply_text || 'Thanks for contacting AutoShop AI. What service do you need and what day/time works for you?',\n    booking_intent: !!parsed.booking_intent,\n    customer_name: parsed.customer_name || '',\n    service_type: parsed.service_type || $('Prepare AI Prompt').first().json.service_type_heuristic || 'general service',\n    requested_time_text: parsed.requested_time_text || '',\n    needs_more_info: parsed.needs_more_info !== undefined ? !!parsed.needs_more_info : true,\n    calendar_summary: parsed.calendar_summary || 'AutoShop appointment inquiry',\n    calendar_description: parsed.calendar_description || `From: ${$('Prepare AI Prompt').first().json.from}\\nOriginal SMS: ${$('Prepare AI Prompt').first().json.body}`\n  }\n}];"
+      },
+      "id": "6",
+      "name": "Parse AI JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.booking_intent}}",
+              "operation": "isTrue"
+            },
+            {
+              "value1": "={{!$json.needs_more_info}}",
+              "operation": "isTrue"
+            }
+          ],
+          "string": [
+            {
+              "value1": "={{$json.requested_time_text}}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "7",
+      "name": "If Ready For Calendar Booking",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1560,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const requested = ($json.requested_time_text || '').trim();\n\nfunction fallbackSlot() {\n  const d = new Date();\n  d.setDate(d.getDate() + 1);\n  d.setHours(10, 0, 0, 0);\n  return d;\n}\n\nlet start = new Date(requested);\nif (isNaN(start.getTime())) {\n  start = fallbackSlot();\n}\n\nconst end = new Date(start.getTime() + 60 * 60 * 1000);\n\nconst summary = $json.calendar_summary || `AutoShop - ${$json.service_type}`;\nconst description = [\n  `Customer phone: ${$json.from}`,\n  `Profile name: ${$json.profile_name || ''}`,\n  `Service type: ${$json.service_type || ''}`,\n  `Requested time text: ${$json.requested_time_text || ''}`,\n  `Original SMS: ${$json.body || ''}`,\n  '',\n  ($json.calendar_description || '')\n].join('\\n');\n\nreturn [{\n  json: {\n    ...$json,\n    calendar_start: start.toISOString(),\n    calendar_end: end.toISOString(),\n    calendar_summary_final: summary,\n    calendar_description_final: description\n  }\n}];"
+      },
+      "id": "8",
+      "name": "Build Calendar Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1820,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const calendarNode = $input.first().json;\nconst base = $('Parse AI JSON').first().json;\n\nlet finalReply = base.reply_text;\nlet bookingStatus = 'not_attempted';\n\nif (calendarNode.id) {\n  bookingStatus = 'created';\n  const start = base.calendar_start || $('Build Calendar Event').first().json.calendar_start;\n  finalReply = `You’re booked for ${base.service_type}. We’ve created your appointment for ${start}. Reply STOP to cancel or text us if you need changes.`;\n} else if (base.booking_intent && !base.needs_more_info) {\n  bookingStatus = 'calendar_failed';\n  finalReply = `We received your booking request for ${base.service_type}. Calendar sync failed, but your request was captured. We’ll confirm shortly.`;\n}\n\nreturn [{\n  json: {\n    ...base,\n    booking_status: bookingStatus,\n    final_reply_text: finalReply\n  }\n}];"
+      },
+      "id": "10",
+      "name": "Compose Reply - Calendar Path",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2340,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $input.first().json;\nreturn [{\n  json: {\n    ...base,\n    booking_status: 'needs_more_info_or_no_booking',\n    final_reply_text: base.reply_text\n  }\n}];"
+      },
+      "id": "11",
+      "name": "Compose Reply - No Calendar Path",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1820,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "12",
+      "name": "Merge Reply Paths",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        2600,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{\"https://api.twilio.com/2010-04-01/Accounts/\" + $json.twilio_sid + \"/Messages.json\"}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{$json.twilio_auth}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "To",
+              "value": "={{$json.from}}"
+            },
+            {
+              "name": "Body",
+              "value": "={{$json.final_reply_text}}"
+            },
+            {
+              "name": "MessagingServiceSid",
+              "value": "={{$json.twilio_msg_sid}}"
+            }
+          ]
+        }
+      },
+      "id": "13",
+      "name": "Twilio - Send Reply SMS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2860,
+        320
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - Twilio SMS": {
+      "main": [
+        [
+          {
+            "node": "Respond 200 to Twilio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond 200 to Twilio": {
+      "main": [
+        [
+          {
+            "node": "Prepare AI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare AI Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Generate Reply + Booking JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Generate Reply + Booking JSON": {
+      "main": [
+        [
+          {
+            "node": "Parse AI JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI JSON": {
+      "main": [
+        [
+          {
+            "node": "If Ready For Calendar Booking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Ready For Calendar Booking": {
+      "main": [
+        [
+          {
+            "node": "Build Calendar Event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Compose Reply - No Calendar Path",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Calendar Event": {
+      "main": [
+        [
+          {
+            "node": "Compose Reply - Calendar Path",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose Reply - Calendar Path": {
+      "main": [
+        [
+          {
+            "node": "Merge Reply Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose Reply - No Calendar Path": {
+      "main": [
+        [
+          {
+            "node": "Merge Reply Paths",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Reply Paths": {
+      "main": [
+        [
+          {
+            "node": "Twilio - Send Reply SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "autoshop-ai-mvp-v1"
+}

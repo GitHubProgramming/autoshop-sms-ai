@@ -81,6 +81,24 @@
     },
     {
       "parameters": {
+        "operation": "executeQuery",
+        "query": "SET LOCAL app.current_tenant_id = '{{ $vars.current_tenant_id }}';\nINSERT INTO messages (tenant_id, conversation_id, direction, body, twilio_sid)\nVALUES (\n  '{{ $('Set Tenant Context (RLS)').first().json.tenantId }}'::uuid,\n  '{{ $('DB: Get or Create Conversation').first().json.conversation_id }}'::uuid,\n  'inbound',\n  '{{ ($('Set Tenant Context (RLS)').first().json.triggerType === 'missed_call' ? '(Missed call)' : $('Set Tenant Context (RLS)').first().json.messageBody).replace(/'/g, \"''\") }}',\n  {{ $('Set Tenant Context (RLS)').first().json.messageSid ? \"'\" + $('Set Tenant Context (RLS)').first().json.messageSid + \"'\" : 'NULL' }}\n)\nON CONFLICT (twilio_sid) DO NOTHING;",
+        "options": {}
+      },
+      "id": "db-save-inbound-message",
+      "name": "DB: Save Inbound Message",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [1250, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "AutoShop Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
         "conditions": {
           "options": {
             "caseSensitive": true,
@@ -106,7 +124,7 @@
       "name": "At Soft Limit?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1250, 300]
+      "position": [1500, 300]
     },
     {
       "parameters": {
@@ -173,6 +191,9 @@
       "main": [[{ "node": "DB: Get or Create Conversation", "type": "main", "index": 0 }]]
     },
     "DB: Get or Create Conversation": {
+      "main": [[{ "node": "DB: Save Inbound Message", "type": "main", "index": 0 }]]
+    },
+    "DB: Save Inbound Message": {
       "main": [[{ "node": "At Soft Limit?", "type": "main", "index": 0 }]]
     },
     "At Soft Limit?": {
