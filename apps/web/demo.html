@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoShop SMS AI — Live Demo Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:         #070E16;
+  --bg-mid:     #0C1620;
+  --bg-panel:   #111D2C;
+  --bg-hover:   #162336;
+  --rust:       #C94B1F;
+  --rust-light: #E05A2B;
+  --amber:      #D97706;
+  --green:      #22C55E;
+  --green-dim:  rgba(34,197,94,0.12);
+  --red:        #EF4444;
+  --steel:      #64748B;
+  --steel-mid:  #94A3B8;
+  --steel-light:#CBD5E1;
+  --white:      #F1F5F9;
+  --border:     rgba(100,116,139,0.14);
+  --border-mid: rgba(100,116,139,0.24);
+  --mono:       'IBM Plex Mono', monospace;
+  --display:    'Barlow Condensed', sans-serif;
+  --body:       'Barlow', sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:15px;}
+body{background:var(--bg);color:var(--white);font-family:var(--body);line-height:1.5;-webkit-font-smoothing:antialiased;min-height:100vh;}
+::-webkit-scrollbar{width:6px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border-mid);border-radius:3px;}
+
+/* ── DEMO BANNER ── */
+.demo-banner {
+  background: linear-gradient(90deg, rgba(217,119,6,.22), rgba(201,75,31,.18));
+  border-bottom: 2px solid var(--amber);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+}
+.demo-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.demo-badge {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--bg);
+  background: var(--amber);
+  padding: 3px 10px;
+  border-radius: 2px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.demo-banner-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--steel-light);
+}
+.demo-banner-text strong { color: var(--white); }
+.demo-banner-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.demo-note {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--steel);
+  letter-spacing: .05em;
+}
+
+/* ── TOP NAV ── */
+.topnav{background:var(--bg-mid);border-bottom:1px solid var(--border);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;}
+.nav-left{display:flex;align-items:center;gap:24px;}
+.nav-logo{font-family:var(--display);font-size:18px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--white);text-decoration:none;white-space:nowrap;}
+.nav-logo span{color:var(--rust);}
+.nav-divider{width:1px;height:24px;background:var(--border);}
+.nav-shop{font-family:var(--display);font-size:17px;font-weight:700;color:var(--steel-light);letter-spacing:.03em;}
+.plan-badge{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:3px 10px;border-radius:2px;background:rgba(217,119,6,.15);color:var(--amber);border:1px solid rgba(217,119,6,.3);}
+.nav-right{display:flex;align-items:center;gap:10px;}
+.btn-nav-cta{display:inline-flex;align-items:center;gap:8px;background:var(--rust);color:var(--white);font-family:var(--display);font-size:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:9px 22px;border:none;cursor:pointer;text-decoration:none;transition:background .2s;clip-path:polygon(0 0,calc(100% - 7px) 0,100% 7px,100% 100%,7px 100%,0 calc(100% - 7px));}
+.btn-nav-cta:hover{background:var(--rust-light);}
+.btn-nav-ghost{display:inline-flex;align-items:center;gap:8px;background:transparent;color:var(--steel-light);font-family:var(--display);font-size:14px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:8px 18px;border:1px solid var(--border-mid);cursor:pointer;text-decoration:none;transition:border-color .2s,color .2s;}
+.btn-nav-ghost:hover{border-color:var(--steel-mid);color:var(--white);}
+
+/* ── LAYOUT ── */
+.layout{display:flex;min-height:calc(100vh - 120px);}
+.sidebar{width:220px;flex-shrink:0;background:var(--bg-mid);border-right:1px solid var(--border);padding:24px 0;display:flex;flex-direction:column;}
+.sidebar-section{padding:0 12px;margin-bottom:8px;}
+.sidebar-label{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--steel);text-transform:uppercase;padding:6px 12px;margin-bottom:4px;}
+.sidebar-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:3px;text-decoration:none;transition:background .15s;color:var(--steel-mid);font-size:14px;font-weight:500;border:1px solid transparent;}
+.sidebar-item:hover{background:var(--bg-hover);color:var(--white);}
+.sidebar-item.active{background:rgba(201,75,31,.12);color:var(--white);border-color:rgba(201,75,31,.2);}
+.sidebar-item.active .sidebar-icon{color:var(--rust);}
+.sidebar-icon{width:16px;height:16px;flex-shrink:0;color:var(--steel);}
+.sidebar-badge{margin-left:auto;background:var(--rust);color:var(--white);font-family:var(--mono);font-size:10px;padding:1px 6px;border-radius:10px;}
+.sidebar-status{margin-top:auto;padding:16px 16px 0;border-top:1px solid var(--border);}
+.system-status{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--bg-panel);border:1px solid var(--border);border-radius:3px;}
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--green);box-shadow:0 0 6px rgba(34,197,94,.5);animation:pulse-green 2s infinite;}
+@keyframes pulse-green{0%,100%{box-shadow:0 0 6px rgba(34,197,94,.5);}50%{box-shadow:0 0 12px rgba(34,197,94,.8);}}
+.status-text{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--green);}
+.status-sub{font-family:var(--mono);font-size:10px;color:var(--steel);margin-top:1px;}
+
+/* ── MAIN ── */
+.main{flex:1;padding:28px 32px;min-width:0;}
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:24px;}
+.page-title{font-family:var(--display);font-size:28px;font-weight:900;text-transform:uppercase;letter-spacing:.03em;color:var(--white);}
+.page-subtitle{font-family:var(--mono);font-size:12px;color:var(--steel);letter-spacing:.06em;margin-top:4px;}
+.section-label{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--steel);margin:24px 0 10px;}
+
+/* ── KPI GRID ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin-bottom:2px;}
+.kpi-card{background:var(--bg-panel);border:1px solid var(--border);padding:18px 20px;position:relative;overflow:hidden;}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.kpi-card.revenue::before{background:var(--green);}
+.kpi-card.calls::before{background:var(--rust);}
+.kpi-card.booked::before{background:var(--amber);}
+.kpi-card.conversations::before{background:var(--steel-mid);}
+.kpi-tag{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--steel);margin-bottom:10px;}
+.kpi-value{font-family:var(--display);font-size:40px;font-weight:900;color:var(--white);line-height:1;letter-spacing:-.01em;}
+.kpi-value .curr{font-size:22px;color:var(--steel-mid);vertical-align:top;margin-top:6px;display:inline-block;}
+.kpi-change{font-family:var(--mono);font-size:11px;margin-top:6px;}
+.kpi-change.up{color:var(--green);}
+.kpi-sub{font-size:12px;color:var(--steel);margin-top:4px;}
+
+/* ── SINCE ACTIVATION ── */
+.kpi-card.since-activation{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:32px;padding:22px 28px;}
+.kpi-card.since-activation::before{background:linear-gradient(90deg,var(--green),var(--rust));}
+.since-label{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--steel);margin-bottom:6px;}
+.since-value{font-family:var(--display);font-size:52px;font-weight:900;color:var(--white);line-height:1;letter-spacing:-.01em;}
+.since-value .curr{font-size:30px;color:var(--steel-mid);vertical-align:top;margin-top:8px;display:inline-block;}
+.since-sub{font-family:var(--mono);font-size:12px;color:var(--steel);margin-top:6px;letter-spacing:.05em;}
+.since-sub span{color:var(--steel-mid);}
+.since-sub span+span::before{content:' · ';}
+.since-right{display:flex;gap:40px;flex-shrink:0;}
+.since-stat{text-align:right;}
+.since-stat-val{font-family:var(--display);font-size:32px;font-weight:900;color:var(--amber);line-height:1;}
+.since-stat-label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--steel);text-transform:uppercase;margin-top:4px;}
+
+/* ── TODAY GRID ── */
+.today-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin-bottom:2px;}
+.today-card{background:var(--bg-panel);border:1px solid var(--border);border-bottom:2px solid var(--border-mid);padding:14px 16px;}
+.today-tag{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--steel);margin-bottom:6px;}
+.today-num{font-family:var(--display);font-size:36px;font-weight:900;color:var(--white);}
+.today-num.green{color:var(--green);}
+.today-num.amber{color:var(--amber);}
+
+/* ── CONVERSATION TABLE ── */
+.conv-table{width:100%;border-collapse:collapse;font-size:13px;}
+.conv-table th{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--steel);padding:8px 14px;text-align:left;border-bottom:1px solid var(--border);}
+.conv-table td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.conv-table tr:last-child td{border-bottom:none;}
+.conv-table tr:hover td{background:var(--bg-hover);}
+.status-pill{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:2px 10px;border-radius:2px;}
+.status-pill.booked{background:var(--green-dim);color:var(--green);border:1px solid rgba(34,197,94,.25);}
+.status-pill.active{background:rgba(217,119,6,.1);color:var(--amber);border:1px solid rgba(217,119,6,.3);}
+.status-pill.closed{background:rgba(100,116,139,.1);color:var(--steel-mid);border:1px solid var(--border-mid);}
+
+/* ── CTA SECTION ── */
+.cta-section{background:linear-gradient(135deg,rgba(201,75,31,.12),rgba(12,22,32,.95));border:1px solid rgba(201,75,31,.25);padding:32px 36px;margin-top:32px;display:flex;align-items:center;justify-content:space-between;gap:24px;border-left:3px solid var(--rust);}
+.cta-left{}
+.cta-headline{font-family:var(--display);font-size:26px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;color:var(--white);}
+.cta-sub{font-size:14px;color:var(--steel-light);margin-top:6px;}
+.cta-buttons{display:flex;align-items:center;gap:12px;flex-shrink:0;flex-wrap:wrap;}
+.btn-cta-primary{display:inline-flex;align-items:center;gap:8px;background:var(--rust);color:var(--white);font-family:var(--display);font-size:16px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:14px 28px;border:none;cursor:pointer;text-decoration:none;transition:background .2s,transform .15s;clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px));}
+.btn-cta-primary:hover{background:var(--rust-light);transform:translateY(-2px);}
+.btn-cta-ghost{display:inline-flex;align-items:center;gap:8px;background:transparent;color:var(--steel-light);font-family:var(--display);font-size:15px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:13px 22px;border:1px solid var(--border-mid);cursor:pointer;text-decoration:none;transition:border-color .2s,color .2s,transform .15s;}
+.btn-cta-ghost:hover{border-color:var(--steel-mid);color:var(--white);transform:translateY(-2px);}
+
+/* ── SIMULATED CHAT ── */
+.chat-panel{background:var(--bg-panel);border:1px solid var(--border);padding:0;}
+.chat-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.chat-title{font-family:var(--display);font-size:16px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;}
+.chat-meta{font-family:var(--mono);font-size:11px;color:var(--steel);}
+.chat-body{padding:18px;display:flex;flex-direction:column;gap:12px;}
+.msg-row{display:flex;}
+.msg-row.right{justify-content:flex-end;}
+.msg-bubble{max-width:78%;padding:10px 14px;font-size:13px;line-height:1.5;color:var(--white);}
+.msg-bubble.ai{background:var(--bg-hover);border:1px solid var(--border-mid);border-radius:3px 12px 12px 12px;}
+.msg-bubble.ai .msg-sender{font-family:var(--mono);font-size:10px;color:var(--rust-light);letter-spacing:.06em;margin-bottom:4px;}
+.msg-bubble.customer{background:rgba(201,75,31,.15);border:1px solid rgba(201,75,31,.25);border-radius:12px 3px 12px 12px;}
+.msg-time{font-family:var(--mono);font-size:10px;color:var(--steel);text-align:center;margin:4px 0 8px;letter-spacing:.05em;}
+.result-row{background:var(--green-dim);border:1px solid rgba(34,197,94,.2);padding:10px 14px;margin:0 18px 18px;display:flex;align-items:center;gap:10px;border-radius:2px;}
+.result-text{font-family:var(--mono);font-size:12px;color:var(--green);letter-spacing:.06em;}
+.result-text strong{color:var(--white);}
+
+/* ── SIMULATED NOTE ── */
+.sim-note{background:rgba(100,116,139,.06);border:1px dashed rgba(100,116,139,.25);padding:10px 16px;margin-top:16px;display:flex;align-items:center;gap:10px;}
+.sim-note-text{font-family:var(--mono);font-size:11px;color:var(--steel);letter-spacing:.04em;}
+
+/* ── HEALTH CARD ── */
+.health-card{display:flex;flex-direction:column;gap:8px;}
+.health-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);}
+.health-row:last-child{border-bottom:none;}
+.health-label{font-size:13px;color:var(--steel-mid);}
+.health-val{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12px;}
+.health-val.ok{color:var(--green);}
+.health-val.neutral{color:var(--steel-light);}
+.hdot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;}
+</style>
+</head>
+<body>
+
+<!-- DEMO MODE BANNER -->
+<div class="demo-banner" id="demo-banner">
+  <div class="demo-banner-left">
+    <span class="demo-badge">Demo Mode</span>
+    <span class="demo-banner-text" id="demo-banner-text"><strong>This dashboard shows how AutoShop AI works for a typical repair shop.</strong> All metrics are simulated examples.</span>
+  </div>
+  <div class="demo-banner-right">
+    <span class="demo-note">* Simulated data — not a real shop</span>
+    <a href="login.html" class="btn-nav-cta">Start Free Trial &rarr;</a>
+  </div>
+</div>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <div class="nav-left">
+    <a href="index.html" class="nav-logo">AutoShop <span>SMS</span> AI</a>
+    <div class="nav-divider"></div>
+    <span class="nav-shop">Austin Quick Lube (Demo)</span>
+    <span class="plan-badge">Trial</span>
+  </div>
+  <div class="nav-right">
+    <a href="login.html" class="btn-nav-ghost">Log In</a>
+    <a href="login.html" class="btn-nav-cta">Start Free Trial</a>
+  </div>
+</nav>
+
+<!-- LAYOUT -->
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Overview</div>
+      <a class="sidebar-item active" href="#">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </a>
+      <a class="sidebar-item" href="#">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        Conversations
+        <span class="sidebar-badge">5</span>
+      </a>
+      <a class="sidebar-item" href="#">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Bookings
+      </a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Revenue</div>
+      <a class="sidebar-item" href="#">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+        Analytics
+      </a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Account</div>
+      <a class="sidebar-item" href="#">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Billing
+      </a>
+      <a class="sidebar-item" href="#">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M20 12h2M2 12h2M17.66 17.66l-1.41-1.41M6.34 17.66l1.41-1.41"/></svg>
+        Settings
+      </a>
+    </div>
+    <div class="sidebar-status">
+      <div class="system-status">
+        <div class="status-dot"></div>
+        <div>
+          <div class="status-text">System Active</div>
+          <div class="status-sub">Recovering missed calls</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+
+    <div class="page-header">
+      <div>
+        <div class="page-title" id="demo-page-title">Revenue Recovery Dashboard</div>
+        <div class="page-subtitle" id="demo-page-subtitle">Demo · Austin Quick Lube · Last 30 Days</div>
+      </div>
+    </div>
+
+    <!-- ALL-TIME PERFORMANCE -->
+    <div class="section-label" id="alltime-label">If Your Shop Had Been Running AutoShop AI This Year</div>
+    <div class="kpi-grid" style="grid-template-columns:1fr;margin-bottom:2px;">
+      <div class="kpi-card since-activation">
+        <div>
+          <div class="since-label" id="since-label">Projected Annual Revenue Recovery</div>
+          <div class="since-value"><span class="curr">$</span><span id="since-value">31,200</span></div>
+          <div class="since-sub">
+            <span id="since-appts">94 appointments booked</span>
+            <span id="since-days">Based on your inputs</span>
+          </div>
+        </div>
+        <div class="since-right">
+          <div class="since-stat"><div class="since-stat-val" id="since-daily">$427</div><div class="since-stat-label">Per Month</div></div>
+          <div class="since-stat"><div class="since-stat-val" id="since-roi">104x</div><div class="since-stat-label">Vs Cost</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI CARDS -->
+    <div class="section-label">Performance Snapshot — This Month</div>
+    <div class="kpi-grid">
+      <div class="kpi-card revenue">
+        <div class="kpi-tag">Missed Calls Recovered</div>
+        <div class="kpi-value" id="kpi-calls">47</div>
+        <div class="kpi-change up" id="kpi-calls-change">▲ 12 vs last month</div>
+        <div class="kpi-sub">Calls that received instant SMS response</div>
+      </div>
+      <div class="kpi-card booked">
+        <div class="kpi-tag">Appointments Booked</div>
+        <div class="kpi-value" id="kpi-appts">11</div>
+        <div class="kpi-change up" id="kpi-appts-change">▲ 3 vs last month</div>
+        <div class="kpi-sub">Confirmed &amp; added to Google Calendar</div>
+      </div>
+      <div class="kpi-card calls">
+        <div class="kpi-tag">Revenue Recovered</div>
+        <div class="kpi-value"><span class="curr">$</span><span id="kpi-revenue">5,060</span></div>
+        <div class="kpi-change up" id="kpi-revenue-change">▲ 22% vs last month</div>
+        <div class="kpi-sub" id="kpi-revenue-sub">Estimated at avg $460 ARO per booking</div>
+      </div>
+      <div class="kpi-card conversations">
+        <div class="kpi-tag">System Health</div>
+        <div class="health-card" style="margin-top:8px;">
+          <div class="health-row">
+            <span class="health-label">Twilio SMS</span>
+            <span class="health-val ok"><span class="hdot"></span>Connected</span>
+          </div>
+          <div class="health-row">
+            <span class="health-label">Google Calendar</span>
+            <span class="health-val ok"><span class="hdot"></span>Connected</span>
+          </div>
+          <div class="health-row">
+            <span class="health-label">Last SMS Sent</span>
+            <span class="health-val neutral">4 min ago</span>
+          </div>
+          <div class="health-row">
+            <span class="health-label">Last Appt Booked</span>
+            <span class="health-val neutral">Today 11:14 AM</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TODAY'S ACTIVITY -->
+    <div class="section-label">Today's Activity</div>
+    <div class="today-grid">
+      <div class="today-card">
+        <div class="today-tag">Missed Calls Today</div>
+        <div class="today-num" id="today-calls">6</div>
+      </div>
+      <div class="today-card">
+        <div class="today-tag">SMS Sent</div>
+        <div class="today-num" id="today-sms">6</div>
+      </div>
+      <div class="today-card" style="border-bottom-color:var(--amber);">
+        <div class="today-tag">Active Conversations</div>
+        <div class="today-num amber" id="today-convs">5</div>
+      </div>
+      <div class="today-card" style="border-bottom-color:var(--green);">
+        <div class="today-tag">Appointments Booked</div>
+        <div class="today-num green" id="today-booked">3</div>
+      </div>
+    </div>
+
+    <!-- LIVE CONVERSATION EXAMPLE -->
+    <div class="section-label">AI Conversation Example</div>
+    <div class="chat-panel">
+      <div class="chat-header">
+        <div class="chat-title">Conversation #47</div>
+        <div class="chat-meta">Customer: +1 (512) 882-4401 · Today 11:08 AM</div>
+      </div>
+      <div class="chat-body">
+        <div class="msg-row">
+          <div class="msg-bubble ai">
+            <div class="msg-sender">AutoShop AI</div>
+            Hey! You just called Austin Quick Lube but we missed you. I'm the shop's AI assistant — can I help you book an appointment? What service do you need?
+          </div>
+        </div>
+        <div class="msg-time">11:09 AM</div>
+        <div class="msg-row right">
+          <div class="msg-bubble customer">
+            Oil change for my F-150. Can you do Thursday morning?
+          </div>
+        </div>
+        <div class="msg-row">
+          <div class="msg-bubble ai">
+            <div class="msg-sender">AutoShop AI</div>
+            Absolutely! I have Thursday, April 17 at 9:00 AM open for a full synthetic oil change. That work for you?
+          </div>
+        </div>
+        <div class="msg-time">11:10 AM</div>
+        <div class="msg-row right">
+          <div class="msg-bubble customer">
+            Perfect, yes please
+          </div>
+        </div>
+        <div class="msg-row">
+          <div class="msg-bubble ai">
+            <div class="msg-sender">AutoShop AI</div>
+            Booked! Thursday April 17 at 9:00 AM for an oil change on your F-150. We'll see you then — the shop address is 4801 E. Ben White Blvd, Austin TX.
+          </div>
+        </div>
+      </div>
+      <div class="result-row">
+        <span style="color:var(--green);font-size:16px;">✓</span>
+        <span class="result-text">Appointment booked &amp; synced to Google Calendar — <strong>Thu Apr 17 · 9:00 AM · Oil Change · F-150</strong></span>
+      </div>
+    </div>
+
+    <!-- RECENT CONVERSATIONS TABLE -->
+    <div class="section-label">Recent Conversations</div>
+    <div style="background:var(--bg-panel);border:1px solid var(--border);overflow-x:auto;">
+      <table class="conv-table">
+        <thead>
+          <tr>
+            <th>Customer</th>
+            <th>Service</th>
+            <th>Time</th>
+            <th>Status</th>
+            <th>Revenue</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-family:var(--mono);font-size:12px;">+1 (512) 882-4401</td>
+            <td>Oil Change · F-150</td>
+            <td style="font-family:var(--mono);font-size:12px;color:var(--steel);">Today 11:08</td>
+            <td><span class="status-pill booked">Booked</span></td>
+            <td style="font-family:var(--display);font-size:16px;font-weight:700;color:var(--green);">$89</td>
+          </tr>
+          <tr>
+            <td style="font-family:var(--mono);font-size:12px;">+1 (512) 773-2219</td>
+            <td>Brake Inspection + Pad Replace</td>
+            <td style="font-family:var(--mono);font-size:12px;color:var(--steel);">Today 10:41</td>
+            <td><span class="status-pill booked">Booked</span></td>
+            <td style="font-family:var(--display);font-size:16px;font-weight:700;color:var(--green);">$340</td>
+          </tr>
+          <tr>
+            <td style="font-family:var(--mono);font-size:12px;">+1 (737) 900-0044</td>
+            <td>AC Diagnostic</td>
+            <td style="font-family:var(--mono);font-size:12px;color:var(--steel);">Today 09:55</td>
+            <td><span class="status-pill active">Active</span></td>
+            <td style="font-family:var(--mono);font-size:12px;color:var(--steel);">Pending</td>
+          </tr>
+          <tr>
+            <td style="font-family:var(--mono);font-size:12px;">+1 (512) 446-8823</td>
+            <td>Full Tune-Up</td>
+            <td style="font-family:var(--mono);font-size:12px;color:var(--steel);">Yesterday 4:22 PM</td>
+            <td><span class="status-pill booked">Booked</span></td>
+            <td style="font-family:var(--display);font-size:16px;font-weight:700;color:var(--green);">$520</td>
+          </tr>
+          <tr>
+            <td style="font-family:var(--mono);font-size:12px;">+1 (512) 201-5543</td>
+            <td>Tire Rotation</td>
+            <td style="font-family:var(--mono);font-size:12px;color:var(--steel);">Yesterday 2:07 PM</td>
+            <td><span class="status-pill closed">Closed</span></td>
+            <td style="font-family:var(--display);font-size:16px;font-weight:700;color:var(--green);">$45</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="sim-note">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;color:var(--steel);"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span class="sim-note-text">All data shown is simulated for demo purposes. Your real dashboard will show live data from your shop's actual missed calls and AI conversations.</span>
+    </div>
+
+    <!-- BOTTOM CTA -->
+    <div class="cta-section">
+      <div class="cta-left">
+        <div class="cta-headline" id="cta-headline">Ready to recover missed revenue?</div>
+        <div class="cta-sub">Set up takes under 10 minutes. No contracts. Cancel anytime.</div>
+      </div>
+      <div class="cta-buttons">
+        <a href="login.html" class="btn-cta-primary">
+          Start Free Trial &rarr;
+        </a>
+        <a href="login.html" class="btn-cta-ghost">
+          Connect Your Shop
+        </a>
+        <a href="index.html#pricing" class="btn-cta-ghost">
+          Book Strategy Call
+        </a>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+(function () {
+  const p = new URLSearchParams(window.location.search);
+
+  const annual   = parseInt(p.get('annual'),   10);
+  const monthly  = parseInt(p.get('monthly'),  10);
+  const appts_yr = parseInt(p.get('appts_yr'), 10);
+  const appts_mo = parseInt(p.get('appts_mo'), 10);
+  const calls    = parseInt(p.get('calls'),    10);
+  const aro      = parseInt(p.get('aro'),      10);
+
+  // Only personalize if we have valid params from the calculator
+  if (!annual || !monthly || isNaN(annual) || isNaN(monthly)) return;
+
+  const fmt  = n => '$' + Math.round(n).toLocaleString('en-US');
+  const fmtN = n => Math.round(n).toLocaleString('en-US');
+
+  // Derived today numbers (based on calls/day from calculator)
+  const callsPerDay   = calls || 5;
+  const todayCalls    = callsPerDay;
+  const todayBooked   = Math.max(1, Math.round(appts_mo / 22));
+  const todayConvs    = Math.max(todayBooked + 1, Math.round(callsPerDay * 0.7));
+
+  // Cost of Pro plan for ROI calculation
+  const annualCost    = 299 * 12;
+  const roi           = annual > 0 ? Math.round(annual / annualCost) + 'x' : '—';
+
+  // Personalize banner
+  const bannerText = document.getElementById('demo-banner-text');
+  if (bannerText) {
+    bannerText.innerHTML =
+      '<strong>This dashboard is personalized based on your shop numbers.</strong>' +
+      ' Metrics reflect what a shop with your inputs typically recovers.';
+  }
+
+  // Page header
+  setText('demo-page-subtitle', 'Based on your inputs · ' + callsPerDay + ' missed calls/day · ' + fmt(aro) + ' ARO');
+
+  // All-time card — show annual projection
+  setText('since-label',  'Estimated Annual Revenue Recovery (Your Shop)');
+  setText('since-value',  fmtN(annual));
+  setText('since-appts',  fmtN(appts_yr) + ' appointments / year');
+  setText('since-days',   'Based on ' + callsPerDay + ' missed calls/day');
+  setText('since-daily',  fmt(monthly));
+  setText('since-roi',    roi);
+  setText('alltime-label', 'What Your Shop Could Recover This Year');
+
+  // This month KPIs
+  const missedCallsMo = callsPerDay * (parseInt(p.get('days'), 10) || 22);
+  setText('kpi-calls',          fmtN(missedCallsMo));
+  setText('kpi-calls-change',   '▲ ' + callsPerDay + ' calls/day automated');
+  setText('kpi-appts',          fmtN(appts_mo));
+  setText('kpi-appts-change',   '▲ ' + fmtN(appts_mo) + ' new appts this month');
+  setText('kpi-revenue',        fmtN(monthly));
+  setText('kpi-revenue-change', '▲ Based on ' + fmt(aro) + ' avg repair order');
+  setText('kpi-revenue-sub',    'Estimated at avg ' + fmt(aro) + ' ARO per booking');
+
+  // Today's activity
+  setText('today-calls',  callsPerDay);
+  setText('today-sms',    callsPerDay);
+  setText('today-convs',  todayConvs);
+  setText('today-booked', todayBooked);
+
+  // Bottom CTA headline with their number
+  setText('cta-headline', 'Start recovering ' + fmt(annual) + '/year in missed revenue');
+
+  function setText(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  }
+})();
+</script>
+
+</body>
+</html>

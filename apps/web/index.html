@@ -2130,7 +2130,7 @@
       <li><a href="app.html" class="nav-link-dashboard">Dashboard</a></li>
       <li><a href="login.html" class="nav-link-login">Login</a></li>
     </ul>
-    <a href="#pricing" class="nav-cta">Start Free Trial</a>
+    <a href="demo.html" class="nav-cta">See Live Demo</a>
     <div class="nav-mobile-actions">
       <a href="login.html" class="btn-outline">Login</a>
     </div>
@@ -2173,9 +2173,9 @@
         </p>
 
         <div class="hero-cta-group">
-          <a href="#roi" class="btn-primary">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-            Calculate My Lost Revenue
+          <a href="demo.html" class="btn-primary">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            See Live Demo Dashboard
           </a>
           <a href="#how" class="btn-ghost">See How It Works</a>
         </div>
@@ -2379,9 +2379,9 @@
         </div>
 
         <div class="calc-result-primary">
-          <div class="calc-result-annual-label">Annual Revenue Impact</div>
+          <div class="calc-result-annual-label">You're leaving this on the table every year:</div>
           <div class="calc-result-annual" id="res-annual">$79,200</div>
-          <div class="calc-result-sub" id="res-monthly-wrap">Monthly recovered: <strong id="res-monthly">$6,600</strong></div>
+          <div class="calc-result-sub" id="res-monthly-wrap">That's <strong id="res-monthly">$6,600</strong> walking out the door every month</div>
         </div>
 
         <div class="calc-result-row">
@@ -2419,9 +2419,9 @@
           </div>
         </div>
 
-        <a href="#pricing" class="calc-cta btn-primary">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-          Start Free Trial
+        <a href="demo.html" class="calc-cta btn-primary" id="calc-demo-cta">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          See Your Demo Dashboard &rarr;
         </a>
       </div>
 
@@ -2528,8 +2528,8 @@
         <p class="integrations-body">
           No new workflows. No retraining your team. AutoShop SMS AI connects to your existing shop management system and Google Calendar. It runs in the background — completely invisible to your staff, completely visible in your booking calendar.
         </p>
-        <a href="#pricing" class="btn-ghost">
-          Start Free Trial
+        <a href="demo.html" class="btn-ghost">
+          See Live Demo
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </a>
       </div>
@@ -2974,9 +2974,9 @@
       </p>
 
       <div class="final-cta-group">
-        <a href="#pricing" class="btn-primary" style="font-size:19px; padding:20px 40px;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-          Start 14-Day Free Trial
+        <a href="demo.html" class="btn-primary" style="font-size:19px; padding:20px 40px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          See Live Demo Dashboard
         </a>
         <a href="/cdn-cgi/l/email-protection#3f4c5e535a4c7f5e4a4b504c57504f4c524c5e56115c5052004c4a5d555a5c4b027e4a4b506c57504f1a0d0f6c726c1a0d0f7e761a0d0f7b5a52501a0d0f6d5a4e4a5a4c4b" class="btn-ghost" style="font-size:19px; padding:20px 40px;">
           Request a Demo
@@ -3092,6 +3092,23 @@
 
       const finalEl = document.getElementById('final-estimate');
       if (finalEl) finalEl.textContent = fmt(revenuePerYear) + '/year';
+
+      // Update demo CTA link with calculator state so demo.html can personalize
+      const cta = document.getElementById('calc-demo-cta');
+      if (cta) {
+        const rawConv = parseFloat(document.getElementById('calc-conv').value) || 67;
+        const params = new URLSearchParams({
+          annual:    Math.round(revenuePerYear),
+          monthly:   Math.round(revenuePerMonth),
+          appts_yr:  Math.round(apptsPerYear),
+          appts_mo:  Math.round(apptsPerMonth),
+          calls:     Math.round(calls),
+          aro:       Math.round(aro),
+          conv:      Math.round(rawConv),
+          days:      Math.round(days),
+        });
+        cta.href = 'demo.html?' + params.toString();
+      }
     }
 
     calculate();
