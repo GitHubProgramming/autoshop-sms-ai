@@ -77,3 +77,32 @@ npx serve . -p 8080
 9. **Environment config** — no API base URL config; hardcoded to localhost-style paths
 
 10. **Production CSP** — Helmet on the API will need CSP adjusted if frontend is served from same origin
+
+## LAUNCH POLISH COMPLETED
+
+Surgical edits applied to existing files (no pages created, no redesign):
+
+1. **index.html — removed public Dashboard nav link**
+   - Removed `<li><a href="app.html" class="nav-link-dashboard">Dashboard</a></li>` from nav
+   - Login link remains in place
+
+2. **index.html — fixed pricing contradiction**
+   - Step 01 "Sign Up" description changed from "Enter your shop details. Card on file. 14-day free trial starts immediately." to "Start your 14-day free trial. No credit card required."
+   - Now consistent with the pricing note at bottom of section
+
+3. **login.html — demo-hint block replaced**
+   - Removed raw credential display (Email/Password in plain text)
+   - New copy: "Demo Access — Use the demo account to explore the dashboard."
+   - Added "Use Demo Account" button that calls `fillDemoCredentials()` to auto-fill email and password fields
+   - Added matching CSS for `.btn-demo-fill`
+
+4. **login.html — error message behavior**
+   - Error message already hidden on page load (CSS `display:none`, only `.visible` class shows it)
+   - No change required — confirmed correct
+
+5. **login.html — sets autoshop_demo_login=true on success**
+   - `localStorage.setItem('autoshop_demo_login', 'true')` added alongside existing session storage
+
+6. **app.html — frontend auth guard updated**
+   - Guard now checks `localStorage.getItem('autoshop_demo_login') !== 'true'` (was checking `autoshop_session`)
+   - Logout handler now also clears `autoshop_demo_login` from localStorage

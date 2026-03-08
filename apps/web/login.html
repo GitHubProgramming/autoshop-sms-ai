@@ -210,6 +210,21 @@
     line-height: 1.7;
   }
   .demo-hint strong { color: var(--rust-light); }
+  .btn-demo-fill {
+    display: inline-block;
+    margin-top: 12px;
+    background: transparent;
+    border: 1px solid rgba(201,75,31,0.4);
+    color: var(--rust-light);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+  }
+  .btn-demo-fill:hover { background: rgba(201,75,31,0.12); color: var(--white); }
 
   /* ── FOOTER ── */
   .page-footer {
@@ -274,9 +289,8 @@
     </div>
 
     <div class="demo-hint">
-      <strong>Demo Access</strong><br>
-      Email: <strong>demo@autoshop.ai</strong><br>
-      Password: <strong>autoshop2024</strong>
+      Demo Access — Use the demo account to explore the dashboard.<br>
+      <button type="button" class="btn-demo-fill" onclick="fillDemoCredentials()">Use Demo Account</button>
     </div>
   </div>
 </main>
@@ -306,6 +320,11 @@ var DEMO_USERS = [
   }
 ];
 
+function fillDemoCredentials() {
+  document.getElementById('email').value = 'demo@autoshop.ai';
+  document.getElementById('password').value = 'autoshop2024';
+}
+
 function handleLogin(e) {
   e.preventDefault();
   var email    = document.getElementById('email').value.trim().toLowerCase();
@@ -333,6 +352,7 @@ function handleLogin(e) {
         loginAt:  Date.now()
       };
       localStorage.setItem('autoshop_session', JSON.stringify(session));
+      localStorage.setItem('autoshop_demo_login', 'true');
       window.location.href = 'app.html';
     } else {
       errorEl.classList.add('visible');
