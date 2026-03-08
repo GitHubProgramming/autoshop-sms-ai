@@ -52,10 +52,21 @@ export async function twilioSmsRoute(app: FastifyInstance) {
       if (blockReason) {
         request.log.info(
           { tenantId: tenant.id, blockReason },
-          "Tenant blocked — queuing block-response job"
+          "Tenant blocked — queuing service-unavailable reply"
         );
-        // TODO: enqueue a job to send a "service unavailable" SMS reply
-        // This keeps the response fast and moves SMS sending to worker
+        // Enqueue "service unavailable" SMS reply so the customer gets feedback.
+        // WF-001 in n8n must handle jobName="service-unavailable-reply" payloads.
+        await smsInboundQueue.add(
+          "service-unavailable-reply",
+          {
+            type: "service-unavailable-reply",
+            tenantId: tenant.id,
+            customerPhone: From,
+            ourPhone: To,
+            blockReason,
+          },
+          { jobId: `block-${MessageSid}` }
+        );
         return reply.status(200).type("text/xml").send("<Response/>");
       }
 

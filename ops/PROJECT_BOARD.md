@@ -1,15 +1,15 @@
 # AUTOSHOP SMS AI — PROJECT BOARD
 
-Project Phase: PRE-LAUNCH HARDENING
-Last Updated: 2026-03-08
+Project Phase: PAID-LAUNCH HARDENING
+Last Updated: 2026-03-08 (paid-launch pass — 9 items fixed)
 
 ## Progress
-- P0 tasks remaining: 5
-- P1 tasks remaining: 6
-- P2 tasks remaining: 5
+- P0 tasks remaining: 4
+- P1 tasks remaining: 1
+- P2 tasks remaining: 3
 - P3 tasks remaining: 5
-- Total tasks remaining: 20
-- Done tasks: 15
+- Total tasks remaining: 13
+- Done tasks: 25
 - Launch status: NOT READY
 
 ---
@@ -18,12 +18,10 @@ Last Updated: 2026-03-08
 
 | ID | Task | Status | Owner | Notes |
 |----|------|--------|-------|-------|
-| S1 | Replace localStorage demo auth with real backend session/JWT | TODO | Claude | `apps/web/login.html` + `app.html` — client-side auth is forgeable |
-| S2 | Parameterize tenant RLS SET LOCAL query | DONE | Claude | Fixed: `set_config($1, true)` + UUID whitelist validation |
-| S3 | Parameterize SQL in all n8n workflows | TODO | Claude | `n8n/workflows/*.json` — `{{ }}` template syntax in SQL, escaping incomplete |
-| S4 | Add auth guard to `/billing/checkout` | TODO | Claude | Any user can create checkout session for any tenantId |
-| S5 | Validate tenantId ownership on `/auth/google/start` | TODO | Claude | Any user can trigger OAuth for any tenant |
-| S6 | Remove hardcoded N8N_ENCRYPTION_KEY fallback from docker-compose | TODO | Claude | `infra/docker-compose.yml` lines 77, 131 — predictable fallback |
+| S1 | Replace localStorage demo auth with real backend session/JWT | DOING | Claude | `apps/web/login.html` + `app.html` — client-side auth is forgeable. Requires full auth system design. |
+| S3 | Parameterize SQL in all n8n workflows | TODO | Claude | `n8n/workflows/*.json` — `{{ }}` template syntax in SQL, escaping incomplete. SQL injection risk from SMS body. |
+| S4 | Add auth guard to `/billing/checkout` | BLOCKED | Claude | Depends on S1 — no auth system to validate tenantId ownership yet |
+| S5 | Validate tenantId ownership on `/auth/google/start` | BLOCKED | Claude | Depends on S1 — no auth system to validate ownership yet |
 
 ---
 
@@ -31,12 +29,7 @@ Last Updated: 2026-03-08
 
 | ID | Task | Status | Owner | Notes |
 |----|------|--------|-------|-------|
-| L1 | Populate real Stripe credentials + verify billing flow works | TODO | Mantas | All Stripe keys in .env are REPLACE_ME — billing completely broken |
-| L2 | Send "service unavailable" SMS to blocked tenants | TODO | Claude | `apps/api/src/routes/webhooks/twilio-sms.ts:57` — TODO comment, customer gets no reply |
-| L3 | Add Twilio number suspension on subscription deletion | TODO | Claude | `apps/api/src/routes/webhooks/stripe.ts:146` — orphaned numbers stay active |
-| L4 | Add admin notification channel for chargeback disputes | TODO | Claude | `apps/api/src/routes/webhooks/stripe.ts:152` — disputes are silent |
-| L5 | Add CORS headers to API | TODO | Claude | `apps/api/src/index.ts` — no CORS config, browser will block cross-origin requests |
-| L6 | Run API Docker container as non-root user | TODO | Claude | `apps/api/Dockerfile` — no USER directive, container runs as root |
+| L1 | Populate real Stripe credentials + verify billing flow works | BLOCKED | Mantas | All Stripe keys in .env are REPLACE_ME — billing completely broken. Requires real Stripe account. Also: add `checkout.session.completed` to Stripe webhook event subscriptions in dashboard. |
 
 ---
 
@@ -44,10 +37,8 @@ Last Updated: 2026-03-08
 
 | ID | Task | Status | Owner | Notes |
 |----|------|--------|-------|-------|
-| T1 | Add Privacy Policy and Terms of Service pages | TODO | Mantas | Legal requirement for real customers; pages don't exist |
 | T2 | Add "Connect Google Calendar" UI flow for tenants | TODO | Claude | `/auth/google/start` endpoint exists but no UI button or flow |
 | T3 | Add billing upgrade UI (pricing page / upgrade button) | TODO | Claude | `/billing/checkout` endpoint exists but no UI entry point |
-| T4 | Fix Stripe price ID → plan slug mapping (no silent fallback) | TODO | Claude | `apps/api/src/routes/webhooks/stripe.ts:18` — defaults silently to "starter" |
 | T5 | Implement per-tenant rate limiting via Redis | TODO | Claude | `apps/api/src/index.ts:37` — TODO comment; global limit only |
 
 ---
@@ -82,7 +73,35 @@ Last Updated: 2026-03-08
 | D12 | Twilio signature validation middleware | DONE | Claude | SKIP_TWILIO_VALIDATION=true for dev |
 | D13 | Postgres RLS multi-tenancy | DONE | Claude | withTenant() enforces RLS on all tenant queries |
 | D14 | Docker smoke verification + compose path fix | DONE | Claude | scripts/ai-verify.sh |
+| D15 | Tighten .vercelignore | DONE | Claude | CLAUDE.md, db/, docs/, runbooks excluded |
 | S2 | Parameterize tenant RLS SET LOCAL query | DONE | Claude | `set_config($1, true)` + UUID whitelist in `db/client.ts` |
+| S6 | Remove hardcoded N8N_ENCRYPTION_KEY fallback | DONE | Claude | `infra/docker-compose.yml` — both n8n and n8n_worker now require explicit env var (`:?` syntax) |
+| L2 | Send "service unavailable" SMS to blocked tenants | DONE | Claude | `twilio-sms.ts` — enqueues `service-unavailable-reply` job to smsInboundQueue. n8n WF-001 must handle this job type. |
+| L3 | Add Twilio number suspension on subscription deletion | DONE | Claude | `webhooks/stripe.ts` — enqueues `suspend-twilio-number` to provisionNumberQueue on subscription.deleted |
+| L4 | Add admin notification for chargeback disputes | DONE | Claude | `webhooks/stripe.ts` — enqueues `admin-alert-dispute` to billingQueue on charge.dispute.created |
+| L5 | Add CORS headers to API | DONE | Claude | `@fastify/cors` added — restricts to CORS_ORIGINS env var; no wildcard |
+| L6 | Run API Docker container as non-root user | DONE | Claude | `apps/api/Dockerfile` prod stage — `USER node` added |
+| T1 | Add Privacy Policy and Terms of Service pages | DONE | Claude | `apps/web/privacy.html` + `apps/web/terms.html` created. Footer links wired in index.html + login.html |
+| T4 | Fix Stripe price ID → plan slug mapping (no silent fallback) | DONE | Claude | `webhooks/stripe.ts` — throws Error on unknown price ID instead of silently defaulting to "starter" |
+| B1 | Add checkout.session.completed handler to trigger provisioning | DONE | Claude | CRITICAL NEW FINDING: provisioning was never triggered on payment. Fixed: `webhooks/stripe.ts` enqueues `provision-twilio-number` on checkout.session.completed |
+
+---
+
+## MANUAL SETUP REQUIRED (Cannot be fixed in code)
+
+| ID | Requirement | Owner | Notes |
+|----|-------------|-------|-------|
+| M1 | Set real Stripe secret key + webhook secret in .env | Mantas | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` |
+| M2 | Set Stripe price IDs in .env | Mantas | `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_PREMIUM` |
+| M3 | Add `checkout.session.completed` to Stripe webhook event subscriptions | Mantas | Stripe dashboard → Webhooks → add event type |
+| M4 | Set CORS_ORIGINS in production .env | Mantas | e.g. `CORS_ORIGINS=https://autoshopsmsai.com` |
+| M5 | Set N8N_ENCRYPTION_KEY in .env (min 32 chars) | Mantas | Required — docker compose now fails if not set |
+| M6 | Set INTERNAL_API_KEY in production .env | Mantas | Protects `/internal/enqueue-provision-number` |
+| M7 | Set SKIP_TWILIO_VALIDATION=false in production | Mantas | Must not be `true` in production |
+| M8 | Set up Twilio production account and upgrade from test mode | Mantas | Test mode limits to 50 SMS/day |
+| M9 | Update n8n WF-001 to handle `service-unavailable-reply` job type | Claude/Mantas | Requires n8n workflow database update |
+| M10 | Update n8n WF-007 (or add new workflow) to handle `suspend-twilio-number` jobs | Claude/Mantas | Requires n8n workflow database update |
+| M11 | Set real Google OAuth credentials in .env | Mantas | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` |
 
 ---
 
@@ -90,15 +109,20 @@ Last Updated: 2026-03-08
 
 Claude must always follow this workflow:
 
-1. Read /ops/PROJECT_BOARD.md first
+1. Read /ops/PROJECT_BOARD.md first — this is the canonical task board
 2. Never invent work outside the board
 3. Pick the highest-priority TODO task
-4. Set it to DOING
+4. Set it to DOING in both PROJECT_BOARD.md AND board-data.json
 5. Execute the work
-6. Mark it DONE
-7. Move completed items to DONE
-8. Update progress counts
-9. Update /ops/board-data.json
-10. Update /ops/AI_STATUS.md
+6. Mark it DONE in both files
+7. Move completed items to DONE section in PROJECT_BOARD.md
+8. Recompute and update progress counts (p0/p1/p2/p3/total remaining, done count)
+9. Update /ops/board-data.json (source of truth for the HTML dashboard)
+10. Update /ops/AI_STATUS.md with latest completed work
+
+After every meaningful change Claude MUST update all three files:
+- /ops/PROJECT_BOARD.md
+- /ops/board-data.json
+- /ops/AI_STATUS.md
 
 Claude must not bypass this system.

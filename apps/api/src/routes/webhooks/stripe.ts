@@ -1,8 +1,8 @@
 import { FastifyInstance, FastifyRequest } from "fastify";
 import Stripe from "stripe";
 import { query } from "../../db/client";
-import { updateBillingStatus } from "../../db/tenants";
-import { billingQueue, checkIdempotency, markIdempotency } from "../../queues/redis";
+import { getTenantById, updateBillingStatus } from "../../db/tenants";
+import { billingQueue, provisionNumberQueue, checkIdempotency, markIdempotency } from "../../queues/redis";
 
 type BillingStatus =
   | "trial" | "trial_expired" | "active"
@@ -15,14 +15,16 @@ const PLAN_LIMITS: Record<string, number> = {
 };
 
 function getPlanFromStripePrice(priceId: string): string {
-  // TODO: map Stripe price IDs to plan slugs via env or DB lookup
-  // e.g. STRIPE_PRICE_STARTER=price_xxx
-  const map: Record<string, string> = {
-    [process.env.STRIPE_PRICE_STARTER ?? ""]: "starter",
-    [process.env.STRIPE_PRICE_PRO ?? ""]: "pro",
-    [process.env.STRIPE_PRICE_PREMIUM ?? ""]: "premium",
-  };
-  return map[priceId] ?? "starter";
+  const map: Record<string, string> = {};
+  if (process.env.STRIPE_PRICE_STARTER) map[process.env.STRIPE_PRICE_STARTER] = "starter";
+  if (process.env.STRIPE_PRICE_PRO)     map[process.env.STRIPE_PRICE_PRO]     = "pro";
+  if (process.env.STRIPE_PRICE_PREMIUM) map[process.env.STRIPE_PRICE_PREMIUM] = "premium";
+  const plan = map[priceId];
+  if (!plan) {
+    // Unknown price ID — throw so billing state machine does not silently mis-classify
+    throw new Error(`Unknown Stripe price ID: ${priceId}. Set STRIPE_PRICE_STARTER/PRO/PREMIUM env vars.`);
+  }
+  return plan;
 }
 
 export async function stripeRoute(app: FastifyInstance) {
@@ -90,6 +92,25 @@ export async function stripeRoute(app: FastifyInstance) {
 
 async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
   switch (event.type) {
+    case "checkout.session.completed": {
+      // Payment confirmed — trigger async Twilio number provisioning
+      const session = event.data.object as Stripe.Checkout.Session;
+      const areaCode = (session.metadata?.area_code ?? "512"); // default Texas area code
+      const tenant = await getTenantById(tenantId);
+      if (tenant) {
+        await provisionNumberQueue.add(
+          "provision-twilio-number",
+          { tenantId, areaCode, shopName: tenant.shop_name },
+          {
+            jobId: `provision-${tenantId}`,
+            attempts: 5,
+            backoff: { type: "exponential", delay: 5_000 },
+          }
+        );
+      }
+      break;
+    }
+
     case "customer.subscription.created":
     case "customer.subscription.updated": {
       const sub = event.data.object as Stripe.Subscription;
@@ -143,13 +164,23 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
 
     case "customer.subscription.deleted": {
       await updateBillingStatus(tenantId, "canceled");
-      // TODO: suspend Twilio number (async job)
+      // Enqueue async Twilio number suspension — n8n WF-007 handles deactivation
+      await provisionNumberQueue.add(
+        "suspend-twilio-number",
+        { tenantId },
+        { jobId: `suspend-${tenantId}`, attempts: 3 }
+      );
       break;
     }
 
     case "charge.dispute.created": {
       await updateBillingStatus(tenantId, "paused");
-      // TODO: alert admin channel
+      // Queue admin alert — must be monitored; disputes can become chargebacks
+      await billingQueue.add(
+        "admin-alert-dispute",
+        { tenantId, eventId: event.id, type: "dispute" },
+        { jobId: `dispute-${event.id}` }
+      );
       break;
     }
 

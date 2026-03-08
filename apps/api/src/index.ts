@@ -1,5 +1,6 @@
 import "dotenv/config";
 import Fastify from "fastify";
+import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import formbody from "@fastify/formbody";
@@ -30,6 +31,14 @@ async function bootstrap() {
   const smsWorker = startSmsInboundWorker();
 
   // ── Security ──────────────────────────────────────────────
+  // CORS: restrict to explicit allowlist; set CORS_ORIGINS=https://yourdomain.com in production
+  const allowedOrigins = (process.env.CORS_ORIGINS ?? "").split(",").filter(Boolean);
+  await app.register(cors, {
+    origin: allowedOrigins.length > 0 ? allowedOrigins : false,
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Internal-Key"],
+    credentials: true,
+  });
   await app.register(helmet);
   await app.register(rateLimit, {
     max: 100,

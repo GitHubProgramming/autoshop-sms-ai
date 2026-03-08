@@ -15,6 +15,8 @@ const CheckoutBody = z.object({
   plan: z.enum(["starter", "pro", "premium"]),
   successUrl: z.string().url(),
   cancelUrl: z.string().url(),
+  // Area code for Twilio number provisioning (3-digit US, defaults to 512 for Texas)
+  areaCode: z.string().regex(/^\d{3}$/).optional().default("512"),
 });
 
 export async function billingCheckoutRoute(app: FastifyInstance) {
@@ -37,7 +39,7 @@ export async function billingCheckoutRoute(app: FastifyInstance) {
       return reply.status(400).send({ error: parsed.error.flatten() });
     }
 
-    const { tenantId, plan, successUrl, cancelUrl } = parsed.data;
+    const { tenantId, plan, successUrl, cancelUrl, areaCode } = parsed.data;
 
     const priceId = PLAN_PRICE_MAP[plan];
     if (!priceId) {
@@ -81,7 +83,8 @@ export async function billingCheckoutRoute(app: FastifyInstance) {
       subscription_data: {
         metadata: { tenant_id: tenantId },
       },
-      metadata: { tenant_id: tenantId },
+      // area_code passed through for provisioning triggered on checkout.session.completed
+      metadata: { tenant_id: tenantId, area_code: areaCode },
     });
 
     request.log.info({ tenantId, plan, sessionId: session.id }, "Stripe checkout session created");

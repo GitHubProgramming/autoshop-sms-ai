@@ -73,8 +73,8 @@ services:
       N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER:-admin}
       N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD:-admin_secret}
 
-      # Encryption
-      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-change_me_32_chars_minimum_here!}
+      # Encryption — N8N_ENCRYPTION_KEY MUST be set in .env (no fallback — predictable keys are a security risk)
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?N8N_ENCRYPTION_KEY must be set in .env (min 32 chars)}
 
       # URLs
       WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://localhost:5678}
@@ -128,7 +128,7 @@ services:
       DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD:-autoshop_secret}
       DB_POSTGRESDB_SCHEMA: n8n
 
-      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-change_me_32_chars_minimum_here!}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?N8N_ENCRYPTION_KEY must be set in .env (min 32 chars)}
       GENERIC_TIMEZONE: America/Chicago
     env_file:
       - ../.env
