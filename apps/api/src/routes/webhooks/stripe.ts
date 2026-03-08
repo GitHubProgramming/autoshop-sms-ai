@@ -1,12 +1,8 @@
 import { FastifyInstance, FastifyRequest } from "fastify";
 import Stripe from "stripe";
 import { query } from "../../db/client";
-import { getTenantById, updateBillingStatus } from "../../db/tenants";
+import { getTenantById, updateBillingStatus, BillingStatus } from "../../db/tenants";
 import { billingQueue, provisionNumberQueue, checkIdempotency, markIdempotency } from "../../queues/redis";
-
-type BillingStatus =
-  | "trial" | "trial_expired" | "active"
-  | "past_due" | "past_due_blocked" | "canceled" | "paused";
 
 const PLAN_LIMITS: Record<string, number> = {
   starter: 150,
@@ -25,6 +21,46 @@ function getPlanFromStripePrice(priceId: string): string {
     throw new Error(`Unknown Stripe price ID: ${priceId}. Set STRIPE_PRICE_STARTER/PRO/PREMIUM env vars.`);
   }
   return plan;
+}
+
+/**
+ * Map Stripe subscription status to our billing_status.
+ * Returns null for ambiguous states (incomplete, trialing) — caller preserves current status.
+ */
+function stripeSubStatusToBillingStatus(subStatus: string): BillingStatus | null {
+  switch (subStatus) {
+    case "active":             return "active";
+    case "past_due":           return "past_due";
+    case "canceled":           return "canceled";
+    case "unpaid":             return "past_due";
+    case "incomplete_expired": return "canceled";
+    default:                   return null; // incomplete, trialing — do not override
+  }
+}
+
+/**
+ * Resolve tenant ID from a Stripe event.
+ * 1. metadata.tenant_id — set on checkout session, propagated to subscription by Stripe.
+ * 2. stripe_customer_id DB lookup — fallback for events without metadata (e.g. manual invoices).
+ */
+async function resolveTenantId(event: Stripe.Event): Promise<string | undefined> {
+  const obj = event.data.object as Record<string, unknown>;
+
+  const metadata = obj.metadata as Record<string, string> | undefined;
+  if (metadata?.tenant_id) return metadata.tenant_id;
+
+  // customer field is present on Subscription and Invoice objects
+  const customer = obj.customer;
+  const customerId = typeof customer === "string" ? customer : (customer as Stripe.Customer | null)?.id;
+  if (customerId) {
+    const rows = await query<{ id: string }>(
+      `SELECT id FROM tenants WHERE stripe_customer_id = $1 LIMIT 1`,
+      [customerId]
+    );
+    if (rows[0]) return rows[0].id;
+  }
+
+  return undefined;
 }
 
 export async function stripeRoute(app: FastifyInstance) {
@@ -63,15 +99,15 @@ export async function stripeRoute(app: FastifyInstance) {
     // ── Idempotency ──────────────────────────────────────────────────────────
     const alreadyProcessed = await checkIdempotency(`stripe:${event.id}`);
     if (alreadyProcessed) {
+      app.log.info({ eventId: event.id }, "Stripe event already processed — skipping");
       return reply.status(200).send({ received: true });
     }
     await markIdempotency(`stripe:${event.id}`);
 
-    // ── Log to billing_events ────────────────────────────────────────────────
-    // TODO: extract tenantId from event metadata
-    const obj = event.data.object as any;
-    const tenantId = obj?.metadata?.tenant_id as string | undefined;
+    // ── Resolve tenant ───────────────────────────────────────────────────────
+    const tenantId = await resolveTenantId(event);
 
+    // ── Log to billing_events ────────────────────────────────────────────────
     await query(
       `INSERT INTO billing_events (stripe_event_id, tenant_id, event_type, payload)
        VALUES ($1, $2, $3, $4)
@@ -81,21 +117,38 @@ export async function stripeRoute(app: FastifyInstance) {
 
     // ── State machine routing ────────────────────────────────────────────────
     if (tenantId) {
-      await routeStripeEvent(event, tenantId);
+      try {
+        await routeStripeEvent(app, event, tenantId);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        // Log but return 200 — Stripe retries are futile if our data is the problem;
+        // the billing_events log preserves the raw payload for manual recovery.
+        app.log.error(
+          { eventType: event.type, eventId: event.id, tenantId, message },
+          "Stripe event handler failed"
+        );
+      }
     } else {
-      app.log.warn({ eventType: event.type, eventId: event.id }, "No tenant_id in Stripe event");
+      app.log.warn(
+        { eventType: event.type, eventId: event.id },
+        "Stripe event: could not resolve tenant — logged only"
+      );
     }
 
     return reply.status(200).send({ received: true });
   });
 }
 
-async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
+async function routeStripeEvent(
+  app: FastifyInstance,
+  event: Stripe.Event,
+  tenantId: string
+): Promise<void> {
   switch (event.type) {
     case "checkout.session.completed": {
       // Payment confirmed — trigger async Twilio number provisioning
       const session = event.data.object as Stripe.Checkout.Session;
-      const areaCode = (session.metadata?.area_code ?? "512"); // default Texas area code
+      const areaCode = session.metadata?.area_code ?? "512"; // default Texas area code
       const tenant = await getTenantById(tenantId);
       if (tenant) {
         await provisionNumberQueue.add(
@@ -107,6 +160,7 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
             backoff: { type: "exponential", delay: 5_000 },
           }
         );
+        app.log.info({ tenantId, areaCode }, "checkout.session.completed — Twilio provisioning queued");
       }
       break;
     }
@@ -117,26 +171,55 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
       const priceId = sub.items.data[0]?.price.id ?? "";
       const planId = getPlanFromStripePrice(priceId);
       const convLimit = PLAN_LIMITS[planId] ?? 150;
+      const billingStatus = stripeSubStatusToBillingStatus(sub.status) ?? "active";
+      const resetUsage = billingStatus === "active";
+      const customerId =
+        typeof sub.customer === "string" ? sub.customer : (sub.customer as Stripe.Customer).id;
 
       await query(
         `UPDATE tenants SET
-           billing_status     = 'active',
-           plan_id            = $1,
-           stripe_subscription_id = $2,
-           conv_limit_this_cycle  = $3,
-           conv_used_this_cycle   = 0,
-           warned_80pct       = FALSE,
-           warned_100pct      = FALSE,
-           cycle_reset_at     = to_timestamp($4),
-           updated_at         = NOW()
-         WHERE id = $5`,
-        [planId, sub.id, convLimit, sub.current_period_end, tenantId]
+           billing_status         = $1,
+           plan_id                = $2,
+           stripe_customer_id     = COALESCE(stripe_customer_id, $3),
+           stripe_subscription_id = $4,
+           stripe_price_id        = $5,
+           conv_limit_this_cycle  = $6,
+           conv_used_this_cycle   = CASE WHEN $7 THEN 0 ELSE conv_used_this_cycle END,
+           warned_80pct           = CASE WHEN $7 THEN FALSE ELSE warned_80pct END,
+           warned_100pct          = CASE WHEN $7 THEN FALSE ELSE warned_100pct END,
+           current_period_start   = to_timestamp($8),
+           cycle_reset_at         = to_timestamp($9),
+           cancel_at_period_end   = $10,
+           updated_at             = NOW()
+         WHERE id = $11`,
+        [
+          billingStatus,
+          planId,
+          customerId,
+          sub.id,
+          priceId,
+          convLimit,
+          resetUsage,
+          sub.current_period_start,
+          sub.current_period_end,
+          sub.cancel_at_period_end,
+          tenantId,
+        ]
+      );
+      app.log.info(
+        { tenantId, planId, billingStatus, subId: sub.id, cancelAtPeriodEnd: sub.cancel_at_period_end },
+        `${event.type} — tenant subscription upserted`
       );
       break;
     }
 
+    case "invoice.paid":
     case "invoice.payment_succeeded": {
+      // invoice.paid   — fires when Stripe marks the invoice status as "paid"
+      // invoice.payment_succeeded — fires when the payment attempt succeeds
+      // Both indicate the subscription cycle renewed; treat identically.
       const inv = event.data.object as Stripe.Invoice;
+      const periodEnd = (inv as unknown as { period_end: number }).period_end;
       await query(
         `UPDATE tenants SET
            billing_status       = 'active',
@@ -146,8 +229,9 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
            cycle_reset_at       = to_timestamp($1),
            updated_at           = NOW()
          WHERE id = $2`,
-        [(inv as unknown as { period_end: number }).period_end, tenantId]
+        [periodEnd, tenantId]
       );
+      app.log.info({ tenantId, eventType: event.type }, "Invoice paid — tenant set active, usage reset");
       break;
     }
 
@@ -159,6 +243,7 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
         { tenantId },
         { delay: 3 * 24 * 60 * 60 * 1000, jobId: `grace-${tenantId}` }
       );
+      app.log.warn({ tenantId }, "invoice.payment_failed — tenant set past_due, grace period scheduled");
       break;
     }
 
@@ -170,22 +255,25 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
         { tenantId },
         { jobId: `suspend-${tenantId}`, attempts: 3 }
       );
+      app.log.info({ tenantId }, "customer.subscription.deleted — tenant canceled, Twilio suspension queued");
       break;
     }
 
     case "charge.dispute.created": {
       await updateBillingStatus(tenantId, "paused");
-      // Queue admin alert — must be monitored; disputes can become chargebacks
+      // Queue admin alert — disputes can escalate to chargebacks; requires manual review
       await billingQueue.add(
         "admin-alert-dispute",
         { tenantId, eventId: event.id, type: "dispute" },
         { jobId: `dispute-${event.id}` }
       );
+      app.log.warn({ tenantId, eventId: event.id }, "charge.dispute.created — tenant paused, admin alert queued");
       break;
     }
 
     default:
-      // Unhandled events — logged but ignored
+      // Unhandled event types — logged to billing_events, ignored here
+      app.log.debug({ eventType: event.type, tenantId }, "Stripe event type not routed");
       break;
   }
 }

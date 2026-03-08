@@ -83,11 +83,44 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 - `ops/PROJECT_BOARD.md` — updated
 - `ops/board-data.json` — updated
 
+## STRIPE WEBHOOK COMPLETION PASS — 2026-03-08
+
+**Branch:** ai/paid-launch-pass
+**Task:** Complete Stripe webhook handling for all required billing events
+**Verification:** typecheck PASS · 19/19 tests PASS · build PASS · docker health PASS
+
+### What was missing / fixed
+
+| Gap | Fix |
+|-----|-----|
+| `invoice.paid` not handled (only `invoice.payment_succeeded`) | Added `invoice.paid` case — same logic as payment_succeeded; both are now handled |
+| `customer.subscription.created/updated` missing `stripe_customer_id`, `stripe_price_id`, `current_period_start`, `cancel_at_period_end` | Updated UPDATE query to set all fields |
+| Subscription status always forced to `'active'` regardless of Stripe sub.status | Added `stripeSubStatusToBillingStatus()` — maps `past_due`, `unpaid`, `canceled`, `incomplete_expired` correctly |
+| Tenant resolution only via `metadata.tenant_id` (breaks for manual invoices, account migrations) | Added `resolveTenantId()` with `stripe_customer_id` DB fallback |
+| Handler errors propagated and aborted 200 response | Wrapped in try/catch — errors logged, 200 always returned (payload preserved in billing_events) |
+| No structured logging in `routeStripeEvent` | Added `app.log.info/warn` on every case |
+| Missing DB columns `stripe_price_id`, `current_period_start`, `cancel_at_period_end` | Added migration `005_subscription_fields.sql` |
+
+### Files changed
+- `apps/api/src/routes/webhooks/stripe.ts` — completed webhook handler
+- `db/migrations/005_subscription_fields.sql` — NEW: 3 additive columns
+
+### Webhook events now handled
+- `checkout.session.completed` — queue Twilio provisioning
+- `customer.subscription.created` — upsert full subscription state
+- `customer.subscription.updated` — upsert full subscription state (status-aware)
+- `invoice.paid` — set active, reset usage
+- `invoice.payment_succeeded` — set active, reset usage
+- `invoice.payment_failed` — set past_due, schedule 3-day grace period
+- `customer.subscription.deleted` — set canceled, queue Twilio suspension
+- `charge.dispute.created` — set paused, queue admin alert
+
 ## REMAINING BLOCKERS AFTER THIS PASS
 1. **L1** (Mantas): Real Stripe credentials in .env — billing non-functional without them
 2. **M12** (Mantas): Set `JWT_SECRET` in .env — session auth logs a warning if missing
 3. **M13** (Mantas/Claude): Import updated WF-001 + WF-007 into n8n (JSON files updated; live DB workflows still old)
 4. **I4** (Claude): Add `password_hash` column + bcrypt to complete real password auth
+5. **DB migration** (Mantas): Run `005_subscription_fields.sql` against production DB before deploying this branch
 
 ## WHAT MANTAS MUST DO
 1. Set real Stripe credentials (L1): `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, price IDs, add event subscriptions in dashboard
