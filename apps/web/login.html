@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoShop SMS AI — Login</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:       #0D1B2A;
+    --navy-mid:   #162336;
+    --navy-light: #1E3048;
+    --rust:       #C94B1F;
+    --rust-light: #E05A2B;
+    --steel:      #94A3B8;
+    --steel-light:#CBD5E1;
+    --white:      #F8F9FA;
+    --border:     rgba(148,163,184,0.15);
+    --border-mid: rgba(148,163,184,0.25);
+    --mono:       'IBM Plex Mono', monospace;
+    --display:    'Barlow Condensed', sans-serif;
+    --body:       'Barlow', sans-serif;
+    --red:        #EF4444;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--navy);
+    color: var(--white);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.6;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── NAV ── */
+  .topnav {
+    background: rgba(13,27,42,0.9);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(8px);
+  }
+  .nav-logo {
+    font-family: var(--display);
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--white);
+    text-decoration: none;
+  }
+  .nav-logo span { color: var(--rust); }
+  .nav-back {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--steel);
+    text-decoration: none;
+    letter-spacing: 0.08em;
+    transition: color 0.2s;
+  }
+  .nav-back:hover { color: var(--white); }
+
+  /* ── MAIN ── */
+  .main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 24px;
+  }
+
+  .login-card {
+    width: 100%;
+    max-width: 440px;
+    background: var(--navy-mid);
+    border: 1px solid var(--border-mid);
+    padding: 48px 40px;
+    clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+  }
+
+  .login-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--rust-light);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .login-tag::before {
+    content: '';
+    display: block;
+    width: 6px; height: 6px;
+    background: var(--rust);
+    border-radius: 50%;
+  }
+
+  h1 {
+    font-family: var(--display);
+    font-size: 36px;
+    font-weight: 800;
+    line-height: 1.05;
+    margin-bottom: 8px;
+  }
+  .login-sub {
+    color: var(--steel);
+    font-size: 15px;
+    margin-bottom: 36px;
+  }
+
+  .form-group {
+    margin-bottom: 20px;
+  }
+  .form-label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: var(--steel);
+    margin-bottom: 8px;
+  }
+  .form-input {
+    width: 100%;
+    background: var(--navy);
+    border: 1px solid var(--border-mid);
+    color: var(--white);
+    font-family: var(--body);
+    font-size: 16px;
+    padding: 12px 16px;
+    outline: none;
+    transition: border-color 0.2s;
+    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+  }
+  .form-input:focus { border-color: var(--rust); }
+  .form-input::placeholder { color: var(--steel); opacity: 0.6; }
+
+  .btn-primary {
+    display: block;
+    width: 100%;
+    background: var(--rust);
+    color: var(--white);
+    font-family: var(--display);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 16px 32px;
+    border: none;
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.2s, transform 0.15s;
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+    margin-top: 8px;
+  }
+  .btn-primary:hover { background: var(--rust-light); transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+  .error-msg {
+    display: none;
+    background: rgba(239,68,68,0.12);
+    border: 1px solid rgba(239,68,68,0.3);
+    color: #FCA5A5;
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+  }
+  .error-msg.visible { display: block; }
+
+  .login-footer {
+    margin-top: 28px;
+    text-align: center;
+    font-size: 14px;
+    color: var(--steel);
+  }
+  .login-footer a {
+    color: var(--steel-light);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border-mid);
+    padding-bottom: 1px;
+    transition: color 0.2s;
+  }
+  .login-footer a:hover { color: var(--white); }
+
+  .demo-hint {
+    margin-top: 32px;
+    padding: 16px;
+    background: rgba(201,75,31,0.06);
+    border: 1px solid rgba(201,75,31,0.2);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--steel);
+    line-height: 1.7;
+  }
+  .demo-hint strong { color: var(--rust-light); }
+
+  /* ── FOOTER ── */
+  .page-footer {
+    padding: 24px 32px;
+    text-align: center;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--steel);
+  }
+  .page-footer a { color: var(--steel); text-decoration: none; }
+  .page-footer a:hover { color: var(--white); }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="index.html" class="nav-logo">AutoShop <span>SMS</span> AI</a>
+  <a href="index.html" class="nav-back">← Back to site</a>
+</nav>
+
+<main class="main">
+  <div class="login-card">
+    <div class="login-tag">Shop Portal</div>
+    <h1>Welcome Back</h1>
+    <p class="login-sub">Sign in to your AutoShop SMS AI dashboard.</p>
+
+    <div class="error-msg" id="errorMsg">Invalid email or password. Please try again.</div>
+
+    <form id="loginForm" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label class="form-label" for="email">Email Address</label>
+        <input
+          class="form-input"
+          type="email"
+          id="email"
+          name="email"
+          placeholder="you@yourshop.com"
+          autocomplete="email"
+          required
+        >
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <input
+          class="form-input"
+          type="password"
+          id="password"
+          name="password"
+          placeholder="••••••••"
+          autocomplete="current-password"
+          required
+        >
+      </div>
+      <button type="submit" class="btn-primary" id="submitBtn">
+        Sign In →
+      </button>
+    </form>
+
+    <div class="login-footer">
+      Don't have an account?
+      <a href="index.html#pricing">Start Free Trial</a>
+    </div>
+
+    <div class="demo-hint">
+      <strong>Demo Access</strong><br>
+      Email: <strong>demo@autoshop.ai</strong><br>
+      Password: <strong>autoshop2024</strong>
+    </div>
+  </div>
+</main>
+
+<footer class="page-footer">
+  &copy; 2026 AutoShop SMS AI &nbsp;·&nbsp;
+  <a href="#">Privacy</a> &nbsp;·&nbsp;
+  <a href="#">Terms</a> &nbsp;·&nbsp;
+  <a href="#">Support</a>
+</footer>
+
+<script>
+// If already logged in, send to dashboard
+if (localStorage.getItem('autoshop_session')) {
+  window.location.replace('app.html');
+}
+
+// Demo credentials (pilot only — replace with real API auth for production)
+var DEMO_USERS = [
+  {
+    email: 'demo@autoshop.ai',
+    password: 'autoshop2024',
+    name: 'Demo User',
+    initials: 'D',
+    shopName: 'Austin Quick Lube (DEMO)',
+    plan: 'trial'
+  }
+];
+
+function handleLogin(e) {
+  e.preventDefault();
+  var email    = document.getElementById('email').value.trim().toLowerCase();
+  var password = document.getElementById('password').value;
+  var errorEl  = document.getElementById('errorMsg');
+  var submitBtn = document.getElementById('submitBtn');
+
+  errorEl.classList.remove('visible');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Signing In…';
+
+  // Simulate network delay
+  setTimeout(function() {
+    var user = DEMO_USERS.find(function(u) {
+      return u.email === email && u.password === password;
+    });
+
+    if (user) {
+      var session = {
+        email:    user.email,
+        name:     user.name,
+        initials: user.initials,
+        shopName: user.shopName,
+        plan:     user.plan,
+        loginAt:  Date.now()
+      };
+      localStorage.setItem('autoshop_session', JSON.stringify(session));
+      window.location.href = 'app.html';
+    } else {
+      errorEl.classList.add('visible');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Sign In →';
+    }
+  }, 600);
+}
+</script>
+</body>
+</html>
