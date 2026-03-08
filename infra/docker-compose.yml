@@ -158,8 +158,6 @@ services:
       - ../.env
     ports:
       - "3000:3000"
-    volumes:
-      - ../apps/api/src:/app/src:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
       interval: 10s
