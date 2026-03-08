@@ -303,63 +303,68 @@
 </footer>
 
 <script>
-// If already logged in, send to dashboard
-if (localStorage.getItem('autoshop_session')) {
-  window.location.replace('app.html');
-}
-
-// Demo credentials (pilot only — replace with real API auth for production)
-var DEMO_USERS = [
-  {
-    email: 'demo@autoshop.ai',
-    password: 'autoshop2024',
-    name: 'Demo User',
-    initials: 'D',
-    shopName: 'Austin Quick Lube (DEMO)',
-    plan: 'trial'
-  }
-];
+// ── Auth check ──────────────────────────────────────────────────────────────
+// Verify existing JWT with server before skipping login screen.
+// This replaces the old localStorage-only forgeable check.
+(function() {
+  var token = localStorage.getItem('autoshop_jwt');
+  if (!token) return;
+  // Quick server-side check — if token still valid, skip login
+  fetch('/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+    .then(function(res) {
+      if (res.ok) window.location.replace('app.html');
+    })
+    .catch(function() { /* network error — stay on login */ });
+})();
 
 function fillDemoCredentials() {
   document.getElementById('email').value = 'demo@autoshop.ai';
-  document.getElementById('password').value = 'autoshop2024';
+  document.getElementById('password').value = 'demo';
 }
 
-function handleLogin(e) {
+async function handleLogin(e) {
   e.preventDefault();
-  var email    = document.getElementById('email').value.trim().toLowerCase();
-  var password = document.getElementById('password').value;
-  var errorEl  = document.getElementById('errorMsg');
+  var email     = document.getElementById('email').value.trim().toLowerCase();
+  var password  = document.getElementById('password').value;
+  var errorEl   = document.getElementById('errorMsg');
   var submitBtn = document.getElementById('submitBtn');
 
   errorEl.classList.remove('visible');
   submitBtn.disabled = true;
   submitBtn.textContent = 'Signing In…';
 
-  // Simulate network delay
-  setTimeout(function() {
-    var user = DEMO_USERS.find(function(u) {
-      return u.email === email && u.password === password;
+  try {
+    // POST /auth/login — real server-side auth. Returns signed JWT.
+    // NOTE: password field is accepted but not yet validated server-side
+    // (no password_hash column in tenants table). Email-only auth for pilot.
+    var res = await fetch('/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, password: password })
     });
+    var data = await res.json();
 
-    if (user) {
-      var session = {
-        email:    user.email,
-        name:     user.name,
-        initials: user.initials,
-        shopName: user.shopName,
-        plan:     user.plan,
+    if (res.ok && data.token) {
+      localStorage.setItem('autoshop_jwt', data.token);
+      localStorage.setItem('autoshop_session', JSON.stringify({
+        email:    email,
+        tenantId: data.tenantId,
+        shopName: data.shopName,
         loginAt:  Date.now()
-      };
-      localStorage.setItem('autoshop_session', JSON.stringify(session));
-      localStorage.setItem('autoshop_demo_login', 'true');
+      }));
       window.location.href = 'app.html';
     } else {
+      errorEl.textContent = data.error || 'Invalid credentials';
       errorEl.classList.add('visible');
       submitBtn.disabled = false;
       submitBtn.textContent = 'Sign In →';
     }
-  }, 600);
+  } catch (err) {
+    errorEl.textContent = 'Connection error — please try again';
+    errorEl.classList.add('visible');
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Sign In →';
+  }
 }
 </script>
 </body>

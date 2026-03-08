@@ -4,6 +4,7 @@ import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import formbody from "@fastify/formbody";
+import fastifyJwt from "@fastify/jwt";
 
 import { healthRoute } from "./routes/health";
 import { twilioSmsRoute } from "./routes/webhooks/twilio-sms";
@@ -11,10 +12,12 @@ import { twilioVoiceStatusRoute } from "./routes/webhooks/twilio-voice-status";
 import { stripeRoute } from "./routes/webhooks/stripe";
 import { provisionNumberRoute } from "./routes/internal/provision-number";
 import { googleAuthRoute } from "./routes/auth/google";
+import { loginRoute } from "./routes/auth/login";
 import { billingCheckoutRoute } from "./routes/billing/checkout";
 import { db } from "./db/client";
 import { redis } from "./queues/redis";
 import { startSmsInboundWorker } from "./workers/sms-inbound.worker";
+import { startProvisionNumberWorker } from "./workers/provision-number.worker";
 
 const app = Fastify({
   logger: {
@@ -29,8 +32,18 @@ const app = Fastify({
 async function bootstrap() {
   // ── BullMQ workers ────────────────────────────────────────
   const smsWorker = startSmsInboundWorker();
+  const provisionWorker = startProvisionNumberWorker();
 
   // ── Security ──────────────────────────────────────────────
+  // ── JWT auth ──────────────────────────────────────────────
+  // JWT_SECRET must be set in production; at minimum 32 random chars
+  if (!process.env.JWT_SECRET) {
+    app.log.warn("JWT_SECRET not set — session auth will not work correctly");
+  }
+  await app.register(fastifyJwt, {
+    secret: process.env.JWT_SECRET ?? "INSECURE_DEFAULT_DO_NOT_USE_IN_PRODUCTION",
+  });
+
   // CORS: restrict to explicit allowlist; set CORS_ORIGINS=https://yourdomain.com in production
   const allowedOrigins = (process.env.CORS_ORIGINS ?? "").split(",").filter(Boolean);
   await app.register(cors, {
@@ -56,6 +69,7 @@ async function bootstrap() {
   await app.register(twilioVoiceStatusRoute, { prefix: "/webhooks/twilio" });
   await app.register(stripeRoute, { prefix: "/webhooks" });
   await app.register(provisionNumberRoute, { prefix: "/internal" });
+  await app.register(loginRoute, { prefix: "/auth" });
   await app.register(googleAuthRoute, { prefix: "/auth/google" });
   await app.register(billingCheckoutRoute, { prefix: "/billing" });
 
@@ -66,6 +80,7 @@ async function bootstrap() {
       app.log.info(`Received ${signal}, shutting down...`);
       await app.close();
       await smsWorker.close();
+      await provisionWorker.close();
       await db.end();
       redis.disconnect();
       process.exit(0);

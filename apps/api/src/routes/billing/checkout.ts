@@ -3,6 +3,7 @@ import { z } from "zod";
 import Stripe from "stripe";
 import { query } from "../../db/client";
 import { getTenantById } from "../../db/tenants";
+import { requireAuth } from "../../middleware/require-auth";
 
 const PLAN_PRICE_MAP: Record<string, string | undefined> = {
   starter: process.env.STRIPE_PRICE_STARTER,
@@ -28,7 +29,7 @@ export async function billingCheckoutRoute(app: FastifyInstance) {
    *
    * Stripe metadata carries tenant_id so webhooks can route events back.
    */
-  app.post("/checkout", async (request, reply) => {
+  app.post("/checkout", { preHandler: [requireAuth] }, async (request, reply) => {
     const stripeKey = process.env.STRIPE_SECRET_KEY;
     if (!stripeKey) {
       return reply.status(503).send({ error: "Stripe not configured" });
@@ -40,6 +41,17 @@ export async function billingCheckoutRoute(app: FastifyInstance) {
     }
 
     const { tenantId, plan, successUrl, cancelUrl, areaCode } = parsed.data;
+
+    // ── Ownership guard (S4) ──────────────────────────────────────────────
+    // Reject if the authenticated session belongs to a different tenant.
+    const sessionUser = request.user as { tenantId: string; email: string };
+    if (tenantId !== sessionUser.tenantId) {
+      request.log.warn(
+        { requestedTenantId: tenantId, sessionTenantId: sessionUser.tenantId },
+        "Cross-tenant checkout attempt blocked"
+      );
+      return reply.status(403).send({ error: "Forbidden — tenantId does not match your session" });
+    }
 
     const priceId = PLAN_PRICE_MAP[plan];
     if (!priceId) {

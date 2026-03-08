@@ -67,8 +67,9 @@ async function upsertCalendarTokens(
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
+// Token query param — a signed JWT from POST /auth/login
 const StartQuerySchema = z.object({
-  tenantId: z.string().uuid(),
+  token: z.string().min(1),
 });
 
 const CallbackQuerySchema = z.object({
@@ -91,12 +92,26 @@ export async function googleAuthRoute(app: FastifyInstance) {
       return reply.status(503).send({ error: "Google OAuth not configured" });
     }
 
+    // ── Ownership guard (S5) ──────────────────────────────────────────────
+    // Caller must supply a valid signed JWT (obtained via POST /auth/login).
+    // tenantId is extracted from the verified token — not trusted from query param.
     const parsed = StartQuerySchema.safeParse(request.query);
     if (!parsed.success) {
-      return reply.status(400).send({ error: "tenantId is required" });
+      return reply.status(401).send({
+        error: "token query param required — obtain via POST /auth/login",
+      });
     }
 
-    const { tenantId } = parsed.data;
+    let sessionPayload: { tenantId: string; email: string };
+    try {
+      sessionPayload = request.server.jwt.verify<{ tenantId: string; email: string }>(
+        parsed.data.token
+      );
+    } catch {
+      return reply.status(401).send({ error: "Invalid or expired token" });
+    }
+
+    const { tenantId } = sessionPayload;
 
     const params = new URLSearchParams({
       client_id: clientId,

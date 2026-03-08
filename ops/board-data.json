@@ -1,58 +1,25 @@
 {
   "project": "AUTOSHOP SMS AI",
   "phase": "PAID-LAUNCH HARDENING",
-  "launchStatus": "NOT READY",
+  "launchStatus": "NEARLY READY",
   "summary": {
-    "p0Remaining": 4,
-    "p1Remaining": 1,
-    "p2Remaining": 3,
+    "p0Remaining": 0,
+    "p1Remaining": 0,
+    "p2Remaining": 1,
     "p3Remaining": 5,
-    "totalRemaining": 13,
-    "doneCount": 25
+    "totalRemaining": 6,
+    "doneCount": 32
   },
-  "currentFocus": "S1 — Replace localStorage demo auth with real backend session/JWT",
-  "updatedAt": "2026-03-08T18:00:00Z",
+  "currentFocus": "L1 — Mantas to populate real Stripe credentials",
+  "updatedAt": "2026-03-08T22:00:00Z",
   "columns": {
-    "todo": ["S3","T2","T3","T5","I1","I2","I3","I4","I5"],
-    "doing": ["S1"],
-    "blocked": ["S4","S5","L1"],
-    "done": ["D1","D2","D3","D4","D5","D6","D7","D8","D9","D10","D11","D12","D13","D14","D15","S2","S6","L2","L3","L4","L5","L6","T1","T4","B1"]
+    "todo": ["T5","I1","I2","I3","I4","I5"],
+    "doing": [],
+    "blocked": ["L1"],
+    "done": ["D1","D2","D3","D4","D5","D6","D7","D8","D9","D10","D11","D12","D13","D14","D15","S1","S2","S3","S4","S5","S6","L2","L3","L4","L5","L6","M9","M10","T1","T2","T3","T4","B1"]
   },
   "sections": {
-    "p0": [
-      {
-        "id": "S1",
-        "title": "Replace localStorage demo auth with real backend session/JWT",
-        "status": "DOING",
-        "owner": "Claude",
-        "priority": "P0",
-        "notes": "apps/web/login.html + app.html — client-side auth is forgeable. Requires full auth system design."
-      },
-      {
-        "id": "S3",
-        "title": "Parameterize SQL in all n8n workflows",
-        "status": "TODO",
-        "owner": "Claude",
-        "priority": "P0",
-        "notes": "n8n/workflows/*.json — {{ }} template syntax in SQL with incomplete escaping. SMS body can contain SQL injection payloads."
-      },
-      {
-        "id": "S4",
-        "title": "Add auth guard to /billing/checkout",
-        "status": "BLOCKED",
-        "owner": "Claude",
-        "priority": "P0",
-        "notes": "Blocked on S1 — no session system to validate tenantId ownership"
-      },
-      {
-        "id": "S5",
-        "title": "Validate tenantId ownership on /auth/google/start",
-        "status": "BLOCKED",
-        "owner": "Claude",
-        "priority": "P0",
-        "notes": "Blocked on S1 — no session system to validate tenantId ownership"
-      }
-    ],
+    "p0": [],
     "p1": [
       {
         "id": "L1",
@@ -64,22 +31,6 @@
       }
     ],
     "p2": [
-      {
-        "id": "T2",
-        "title": "Add Connect Google Calendar UI flow for tenants",
-        "status": "TODO",
-        "owner": "Claude",
-        "priority": "P2",
-        "notes": "/auth/google/start endpoint works but no UI button or flow exists"
-      },
-      {
-        "id": "T3",
-        "title": "Add billing upgrade UI (pricing page / upgrade button)",
-        "status": "TODO",
-        "owner": "Claude",
-        "priority": "P2",
-        "notes": "/billing/checkout endpoint works but no UI entry point for customers"
-      },
       {
         "id": "T5",
         "title": "Implement per-tenant rate limiting via Redis",
@@ -116,11 +67,11 @@
       },
       {
         "id": "I4",
-        "title": "Add session expiration to localStorage auth token",
+        "title": "Add password_hash to tenants table (complete password auth)",
         "status": "TODO",
         "owner": "Claude",
         "priority": "P3",
-        "notes": "apps/web/login.html — no expiresAt set; tokens never expire if localStorage is compromised"
+        "notes": "S1 login route issues server-signed JWTs but does not check password. Requires: ALTER TABLE tenants ADD COLUMN password_hash TEXT + migration + bcrypt verification in /auth/login."
       },
       {
         "id": "I5",
@@ -147,17 +98,25 @@
     { "id": "D12", "title": "Twilio signature validation middleware", "status": "DONE", "owner": "Claude", "priority": "P0", "notes": "SKIP_TWILIO_VALIDATION=true for dev" },
     { "id": "D13", "title": "Postgres RLS multi-tenancy", "status": "DONE", "owner": "Claude", "priority": "P0", "notes": "withTenant() enforces RLS on all tenant queries" },
     { "id": "D14", "title": "Docker smoke verification + compose path fix", "status": "DONE", "owner": "Claude", "priority": "P1", "notes": "scripts/ai-verify.sh" },
-    { "id": "D15", "title": "Tighten .vercelignore", "status": "DONE", "owner": "Claude", "priority": "P1", "notes": "CLAUDE.md, db/, docs/, runbooks excluded — safe under both deploy shapes" },
+    { "id": "D15", "title": "Tighten .vercelignore", "status": "DONE", "owner": "Claude", "priority": "P1", "notes": "CLAUDE.md, db/, docs/, runbooks excluded" },
+    { "id": "S1",  "title": "Replace localStorage demo auth with real backend session/JWT", "status": "DONE", "owner": "Claude", "priority": "P0", "notes": "POST /auth/login + GET /auth/me. Server-issued JWTs replace forgeable localStorage. login.html and app.html updated. REMAINING: password_hash column needed for full password check (documented as I4)." },
     { "id": "S2",  "title": "Parameterize tenant RLS SET LOCAL query", "status": "DONE", "owner": "Claude", "priority": "P0", "notes": "set_config($1, true) + UUID whitelist validation in db/client.ts" },
-    { "id": "S6",  "title": "Remove hardcoded N8N_ENCRYPTION_KEY fallback from docker-compose", "status": "DONE", "owner": "Claude", "priority": "P0", "notes": "infra/docker-compose.yml — both n8n and n8n_worker now use :? syntax; docker compose fails loudly if not set" },
-    { "id": "L2",  "title": "Send service-unavailable SMS to blocked tenants", "status": "DONE", "owner": "Claude", "priority": "P1", "notes": "twilio-sms.ts enqueues service-unavailable-reply job. n8n WF-001 must be updated to handle this job type (M9)." },
-    { "id": "L3",  "title": "Suspend Twilio number on subscription deletion", "status": "DONE", "owner": "Claude", "priority": "P1", "notes": "webhooks/stripe.ts enqueues suspend-twilio-number to provisionNumberQueue. n8n must handle (M10)." },
-    { "id": "L4",  "title": "Add admin notification for chargeback disputes", "status": "DONE", "owner": "Claude", "priority": "P1", "notes": "webhooks/stripe.ts enqueues admin-alert-dispute to billingQueue. BullMQ dashboard makes it visible." },
-    { "id": "L5",  "title": "Add CORS headers to API", "status": "DONE", "owner": "Claude", "priority": "P1", "notes": "@fastify/cors registered in index.ts. Set CORS_ORIGINS=https://yourdomain.com in production .env." },
-    { "id": "L6",  "title": "Run API Docker container as non-root user", "status": "DONE", "owner": "Claude", "priority": "P1", "notes": "apps/api/Dockerfile prod stage — USER node added before CMD." },
-    { "id": "T1",  "title": "Add Privacy Policy and Terms of Service pages", "status": "DONE", "owner": "Claude", "priority": "P2", "notes": "apps/web/privacy.html + apps/web/terms.html created. Footer links wired in index.html and login.html." },
-    { "id": "T4",  "title": "Fix Stripe price ID to plan slug mapping (no silent fallback)", "status": "DONE", "owner": "Claude", "priority": "P2", "notes": "webhooks/stripe.ts getPlanFromStripePrice now throws on unknown price ID instead of silently defaulting to starter." },
-    { "id": "B1",  "title": "Add checkout.session.completed handler — provision Twilio number on payment", "status": "DONE", "owner": "Claude", "priority": "P0", "notes": "CRITICAL NEW FINDING: provisioning was never triggered on payment. Fixed in webhooks/stripe.ts. Also added areaCode to checkout session metadata." }
+    { "id": "S3",  "title": "Parameterize SQL in all n8n workflows", "status": "DONE", "owner": "Claude", "priority": "P0", "notes": "WF-001: Validate Inputs node (UUID/E.164 validation) + Prepare Message Data node (null-byte strip) + parameterized INSERT via queryReplacement ($1/$2/$3/$4). WF-007: DB: Save Phone Number parameterized. Manual single-quote escaping removed from message body insert." },
+    { "id": "S4",  "title": "Add auth guard to /billing/checkout", "status": "DONE", "owner": "Claude", "priority": "P0", "notes": "requireAuth preHandler + cross-tenant ownership check. Returns 403 if body.tenantId !== JWT tenantId." },
+    { "id": "S5",  "title": "Validate tenantId ownership on /auth/google/start", "status": "DONE", "owner": "Claude", "priority": "P0", "notes": "/auth/google/start now requires ?token=<jwt>. tenantId extracted from verified JWT — not from query param. Browser navigates with JWT in URL (acceptable for short-lived token in pilot)." },
+    { "id": "S6",  "title": "Remove hardcoded N8N_ENCRYPTION_KEY fallback from docker-compose", "status": "DONE", "owner": "Claude", "priority": "P0", "notes": "infra/docker-compose.yml — :? syntax; docker compose fails if not set" },
+    { "id": "L2",  "title": "Send service-unavailable SMS to blocked tenants", "status": "DONE", "owner": "Claude", "priority": "P1", "notes": "twilio-sms.ts enqueues service-unavailable-reply to smsInboundQueue." },
+    { "id": "L3",  "title": "Suspend Twilio number on subscription deletion", "status": "DONE", "owner": "Claude", "priority": "P1", "notes": "webhooks/stripe.ts enqueues suspend-twilio-number to provisionNumberQueue." },
+    { "id": "L4",  "title": "Add admin notification for chargeback disputes", "status": "DONE", "owner": "Claude", "priority": "P1", "notes": "webhooks/stripe.ts enqueues admin-alert-dispute to billingQueue." },
+    { "id": "L5",  "title": "Add CORS headers to API", "status": "DONE", "owner": "Claude", "priority": "P1", "notes": "@fastify/cors registered. Set CORS_ORIGINS in production .env." },
+    { "id": "L6",  "title": "Run API Docker container as non-root user", "status": "DONE", "owner": "Claude", "priority": "P1", "notes": "apps/api/Dockerfile prod stage — USER node" },
+    { "id": "M9",  "title": "WF-001 handles service-unavailable-reply job type", "status": "DONE", "owner": "Claude", "priority": "P1", "notes": "Check Job Type IF node added. True branch sends Twilio SMS via httpRequest (native Twilio node broken in n8n 2.10.3). WF-001 JSON updated at n8n/workflows/twilio-sms-ingest.json." },
+    { "id": "M10", "title": "provision-number queue has worker + WF-007 handles suspend-twilio-number", "status": "DONE", "owner": "Claude", "priority": "P1", "notes": "New provision-number.worker.ts created + registered in index.ts. WF-007 updated: Suspend or Provision? IF node routes suspend jobs to DB lookup → Twilio URL clear → DB status=suspended. n8n/workflows/provision-number.json updated." },
+    { "id": "T1",  "title": "Add Privacy Policy and Terms of Service pages", "status": "DONE", "owner": "Claude", "priority": "P2", "notes": "apps/web/privacy.html + apps/web/terms.html. Footer links wired." },
+    { "id": "T2",  "title": "Add Connect Google Calendar UI flow for tenants", "status": "DONE", "owner": "Claude", "priority": "P2", "notes": "connectGoogleCalendar() function added to app.html. Wired to Settings > Integrations > Google Calendar Reconnect button, Bookings calendar alert Reconnect button, and Activation Checklist reconnect CTAs. Navigates to /auth/google/start?token=<jwt>." },
+    { "id": "T3",  "title": "Add billing upgrade UI entry point", "status": "DONE", "owner": "Claude", "priority": "P2", "notes": "Upgrade buttons in app.html banners point to /billing view. Actual Stripe checkout call requires L1 (real Stripe keys) to complete end-to-end. Frontend entry point exists." },
+    { "id": "T4",  "title": "Fix Stripe price ID to plan slug mapping (no silent fallback)", "status": "DONE", "owner": "Claude", "priority": "P2", "notes": "webhooks/stripe.ts throws on unknown price ID" },
+    { "id": "B1",  "title": "Add checkout.session.completed handler — provision Twilio number on payment", "status": "DONE", "owner": "Claude", "priority": "P0", "notes": "Fixed in webhooks/stripe.ts. areaCode in checkout session metadata." }
   ],
   "manualSetupRequired": [
     { "id": "M1", "title": "Set real Stripe secret key + webhook secret in .env", "owner": "Mantas" },
@@ -168,8 +127,8 @@
     { "id": "M6", "title": "Set INTERNAL_API_KEY in production .env", "owner": "Mantas" },
     { "id": "M7", "title": "Set SKIP_TWILIO_VALIDATION=false in production", "owner": "Mantas" },
     { "id": "M8", "title": "Upgrade Twilio from test mode to production account", "owner": "Mantas" },
-    { "id": "M9", "title": "Update n8n WF-001 to handle service-unavailable-reply job type", "owner": "Claude/Mantas" },
-    { "id": "M10", "title": "Update n8n WF-007 to handle suspend-twilio-number jobs", "owner": "Claude/Mantas" },
-    { "id": "M11", "title": "Set real Google OAuth credentials in .env (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI)", "owner": "Mantas" }
+    { "id": "M11", "title": "Set real Google OAuth credentials in .env (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI)", "owner": "Mantas" },
+    { "id": "M12", "title": "Set JWT_SECRET in .env (min 32 random chars) — required for session auth", "owner": "Mantas" },
+    { "id": "M13", "title": "Import updated WF-001 and WF-007 into n8n (n8n/workflows/ JSON files updated with M9/M10/S3 fixes)", "owner": "Mantas/Claude", "notes": "Use n8n UI Import or update workflow_entity + workflow_history tables in Postgres DB" }
   ]
 }

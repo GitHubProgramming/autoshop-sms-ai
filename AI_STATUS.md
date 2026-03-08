@@ -9,6 +9,93 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+# LAUNCH-BLOCKERS PASS — 2026-03-08
+
+**Branch:** ai/paid-launch-pass (continued)
+**Tasks completed:** M9, M10, S1, S3, S4, S5, T2 (7 items)
+**Verification:** typecheck PASS · 19/19 tests PASS · build PASS
+
+## WHAT WAS FIXED
+
+### M9 — WF-001 now handles service-unavailable-reply
+- **Problem:** API enqueues `service-unavailable-reply` jobs to sms-inbound queue for blocked tenants. WF-001 had no branch for this job type — it would try to run a full AI conversation for a blocked tenant.
+- **Fix:** Added `Check Job Type` IF node at WF-001 entry. `type === 'service-unavailable-reply'` → sends Twilio SMS ("service is currently unavailable...") via httpRequest → stops. Other jobs → normal AI flow.
+- **File:** `n8n/workflows/twilio-sms-ingest.json` (versionId: wf001-v2)
+
+### M10 — provision-number queue now has a real worker + WF-007 handles suspend
+- **Problem:** `provisionNumberQueue` had no worker consuming it. Jobs (provision + suspend) sat in BullMQ forever.
+- **Fix 1:** Created `apps/api/src/workers/provision-number.worker.ts` — reads from `provision-number` queue, forwards `{ ...job.data, jobType: job.name }` to n8n `/webhook/provision-number`.
+- **Fix 2:** Registered `startProvisionNumberWorker()` in `apps/api/src/index.ts`.
+- **Fix 3:** Updated `n8n/workflows/provision-number.json` — added `Suspend or Provision?` IF node. Suspend flow: DB lookup of active number → Twilio: Clear Number URLs (POST to Twilio API) → DB: Mark Number Suspended (status='suspended'). Provision flow: existing search/buy/save flow unchanged.
+- **File:** `n8n/workflows/provision-number.json` (versionId: wf007-v2)
+
+### S1 — Real JWT session auth (replaces forgeable localStorage)
+- **Problem:** Login was pure JavaScript in-browser with hardcoded `DEMO_USERS`. Any user could forge a session by setting `autoshop_demo_login=true` in localStorage.
+- **Fix:** Registered `@fastify/jwt` in `index.ts`. Created `POST /auth/login` route (`routes/auth/login.ts`) — looks up tenant by `owner_email`, issues 24h signed JWT with `{ tenantId, email }`. Created `GET /auth/me` endpoint for token verification. Updated `apps/web/login.html` to POST to `/auth/login` and store JWT. Updated `apps/web/app.html` auth guard to verify JWT with server on load.
+- **REMAINING BLOCKER (I4):** Password validation not yet implemented — no `password_hash` column in tenants table. Login accepts any known owner_email. Full fix requires: `ALTER TABLE tenants ADD COLUMN password_hash TEXT` + migration + bcrypt verification. Explicitly documented in I4.
+- **Files:** `apps/api/src/routes/auth/login.ts` (NEW), `apps/api/src/middleware/require-auth.ts` (NEW), `apps/api/src/index.ts`, `apps/web/login.html`, `apps/web/app.html`
+
+### S3 — n8n SQL injection eliminated
+- **Problem:** WF-001 and WF-007 used `{{ }}` template interpolation in SQL. Message body used manual `'.replace(/'/g, "''")` escaping. customerPhone from SMS not validated before DB use.
+- **Fix:**
+  1. Added `Validate Inputs (S3)` Code node in WF-001 — validates tenantId (UUID regex) and customerPhone (E.164 regex) before any DB operation. Throws on invalid input.
+  2. Added `Prepare Message Data (S3)` Code node — strips null bytes, limits length.
+  3. Converted `DB: Save Inbound Message` to parameterized INSERT using `queryReplacement` — `$1::uuid, $2::uuid, $3, NULLIF($4, '')`. Manual escape removed.
+  4. Converted `DB: Lookup Tenant` to parameterized `WHERE id = $1::uuid`.
+  5. Converted `DB: Fetch Conversation History` to parameterized.
+  6. Converted `DB: Get or Create Conversation` to parameterized with `set_config()`.
+  7. Converted `DB: Save Phone Number` in WF-007 to parameterized.
+- **File:** `n8n/workflows/twilio-sms-ingest.json`, `n8n/workflows/provision-number.json`
+
+### S4 — /billing/checkout has tenant ownership enforcement
+- **Problem:** Anyone could POST to `/billing/checkout` with an arbitrary `tenantId` and create a Stripe checkout session for any tenant.
+- **Fix:** Added `requireAuth` preHandler + cross-tenant check: if `body.tenantId !== request.user.tenantId` → 403 Forbidden.
+- **File:** `apps/api/src/routes/billing/checkout.ts`
+
+### S5 — /auth/google/start has tenant ownership enforcement
+- **Problem:** Anyone could call `/auth/google/start?tenantId=<any-uuid>` and connect their own Google account to another tenant's calendar slot.
+- **Fix:** Changed from `?tenantId=uuid` to `?token=<jwt>`. Server verifies JWT, extracts tenantId from the verified payload. Unauthenticated or cross-tenant calls rejected.
+- **File:** `apps/api/src/routes/auth/google.ts`
+
+### T2 — Google Calendar frontend connect entry point
+- **Problem:** `/auth/google/start` existed but no UI button was wired to it.
+- **Fix:** Added `connectGoogleCalendar()` function in `app.html`. Reads JWT from localStorage, navigates to `/auth/google/start?token=<jwt>`. Wired to: Settings → Integrations → Google Calendar "Connect/Reconnect" button; Bookings calendar alert "Reconnect Calendar" button; Activation Checklist reconnect CTAs.
+- **File:** `apps/web/app.html`
+
+## VERIFICATION RESULTS
+- `npm run typecheck` → PASS (0 errors)
+- `npm run build` → PASS
+- `npm test` → PASS (19/19 tests)
+- Lint: pre-existing ESLint config missing (not introduced by this change)
+
+## FILES CHANGED
+- `apps/api/src/workers/provision-number.worker.ts` — NEW
+- `apps/api/src/routes/auth/login.ts` — NEW
+- `apps/api/src/middleware/require-auth.ts` — NEW
+- `apps/api/src/index.ts` — register @fastify/jwt, loginRoute, provisionWorker
+- `apps/api/src/routes/billing/checkout.ts` — requireAuth + ownership guard
+- `apps/api/src/routes/auth/google.ts` — token-based auth on /start
+- `n8n/workflows/twilio-sms-ingest.json` — M9 + S3 fixes (versionId wf001-v2)
+- `n8n/workflows/provision-number.json` — M10 + S3 fixes (versionId wf007-v2)
+- `apps/web/login.html` — real API auth
+- `apps/web/app.html` — JWT guard + Google Calendar connect button
+- `.env.example` — CORS_ORIGINS added
+- `ops/PROJECT_BOARD.md` — updated
+- `ops/board-data.json` — updated
+
+## REMAINING BLOCKERS AFTER THIS PASS
+1. **L1** (Mantas): Real Stripe credentials in .env — billing non-functional without them
+2. **M12** (Mantas): Set `JWT_SECRET` in .env — session auth logs a warning if missing
+3. **M13** (Mantas/Claude): Import updated WF-001 + WF-007 into n8n (JSON files updated; live DB workflows still old)
+4. **I4** (Claude): Add `password_hash` column + bcrypt to complete real password auth
+
+## WHAT MANTAS MUST DO
+1. Set real Stripe credentials (L1): `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, price IDs, add event subscriptions in dashboard
+2. Set `JWT_SECRET` in .env (M12): any 32+ char random string
+3. Import updated n8n workflows (M13): import `n8n/workflows/twilio-sms-ingest.json` and `n8n/workflows/provision-number.json` via n8n UI, OR run the SQL update to workflow_entity + workflow_history tables
+
+---
+
 # LAUNCH READINESS PASS — 2026-03-08
 
 **Branch:** frontend-safe-polish

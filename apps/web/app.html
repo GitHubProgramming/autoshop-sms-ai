@@ -1095,7 +1095,7 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
           <div class="settings-group-title">Google Calendar</div>
           <div class="settings-row">
             <div><div class="settings-row-label">Connected Account</div></div>
-            <div style="display:flex;gap:10px;align-items:center;"><span class="int-connected">mike@dallasautocare.com</span><button class="btn-sm">Reconnect</button></div>
+            <div style="display:flex;gap:10px;align-items:center;"><span class="int-connected" id="calendarConnectedEmail">—</span><button class="btn-sm" onclick="connectGoogleCalendar()">Connect / Reconnect</button></div>
           </div>
           <div class="settings-row">
             <div><div class="settings-row-label">Last Sync</div></div>
@@ -1353,7 +1353,7 @@ function renderChecklist() {
       label: 'Connect Google Calendar',
       status: s.integrations.googleCalendar,
       pills: { connected:{cls:'done',text:'Connected'}, token_expired:{cls:'warn',text:'Needs Reconnect'}, revoked:{cls:'fail',text:'Revoked'}, failed:{cls:'fail',text:'Failed'} },
-      ctas:  { connected:'', token_expired:'<button class="btn-sm amber-btn" onclick="showToast(\'Redirecting to Google OAuth...\')">Reconnect</button>', revoked:'<button class="btn-sm red-btn" onclick="showToast(\'Redirecting to Google OAuth...\')">Reconnect</button>', failed:'<button class="btn-sm red-btn" onclick="showToast(\'Redirecting to Google OAuth...\')">Reconnect</button>' },
+      ctas:  { connected:'', token_expired:'<button class="btn-sm amber-btn" onclick="connectGoogleCalendar()">Reconnect</button>', revoked:'<button class="btn-sm red-btn" onclick="connectGoogleCalendar()">Reconnect</button>', failed:'<button class="btn-sm red-btn" onclick="connectGoogleCalendar()">Reconnect</button>' },
       defaultCta: '<button class="btn-sm" onclick="showToast(\'Redirecting to Google OAuth...\')">Connect</button>'
     },
     {
@@ -1545,7 +1545,7 @@ function renderBookingsCalendarAlert() {
     el.innerHTML = `<div class="bookings-alert red">
       <div><div class="bookings-alert-text">Calendar sync failed — reconnect to prevent lost bookings.</div>
       <div class="bookings-alert-sub">${cal === 'token_expired' ? 'Token expired.' : cal === 'revoked' ? 'Access revoked by Google.' : 'Connection failed.'} Appointments are queued but not synced.</div></div>
-      <button class="btn-sm red-btn" onclick="showToast('Redirecting to Google OAuth...')">Reconnect Calendar</button>
+      <button class="btn-sm red-btn" onclick="connectGoogleCalendar()">Reconnect Calendar</button>
     </div>`;
   }
 }
@@ -1694,6 +1694,28 @@ function closeModal() { document.getElementById('convModal').classList.remove('o
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
 // ════════════════════════════════════════════
+// GOOGLE CALENDAR CONNECT (Task C)
+// ════════════════════════════════════════════
+function connectGoogleCalendar() {
+  // Send the signed JWT as a query param so the server can verify ownership
+  // without needing a cookie. The server extracts tenantId from the verified token.
+  var token = localStorage.getItem('autoshop_jwt');
+  if (!token) {
+    showToast('Session expired — please log in again.');
+    setTimeout(function() { window.location.href = 'login.html'; }, 1500);
+    return;
+  }
+  // Navigate to backend Google OAuth start — server redirects to Google consent screen.
+  // tenantId is NOT in the URL (extracted server-side from the verified JWT).
+  var apiBase = window.location.protocol + '//' + window.location.hostname +
+    (window.location.port ? ':' + window.location.port : '');
+  // Point at the API (port 3000 in dev, same origin in production behind reverse proxy)
+  var apiPort = window.API_PORT || '3000';
+  var apiOrigin = window.location.protocol + '//' + window.location.hostname + ':' + apiPort;
+  window.location.href = apiOrigin + '/auth/google/start?token=' + encodeURIComponent(token);
+}
+
+// ════════════════════════════════════════════
 // NAVIGATION
 // ════════════════════════════════════════════
 function switchView(view) {
@@ -1825,16 +1847,30 @@ function toggleChecklist() {
 <!-- ── AUTH GUARD ── -->
 <script>
 (function() {
-  if (localStorage.getItem('autoshop_demo_login') !== 'true') {
+  // ── Auth guard — verify JWT with server ─────────────────────────────────
+  // Replaces the forgeable autoshop_demo_login localStorage check.
+  var token = localStorage.getItem('autoshop_jwt');
+  if (!token) {
     window.location.replace('login.html');
+    return;
   }
+  // Verify token with server. If invalid/expired, redirect to login.
+  fetch('/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+    .then(function(res) {
+      if (!res.ok) {
+        localStorage.removeItem('autoshop_jwt');
+        localStorage.removeItem('autoshop_session');
+        window.location.replace('login.html');
+      }
+    })
+    .catch(function() { /* network error — allow dashboard to render */ });
   // Wire logout
   document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('a[href="login.html"].danger').forEach(function(el) {
       el.addEventListener('click', function(e) {
         e.preventDefault();
+        localStorage.removeItem('autoshop_jwt');
         localStorage.removeItem('autoshop_session');
-        localStorage.removeItem('autoshop_demo_login');
         window.location.href = 'login.html';
       });
     });

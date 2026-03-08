@@ -13,17 +13,129 @@
       "typeVersion": 1.1,
       "position": [250, 300],
       "webhookId": "provision-number-wf007",
-      "notes": "Called by API: POST /internal/enqueue-provision-number → enqueues → this webhook fires"
+      "notes": "Receives jobs from provision-number BullMQ queue via provision-number.worker.ts. jobType field routes to provision or suspend flow."
     },
     {
       "parameters": {
-        "jsCode": "// Validate input\nconst data = $json;\nif (!data.tenantId || !data.areaCode) {\n  throw new Error('Missing tenantId or areaCode');\n}\n\n// Texas area codes fallback list\nconst TX_AREA_CODES = ['512', '737', '210', '214', '972', '469', '817', '682', '281', '832', '713', '346', '361', '915', '806', '903', '936', '956'];\n\nconst primaryAreaCode = data.areaCode;\nconst fallbacks = TX_AREA_CODES.filter(c => c !== primaryAreaCode).slice(0, 3);\n\nreturn [{\n  json: {\n    tenantId: data.tenantId,\n    areaCode: primaryAreaCode,\n    fallbackAreaCodes: fallbacks,\n    shopName: data.shopName || 'AutoShop',\n    attempt: 0,\n  }\n}];"
+        "jsCode": "// Route based on jobType injected by provision-number.worker.ts\nconst data = $json;\n\nif (data.jobType === 'suspend-twilio-number') {\n  if (!data.tenantId) throw new Error('Missing tenantId for suspend job');\n  return [{ json: { jobType: 'suspend-twilio-number', tenantId: data.tenantId } }];\n}\n\n// Default: provision-twilio-number\nif (!data.tenantId || !data.areaCode) {\n  throw new Error('Missing tenantId or areaCode for provision job');\n}\n\nconst TX_AREA_CODES = ['512', '737', '210', '214', '972', '469', '817', '682', '281', '832', '713', '346', '361', '915', '806', '903', '936', '956'];\nconst primaryAreaCode = data.areaCode;\nconst fallbacks = TX_AREA_CODES.filter(c => c !== primaryAreaCode).slice(0, 3);\n\nreturn [{\n  json: {\n    jobType: data.jobType || 'provision-twilio-number',\n    tenantId: data.tenantId,\n    areaCode: primaryAreaCode,\n    fallbackAreaCodes: fallbacks,\n    shopName: data.shopName || 'AutoShop',\n    attempt: 0,\n  }\n}];"
       },
       "id": "validate-input",
       "name": "Validate + Prepare",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-job-type",
+              "leftValue": "={{ $json.jobType }}",
+              "rightValue": "suspend-twilio-number",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "route-job-type",
+      "name": "Suspend or Provision?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [750, 300],
+      "notes": "M10: routes suspend-twilio-number to suspension flow, provision to existing flow"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT twilio_sid, phone_number FROM tenant_phone_numbers WHERE tenant_id = $1::uuid AND status = 'active' LIMIT 1",
+        "options": {
+          "queryReplacement": "={{ $('Validate + Prepare').first().json.tenantId }}"
+        }
+      },
+      "id": "db-get-active-number",
+      "name": "DB: Get Active Phone Number",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [1000, 150],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "AutoShop Postgres"
+        }
+      },
+      "notes": "M10: Looks up the tenant's active Twilio number for suspension"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if an active number exists to suspend\nconst numRow = $input.first().json;\nif (!numRow || !numRow.twilio_sid) {\n  console.warn('No active number found for tenant, skipping Twilio suspension:', $('Validate + Prepare').first().json.tenantId);\n  return [{ json: { status: 'no_active_number', tenantId: $('Validate + Prepare').first().json.tenantId } }];\n}\nreturn [{ json: { twilioSid: numRow.twilio_sid, phoneNumber: numRow.phone_number, tenantId: $('Validate + Prepare').first().json.tenantId } }];"
+      },
+      "id": "check-number-exists",
+      "name": "Check Number Exists",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 150]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.twilio.com/2010-04-01/Accounts/{{ $env.TWILIO_ACCOUNT_SID }}/IncomingPhoneNumbers/{{ $json.twilioSid }}.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "SmsUrl", "value": "" },
+            { "name": "VoiceUrl", "value": "" },
+            { "name": "StatusCallback", "value": "" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "twilio-suspend-number",
+      "name": "Twilio: Clear Number URLs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1500, 150],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "twilio-http-creds",
+          "name": "Twilio Basic Auth"
+        }
+      },
+      "notes": "M10: Clears SmsUrl/VoiceUrl on the Twilio number so it stops routing to the shop API"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tenant_phone_numbers SET status = 'suspended', updated_at = NOW() WHERE tenant_id = $1::uuid AND status = 'active'",
+        "options": {
+          "queryReplacement": "={{ $('Check Number Exists').first().json.tenantId }}"
+        }
+      },
+      "id": "db-suspend-number",
+      "name": "DB: Mark Number Suspended",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [1750, 150],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "AutoShop Postgres"
+        }
+      },
+      "notes": "M10: Sets tenant_phone_numbers.status = 'suspended'"
     },
     {
       "parameters": {
@@ -46,7 +158,7 @@
       "name": "Twilio: Search Available Numbers",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [750, 300],
+      "position": [1000, 450],
       "credentials": {
         "httpBasicAuth": {
           "id": "twilio-http-creds",
@@ -70,7 +182,7 @@
       "name": "Numbers Available?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1000, 300]
+      "position": [1250, 450]
     },
     {
       "parameters": {
@@ -114,7 +226,7 @@
       "name": "Twilio: Purchase Number",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1250, 200],
+      "position": [1500, 350],
       "credentials": {
         "httpBasicAuth": {
           "id": "twilio-http-creds",
@@ -125,40 +237,43 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO tenant_phone_numbers (tenant_id, twilio_sid, phone_number, status)\nVALUES (\n  '{{ $('Validate + Prepare').first().json.tenantId }}'::uuid,\n  '{{ $('Twilio: Purchase Number').first().json.sid }}',\n  '{{ $('Twilio: Purchase Number').first().json.phone_number }}',\n  'active'\n)\nON CONFLICT DO NOTHING\nRETURNING *;",
-        "options": {}
+        "query": "INSERT INTO tenant_phone_numbers (tenant_id, twilio_sid, phone_number, status)\nVALUES ($1::uuid, $2, $3, 'active')\nON CONFLICT DO NOTHING\nRETURNING *",
+        "options": {
+          "queryReplacement": "={{ $('Validate + Prepare').first().json.tenantId }},={{ $('Twilio: Purchase Number').first().json.sid }},={{ $('Twilio: Purchase Number').first().json.phone_number }}"
+        }
       },
       "id": "db-save-number",
       "name": "DB: Save Phone Number",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.3,
-      "position": [1500, 200],
+      "position": [1750, 350],
       "credentials": {
         "postgres": {
           "id": "postgres-creds",
           "name": "AutoShop Postgres"
         }
-      }
+      },
+      "notes": "S3: Parameterized — tenantId, sid, phone_number via $1/$2/$3"
     },
     {
       "parameters": {
-        "jsCode": "// TODO: Send welcome email via email provider (SendGrid/Resend)\n// Include: assigned phone number, setup instructions, dashboard link\nconsole.log('TODO: Send welcome email to tenant:', $('Validate + Prepare').first().json.tenantId);\nconsole.log('Assigned number:', $('Twilio: Purchase Number').first().json.phone_number);\nreturn [{ json: { status: 'provisioned', number: $('Twilio: Purchase Number').first().json.phone_number } }];"
+        "jsCode": "// TODO: Send welcome email via email provider (SendGrid/Resend)\nconsole.log('TODO: Send welcome email to tenant:', $('Validate + Prepare').first().json.tenantId);\nconsole.log('Assigned number:', $('Twilio: Purchase Number').first().json.phone_number);\nreturn [{ json: { status: 'provisioned', number: $('Twilio: Purchase Number').first().json.phone_number } }];"
       },
       "id": "send-welcome-email",
       "name": "TODO: Send Welcome Email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1750, 200]
+      "position": [2000, 350]
     },
     {
       "parameters": {
-        "jsCode": "// No numbers available in requested area code\n// TODO: Alert admin via Slack/email for manual resolution\nconsole.error('No numbers available for area code:', $('Validate + Prepare').first().json.areaCode);\nconsole.error('Tenant:', $('Validate + Prepare').first().json.tenantId);\n\n// TODO: Update tenant record with provisioning_status = 'failed'\n// TODO: Send alert to admin\n\nreturn [{ json: { status: 'failed', reason: 'no_numbers_available' } }];"
+        "jsCode": "// No numbers available in requested area code\nconsole.error('No numbers available for area code:', $('Validate + Prepare').first().json.areaCode);\nconsole.error('Tenant:', $('Validate + Prepare').first().json.tenantId);\n// TODO: Try fallback area codes before failing\nreturn [{ json: { status: 'failed', reason: 'no_numbers_available' } }];"
       },
       "id": "handle-no-numbers",
       "name": "Handle: No Numbers Available",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1250, 450],
+      "position": [1500, 550],
       "notes": "TODO: Try fallback area codes before failing"
     }
   ],
@@ -167,7 +282,22 @@
       "main": [[{ "node": "Validate + Prepare", "type": "main", "index": 0 }]]
     },
     "Validate + Prepare": {
-      "main": [[{ "node": "Twilio: Search Available Numbers", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Suspend or Provision?", "type": "main", "index": 0 }]]
+    },
+    "Suspend or Provision?": {
+      "main": [
+        [{ "node": "DB: Get Active Phone Number", "type": "main", "index": 0 }],
+        [{ "node": "Twilio: Search Available Numbers", "type": "main", "index": 0 }]
+      ]
+    },
+    "DB: Get Active Phone Number": {
+      "main": [[{ "node": "Check Number Exists", "type": "main", "index": 0 }]]
+    },
+    "Check Number Exists": {
+      "main": [[{ "node": "Twilio: Clear Number URLs", "type": "main", "index": 0 }]]
+    },
+    "Twilio: Clear Number URLs": {
+      "main": [[{ "node": "DB: Mark Number Suspended", "type": "main", "index": 0 }]]
     },
     "Twilio: Search Available Numbers": {
       "main": [[{ "node": "Numbers Available?", "type": "main", "index": 0 }]]
@@ -192,5 +322,5 @@
     "errorWorkflow": ""
   },
   "tags": ["autoshop", "onboarding", "twilio"],
-  "versionId": "wf007-v1"
+  "versionId": "wf007-v2"
 }
