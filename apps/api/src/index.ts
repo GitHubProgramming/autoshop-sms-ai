@@ -12,12 +12,16 @@ import { twilioVoiceStatusRoute } from "./routes/webhooks/twilio-voice-status";
 import { stripeRoute } from "./routes/webhooks/stripe";
 import { provisionNumberRoute } from "./routes/internal/provision-number";
 import { googleAuthRoute } from "./routes/auth/google";
+import { googleSignupRoute } from "./routes/auth/google-signup";
 import { loginRoute } from "./routes/auth/login";
+import { signupRoute } from "./routes/auth/signup";
 import { billingCheckoutRoute } from "./routes/billing/checkout";
+import { adminRoute } from "./routes/internal/admin";
 import { db } from "./db/client";
 import { redis } from "./queues/redis";
 import { startSmsInboundWorker } from "./workers/sms-inbound.worker";
 import { startProvisionNumberWorker } from "./workers/provision-number.worker";
+import { startTrialExpiryWorker } from "./workers/trial-expiry.worker";
 
 const app = Fastify({
   logger: {
@@ -31,8 +35,9 @@ const app = Fastify({
 
 async function bootstrap() {
   // ── BullMQ workers ────────────────────────────────────────
-  const smsWorker = startSmsInboundWorker();
-  const provisionWorker = startProvisionNumberWorker();
+  const smsWorker        = startSmsInboundWorker();
+  const provisionWorker  = startProvisionNumberWorker();
+  const trialExpiryWorker = startTrialExpiryWorker();
 
   // ── Security ──────────────────────────────────────────────
   // ── JWT auth ──────────────────────────────────────────────
@@ -74,8 +79,11 @@ async function bootstrap() {
   await app.register(stripeRoute, { prefix: "/webhooks" });
   await app.register(provisionNumberRoute, { prefix: "/internal" });
   await app.register(loginRoute, { prefix: "/auth" });
+  await app.register(signupRoute, { prefix: "/auth" });
   await app.register(googleAuthRoute, { prefix: "/auth/google" });
+  await app.register(googleSignupRoute, { prefix: "/auth/google" });
   await app.register(billingCheckoutRoute, { prefix: "/billing" });
+  await app.register(adminRoute, { prefix: "/internal" });
 
   // ── Graceful shutdown ─────────────────────────────────────
   const signals: NodeJS.Signals[] = ["SIGINT", "SIGTERM"];
@@ -85,6 +93,7 @@ async function bootstrap() {
       await app.close();
       await smsWorker.close();
       await provisionWorker.close();
+      await trialExpiryWorker.close();
       await db.end();
       redis.disconnect();
       process.exit(0);
