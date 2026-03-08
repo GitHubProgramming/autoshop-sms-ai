@@ -1,0 +1,224 @@
+{
+  "project": "AUTOSHOP SMS AI",
+  "phase": "PRE-LAUNCH HARDENING",
+  "launchStatus": "NOT READY",
+  "summary": {
+    "p0Remaining": 5,
+    "p1Remaining": 6,
+    "p2Remaining": 5,
+    "p3Remaining": 5,
+    "totalRemaining": 21,
+    "doneCount": 15
+  },
+  "currentFocus": "S1 — Replace localStorage demo auth with real backend session/JWT",
+  "updatedAt": "2026-03-08T01:00:00Z",
+  "columns": {
+    "todo": ["S1","S3","S4","S5","S6","L2","L3","L4","L5","L6","T1","T2","T3","T4","T5","I1","I2","I3","I4","I5"],
+    "doing": ["S1"],
+    "blocked": ["L1"],
+    "done": ["D1","D2","D3","D4","D5","D6","D7","D8","D9","D10","D11","D12","D13","D14","S2"]
+  },
+  "sections": {
+    "p0": [
+      {
+        "id": "S1",
+        "title": "Replace localStorage demo auth with real backend session/JWT",
+        "status": "DOING",
+        "owner": "Claude",
+        "priority": "P0",
+        "notes": "apps/web/login.html + app.html — client-side auth is forgeable by any user"
+      },
+      {
+        "id": "S2",
+        "title": "Parameterize tenant RLS SET LOCAL query",
+        "status": "DONE",
+        "owner": "Claude",
+        "priority": "P0",
+        "notes": "FIXED: replaced SET LOCAL string interp with set_config($1, true) + UUID whitelist validation"
+      },
+      {
+        "id": "S3",
+        "title": "Parameterize SQL in all n8n workflows",
+        "status": "TODO",
+        "owner": "Claude",
+        "priority": "P0",
+        "notes": "n8n/workflows/*.json — {{ }} template syntax in SQL with incomplete quote escaping"
+      },
+      {
+        "id": "S4",
+        "title": "Add auth guard to /billing/checkout",
+        "status": "TODO",
+        "owner": "Claude",
+        "priority": "P0",
+        "notes": "Any user can create a Stripe checkout session for any tenantId — no ownership check"
+      },
+      {
+        "id": "S5",
+        "title": "Validate tenantId ownership on /auth/google/start",
+        "status": "TODO",
+        "owner": "Claude",
+        "priority": "P0",
+        "notes": "Any user can trigger Google OAuth for any tenant — CSRF / tenant hijack risk"
+      },
+      {
+        "id": "S6",
+        "title": "Remove hardcoded N8N_ENCRYPTION_KEY fallback from docker-compose",
+        "status": "TODO",
+        "owner": "Claude",
+        "priority": "P0",
+        "notes": "infra/docker-compose.yml lines 77,131 — predictable fallback key if env not set"
+      }
+    ],
+    "p1": [
+      {
+        "id": "L1",
+        "title": "Populate real Stripe credentials and verify billing flow",
+        "status": "BLOCKED",
+        "owner": "Mantas",
+        "priority": "P1",
+        "notes": "All Stripe keys in .env are REPLACE_ME — billing completely broken. Requires real Stripe account."
+      },
+      {
+        "id": "L2",
+        "title": "Send 'service unavailable' SMS to blocked tenants",
+        "status": "TODO",
+        "owner": "Claude",
+        "priority": "P1",
+        "notes": "apps/api/src/routes/webhooks/twilio-sms.ts:57 — TODO comment; customer gets no reply when blocked"
+      },
+      {
+        "id": "L3",
+        "title": "Suspend Twilio number on subscription deletion",
+        "status": "TODO",
+        "owner": "Claude",
+        "priority": "P1",
+        "notes": "apps/api/src/routes/webhooks/stripe.ts:146 — TODO; orphaned Twilio numbers stay active after cancel"
+      },
+      {
+        "id": "L4",
+        "title": "Add admin notification for chargeback disputes",
+        "status": "TODO",
+        "owner": "Claude",
+        "priority": "P1",
+        "notes": "apps/api/src/routes/webhooks/stripe.ts:152 — disputes are completely silent"
+      },
+      {
+        "id": "L5",
+        "title": "Add CORS headers to API",
+        "status": "TODO",
+        "owner": "Claude",
+        "priority": "P1",
+        "notes": "apps/api/src/index.ts — no CORS config; browser will block cross-origin requests in production"
+      },
+      {
+        "id": "L6",
+        "title": "Run API Docker container as non-root user",
+        "status": "TODO",
+        "owner": "Claude",
+        "priority": "P1",
+        "notes": "apps/api/Dockerfile — no USER directive; container runs as root"
+      }
+    ],
+    "p2": [
+      {
+        "id": "T1",
+        "title": "Add Privacy Policy and Terms of Service pages",
+        "status": "TODO",
+        "owner": "Mantas",
+        "priority": "P2",
+        "notes": "Legal requirement for real customers. Pages don't exist. Footer has mailto Contact only."
+      },
+      {
+        "id": "T2",
+        "title": "Add Connect Google Calendar UI flow for tenants",
+        "status": "TODO",
+        "owner": "Claude",
+        "priority": "P2",
+        "notes": "/auth/google/start endpoint works but no UI button or flow exists"
+      },
+      {
+        "id": "T3",
+        "title": "Add billing upgrade UI (pricing page / upgrade button)",
+        "status": "TODO",
+        "owner": "Claude",
+        "priority": "P2",
+        "notes": "/billing/checkout endpoint works but no UI entry point for customers"
+      },
+      {
+        "id": "T4",
+        "title": "Fix Stripe price ID to plan slug mapping",
+        "status": "TODO",
+        "owner": "Claude",
+        "priority": "P2",
+        "notes": "apps/api/src/routes/webhooks/stripe.ts:18 — silently defaults to 'starter' for unknown prices"
+      },
+      {
+        "id": "T5",
+        "title": "Implement per-tenant rate limiting via Redis",
+        "status": "TODO",
+        "owner": "Claude",
+        "priority": "P2",
+        "notes": "apps/api/src/index.ts:37 — TODO comment; global 100 req/min only, no per-tenant isolation"
+      }
+    ],
+    "p3": [
+      {
+        "id": "I1",
+        "title": "Replace console.log with Fastify logger in SMS worker",
+        "status": "TODO",
+        "owner": "Claude",
+        "priority": "P3",
+        "notes": "apps/api/src/workers/sms-inbound.worker.ts — inconsistent logging"
+      },
+      {
+        "id": "I2",
+        "title": "Remove TypeScript any casts in Stripe code",
+        "status": "TODO",
+        "owner": "Claude",
+        "priority": "P3",
+        "notes": "billing/checkout.ts:57 + webhooks/stripe.ts:70,128 — type safety lost"
+      },
+      {
+        "id": "I3",
+        "title": "Add integration tests for Stripe webhook handler",
+        "status": "TODO",
+        "owner": "Claude",
+        "priority": "P3",
+        "notes": "Billing state machine completely untested in test suite"
+      },
+      {
+        "id": "I4",
+        "title": "Add session expiration to localStorage auth token",
+        "status": "TODO",
+        "owner": "Claude",
+        "priority": "P3",
+        "notes": "apps/web/login.html — no expiresAt set; tokens never expire if localStorage is compromised"
+      },
+      {
+        "id": "I5",
+        "title": "Implement welcome email in WF-007 provision flow",
+        "status": "TODO",
+        "owner": "Claude",
+        "priority": "P3",
+        "notes": "n8n WF-007 mentioned in docs but no email implementation exists"
+      }
+    ]
+  },
+  "done": [
+    { "id": "D1", "title": "Add INTERNAL_API_KEY auth guard to provision endpoint", "status": "DONE", "owner": "Claude", "priority": "P0", "notes": "commit 6ec623d" },
+    { "id": "D2", "title": "Replace Screenshot Placeholder text on landing pages", "status": "DONE", "owner": "Claude", "priority": "P1", "notes": "commit 6ec623d" },
+    { "id": "D3", "title": "Fix dead Privacy/Terms/Support footer links", "status": "DONE", "owner": "Claude", "priority": "P1", "notes": "commit 6ec623d" },
+    { "id": "D4", "title": "Add Google OAuth callback endpoint", "status": "DONE", "owner": "Claude", "priority": "P1", "notes": "GET /auth/google/start + /callback with AES-256-GCM" },
+    { "id": "D5", "title": "Add Stripe checkout endpoint", "status": "DONE", "owner": "Claude", "priority": "P1", "notes": "POST /billing/checkout" },
+    { "id": "D6", "title": "Fix SMS conversation logging (inbound message persist)", "status": "DONE", "owner": "Claude", "priority": "P1", "notes": "WF-001 Save Inbound Message node" },
+    { "id": "D7", "title": "Fix tenants.test.ts (9/9 passing)", "status": "DONE", "owner": "Claude", "priority": "P2", "notes": "vi.mock for db/client" },
+    { "id": "D8", "title": "Add voice-status.test.ts (6 tests)", "status": "DONE", "owner": "Claude", "priority": "P2", "notes": "missed-call-trigger path coverage" },
+    { "id": "D9", "title": "Google Calendar booking confirmation WF-004", "status": "DONE", "owner": "Claude", "priority": "P1", "notes": "calendar_synced=true verified" },
+    { "id": "D10", "title": "Full local E2E smoke test — all 4 workflows passing", "status": "DONE", "owner": "Claude", "priority": "P0", "notes": "exec IDs 243-246, 2026-03-08" },
+    { "id": "D11", "title": "BullMQ queue-backed SMS ingest", "status": "DONE", "owner": "Claude", "priority": "P0", "notes": "sms-inbound queue, WF-001 consumer" },
+    { "id": "D12", "title": "Twilio signature validation middleware", "status": "DONE", "owner": "Claude", "priority": "P0", "notes": "SKIP_TWILIO_VALIDATION=true for dev" },
+    { "id": "D13", "title": "Postgres RLS multi-tenancy", "status": "DONE", "owner": "Claude", "priority": "P0", "notes": "withTenant() enforces RLS on all tenant queries" },
+    { "id": "D14", "title": "Docker smoke verification + compose path fix", "status": "DONE", "owner": "Claude", "priority": "P1", "notes": "scripts/ai-verify.sh" },
+    { "id": "S2", "title": "Parameterize tenant RLS SET LOCAL query", "status": "DONE", "owner": "Claude", "priority": "P0", "notes": "set_config($1, true) + UUID whitelist validation in db/client.ts" }
+  ]
+}

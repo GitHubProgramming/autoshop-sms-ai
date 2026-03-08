@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<!--
+  INTERNAL LOCAL-ONLY OPERATIONS DASHBOARD.
+  NOT FOR DEPLOYMENT. NOT FOR PRODUCTION.
+  Do not include in public/, app/, pages/, or any shipped frontend route.
+  Do not deploy to Vercel or any public host.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AutoShop AI — Ops Board</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0f14;
+      --surface: #161a22;
+      --surface2: #1e2330;
+      --border: #2a2f3d;
+      --text: #e2e6f0;
+      --muted: #6b7280;
+      --accent: #3b82f6;
+      --green: #22c55e;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --orange: #f97316;
+      --purple: #a855f7;
+
+      --p0: #ef4444;
+      --p1: #f97316;
+      --p2: #3b82f6;
+      --p3: #6b7280;
+
+      --todo: #6b7280;
+      --doing: #f59e0b;
+      --blocked: #ef4444;
+      --done: #22c55e;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-left { display: flex; align-items: center; gap: 16px; }
+    .header-title { font-size: 18px; font-weight: 700; color: var(--text); }
+    .header-phase { font-size: 12px; color: var(--muted); }
+    .launch-badge {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .launch-badge.not-ready { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+    .launch-badge.ready { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+    .updated { font-size: 11px; color: var(--muted); }
+
+    /* ── Main layout ── */
+    .main { padding: 24px; max-width: 1600px; margin: 0 auto; }
+
+    /* ── Summary row ── */
+    .summary-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .summary-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .summary-card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    .summary-card .value { font-size: 28px; font-weight: 700; }
+    .summary-card.p0 .value { color: var(--p0); }
+    .summary-card.p1 .value { color: var(--p1); }
+    .summary-card.p2 .value { color: var(--p2); }
+    .summary-card.p3 .value { color: var(--p3); }
+    .summary-card.done-card .value { color: var(--green); }
+    .summary-card.total .value { color: var(--text); }
+
+    /* ── Current focus ── */
+    .focus-bar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--yellow);
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .focus-label { font-size: 11px; color: var(--yellow); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
+    .focus-text { color: var(--text); font-weight: 500; }
+
+    /* ── Section header ── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 28px 0 12px;
+    }
+    .section-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .section-title { font-size: 15px; font-weight: 700; }
+    .section-count { font-size: 12px; color: var(--muted); }
+
+    /* ── Kanban grid ── */
+    .kanban {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    @media (max-width: 900px) { .kanban { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 500px) { .kanban { grid-template-columns: 1fr; } }
+
+    .kanban-col { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .kanban-col-header {
+      padding: 10px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .kanban-col-header .col-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .kanban-col-header.todo .col-dot { background: var(--todo); }
+    .kanban-col-header.doing .col-dot { background: var(--doing); }
+    .kanban-col-header.blocked .col-dot { background: var(--blocked); }
+    .kanban-col-header.done .col-dot { background: var(--done); }
+    .kanban-col-header .col-count { margin-left: auto; font-size: 11px; color: var(--muted); font-weight: 400; }
+    .kanban-col-body { padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 60px; }
+
+    /* ── Task card ── */
+    .task-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      cursor: default;
+    }
+    .task-card:hover { border-color: #3a3f52; }
+    .task-card-top { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .task-id { font-size: 10px; font-weight: 700; color: var(--muted); font-family: monospace; }
+    .priority-tag {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      letter-spacing: 0.04em;
+    }
+    .priority-tag.p0 { background: rgba(239,68,68,0.15); color: var(--p0); }
+    .priority-tag.p1 { background: rgba(249,115,22,0.15); color: var(--p1); }
+    .priority-tag.p2 { background: rgba(59,130,246,0.15); color: var(--p2); }
+    .priority-tag.p3 { background: rgba(107,114,128,0.15); color: var(--p3); }
+    .owner-tag {
+      margin-left: auto;
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .task-title { font-size: 12px; color: var(--text); line-height: 1.4; margin-bottom: 4px; }
+    .task-notes { font-size: 11px; color: var(--muted); line-height: 1.4; }
+
+    /* ── Priority breakdown ── */
+    .priority-sections { display: flex; flex-direction: column; gap: 20px; margin-bottom: 32px; }
+    .priority-section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .priority-section-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .priority-section-header .p-badge {
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .priority-section-header.p0 .p-badge { background: rgba(239,68,68,0.2); color: var(--p0); }
+    .priority-section-header.p1 .p-badge { background: rgba(249,115,22,0.2); color: var(--p1); }
+    .priority-section-header.p2 .p-badge { background: rgba(59,130,246,0.2); color: var(--p2); }
+    .priority-section-header.p3 .p-badge { background: rgba(107,114,128,0.2); color: var(--p3); }
+    .priority-section-header .p-count { color: var(--muted); font-size: 12px; font-weight: 400; margin-left: auto; }
+
+    .priority-table { width: 100%; border-collapse: collapse; }
+    .priority-table th {
+      text-align: left;
+      padding: 8px 16px;
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+    }
+    .priority-table td { padding: 10px 16px; border-bottom: 1px solid rgba(42,47,61,0.5); font-size: 12px; vertical-align: top; }
+    .priority-table tr:last-child td { border-bottom: none; }
+    .priority-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .status-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+    .status-pill.todo { background: rgba(107,114,128,0.15); color: var(--todo); }
+    .status-pill.doing { background: rgba(245,158,11,0.15); color: var(--doing); }
+    .status-pill.blocked { background: rgba(239,68,68,0.15); color: var(--blocked); }
+    .status-pill.done { background: rgba(34,197,94,0.15); color: var(--done); }
+    .td-id { font-family: monospace; font-weight: 700; color: var(--muted); white-space: nowrap; }
+    .td-title { font-weight: 500; color: var(--text); }
+    .td-owner { color: var(--muted); white-space: nowrap; }
+    .td-notes { color: var(--muted); font-size: 11px; }
+
+    /* ── Done section ── */
+    .done-section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 32px; }
+    .done-section-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--green);
+    }
+    .done-section-header .d-count { color: var(--muted); font-size: 12px; font-weight: 400; margin-left: auto; }
+
+    /* ── Progress bar ── */
+    .progress-wrap { margin-bottom: 24px; }
+    .progress-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; }
+    .progress-bar { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--green), #16a34a); border-radius: 3px; transition: width 0.3s ease; }
+
+    /* ── Footer ── */
+    .footer { text-align: center; padding: 24px; color: var(--muted); font-size: 11px; border-top: 1px solid var(--border); margin-top: 24px; }
+
+    /* ── Loading state ── */
+    .loading { text-align: center; padding: 60px; color: var(--muted); }
+    .error { color: var(--red); background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); border-radius: 6px; padding: 16px; margin: 24px; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div>
+      <div class="header-title" id="proj-name">AutoShop SMS AI</div>
+      <div class="header-phase" id="proj-phase">Loading...</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <span class="updated" id="updated-at"></span>
+    <span class="launch-badge not-ready" id="launch-badge">NOT READY</span>
+  </div>
+</div>
+
+<div class="main">
+  <div id="root"><div class="loading">Loading board data...</div></div>
+</div>
+
+<div class="footer">
+  Internal local-only operations dashboard &mdash; Not for deployment &mdash; Not for production &mdash; Do not deploy to Vercel or any public host
+</div>
+
+<script>
+const PRIORITY_LABELS = {
+  p0: { label: 'P0 — Security', color: '#ef4444', desc: 'Critical security issues' },
+  p1: { label: 'P1 — Launch Blockers', color: '#f97316', desc: 'Must fix before pilot launch' },
+  p2: { label: 'P2 — Product Trust', color: '#3b82f6', desc: 'Credibility and UX' },
+  p3: { label: 'P3 — Improvements', color: '#6b7280', desc: 'Post-launch polish' },
+};
+
+function statusPill(status) {
+  const s = (status || 'todo').toLowerCase();
+  return `<span class="status-pill ${s}">${status}</span>`;
+}
+
+function priorityTag(p) {
+  const cls = (p || 'p3').toLowerCase();
+  return `<span class="priority-tag ${cls}">${p}</span>`;
+}
+
+function renderSummary(data) {
+  const s = data.summary;
+  const total = s.doneCount + s.totalRemaining;
+  const pct = total > 0 ? Math.round((s.doneCount / total) * 100) : 0;
+
+  return `
+    <div class="summary-row">
+      <div class="summary-card total">
+        <div class="label">Total Remaining</div>
+        <div class="value">${s.totalRemaining}</div>
+      </div>
+      <div class="summary-card p0">
+        <div class="label">P0 Security</div>
+        <div class="value">${s.p0Remaining}</div>
+      </div>
+      <div class="summary-card p1">
+        <div class="label">P1 Blockers</div>
+        <div class="value">${s.p1Remaining}</div>
+      </div>
+      <div class="summary-card p2">
+        <div class="label">P2 Trust</div>
+        <div class="value">${s.p2Remaining}</div>
+      </div>
+      <div class="summary-card p3">
+        <div class="label">P3 Improvements</div>
+        <div class="value">${s.p3Remaining}</div>
+      </div>
+      <div class="summary-card done-card">
+        <div class="label">Done</div>
+        <div class="value">${s.doneCount}</div>
+      </div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label">
+        <span>Overall completion</span>
+        <span>${pct}% (${s.doneCount} / ${total})</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width:${pct}%"></div>
+      </div>
+    </div>
+  `;
+}
+
+function renderFocus(data) {
+  if (!data.currentFocus) return '';
+  return `
+    <div class="focus-bar">
+      <span class="focus-label">Current Focus</span>
+      <span class="focus-text">${escHtml(data.currentFocus)}</span>
+    </div>
+  `;
+}
+
+function taskCard(task) {
+  const p = (task.priority || 'P3').toLowerCase();
+  return `
+    <div class="task-card">
+      <div class="task-card-top">
+        <span class="task-id">${escHtml(task.id)}</span>
+        ${priorityTag(task.priority || 'P3')}
+        <span class="owner-tag">${escHtml(task.owner || '')}</span>
+      </div>
+      <div class="task-title">${escHtml(task.title)}</div>
+      ${task.notes ? `<div class="task-notes">${escHtml(task.notes)}</div>` : ''}
+    </div>
+  `;
+}
+
+function renderKanban(data, allTasks) {
+  const byStatus = { todo: [], doing: [], blocked: [], done: [] };
+  allTasks.forEach(t => {
+    const s = (t.status || 'todo').toLowerCase();
+    if (byStatus[s]) byStatus[s].push(t);
+  });
+  if (data.done) byStatus.done = data.done;
+
+  const cols = [
+    { key: 'todo', label: 'TODO' },
+    { key: 'doing', label: 'DOING' },
+    { key: 'blocked', label: 'BLOCKED' },
+    { key: 'done', label: 'DONE' },
+  ];
+
+  return `
+    <div class="section-header">
+      <div class="section-dot" style="background:#6b7280"></div>
+      <div class="section-title">Kanban View</div>
+    </div>
+    <div class="kanban">
+      ${cols.map(col => `
+        <div class="kanban-col">
+          <div class="kanban-col-header ${col.key}">
+            <div class="col-dot"></div>
+            ${col.label}
+            <span class="col-count">${byStatus[col.key].length}</span>
+          </div>
+          <div class="kanban-col-body">
+            ${byStatus[col.key].length === 0
+              ? `<div style="color:var(--muted);font-size:11px;padding:4px">None</div>`
+              : byStatus[col.key].map(taskCard).join('')}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderPrioritySection(key, tasks) {
+  const info = PRIORITY_LABELS[key];
+  const remaining = tasks.filter(t => t.status !== 'DONE').length;
+  return `
+    <div class="priority-section">
+      <div class="priority-section-header ${key}">
+        <span class="p-badge">${key.toUpperCase()}</span>
+        ${escHtml(info.label)}
+        <span class="p-count">${remaining} remaining</span>
+      </div>
+      <table class="priority-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Task</th>
+            <th>Status</th>
+            <th>Owner</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tasks.map(t => `
+            <tr>
+              <td class="td-id">${escHtml(t.id)}</td>
+              <td class="td-title">${escHtml(t.title)}</td>
+              <td>${statusPill(t.status)}</td>
+              <td class="td-owner">${escHtml(t.owner || '')}</td>
+              <td class="td-notes">${escHtml(t.notes || '')}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderDoneSection(tasks) {
+  return `
+    <div class="section-header">
+      <div class="section-dot" style="background:#22c55e"></div>
+      <div class="section-title">Completed</div>
+    </div>
+    <div class="done-section">
+      <div class="done-section-header">
+        Completed Tasks
+        <span class="d-count">${tasks.length} done</span>
+      </div>
+      <table class="priority-table">
+        <thead>
+          <tr><th>ID</th><th>Task</th><th>Owner</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+          ${tasks.map(t => `
+            <tr>
+              <td class="td-id">${escHtml(t.id)}</td>
+              <td class="td-title">${escHtml(t.title)}</td>
+              <td class="td-owner">${escHtml(t.owner || '')}</td>
+              <td class="td-notes">${escHtml(t.notes || '')}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function escHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function render(data) {
+  // Update header
+  document.getElementById('proj-name').textContent = data.project || 'AutoShop SMS AI';
+  document.getElementById('proj-phase').textContent = data.phase || '';
+  const badge = document.getElementById('launch-badge');
+  const isReady = (data.launchStatus || '').toUpperCase() === 'READY';
+  badge.textContent = isReady ? 'LAUNCH READY' : 'NOT READY';
+  badge.className = 'launch-badge ' + (isReady ? 'ready' : 'not-ready');
+
+  if (data.updatedAt) {
+    try {
+      const d = new Date(data.updatedAt);
+      document.getElementById('updated-at').textContent = 'Updated: ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch(e) {
+      document.getElementById('updated-at').textContent = 'Updated: ' + data.updatedAt;
+    }
+  }
+
+  const allOpenTasks = [
+    ...(data.sections.p0 || []),
+    ...(data.sections.p1 || []),
+    ...(data.sections.p2 || []),
+    ...(data.sections.p3 || []),
+  ];
+
+  document.getElementById('root').innerHTML = `
+    ${renderSummary(data)}
+    ${renderFocus(data)}
+    ${renderKanban(data, allOpenTasks)}
+
+    <div class="section-header">
+      <div class="section-dot" style="background:#ef4444"></div>
+      <div class="section-title">Priority Breakdown</div>
+    </div>
+    <div class="priority-sections">
+      ${renderPrioritySection('p0', data.sections.p0 || [])}
+      ${renderPrioritySection('p1', data.sections.p1 || [])}
+      ${renderPrioritySection('p2', data.sections.p2 || [])}
+      ${renderPrioritySection('p3', data.sections.p3 || [])}
+    </div>
+
+    ${renderDoneSection(data.done || [])}
+  `;
+}
+
+async function loadData() {
+  try {
+    // Try to load board-data.json from same directory
+    const resp = await fetch('./board-data.json');
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+    const data = await resp.json();
+    render(data);
+  } catch (err) {
+    document.getElementById('root').innerHTML = `
+      <div class="error">
+        <strong>Could not load board-data.json</strong><br>
+        ${escHtml(err.message)}<br><br>
+        Open this file via a local server or use VS Code Live Server.<br>
+        Make sure <code>board-data.json</code> is in the same directory as this file.
+      </div>
+    `;
+  }
+}
+
+loadData();
+</script>
+</body>
+</html>

@@ -19,16 +19,20 @@ db.on("error", (err) => {
  * Execute a query with tenant isolation enforced via RLS.
  * MUST be used for all tenant-scoped queries.
  */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function withTenant<T>(
   tenantId: string,
   fn: (client: PoolClient) => Promise<T>
 ): Promise<T> {
+  if (!UUID_RE.test(tenantId)) {
+    throw new Error(`Invalid tenantId: ${tenantId}`);
+  }
   const client = await db.connect();
   try {
-    // Set tenant context for RLS — this is the security boundary
-    await client.query(
-      `SET LOCAL app.current_tenant_id = '${tenantId}'`
-    );
+    // Set tenant context for RLS — parameterized via set_config to prevent injection.
+    // Third arg `true` = transaction-local (equivalent to SET LOCAL).
+    await client.query("SELECT set_config('app.current_tenant_id', $1, true)", [tenantId]);
     const result = await fn(client);
     return result;
   } finally {
