@@ -1,0 +1,10 @@
+{
+  "name": "@autoshop/web",
+  "version": "0.1.0",
+  "description": "AutoShop SMS AI — Frontend",
+  "private": true,
+  "scripts": {
+    "dev": "npx serve . -p 8080 --no-clipboard",
+    "start": "npx serve . -p 8080"
+  }
+}

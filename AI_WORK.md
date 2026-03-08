@@ -1,62 +1,107 @@
-## Completed Tasks
+# AI WORK CONTROLLER
 
-### Fix Docker build: BullMQ + ioredis type conflict (branch: ai/fix-mvp-blockers)
+## PRIMARY GOAL
+Reach a demo-ready MVP for AutoShop SMS AI for Texas independent auto repair shops.
 
-**What was implemented:**
-- `queues/redis.ts`: BullMQ queues use plain `connection` object (`host`/`port`/`password`) instead of a `Redis` instance. `redis` instance kept separately for idempotency helpers.
-- `workers/sms-inbound.worker.ts`: Worker uses same plain `connection` object pattern.
-- `routes/webhooks/stripe.ts`: Stripe event object cast to `any` to resolve `tenant_id` typing issue.
+Target flow:
+missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
-**Files changed:**
-- `apps/api/src/queues/redis.ts`
-- `apps/api/src/workers/sms-inbound.worker.ts`
-- `apps/api/src/routes/webhooks/stripe.ts`
+## CURRENT BUSINESS PRIORITY
+Get to the fastest path toward:
+1. working internal demo
+2. first pilot shop
+3. first paying customer
 
-**Commands executed:**
-```
-docker compose -f infra/docker-compose.yml build api  → SUCCESS
-docker compose -f infra/docker-compose.yml up -d      → All containers started (api, postgres, redis, n8n, n8n_worker)
-```
+## EXECUTION MODE
+Autonomous execution.
 
-**Result:** TypeScript compiles cleanly, API container starts.
+Work in small, safe, verifiable steps.
+Do not brainstorm endlessly.
+Inspect, verify, fix, commit, push, report with evidence.
 
----
+## HARD RULES
+- Make the smallest safe change possible.
+- Do not refactor unrelated code.
+- Do not invent completion. Verify it.
+- Prefer evidence over assumptions.
+- If a task is too large, break it into the next smallest executable step.
+- Never leave the repo in a worse state.
+- Preserve working behavior unless a change is required for the MVP path.
+- If you change logic, explain why in AI_STATUS.md.
+- If you find a blocker, document the blocker and the exact next action.
 
-### SMS inbound webhook smoke test (branch: ai/fix-mvp-blockers)
+## PRIORITY ORDER
+1. End-to-end missed call -> SMS flow
+2. AI SMS conversation reliability
+3. Appointment detection / booking logic
+4. Google Calendar write success
+5. Activation / onboarding clarity
+6. Billing and polish only after demo path works
 
-**What was implemented:**
-End-to-end smoke test for `POST /webhooks/twilio/sms` covering the full ingress path (Twilio → Fastify → BullMQ).
+## REQUIRED LOOP
+For every cycle:
+1. Inspect repository state
+2. Identify the single highest-leverage blocker
+3. Fix only that blocker
+4. Run the smallest relevant verification
+5. Update AI_STATUS.md
+6. Commit with clear message
+7. Push
+8. Repeat
 
-Mocking strategy:
-- `db/client` and `queues/redis` mocked to prevent module-level env-var guards from throwing
-- `db/tenants.getTenantByPhoneNumber` mocked to return a seeded tenant
-- Twilio signature validation bypassed via `NODE_ENV=development` + `SKIP_TWILIO_VALIDATION=true`
-- Uses `app.inject()` — no live network or Docker required
+## BLOCKER SELECTION LOGIC
+Always prefer the blocker closest to the core revenue path:
+missed call -> SMS -> AI -> booking -> calendar
 
-**4 test cases:**
-1. Returns HTTP 200 with `Content-Type: text/xml` and `<Response/>` body
-2. Enqueues a `process-sms` job on BullMQ with correct payload and `jobId`
-3. Writes idempotency key `twilio:<MessageSid>` to Redis
-4. Returns 200 without enqueueing on duplicate `MessageSid` (idempotency guard)
+If multiple blockers exist, choose the one that:
+- prevents demo flow entirely
+- breaks production-critical logic
+- creates false success signals
+- blocks customer activation
 
-**Files changed:**
-- `apps/api/src/tests/sms-inbound.test.ts` (new)
+## VERIFICATION STANDARD
+Use whatever is already available in the repo:
+- tests
+- typecheck
+- build
+- docker compose
+- targeted manual verification
+- log inspection
 
-**Commands executed:**
-```
-npm install                                                         → 394 packages installed
-./node_modules/.bin/vitest run src/tests/sms-inbound.test.ts       → 4/4 passed (213ms)
-```
+If full verification is impossible, perform the best partial verification available and record exactly what was verified and what remains unverified.
 
-**Result:** All 4 tests pass. ✓
+## DEFINITION OF "DONE" FOR MVP
+The MVP is demo-ready only when all of the following are true:
+- inbound trigger path is clear and implemented
+- missed call can trigger outbound SMS
+- SMS reply can continue conversation
+- booking intent can be detected
+- appointment can be persisted
+- Google Calendar event can be created or queued with visible failure state
+- current blockers are documented in AI_STATUS.md
+- repo contains enough evidence for another AI to continue instantly
 
----
+## COMMIT RULES
+Commit after every completed meaningful step.
 
-## Next highest-value task
+Commit style:
+- feat: ...
+- fix: ...
+- chore: ...
+- docs: ...
 
-**Add smoke test for the missed-call-trigger path (voice-status webhook).**
+Examples:
+- fix: repair sms inbound worker default n8n url
+- fix: add stripe webhook idempotency guard
+- docs: update AI status after calendar sync audit
 
-- `POST /webhooks/twilio/voice-status` with `CallStatus=no-answer` and a tenant `To` number
-- Assert: 200 response, `missed-call-trigger` job enqueued on `sms-inbound` queue
-- Covers the second main ingress path (missed call → outbound SMS flow via WF-002)
-- File: `apps/api/src/tests/voice-status.test.ts`
+## STOP CONDITIONS
+Stop only if:
+- required credentials or external services are unavailable and cannot be mocked
+- the environment itself is broken
+- the next step would be destructive or irreversible
+
+When stopping, document:
+- exact blocker
+- why it blocks progress
+- exact next action to resume

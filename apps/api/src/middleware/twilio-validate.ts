@@ -20,9 +20,9 @@ export async function validateTwilioSignature(
     return;
   }
 
-  // In development/test, skip validation if explicitly disabled
-  if (process.env.NODE_ENV === "development" && process.env.SKIP_TWILIO_VALIDATION === "true") {
-    request.log.warn("⚠️  Twilio signature validation DISABLED (dev mode)");
+  // Skip validation if explicitly disabled (local demo / dev)
+  if (process.env.SKIP_TWILIO_VALIDATION === "true") {
+    request.log.warn(`⚠️  Twilio signature validation DISABLED (SKIP_TWILIO_VALIDATION=true, NODE_ENV=${process.env.NODE_ENV})`);
     return;
   }
 
