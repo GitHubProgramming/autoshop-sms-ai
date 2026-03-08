@@ -9,6 +9,48 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+# UX / AUTH / ROI FIX PASS — 2026-03-08
+
+**Branch:** ai/paid-launch-pass (continued)
+**Tasks completed:** demo.html CTA rerouting, ROI calculator decimal fix, login page clarification
+**Verification:** typecheck PASS · 19/19 tests PASS · build PASS
+
+## WHAT WAS FIXED
+
+### CRITICAL: demo.html "Start Free Trial" → login.html dead end
+- **Problem:** demo.html had 3 CTAs ("Start Free Trial" ×2, "Connect Your Shop" ×1) all pointing to `login.html`. A visitor who clicked the demo → clicked Start Free Trial → landed on a login page for EXISTING customers → dead end.
+- **Root cause:** demo.html CTAs were never updated from an early prototype state.
+- **Fix:** Changed all 3 broken CTAs to `index.html#pricing` (the real plan selection / Stripe entry point). Kept "Log In" → `login.html` (correct for existing users).
+- **File:** `apps/web/demo.html`
+
+### ROI Calculator frozen at 1 (all plans, all inputs)
+- **Problem:** Break-even formula used `Math.ceil(planCost / aro)`. At default ARO $600: Math.ceil(0.33)=1, Math.ceil(0.50)=1, Math.ceil(0.83)=1. All plans always showed "1 appt" regardless of slider position. At minimum ARO $300: Starter=1, Pro=1, Premium=2. Values never meaningfully changed.
+- **Root cause:** Math.ceil() with plan costs ($199, $299, $499) all lower than minimum slider ARO ($300) guarantees ≤1 for Starter/Pro always.
+- **Fix:** Changed to `(planCost / aro).toFixed(1)` — shows one decimal place.
+  - ARO $300: Starter=0.7, Pro=1.0, Premium=1.7 (all different)
+  - ARO $600 (default): Starter=0.3, Pro=0.5, Premium=0.8 (all different)
+  - ARO $1200: Starter=0.2, Pro=0.2, Premium=0.4
+- **Also updated:** Break-even section title from "Break-even appointments needed" → "Appointments to recover plan cost". HTML default values updated from "1" to "0.3/0.5/0.8".
+- **File:** `apps/web/index.html`
+
+### Login page ambiguity
+- **Problem:** Login page subtitle said only "Sign in to your AutoShop SMS AI dashboard." — did not indicate this page is for existing customers. Footer said "Don't have an account? Start Free Trial" implying clicking creates a trial account, but it just goes to pricing.
+- **Fix:** Subtitle now includes inline "Not a customer yet? → Choose a plan to get started" link. Footer changed to "New to AutoShop SMS AI? View plans & start your trial →".
+- **File:** `apps/web/login.html`
+
+## VERIFICATION RESULTS
+- `npm run typecheck` → PASS (0 errors)
+- `npm run build` → PASS
+- `npm test` → PASS (19/19 tests)
+- ROI calculator math verified: node proof — 3 scenarios × 3 plans = 9 different values, none frozen at 1
+
+## FILES CHANGED
+- `apps/web/demo.html` — 3 CTA hrefs: login.html → index.html#pricing
+- `apps/web/index.html` — ROI calculator formula + title + default HTML values
+- `apps/web/login.html` — subtitle + footer link copy
+
+---
+
 # CTA + AUTH PASS — 2026-03-08
 
 **Branch:** ai/paid-launch-pass (continued)

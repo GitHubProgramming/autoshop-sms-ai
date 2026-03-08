@@ -2395,24 +2395,24 @@
         </div>
 
         <div class="calc-breakeven">
-          <div class="calc-breakeven-title">Break-even appointments needed</div>
+          <div class="calc-breakeven-title">Appointments to recover plan cost</div>
           <div class="calc-breakeven-grid">
             <div class="calc-be-item">
               <div class="calc-be-plan">Starter</div>
               <div class="calc-be-price">$199/mo</div>
-              <div class="calc-be-num" id="be-starter">1</div>
+              <div class="calc-be-num" id="be-starter">0.3</div>
               <div class="calc-be-label">appt</div>
             </div>
             <div class="calc-be-item featured">
               <div class="calc-be-plan">Pro</div>
               <div class="calc-be-price">$299/mo</div>
-              <div class="calc-be-num" id="be-pro">1</div>
+              <div class="calc-be-num" id="be-pro">0.5</div>
               <div class="calc-be-label">appt</div>
             </div>
             <div class="calc-be-item">
               <div class="calc-be-plan">Premium</div>
               <div class="calc-be-price">$499/mo</div>
-              <div class="calc-be-num" id="be-premium">1</div>
+              <div class="calc-be-num" id="be-premium">0.8</div>
               <div class="calc-be-label">appt</div>
             </div>
           </div>
@@ -3077,9 +3077,9 @@
       const revenuePerYear  = revenuePerMonth * 12;
       const apptsPerYear    = apptsPerMonth * 12;
 
-      const beStarter  = aro > 0 ? Math.ceil(199 / aro) : '—';
-      const bePro      = aro > 0 ? Math.ceil(299 / aro) : '—';
-      const bePremium  = aro > 0 ? Math.ceil(499 / aro) : '—';
+      const beStarter  = aro > 0 ? (199 / aro).toFixed(1) : '—';
+      const bePro      = aro > 0 ? (299 / aro).toFixed(1) : '—';
+      const bePremium  = aro > 0 ? (499 / aro).toFixed(1) : '—';
 
       document.getElementById('res-annual').textContent   = fmt(revenuePerYear);
       document.getElementById('res-monthly').textContent  = fmt(revenuePerMonth);
