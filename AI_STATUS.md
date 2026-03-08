@@ -56,7 +56,7 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ## REMAINING BLOCKERS
 1. **L1** (Mantas): Real Stripe credentials in .env — billing non-functional without them
-2. **M12** (Mantas): Set `JWT_SECRET` in .env — session auth logs warning if missing
+2. **M12** (Mantas): Set `JWT_SECRET` in .env — app now **throws at startup** if not set (hardened 9a82239)
 3. **M13** (Mantas): Import updated WF-001 + WF-007 into n8n
 4. **I4-partial** (Mantas): Run migration 006_password_hash.sql + set password hashes for each tenant
 5. **DB migration** (Mantas): Run `005_subscription_fields.sql` + `006_password_hash.sql` in production before deploying
@@ -66,6 +66,23 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 - Source code verified: all 4 CTAs in `apps/web/index.html` now point to correct Stripe test links
 - Cannot browser-verify without live Vercel deployment
 - Links are Stripe TEST links — must be swapped to live links before real charging (requires L1 real Stripe credentials)
+
+## FINAL LAUNCH PASS — 2026-03-08 (commit 9a82239)
+
+### JWT_SECRET hardening (FIXED)
+- **Problem:** API fell back to known hardcoded string `"INSECURE_DEFAULT_DO_NOT_USE_IN_PRODUCTION"` when JWT_SECRET was unset — any repo reader could forge valid JWTs.
+- **Fix:** Removed fallback. App now throws at startup with generation instructions if JWT_SECRET is not set.
+- **File:** `apps/api/src/index.ts`
+- **Action required:** Mantas must set `JWT_SECRET=<32+ random hex chars>` in production .env before deploying.
+
+### CTA AUDIT — Full production landing verified CLEAN
+All hrefs in `apps/web/index.html` verified:
+- Demo CTAs (hero, ROI, integrations, final, nav) → `demo.html` ✓
+- Login CTAs (nav, footer) → `login.html` ✓
+- Pricing CTAs (3 plans + FAQ) → `buy.stripe.com/test_*` (test links, pending L1)
+- Section navs (#how, #pricing, #trust, #faq) → anchors ✓
+- No broken anchors, no dead /signup, no login.html on pricing CTAs, no placeholders
+- .vercelignore verified: prototype files excluded, real production path: `apps/web/` served as root
 
 ---
 
