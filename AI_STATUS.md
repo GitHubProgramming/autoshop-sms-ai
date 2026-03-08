@@ -9,7 +9,46 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
-## LAST COMPLETED TASK — Admin Auth Hardening (2026-03-08)
+## LAST COMPLETED TASK — Deployment Truth + Admin Stabilization (2026-03-08)
+
+**Branch:** ai/paid-launch-pass
+**Commit:** 63c698e
+**Status:** DONE — 60/60 tests pass, migration runner verified, admin auth fully working
+
+### What was done
+
+1. **`apps/api/scripts/migrate.js`** (NEW) — deterministic migration runner
+   - `npm run db:migrate` applies SQL files from `db/migrations/` in order
+   - Tracks state in `public.schema_migrations` table
+   - Bootstrap detection: if DB already initialized without tracking table, records all files as applied without re-executing SQL
+   - Idempotent: rerun is safe, all 8 migrations show as SKIP on second run
+   - Fails loudly on migration errors
+
+2. **`infra/docker-compose.yml`** (MODIFIED)
+   - Removed `../apps/api/src:/app/src:ro` volume mount from prod API container
+   - The prod stage runs `node dist/index.js` compiled at build time; src mount was a no-op that created false impression of live source reload
+
+3. **`.env`** (local only, not committed)
+   - Added `ADMIN_EMAILS=dev@autoshop.local` — admin auth now works (was returning 503)
+   - Added `CORS_ORIGINS=http://localhost:8080,http://localhost:3000` — browser access enabled
+
+### Verified
+
+- `npm run db:migrate` bootstraps correctly: 8 migrations RECORDED
+- Second run: 8 migrations SKIP (idempotent)
+- API health: ok, postgres: ok, redis: ok
+- `GET /internal/admin/tenants` — 401 (no auth), 401 (invalid token), 403 (non-admin), 200 + 3 real tenants (admin)
+- `GET /internal/admin/signup-attempts` — 200 + 2 real attempts
+- `admin.html` at `http://localhost:8080/admin.html` — loads real data via JWT + ADMIN_EMAILS
+- 60/60 tests pass
+
+### Remaining blockers
+- L1: Stripe credentials still placeholder (billing broken, not MVP-blocking for demo)
+- ADMIN_EMAILS and CORS_ORIGINS are set in local `.env` — must be set on any new deployment
+
+---
+
+## PRIOR TASK — Admin Auth Hardening (2026-03-08)
 
 **Branch:** ai/paid-launch-pass
 **Commit:** 04e56be
