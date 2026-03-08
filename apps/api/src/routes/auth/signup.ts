@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import * as bcrypt from "bcryptjs";
 import { query } from "../../db/client";
+import { writeAuditEvent } from "../../db/audit";
 
 const SignupBody = z.object({
   email:     z.string().email("Valid email required"),
@@ -122,6 +123,12 @@ export async function signupRoute(app: FastifyInstance) {
     }
 
     await updateAttempt("completed", tenantId);
+
+    // ── Audit log ────────────────────────────────────────────────────────────
+    await writeAuditEvent(tenantId, "account_created", normalizedEmail, {
+      shop_name: shopName.trim(),
+      auth_provider: "email",
+    });
 
     // ── Issue JWT ────────────────────────────────────────────────────────────
     const token = app.jwt.sign(

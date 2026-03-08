@@ -1,7 +1,12 @@
 /**
  * Internal Admin API
  *
- * All routes protected by X-Internal-Key header checked against INTERNAL_API_KEY env var.
+ * All routes protected by adminGuard:
+ *   - Requires valid JWT (from POST /auth/login)
+ *   - Email must be in ADMIN_EMAILS env var allowlist
+ *
+ * To grant admin: add email to ADMIN_EMAILS (comma-separated) and restart API.
+ * To revoke admin: remove email from ADMIN_EMAILS and restart API.
  *
  * Routes:
  *   GET /internal/admin/overview
@@ -17,26 +22,14 @@
  *   GET /internal/admin/audit
  */
 
-import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import { FastifyInstance } from "fastify";
 import { query } from "../../db/client";
-
-async function internalKeyGuard(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-  const key = process.env.INTERNAL_API_KEY;
-  if (!key) {
-    await reply.status(503).send({ error: "INTERNAL_API_KEY not set" });
-    return;
-  }
-  if (request.headers["x-internal-key"] !== key) {
-    request.log.warn({ ip: request.ip }, "Unauthorized admin request rejected");
-    await reply.status(401).send({ error: "Unauthorized" });
-    return;
-  }
-}
+import { adminGuard } from "../../middleware/admin-guard";
 
 export async function adminRoute(app: FastifyInstance) {
 
   // ── GET /internal/admin/overview ────────────────────────────────────────────
-  app.get("/admin/overview", { preHandler: [internalKeyGuard] }, async (_req, reply) => {
+  app.get("/admin/overview", { preHandler: [adminGuard] }, async (_req, reply) => {
     const [
       statusCountsRows,
       newSignupsRows,
@@ -151,7 +144,7 @@ export async function adminRoute(app: FastifyInstance) {
   });
 
   // ── GET /internal/admin/tenants ─────────────────────────────────────────────
-  app.get("/admin/tenants", { preHandler: [internalKeyGuard] }, async (request, reply) => {
+  app.get("/admin/tenants", { preHandler: [adminGuard] }, async (request, reply) => {
     const q = request.query as Record<string, string>;
     const statusFilter   = q.status   ?? null;
     const searchFilter   = q.search   ?? null;
@@ -236,7 +229,7 @@ export async function adminRoute(app: FastifyInstance) {
   });
 
   // ── GET /internal/admin/tenants/:id ─────────────────────────────────────────
-  app.get("/admin/tenants/:id", { preHandler: [internalKeyGuard] }, async (request, reply) => {
+  app.get("/admin/tenants/:id", { preHandler: [adminGuard] }, async (request, reply) => {
     const { id } = request.params as { id: string };
 
     const [
@@ -304,7 +297,7 @@ export async function adminRoute(app: FastifyInstance) {
   });
 
   // ── GET /internal/admin/conversations ───────────────────────────────────────
-  app.get("/admin/conversations", { preHandler: [internalKeyGuard] }, async (request, reply) => {
+  app.get("/admin/conversations", { preHandler: [adminGuard] }, async (request, reply) => {
     const q = request.query as Record<string, string>;
     const statusFilter   = q.status    ?? null;
     const tenantIdFilter = q.tenant_id ?? null;
@@ -329,7 +322,7 @@ export async function adminRoute(app: FastifyInstance) {
   });
 
   // ── GET /internal/admin/conversations/:id ───────────────────────────────────
-  app.get("/admin/conversations/:id", { preHandler: [internalKeyGuard] }, async (request, reply) => {
+  app.get("/admin/conversations/:id", { preHandler: [adminGuard] }, async (request, reply) => {
     const { id } = request.params as { id: string };
 
     const [convRows, messagesRows, appointmentRows] = await Promise.all([
@@ -353,7 +346,7 @@ export async function adminRoute(app: FastifyInstance) {
   });
 
   // ── GET /internal/admin/bookings ────────────────────────────────────────────
-  app.get("/admin/bookings", { preHandler: [internalKeyGuard] }, async (request, reply) => {
+  app.get("/admin/bookings", { preHandler: [adminGuard] }, async (request, reply) => {
     const q = request.query as Record<string, string>;
     const filter         = q.filter    ?? null;
     const tenantIdFilter = q.tenant_id ?? null;
@@ -386,7 +379,7 @@ export async function adminRoute(app: FastifyInstance) {
   });
 
   // ── GET /internal/admin/billing ─────────────────────────────────────────────
-  app.get("/admin/billing", { preHandler: [internalKeyGuard] }, async (_req, reply) => {
+  app.get("/admin/billing", { preHandler: [adminGuard] }, async (_req, reply) => {
     const billing = await query(
       `SELECT
          t.id, t.shop_name, t.owner_email, t.billing_status, t.plan_id,
@@ -423,7 +416,7 @@ export async function adminRoute(app: FastifyInstance) {
   });
 
   // ── GET /internal/admin/integrations ────────────────────────────────────────
-  app.get("/admin/integrations", { preHandler: [internalKeyGuard] }, async (_req, reply) => {
+  app.get("/admin/integrations", { preHandler: [adminGuard] }, async (_req, reply) => {
     const integrations = await query(
       `SELECT
          t.id, t.shop_name, t.owner_email, t.billing_status,
@@ -448,7 +441,7 @@ export async function adminRoute(app: FastifyInstance) {
   });
 
   // ── GET /internal/admin/errors ──────────────────────────────────────────────
-  app.get("/admin/errors", { preHandler: [internalKeyGuard] }, async (_req, reply) => {
+  app.get("/admin/errors", { preHandler: [adminGuard] }, async (_req, reply) => {
     const errors = await query(
       `SELECT * FROM (
          SELECT
@@ -512,7 +505,7 @@ export async function adminRoute(app: FastifyInstance) {
   });
 
   // ── GET /internal/admin/signup-attempts ─────────────────────────────────────
-  app.get("/admin/signup-attempts", { preHandler: [internalKeyGuard] }, async (request, reply) => {
+  app.get("/admin/signup-attempts", { preHandler: [adminGuard] }, async (request, reply) => {
     const q = request.query as Record<string, string>;
     const statusFilter   = q.status   ?? null;
     const providerFilter = q.provider ?? null;
@@ -537,7 +530,7 @@ export async function adminRoute(app: FastifyInstance) {
   });
 
   // ── GET /internal/admin/audit ───────────────────────────────────────────────
-  app.get("/admin/audit", { preHandler: [internalKeyGuard] }, async (request, reply) => {
+  app.get("/admin/audit", { preHandler: [adminGuard] }, async (request, reply) => {
     const q = request.query as Record<string, string>;
     const tenantIdFilter = q.tenant_id ?? null;
     const sourceFilter   = q.source   ?? null;

@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 import { query } from "../../db/client";
+import { writeAuditEvent } from "../../db/audit";
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -184,6 +185,10 @@ export async function googleAuthRoute(app: FastifyInstance) {
       tokens.refresh_token,
       tokens.expires_in ?? 3600
     );
+
+    await writeAuditEvent(tenantId, "google_calendar_connected", "oauth_callback", {
+      calendar_id: "primary",
+    });
 
     request.log.info({ tenantId }, "Google Calendar connected for tenant");
 
