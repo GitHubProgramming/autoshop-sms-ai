@@ -3,6 +3,7 @@ import Fastify from "fastify";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import formbody from "@fastify/formbody";
+import fastifyJwt from "@fastify/jwt";
 
 import { healthRoute } from "./routes/health";
 import { twilioSmsRoute } from "./routes/webhooks/twilio-sms";
@@ -10,6 +11,8 @@ import { twilioVoiceStatusRoute } from "./routes/webhooks/twilio-voice-status";
 import { stripeRoute } from "./routes/webhooks/stripe";
 import { provisionNumberRoute } from "./routes/internal/provision-number";
 import { googleAuthRoute } from "./routes/auth/google";
+import { loginRoute } from "./routes/auth/login";
+import { signupRoute } from "./routes/auth/signup";
 import { billingCheckoutRoute } from "./routes/billing/checkout";
 import { db } from "./db/client";
 import { redis } from "./queues/redis";
@@ -34,11 +37,18 @@ async function bootstrap() {
   await app.register(rateLimit, {
     max: 100,
     timeWindow: "1 minute",
-    // TODO: per-tenant rate limiting via Redis
   });
 
+  // ── JWT auth ──────────────────────────────────────────────
+  if (!process.env.JWT_SECRET) {
+    throw new Error(
+      "JWT_SECRET env var is required. " +
+      "Generate: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
+    );
+  }
+  await app.register(fastifyJwt, { secret: process.env.JWT_SECRET });
+
   // ── Body parsers ──────────────────────────────────────────
-  // formbody: needed for Twilio webhooks (application/x-www-form-urlencoded)
   await app.register(formbody);
 
   // ── Routes ────────────────────────────────────────────────
@@ -48,6 +58,8 @@ async function bootstrap() {
   await app.register(stripeRoute, { prefix: "/webhooks" });
   await app.register(provisionNumberRoute, { prefix: "/internal" });
   await app.register(googleAuthRoute, { prefix: "/auth/google" });
+  await app.register(loginRoute, { prefix: "/auth" });
+  await app.register(signupRoute, { prefix: "/auth" });
   await app.register(billingCheckoutRoute, { prefix: "/billing" });
 
   // ── Graceful shutdown ─────────────────────────────────────
