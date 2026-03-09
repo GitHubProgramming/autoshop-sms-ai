@@ -4,7 +4,7 @@ services:
     name: autoshop-api
     runtime: docker
     dockerfilePath: apps/api/Dockerfile
-    dockerContext: apps/api
+    dockerContext: .
     plan: starter         # $7/month — swap to free for testing (sleeps after 15m idle)
     region: oregon
     branch: main

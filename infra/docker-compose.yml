@@ -137,8 +137,8 @@ services:
 
   api:
     build:
-      context: ../apps/api
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: apps/api/Dockerfile
     container_name: autoshop_api
     restart: unless-stopped
     depends_on:
