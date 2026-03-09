@@ -1,4 +1,5 @@
 import { FastifyInstance } from "fastify";
+import * as bcrypt from "bcryptjs";
 import { query } from "../../db/client";
 import { adminGuard } from "../../middleware/admin-guard";
 
@@ -23,6 +24,39 @@ import { adminGuard } from "../../middleware/admin-guard";
  *   GET /internal/admin/audit
  */
 export async function adminRoute(app: FastifyInstance) {
+  // ── POST /internal/admin/bootstrap-password ─────────────────────────────────
+  // TEMPORARY: one-time password bootstrap for production admin account.
+  // DELETE THIS ENDPOINT after first use.
+  app.post("/admin/bootstrap-password", async (request, reply) => {
+    const { email, password } = request.body as { email?: string; password?: string };
+
+    if (!email || !password) {
+      return reply.status(400).send({ error: "email and password required" });
+    }
+
+    // Hardcoded to only allow the production admin account
+    if (email !== "mantas@autoshopsmsai.com") {
+      return reply.status(403).send({ error: "forbidden" });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    const result = await query(
+      `UPDATE tenants SET password_hash = $1, updated_at = NOW() WHERE owner_email = $2 RETURNING id, owner_email`,
+      [passwordHash, email]
+    );
+
+    if (!(result as any[]).length) {
+      return reply.status(404).send({ error: "tenant not found for this email" });
+    }
+
+    return reply.status(200).send({
+      ok: true,
+      tenant_id: (result as any[])[0].id,
+      message: "password_hash set — DELETE this endpoint now",
+    });
+  });
+
   // ── GET /internal/admin/overview ────────────────────────────────────────────
   app.get("/admin/overview", { preHandler: [adminGuard] }, async (_req, reply) => {
     const [
