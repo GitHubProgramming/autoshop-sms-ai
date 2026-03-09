@@ -34,26 +34,40 @@ export async function adminRoute(app: FastifyInstance) {
       return reply.status(400).send({ error: "email and password required" });
     }
 
-    // Hardcoded to only allow the production admin account
-    if (email !== "mantas@autoshopsmsai.com") {
+    // Hardcoded allowlist for production admin accounts
+    const allowed = ["mantas@autoshopsmsai.com", "mantas.gipiskis@gmail.com"];
+    if (!allowed.includes(email)) {
       return reply.status(403).send({ error: "forbidden" });
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
 
-    const result = await query(
+    // Try UPDATE first
+    const updated = await query(
       `UPDATE tenants SET password_hash = $1, updated_at = NOW() WHERE owner_email = $2 RETURNING id, owner_email`,
       [passwordHash, email]
     );
 
-    if (!(result as any[]).length) {
-      return reply.status(404).send({ error: "tenant not found for this email" });
+    if ((updated as any[]).length) {
+      return reply.status(200).send({
+        ok: true,
+        tenant_id: (updated as any[])[0].id,
+        message: "password_hash set — DELETE this endpoint now",
+      });
     }
+
+    // No tenant with this email — INSERT a new admin tenant
+    const inserted = await query(
+      `INSERT INTO tenants (shop_name, owner_email, owner_phone, password_hash, billing_status, plan_id, trial_started_at, trial_ends_at, conv_limit_this_cycle)
+       VALUES ('Admin Account', $1, '', $2, 'trial', 'admin', NOW(), NOW() + INTERVAL '365 days', 99999)
+       RETURNING id, owner_email`,
+      [email, passwordHash]
+    );
 
     return reply.status(200).send({
       ok: true,
-      tenant_id: (result as any[])[0].id,
-      message: "password_hash set — DELETE this endpoint now",
+      tenant_id: (inserted as any[])[0].id,
+      message: "new admin tenant created with password_hash — DELETE this endpoint now",
     });
   });
 
