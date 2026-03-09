@@ -1,11 +1,5 @@
 import { Worker, Job } from "bullmq";
-import { redis as _redis } from "../queues/redis";
-
-const connection = {
-  host: process.env.REDIS_HOST || "redis",
-  port: Number(process.env.REDIS_PORT || 6379),
-  password: process.env.REDIS_PASSWORD || undefined,
-};
+import { bullmqConnection as connection } from "../queues/redis";
 
 const N8N_INTERNAL_URL = process.env.N8N_INTERNAL_URL ?? "http://n8n:5678";
 const N8N_SMS_WEBHOOK = `${N8N_INTERNAL_URL}/webhook/sms-inbound`;

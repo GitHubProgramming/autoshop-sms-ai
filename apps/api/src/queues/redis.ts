@@ -10,12 +10,15 @@ export const redis = new Redis(process.env.REDIS_URL, {
   enableReadyCheck: false,
 });
 
-// Plain connection options for BullMQ (avoids Redis instance type conflict)
-const connection = {
-  host: process.env.REDIS_HOST || "redis",
-  port: Number(process.env.REDIS_PORT || 6379),
-  password: process.env.REDIS_PASSWORD || undefined,
+// Parse REDIS_URL for BullMQ connection (works in Docker and on Render/production)
+const _parsedRedisUrl = new URL(process.env.REDIS_URL);
+export const bullmqConnection = {
+  host: _parsedRedisUrl.hostname,
+  port: Number(_parsedRedisUrl.port || 6379),
+  password: _parsedRedisUrl.password || undefined,
+  ...(_parsedRedisUrl.protocol === "rediss:" ? { tls: {} } : {}),
 };
+const connection = bullmqConnection;
 
 // ── Queue definitions ─────────────────────────────────────────────────────────
 
