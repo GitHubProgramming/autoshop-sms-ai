@@ -68,6 +68,7 @@ services:
     plan: free
     region: oregon
     maxmemoryPolicy: noeviction
+    ipAllowList: []          # [] = allow all — restrict to specific IPs in production if needed
 
 databases:
   # ── Postgres ─────────────────────────────────────────────────────────────────
@@ -76,3 +77,4 @@ databases:
     region: oregon
     databaseName: autoshop
     user: autoshop
+    ipAllowList: []          # [] = allow all — restrict to specific IPs in production if needed
