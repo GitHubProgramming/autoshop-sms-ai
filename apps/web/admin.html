@@ -256,7 +256,7 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
       Your account is not authorized to access the admin panel.<br>
       Contact an admin to be added to the ADMIN_EMAILS allowlist.
     </div>
-    <a href="login.html" class="access-denied-btn">Back to Login</a>
+    <a href="login.html?next=admin.html" class="access-denied-btn">Back to Login</a>
   </div>
 </div>
 
@@ -415,7 +415,7 @@ async function apiFetch(path, params) {
   if (res.status === 401) {
     localStorage.removeItem('autoshop_jwt');
     localStorage.removeItem('autoshop_session');
-    window.location.replace('login.html');
+    window.location.replace('login.html?next=admin.html');
     throw new Error('401 Unauthorized — redirecting to login');
   }
   if (res.status === 403) {
