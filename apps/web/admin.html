@@ -346,8 +346,8 @@ function getApiBase() {
   const origin = window.location.origin;
   const port = window.location.port;
   if (!port || port === '80' || port === '443') {
-    // Assume API is on 3000 at same host
-    return `${window.location.protocol}//${window.location.hostname}:3000`;
+    // Production: same-origin (Vercel rewrites proxy to API)
+    return origin;
   }
   return origin;
 }
