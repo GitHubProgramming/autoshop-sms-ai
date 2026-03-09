@@ -18,8 +18,8 @@ jobs:
       - name: Start stack
         run: docker compose -f infra/docker-compose.yml up -d
 
-      - name: Wait for services
-        run: sleep 20
+      - name: Wait for API healthy
+        run: timeout 90 bash -c 'until curl -sf http://localhost:3000/health; do sleep 3; done'
 
       - name: Health check
-        run: curl -f http://localhost:3000/health || exit 1
+        run: curl -f http://localhost:3000/health

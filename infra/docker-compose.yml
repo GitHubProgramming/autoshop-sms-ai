@@ -13,7 +13,6 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ../db/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-autoshop} -d ${POSTGRES_DB:-autoshop}"]
       interval: 5s
@@ -88,7 +87,8 @@ services:
       # Logging
       N8N_LOG_LEVEL: info
     env_file:
-      - ../.env
+      - path: ../.env
+        required: false
     ports:
       - "5678:5678"
     volumes:
@@ -131,14 +131,15 @@ services:
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-change_me_32_chars_minimum_here!}
       GENERIC_TIMEZONE: America/Chicago
     env_file:
-      - ../.env
+      - path: ../.env
+        required: false
     networks:
       - autoshop_net
 
   api:
     build:
-      context: ../apps/api
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: apps/api/Dockerfile
     container_name: autoshop_api
     restart: unless-stopped
     depends_on:
@@ -155,7 +156,8 @@ services:
       N8N_INTERNAL_URL: http://n8n:5678
       JWT_SECRET: ${JWT_SECRET:-change_me_jwt_secret}
     env_file:
-      - ../.env
+      - path: ../.env
+        required: false
     ports:
       - "3000:3000"
     volumes:
@@ -165,6 +167,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
     networks:
       - autoshop_net
 

@@ -9,6 +9,38 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: fix-prod-db-schema-bootstrap — 2026-03-09
+
+**Branch:** deploy/auth-routes-to-main
+**Commit:** 68d42ca
+**Status:** COMPLETE — pushed, awaiting Render redeploy
+
+### Root Cause
+`relation "tenants" does not exist` in production.
+Prod Docker image never contained the SQL migration files (they live at
+`db/migrations/` — repo root — outside the `apps/api/` Docker context).
+`CMD ["node","dist/index.js"]` ran with no migration step before it.
+`scripts/migrate.js` was referenced in package.json but did not exist.
+
+### Files Changed
+| File | Change |
+|------|--------|
+| `apps/api/scripts/migrate.js` | NEW — pg-based migration runner, tracks in `_migrations` table, exits 1 on failure |
+| `apps/api/Dockerfile` | builder copies `db/migrations/`; prod copies migrations+scripts; CMD runs migrate.js before index.js |
+| `render.yaml` | `dockerContext` changed from `apps/api` to `.` (repo root) |
+| `infra/docker-compose.yml` | build context changed to repo root |
+
+### Verification
+- `docker build -f apps/api/Dockerfile --target prod .` → SUCCESS (image ID 6de5c0c…)
+- `docker run autoshop-api-test ls migrations/` → all 7 SQL files present
+- `docker run autoshop-api-test ls scripts/` → migrate.js present
+- Next Render deploy will run `node scripts/migrate.js` before `node dist/index.js`
+
+### Next Action
+Merge deploy/auth-routes-to-main → main to trigger Render production deploy.
+
+---
+
 ## TASK: fix-signup-login-entry-flow — 2026-03-09
 
 **Branch:** ai/fix-signup-login-entry-flow
