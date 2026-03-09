@@ -9,6 +9,38 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: fix-connection-error-login-signup — 2026-03-09
+
+**Branch:** deploy/auth-routes-to-main
+**Commit:** 15de74f
+**Status:** COMPLETE — pushed, awaiting Render redeploy
+
+### Root Cause
+Frontend HTML (login.html, signup.html) used relative paths (`/auth/login`,
+`/auth/signup`) for fetch calls. When the HTML is served from a separate static
+host (autoshopsmsai.com), those paths resolve to that host, which has no API
+routes. The static host returns a 404 HTML page; `res.json()` throws a
+SyntaxError; the catch block fires: `"Connection error — please try again."`.
+
+### Files Changed
+| File | Change |
+|------|--------|
+| `apps/api/package.json` | Add `@fastify/static ^9.0.0` |
+| `apps/api/src/index.ts` | Register `fastifyStatic` after all API routes |
+| `apps/api/Dockerfile` | `COPY apps/web/ → /app/public/` in builder + prod |
+| `infra/docker-compose.yml` | Mount `../apps/web:/app/public:ro` in api service |
+
+### Verification
+- `tsc --noEmit`: PASS
+- `npm test`: 19/19 PASS
+- `docker build --target prod`: SUCCESS
+- `docker run ls /app/public`: all HTML files present
+
+### Next Action
+Merge deploy/auth-routes-to-main → main to trigger Render production deploy.
+
+---
+
 ## TASK: fix-prod-db-schema-bootstrap — 2026-03-09
 
 **Branch:** deploy/auth-routes-to-main
