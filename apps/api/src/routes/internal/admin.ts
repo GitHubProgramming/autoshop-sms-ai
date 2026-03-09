@@ -24,68 +24,6 @@ import { adminGuard } from "../../middleware/admin-guard";
  *   GET /internal/admin/audit
  */
 export async function adminRoute(app: FastifyInstance) {
-  // ── POST /internal/admin/bootstrap-password ─────────────────────────────────
-  // TEMPORARY: one-time password bootstrap for production admin account.
-  // DELETE THIS ENDPOINT after first use.
-  app.post("/admin/bootstrap-password", async (request, reply) => {
-    const { email, password } = request.body as { email?: string; password?: string };
-
-    if (!email || !password) {
-      return reply.status(400).send({ error: "email and password required" });
-    }
-
-    // Hardcoded allowlist for production admin accounts
-    const allowed = ["mantas@autoshopsmsai.com", "mantas.gipiskis@gmail.com"];
-    if (!allowed.includes(email)) {
-      return reply.status(403).send({ error: "forbidden" });
-    }
-
-    const passwordHash = await bcrypt.hash(password, 12);
-
-    // Try UPDATE first
-    const updated = await query(
-      `UPDATE tenants SET password_hash = $1, updated_at = NOW() WHERE owner_email = $2 RETURNING id, owner_email`,
-      [passwordHash, email]
-    );
-
-    if ((updated as any[]).length) {
-      return reply.status(200).send({
-        ok: true,
-        tenant_id: (updated as any[])[0].id,
-        message: "password_hash set — DELETE this endpoint now",
-      });
-    }
-
-    // No tenant with this email — INSERT a new admin tenant
-    const inserted = await query(
-      `INSERT INTO tenants (shop_name, owner_email, owner_phone, password_hash, billing_status, plan_id, trial_started_at, trial_ends_at, conv_limit_this_cycle)
-       VALUES ('Admin Account', $1, '', $2, 'trial', 'admin', NOW(), NOW() + INTERVAL '365 days', 99999)
-       RETURNING id, owner_email`,
-      [email, passwordHash]
-    );
-
-    return reply.status(200).send({
-      ok: true,
-      tenant_id: (inserted as any[])[0].id,
-      message: "new admin tenant created with password_hash — DELETE this endpoint now",
-    });
-  });
-
-  // ── POST /internal/admin/bootstrap-env ──────────────────────────────────────
-  // TEMPORARY: set ADMIN_EMAILS env var at runtime for bootstrap.
-  // DELETE THIS ENDPOINT after first use.
-  app.post("/admin/bootstrap-env", async (request, reply) => {
-    const { key, value, secret } = request.body as { key?: string; value?: string; secret?: string };
-    if (secret !== "bootstrap-2026-temp") {
-      return reply.status(403).send({ error: "forbidden" });
-    }
-    if (key !== "ADMIN_EMAILS" || !value) {
-      return reply.status(400).send({ error: "only ADMIN_EMAILS key allowed" });
-    }
-    process.env.ADMIN_EMAILS = value;
-    return reply.status(200).send({ ok: true, ADMIN_EMAILS: process.env.ADMIN_EMAILS });
-  });
-
   // ── GET /internal/admin/overview ────────────────────────────────────────────
   app.get("/admin/overview", { preHandler: [adminGuard] }, async (_req, reply) => {
     const [
