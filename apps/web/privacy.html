@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — AutoShop SMS AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:       #0D1B2A;
+    --navy-mid:   #162336;
+    --rust:       #C94B1F;
+    --steel:      #94A3B8;
+    --steel-light:#CBD5E1;
+    --white:      #F8F9FA;
+    --border:     rgba(148,163,184,0.15);
+    --border-mid: rgba(148,163,184,0.25);
+    --mono:       'IBM Plex Mono', monospace;
+    --display:    'Barlow Condensed', sans-serif;
+    --body:       'Barlow', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--navy);
+    color: var(--white);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .topnav {
+    background: rgba(13,27,42,0.9);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(8px);
+  }
+  .nav-logo {
+    font-family: var(--display);
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--white);
+    text-decoration: none;
+  }
+  .nav-logo span { color: var(--rust); }
+  .nav-back {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--steel);
+    text-decoration: none;
+    letter-spacing: 0.08em;
+    transition: color 0.2s;
+  }
+  .nav-back:hover { color: var(--white); }
+
+  main {
+    flex: 1;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 64px 32px 80px;
+    width: 100%;
+  }
+  .page-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--rust);
+    margin-bottom: 16px;
+  }
+  h1 {
+    font-family: var(--display);
+    font-size: 40px;
+    font-weight: 800;
+    margin-bottom: 8px;
+    line-height: 1.1;
+  }
+  .effective {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--steel);
+    letter-spacing: 0.06em;
+    margin-bottom: 48px;
+  }
+  h2 {
+    font-family: var(--display);
+    font-size: 22px;
+    font-weight: 700;
+    margin-top: 40px;
+    margin-bottom: 12px;
+    color: var(--steel-light);
+  }
+  p { margin-bottom: 16px; color: var(--steel-light); }
+  ul { margin: 0 0 16px 24px; color: var(--steel-light); }
+  li { margin-bottom: 6px; }
+  a { color: var(--rust); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .page-footer {
+    padding: 24px 32px;
+    text-align: center;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--steel);
+  }
+  .page-footer a { color: var(--steel); text-decoration: none; }
+  .page-footer a:hover { color: var(--white); }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="index.html" class="nav-logo">AutoShop <span>SMS</span> AI</a>
+  <a href="index.html" class="nav-back">← Back to site</a>
+</nav>
+
+<main>
+  <div class="page-tag">Legal</div>
+  <h1>Privacy Policy</h1>
+  <p class="effective">Effective Date: January 1, 2026 &nbsp;·&nbsp; Last Updated: March 2026</p>
+
+  <p>AutoShop SMS AI ("we," "us," or "our") operates the AutoShop SMS AI service, which provides AI-powered SMS communication and appointment-booking tools for independent auto repair shops ("Shops"). This Privacy Policy explains how we collect, use, and protect information when you use our service.</p>
+
+  <h2>1. Information We Collect</h2>
+  <p><strong>From Shops (our customers):</strong></p>
+  <ul>
+    <li>Business name, owner name, and email address (for account creation and billing)</li>
+    <li>Phone number associated with your shop's Twilio-provisioned line</li>
+    <li>Google Calendar OAuth tokens (encrypted at rest, used only to create appointments on your behalf)</li>
+    <li>Billing information processed through Stripe (we do not store card numbers)</li>
+  </ul>
+  <p><strong>From End Customers (customers of the Shops):</strong></p>
+  <ul>
+    <li>Phone numbers (inbound SMS messages to the shop's number)</li>
+    <li>SMS message content (used to power AI conversation and appointment scheduling)</li>
+    <li>Appointment details (service type, date/time)</li>
+  </ul>
+
+  <h2>2. How We Use Information</h2>
+  <ul>
+    <li>Deliver the AutoShop SMS AI service (AI responses, appointment booking, calendar sync)</li>
+    <li>Manage your subscription and process payments via Stripe</li>
+    <li>Authenticate your shop's Google Calendar access</li>
+    <li>Monitor service reliability and diagnose issues</li>
+    <li>Comply with legal obligations</li>
+  </ul>
+  <p>We do not sell personal information to third parties. We do not use end-customer SMS content for advertising.</p>
+
+  <h2>3. Third-Party Services</h2>
+  <p>We use the following sub-processors to deliver the service:</p>
+  <ul>
+    <li><strong>Twilio</strong> — SMS delivery and phone number provisioning. Subject to <a href="https://www.twilio.com/en-us/legal/privacy" target="_blank" rel="noopener">Twilio's Privacy Policy</a>.</li>
+    <li><strong>OpenAI</strong> — AI conversation generation. Subject to <a href="https://openai.com/policies/privacy-policy" target="_blank" rel="noopener">OpenAI's Privacy Policy</a>.</li>
+    <li><strong>Stripe</strong> — Payment processing. Subject to <a href="https://stripe.com/privacy" target="_blank" rel="noopener">Stripe's Privacy Policy</a>.</li>
+    <li><strong>Google</strong> — Calendar integration. Subject to <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's Privacy Policy</a>.</li>
+  </ul>
+
+  <h2>4. Data Retention</h2>
+  <p>SMS conversation data is retained for 90 days after the conversation closes, then deleted. Appointment records are retained for the duration of your active subscription plus 30 days. You may request deletion of your data at any time by contacting us.</p>
+
+  <h2>5. Security</h2>
+  <p>We use industry-standard security measures including TLS in transit, AES-256-GCM encryption for stored OAuth tokens, and row-level security in our database to isolate data between shops. No method of transmission over the internet is 100% secure, and we cannot guarantee absolute security.</p>
+
+  <h2>6. TCPA and SMS Compliance</h2>
+  <p>AutoShop SMS AI sends SMS messages to phone numbers that have called or contacted your shop. By using our service, you as the Shop are responsible for ensuring you have appropriate consent from your customers to receive automated SMS messages, as required by the Telephone Consumer Protection Act (TCPA) and applicable state laws.</p>
+
+  <h2>7. Your Rights</h2>
+  <p>Shops may access, correct, or delete their account data by contacting us. If you are an end customer of a Shop who wishes to opt out of SMS communications, reply STOP to any message you receive.</p>
+
+  <h2>8. Contact</h2>
+  <p>For privacy questions or data requests, contact us at: <a href="mailto:privacy@autoshopsmsai.com">privacy@autoshopsmsai.com</a></p>
+
+  <h2>9. Changes to This Policy</h2>
+  <p>We may update this Privacy Policy from time to time. We will notify active Shops of material changes by email. Continued use of the service after changes constitutes acceptance of the updated policy.</p>
+</main>
+
+<footer class="page-footer">
+  &copy; 2026 AutoShop SMS AI &nbsp;·&nbsp;
+  <a href="privacy.html">Privacy Policy</a> &nbsp;·&nbsp;
+  <a href="terms.html">Terms of Service</a> &nbsp;·&nbsp;
+  <a href="mailto:hello@autoshopsmsai.com">Contact</a>
+</footer>
+
+</body>
+</html>

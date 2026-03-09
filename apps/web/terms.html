@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terms of Service — AutoShop SMS AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:       #0D1B2A;
+    --navy-mid:   #162336;
+    --rust:       #C94B1F;
+    --steel:      #94A3B8;
+    --steel-light:#CBD5E1;
+    --white:      #F8F9FA;
+    --border:     rgba(148,163,184,0.15);
+    --border-mid: rgba(148,163,184,0.25);
+    --mono:       'IBM Plex Mono', monospace;
+    --display:    'Barlow Condensed', sans-serif;
+    --body:       'Barlow', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--navy);
+    color: var(--white);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .topnav {
+    background: rgba(13,27,42,0.9);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(8px);
+  }
+  .nav-logo {
+    font-family: var(--display);
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--white);
+    text-decoration: none;
+  }
+  .nav-logo span { color: var(--rust); }
+  .nav-back {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--steel);
+    text-decoration: none;
+    letter-spacing: 0.08em;
+    transition: color 0.2s;
+  }
+  .nav-back:hover { color: var(--white); }
+
+  main {
+    flex: 1;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 64px 32px 80px;
+    width: 100%;
+  }
+  .page-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--rust);
+    margin-bottom: 16px;
+  }
+  h1 {
+    font-family: var(--display);
+    font-size: 40px;
+    font-weight: 800;
+    margin-bottom: 8px;
+    line-height: 1.1;
+  }
+  .effective {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--steel);
+    letter-spacing: 0.06em;
+    margin-bottom: 48px;
+  }
+  h2 {
+    font-family: var(--display);
+    font-size: 22px;
+    font-weight: 700;
+    margin-top: 40px;
+    margin-bottom: 12px;
+    color: var(--steel-light);
+  }
+  p { margin-bottom: 16px; color: var(--steel-light); }
+  ul { margin: 0 0 16px 24px; color: var(--steel-light); }
+  li { margin-bottom: 6px; }
+  a { color: var(--rust); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .page-footer {
+    padding: 24px 32px;
+    text-align: center;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--steel);
+  }
+  .page-footer a { color: var(--steel); text-decoration: none; }
+  .page-footer a:hover { color: var(--white); }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="index.html" class="nav-logo">AutoShop <span>SMS</span> AI</a>
+  <a href="index.html" class="nav-back">← Back to site</a>
+</nav>
+
+<main>
+  <div class="page-tag">Legal</div>
+  <h1>Terms of Service</h1>
+  <p class="effective">Effective Date: January 1, 2026 &nbsp;·&nbsp; Last Updated: March 2026</p>
+
+  <p>These Terms of Service ("Terms") govern your use of the AutoShop SMS AI platform (the "Service") operated by AutoShop SMS AI ("we," "us," or "our"). By accessing or using the Service, you agree to be bound by these Terms.</p>
+
+  <h2>1. Description of Service</h2>
+  <p>AutoShop SMS AI provides AI-powered SMS communication and appointment-booking tools for independent auto repair shops. The Service automatically responds to missed calls and inbound SMS messages on behalf of your shop and may book appointments to your Google Calendar.</p>
+
+  <h2>2. Eligibility</h2>
+  <p>The Service is available to registered businesses operating in the United States. You must be at least 18 years old and have authority to enter into contracts on behalf of your business.</p>
+
+  <h2>3. Account and Subscription</h2>
+  <ul>
+    <li>You are responsible for maintaining the confidentiality of your account credentials.</li>
+    <li>Subscriptions are billed monthly in advance via Stripe. Pricing is as displayed on our website at the time of purchase.</li>
+    <li>Free trials are limited to 50 conversations or 14 days, whichever comes first.</li>
+    <li>You may cancel your subscription at any time. Cancellation takes effect at the end of the current billing period. No partial refunds are issued.</li>
+  </ul>
+
+  <h2>4. Acceptable Use</h2>
+  <p>You agree not to use the Service to:</p>
+  <ul>
+    <li>Send unsolicited or spam SMS messages</li>
+    <li>Harass, deceive, or defraud consumers</li>
+    <li>Violate any applicable law, including the Telephone Consumer Protection Act (TCPA)</li>
+    <li>Attempt to reverse-engineer or interfere with the Service</li>
+    <li>Use the Service for any purpose other than operating your auto repair business</li>
+  </ul>
+
+  <h2>5. SMS and TCPA Compliance</h2>
+  <p>You are solely responsible for ensuring that your use of the Service complies with all applicable laws and regulations governing SMS communications, including but not limited to the TCPA. You represent that you have appropriate consent from your customers to receive automated SMS messages. We are not responsible for your compliance failures.</p>
+
+  <h2>6. AI-Generated Content</h2>
+  <p>The Service uses AI to generate SMS responses on your behalf. You acknowledge that AI-generated content may occasionally be inaccurate or inappropriate. You remain solely responsible for all communications sent through your shop's phone number. We recommend reviewing AI conversation logs periodically.</p>
+
+  <h2>7. Google Calendar Integration</h2>
+  <p>If you connect your Google Calendar, you grant us permission to create calendar events on your behalf. You may revoke this permission at any time through your Google account settings. We are not responsible for calendar conflicts or missed appointments due to calendar access issues.</p>
+
+  <h2>8. Uptime and Service Availability</h2>
+  <p>We strive for high availability but do not guarantee 100% uptime. We are not liable for service interruptions, including interruptions caused by third-party providers (Twilio, OpenAI, Google, Stripe). We will make reasonable efforts to notify you of planned maintenance.</p>
+
+  <h2>9. Limitation of Liability</h2>
+  <p>TO THE MAXIMUM EXTENT PERMITTED BY LAW, AUTOSHOP SMS AI SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING LOSS OF PROFITS OR CUSTOMERS, EVEN IF WE HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES. OUR TOTAL CUMULATIVE LIABILITY TO YOU SHALL NOT EXCEED THE FEES PAID BY YOU TO US IN THE THREE MONTHS PRECEDING THE CLAIM.</p>
+
+  <h2>10. Indemnification</h2>
+  <p>You agree to indemnify and hold harmless AutoShop SMS AI and its officers, employees, and agents from any claims, damages, or expenses (including reasonable attorney fees) arising from your use of the Service, your violation of these Terms, or your violation of any law or third-party right.</p>
+
+  <h2>11. Termination</h2>
+  <p>We may terminate or suspend your account immediately, without notice, for violation of these Terms. Upon termination, your right to use the Service ceases. Your data will be deleted in accordance with our Privacy Policy.</p>
+
+  <h2>12. Changes to Terms</h2>
+  <p>We may update these Terms from time to time. We will notify active customers by email at least 14 days before material changes take effect. Continued use of the Service after the effective date constitutes acceptance of the revised Terms.</p>
+
+  <h2>13. Governing Law</h2>
+  <p>These Terms are governed by the laws of the State of Texas, without regard to conflict-of-law principles. Any disputes shall be resolved in the state or federal courts located in Travis County, Texas.</p>
+
+  <h2>14. Contact</h2>
+  <p>For questions about these Terms, contact us at: <a href="mailto:legal@autoshopsmsai.com">legal@autoshopsmsai.com</a></p>
+</main>
+
+<footer class="page-footer">
+  &copy; 2026 AutoShop SMS AI &nbsp;·&nbsp;
+  <a href="privacy.html">Privacy Policy</a> &nbsp;·&nbsp;
+  <a href="terms.html">Terms of Service</a> &nbsp;·&nbsp;
+  <a href="mailto:hello@autoshopsmsai.com">Contact</a>
+</footer>
+
+</body>
+</html>

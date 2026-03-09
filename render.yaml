@@ -1,0 +1,78 @@
+services:
+  # ── AutoShop API ────────────────────────────────────────────────────────────
+  - type: web
+    name: autoshop-api
+    runtime: docker
+    dockerfilePath: apps/api/Dockerfile
+    dockerContext: apps/api
+    plan: starter         # $7/month — swap to free for testing (sleeps after 15m idle)
+    region: oregon
+    branch: main
+    healthCheckPath: /health
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+
+      # ── Fill these in via Render Dashboard → Environment ─────────────────
+      - key: DATABASE_URL
+        fromDatabase:
+          name: autoshop-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: autoshop-redis
+          property: connectionString
+
+      - key: JWT_SECRET
+        generateValue: true          # Render auto-generates a secure random value
+
+      # Set these manually in Render Dashboard:
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_STARTER
+        sync: false
+      - key: STRIPE_PRICE_PRO
+        sync: false
+      - key: STRIPE_PRICE_PREMIUM
+        sync: false
+      - key: N8N_ENCRYPTION_KEY
+        sync: false
+      - key: N8N_WEBHOOK_URL
+        sync: false
+      - key: N8N_INTERNAL_URL
+        sync: false
+      - key: INTERNAL_API_KEY
+        generateValue: true
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: SKIP_TWILIO_VALIDATION
+        value: "false"
+      - key: CORS_ORIGINS
+        value: "https://autoshopsmsai.com"
+
+  # ── Redis ───────────────────────────────────────────────────────────────────
+  - type: redis
+    name: autoshop-redis
+    plan: free
+    region: oregon
+    maxmemoryPolicy: noeviction
+
+databases:
+  # ── Postgres ─────────────────────────────────────────────────────────────────
+  - name: autoshop-db
+    plan: free              # 1 GB, upgrade for production load
+    region: oregon
+    databaseName: autoshop
+    user: autoshop

@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoShop SMS AI — Onboarding</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:       #0D1B2A;
+    --navy-mid:   #162336;
+    --navy-light: #1E3048;
+    --rust:       #C94B1F;
+    --rust-light: #E05A2B;
+    --steel:      #94A3B8;
+    --steel-light:#CBD5E1;
+    --white:      #F8F9FA;
+    --border:     rgba(148,163,184,0.15);
+    --border-mid: rgba(148,163,184,0.25);
+    --mono:       'IBM Plex Mono', monospace;
+    --display:    'Barlow Condensed', sans-serif;
+    --body:       'Barlow', sans-serif;
+    --green:      #22C55E;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--navy);
+    color: var(--white);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.6;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+  }
+  .topnav {
+    background: rgba(13,27,42,0.9);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(8px);
+  }
+  .nav-logo {
+    font-family: var(--display);
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--white);
+    text-decoration: none;
+  }
+  .nav-logo span { color: var(--rust); }
+  .trial-pill {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--green);
+    background: rgba(34,197,94,0.1);
+    border: 1px solid rgba(34,197,94,0.2);
+    padding: 4px 12px;
+  }
+
+  .main {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 56px 24px 80px;
+  }
+  .card {
+    width: 100%;
+    max-width: 500px;
+  }
+
+  /* Progress steps */
+  .steps {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 40px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--steel);
+    flex: 1;
+  }
+  .step.active { color: var(--rust-light); }
+  .step.done   { color: var(--green); }
+  .step-num {
+    width: 24px; height: 24px;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+  .step-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border-mid);
+    margin: 0 8px;
+  }
+
+  .section-card {
+    background: var(--navy-mid);
+    border: 1px solid var(--border-mid);
+    padding: 40px;
+    clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+    margin-bottom: 20px;
+  }
+  .section-title {
+    font-family: var(--display);
+    font-size: 28px;
+    font-weight: 800;
+    margin-bottom: 6px;
+  }
+  .section-sub {
+    color: var(--steel);
+    font-size: 14px;
+    margin-bottom: 28px;
+  }
+
+  .form-group { margin-bottom: 18px; }
+  .form-label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: var(--steel);
+    margin-bottom: 7px;
+  }
+  .form-input {
+    width: 100%;
+    background: var(--navy);
+    border: 1px solid var(--border-mid);
+    color: var(--white);
+    font-family: var(--body);
+    font-size: 16px;
+    padding: 12px 16px;
+    outline: none;
+    transition: border-color 0.2s;
+    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+  }
+  .form-input:focus { border-color: var(--rust); }
+  .form-input::placeholder { color: var(--steel); opacity: 0.6; }
+  .form-hint {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--steel);
+    margin-top: 5px;
+  }
+
+  .btn-primary {
+    display: block;
+    width: 100%;
+    background: var(--rust);
+    color: var(--white);
+    font-family: var(--display);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 16px 32px;
+    border: none;
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.2s, transform 0.15s;
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+    margin-top: 8px;
+  }
+  .btn-primary:hover { background: var(--rust-light); transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+  .skip-link {
+    text-align: center;
+    margin-top: 16px;
+    font-size: 13px;
+  }
+  .skip-link a {
+    color: var(--steel);
+    text-decoration: none;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    border-bottom: 1px solid var(--border-mid);
+  }
+  .skip-link a:hover { color: var(--steel-light); }
+
+  .error-msg {
+    display: none;
+    background: rgba(239,68,68,0.10);
+    border: 1px solid rgba(239,68,68,0.3);
+    color: #FCA5A5;
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+  }
+  .error-msg.visible { display: block; }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="index.html" class="nav-logo">AutoShop <span>SMS</span> AI</a>
+  <div class="trial-pill">Trial Active — 14 days free</div>
+</nav>
+
+<main class="main">
+  <div class="card">
+
+    <div class="steps">
+      <div class="step done">
+        <div class="step-num">✓</div>
+        Account
+      </div>
+      <div class="step-line"></div>
+      <div class="step active">
+        <div class="step-num">2</div>
+        Shop Info
+      </div>
+      <div class="step-line"></div>
+      <div class="step">
+        <div class="step-num">3</div>
+        Dashboard
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-title">Tell us about your shop</div>
+      <p class="section-sub">This helps the AI respond correctly to your customers.</p>
+
+      <div class="error-msg" id="errorMsg"></div>
+
+      <form id="onboardingForm" onsubmit="handleOnboarding(event)" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="shopName">Shop / Business Name</label>
+          <input class="form-input" type="text" id="shopName" name="shopName"
+            placeholder="Austin Quick Lube" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="ownerPhone">Business Phone Number</label>
+          <input class="form-input" type="tel" id="ownerPhone" name="ownerPhone"
+            placeholder="+1 (512) 555-0100" autocomplete="tel">
+          <p class="form-hint">Your main customer-facing number (optional for now)</p>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="timezone">Time Zone</label>
+          <select class="form-input" id="timezone" name="timezone">
+            <option value="America/Chicago" selected>Central Time (CT) — most of Texas</option>
+            <option value="America/New_York">Eastern Time (ET)</option>
+            <option value="America/Denver">Mountain Time (MT)</option>
+            <option value="America/Los_Angeles">Pacific Time (PT)</option>
+            <option value="America/Phoenix">Arizona (no DST)</option>
+          </select>
+        </div>
+
+        <button type="submit" class="btn-primary" id="submitBtn">
+          Go to Dashboard →
+        </button>
+      </form>
+    </div>
+
+    <div class="skip-link">
+      <a href="app.html" onclick="skipOnboarding()">Skip for now — I'll finish this later →</a>
+    </div>
+  </div>
+</main>
+
+<script>
+// ── Read auth from URL hash (Google OAuth redirect) or localStorage ───────────
+(function() {
+  var hash = window.location.hash.slice(1);
+  if (hash) {
+    var params = new URLSearchParams(hash);
+    var token    = params.get('token');
+    var tenantId = params.get('tenantId');
+    var shopName = params.get('shopName');
+
+    if (token && tenantId) {
+      localStorage.setItem('autoshop_jwt', token);
+      localStorage.setItem('autoshop_session', JSON.stringify({
+        tenantId: tenantId,
+        shopName: shopName || '',
+        loginAt:  Date.now()
+      }));
+      // Remove hash from URL (clean up)
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+
+      // Pre-fill shop name if from Google
+      if (shopName) {
+        var el = document.getElementById('shopName');
+        if (el) el.value = decodeURIComponent(shopName);
+      }
+    }
+  }
+
+  // Redirect to login if no session
+  var jwt = localStorage.getItem('autoshop_jwt');
+  if (!jwt) {
+    window.location.replace('signup.html');
+  }
+
+  // Pre-fill shop name from session if not already filled
+  var session = JSON.parse(localStorage.getItem('autoshop_session') || '{}');
+  var shopEl  = document.getElementById('shopName');
+  if (shopEl && !shopEl.value && session.shopName) {
+    shopEl.value = session.shopName;
+  }
+})();
+
+function skipOnboarding() {
+  // Don't block on optional onboarding
+  return true;
+}
+
+async function handleOnboarding(e) {
+  e.preventDefault();
+  var shopName   = document.getElementById('shopName').value.trim();
+  var ownerPhone = document.getElementById('ownerPhone').value.trim();
+  var timezone   = document.getElementById('timezone').value;
+  var submitBtn  = document.getElementById('submitBtn');
+  var errorEl    = document.getElementById('errorMsg');
+
+  if (!shopName || shopName.length < 2) {
+    errorEl.textContent = 'Please enter your shop name.';
+    errorEl.classList.add('visible');
+    return;
+  }
+  errorEl.classList.remove('visible');
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Saving…';
+
+  var jwt     = localStorage.getItem('autoshop_jwt');
+  var session = JSON.parse(localStorage.getItem('autoshop_session') || '{}');
+
+  try {
+    // PATCH /auth/onboarding — update shop name, phone, timezone
+    var res = await fetch('/auth/onboarding', {
+      method:  'PATCH',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': 'Bearer ' + jwt
+      },
+      body: JSON.stringify({ shopName, ownerPhone, timezone })
+    });
+
+    if (res.ok) {
+      // Update local session with new shop name
+      session.shopName = shopName;
+      localStorage.setItem('autoshop_session', JSON.stringify(session));
+      window.location.href = 'app.html';
+    } else {
+      // If endpoint doesn't exist yet, just redirect to dashboard
+      // (onboarding is non-blocking for MVP)
+      session.shopName = shopName;
+      localStorage.setItem('autoshop_session', JSON.stringify(session));
+      window.location.href = 'app.html';
+    }
+  } catch {
+    // Network error — save locally and redirect anyway (non-blocking for MVP)
+    session.shopName = shopName;
+    localStorage.setItem('autoshop_session', JSON.stringify(session));
+    window.location.href = 'app.html';
+  }
+}
+</script>
+</body>
+</html>

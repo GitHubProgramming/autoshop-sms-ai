@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoShop SMS AI — Start Free Trial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:       #0D1B2A;
+    --navy-mid:   #162336;
+    --navy-light: #1E3048;
+    --rust:       #C94B1F;
+    --rust-light: #E05A2B;
+    --steel:      #94A3B8;
+    --steel-light:#CBD5E1;
+    --white:      #F8F9FA;
+    --border:     rgba(148,163,184,0.15);
+    --border-mid: rgba(148,163,184,0.25);
+    --mono:       'IBM Plex Mono', monospace;
+    --display:    'Barlow Condensed', sans-serif;
+    --body:       'Barlow', sans-serif;
+    --green:      #22C55E;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--navy);
+    color: var(--white);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.6;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+  }
+  .topnav {
+    background: rgba(13,27,42,0.9);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(8px);
+  }
+  .nav-logo {
+    font-family: var(--display);
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--white);
+    text-decoration: none;
+  }
+  .nav-logo span { color: var(--rust); }
+  .nav-back {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--steel);
+    text-decoration: none;
+    letter-spacing: 0.08em;
+    transition: color 0.2s;
+  }
+  .nav-back:hover { color: var(--white); }
+
+  .main {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 48px 24px 80px;
+  }
+  .card {
+    width: 100%;
+    max-width: 460px;
+    background: var(--navy-mid);
+    border: 1px solid var(--border-mid);
+    padding: 48px 40px;
+    clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+  }
+  .card-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--rust-light);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .card-tag::before {
+    content: '';
+    display: block;
+    width: 6px; height: 6px;
+    background: var(--rust);
+    border-radius: 50%;
+  }
+  h1 {
+    font-family: var(--display);
+    font-size: 36px;
+    font-weight: 800;
+    line-height: 1.05;
+    margin-bottom: 8px;
+  }
+  .sub {
+    color: var(--steel);
+    font-size: 15px;
+    margin-bottom: 32px;
+  }
+
+  /* Trial badge */
+  .trial-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(34,197,94,0.08);
+    border: 1px solid rgba(34,197,94,0.2);
+    padding: 12px 16px;
+    margin-bottom: 28px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--green);
+  }
+  .trial-badge svg { flex-shrink: 0; }
+
+  /* Google button */
+  .btn-google {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    background: #fff;
+    color: #1a1a1a;
+    font-family: var(--body);
+    font-size: 15px;
+    font-weight: 600;
+    padding: 13px 24px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    transition: opacity 0.2s;
+    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+    margin-bottom: 20px;
+  }
+  .btn-google:hover { opacity: 0.92; }
+  .btn-google.disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 4px 0 24px;
+    color: var(--steel);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-mid);
+  }
+
+  .form-group { margin-bottom: 18px; }
+  .form-label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: var(--steel);
+    margin-bottom: 7px;
+  }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+  .form-input {
+    width: 100%;
+    background: var(--navy);
+    border: 1px solid var(--border-mid);
+    color: var(--white);
+    font-family: var(--body);
+    font-size: 16px;
+    padding: 12px 16px;
+    outline: none;
+    transition: border-color 0.2s;
+    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+  }
+  .form-input:focus { border-color: var(--rust); }
+  .form-input::placeholder { color: var(--steel); opacity: 0.6; }
+  .field-error {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #FCA5A5;
+    margin-top: 4px;
+    display: none;
+  }
+  .field-error.visible { display: block; }
+
+  .btn-primary {
+    display: block;
+    width: 100%;
+    background: var(--rust);
+    color: var(--white);
+    font-family: var(--display);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 16px 32px;
+    border: none;
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.2s, transform 0.15s;
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+    margin-top: 8px;
+  }
+  .btn-primary:hover { background: var(--rust-light); transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+  .error-msg {
+    display: none;
+    background: rgba(239,68,68,0.10);
+    border: 1px solid rgba(239,68,68,0.3);
+    color: #FCA5A5;
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+  }
+  .error-msg.visible { display: block; }
+
+  .terms-note {
+    margin-top: 20px;
+    font-size: 12px;
+    color: var(--steel);
+    text-align: center;
+    line-height: 1.6;
+  }
+  .terms-note a { color: var(--steel-light); text-decoration: none; border-bottom: 1px solid var(--border-mid); }
+
+  .login-link {
+    margin-top: 28px;
+    text-align: center;
+    font-size: 14px;
+    color: var(--steel);
+  }
+  .login-link a {
+    color: var(--steel-light);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border-mid);
+    padding-bottom: 1px;
+  }
+  .login-link a:hover { color: var(--white); }
+
+  .page-footer {
+    padding: 24px 32px;
+    text-align: center;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--steel);
+  }
+  .page-footer a { color: var(--steel); text-decoration: none; }
+  .page-footer a:hover { color: var(--white); }
+
+  .success-card {
+    display: none;
+    background: rgba(34,197,94,0.08);
+    border: 1px solid rgba(34,197,94,0.25);
+    padding: 24px;
+    text-align: center;
+    margin-top: 24px;
+  }
+  .success-card h3 { font-family: var(--display); font-size: 24px; font-weight: 800; color: var(--green); margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="index.html" class="nav-logo">AutoShop <span>SMS</span> AI</a>
+  <a href="login.html" class="nav-back">Already have an account? Sign in →</a>
+</nav>
+
+<main class="main">
+  <div class="card">
+    <div class="card-tag">Free Trial</div>
+    <h1>Start Your Trial</h1>
+    <p class="sub">14 days free. No credit card required. Cancel anytime.</p>
+
+    <div class="trial-badge">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+      14 days free · 50 AI conversations included · No card required
+    </div>
+
+    <div class="error-msg" id="errorMsg"></div>
+
+    <!-- Google Sign-Up Button -->
+    <button type="button" class="btn-google" id="googleBtn" onclick="startGoogleSignup()">
+      <svg width="20" height="20" viewBox="0 0 24 24">
+        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+      </svg>
+      Continue with Google
+    </button>
+
+    <div class="divider">or sign up with email</div>
+
+    <form id="signupForm" onsubmit="handleSignup(event)" novalidate>
+      <div class="form-row">
+        <div>
+          <label class="form-label" for="ownerName">Your Name</label>
+          <input class="form-input" type="text" id="ownerName" name="ownerName"
+            placeholder="Jane Smith" autocomplete="name" required>
+          <div class="field-error" id="ownerNameErr"></div>
+        </div>
+        <div>
+          <label class="form-label" for="shopName">Shop Name</label>
+          <input class="form-input" type="text" id="shopName" name="shopName"
+            placeholder="Austin Quick Lube" required>
+          <div class="field-error" id="shopNameErr"></div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="email">Email Address</label>
+        <input class="form-input" type="email" id="email" name="email"
+          placeholder="you@yourshop.com" autocomplete="email" required>
+        <div class="field-error" id="emailErr"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="password">Password <span style="color:var(--steel);font-size:10px">(min 8 characters)</span></label>
+        <input class="form-input" type="password" id="password" name="password"
+          placeholder="••••••••" autocomplete="new-password" required minlength="8">
+        <div class="field-error" id="passwordErr"></div>
+      </div>
+
+      <button type="submit" class="btn-primary" id="submitBtn">
+        Create Free Account →
+      </button>
+    </form>
+
+    <div class="success-card" id="successCard">
+      <h3>Account Created!</h3>
+      <p style="color:var(--steel-light);font-size:14px;">Redirecting to your dashboard…</p>
+    </div>
+
+    <p class="terms-note">
+      By signing up you agree to our
+      <a href="terms.html">Terms of Service</a> and
+      <a href="privacy.html">Privacy Policy</a>.
+    </p>
+
+    <div class="login-link">
+      Already have an account?
+      <a href="login.html">Sign in →</a>
+    </div>
+  </div>
+</main>
+
+<footer class="page-footer">
+  &copy; 2026 AutoShop SMS AI &nbsp;·&nbsp;
+  <a href="privacy.html">Privacy Policy</a> &nbsp;·&nbsp;
+  <a href="terms.html">Terms of Service</a> &nbsp;·&nbsp;
+  <a href="mailto:hello@autoshopsmsai.com">Contact</a>
+</footer>
+
+<script>
+// ── Already logged in? ───────────────────────────────────────────────────────
+(function() {
+  var token = localStorage.getItem('autoshop_jwt');
+  if (!token) return;
+  fetch('/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+    .then(function(res) {
+      if (res.ok) window.location.replace('app.html');
+    })
+    .catch(function() {});
+})();
+
+// ── Show error from URL query param (e.g. Google OAuth failure) ──────────────
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var err = params.get('error');
+  if (err) showError(decodeURIComponent(err).replace(/_/g, ' '));
+})();
+
+// ── Google Sign-Up ───────────────────────────────────────────────────────────
+function startGoogleSignup() {
+  // Redirect to backend — if not configured, the API returns 503 and we show error
+  window.location.href = '/auth/google/signup/start';
+}
+
+// ── Check if Google sign-in is available ────────────────────────────────────
+// We show the button always; if it fails, the API redirect returns an error page.
+// This is intentional: the button is real, not a placeholder.
+
+// ── Email sign-up form ───────────────────────────────────────────────────────
+function clearErrors() {
+  ['ownerNameErr','shopNameErr','emailErr','passwordErr'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) { el.textContent = ''; el.classList.remove('visible'); }
+  });
+  var em = document.getElementById('errorMsg');
+  if (em) em.classList.remove('visible');
+}
+
+function showError(msg) {
+  var el = document.getElementById('errorMsg');
+  el.textContent = msg;
+  el.classList.add('visible');
+}
+
+function showFieldError(id, msg) {
+  var el = document.getElementById(id);
+  if (el) { el.textContent = msg; el.classList.add('visible'); }
+}
+
+async function handleSignup(e) {
+  e.preventDefault();
+  clearErrors();
+
+  var ownerName = document.getElementById('ownerName').value.trim();
+  var shopName  = document.getElementById('shopName').value.trim();
+  var email     = document.getElementById('email').value.trim().toLowerCase();
+  var password  = document.getElementById('password').value;
+  var submitBtn = document.getElementById('submitBtn');
+
+  // Client-side validation
+  var hasError = false;
+  if (!ownerName) { showFieldError('ownerNameErr', 'Your name is required'); hasError = true; }
+  if (!shopName || shopName.length < 2) { showFieldError('shopNameErr', 'Shop name required (min 2 chars)'); hasError = true; }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showFieldError('emailErr', 'Valid email required'); hasError = true; }
+  if (!password || password.length < 8) { showFieldError('passwordErr', 'Password must be at least 8 characters'); hasError = true; }
+  if (hasError) return;
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Creating Account…';
+
+  try {
+    var res = await fetch('/auth/signup', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ email, password, shopName, ownerName })
+    });
+    var data = await res.json();
+
+    if (res.ok && data.token) {
+      // Store session
+      localStorage.setItem('autoshop_jwt', data.token);
+      localStorage.setItem('autoshop_session', JSON.stringify({
+        email:       email,
+        tenantId:    data.tenantId,
+        shopName:    data.shopName,
+        trialEndsAt: data.trialEndsAt,
+        loginAt:     Date.now()
+      }));
+
+      // Show success then redirect to onboarding
+      document.getElementById('signupForm').style.display = 'none';
+      document.getElementById('successCard').style.display = 'block';
+      setTimeout(function() {
+        window.location.href = 'onboarding.html';
+      }, 1200);
+    } else if (res.status === 409) {
+      showError(data.error || 'An account with this email already exists.');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Create Free Account →';
+    } else if (res.status === 400 && data.fields) {
+      // Field-level errors from server
+      Object.entries(data.fields).forEach(function([field, msgs]) {
+        var errId = field + 'Err';
+        var msg   = Array.isArray(msgs) ? msgs[0] : msgs;
+        showFieldError(errId, msg);
+      });
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Create Free Account →';
+    } else {
+      showError(data.error || 'Account creation failed. Please try again.');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Create Free Account →';
+    }
+  } catch (err) {
+    showError('Connection error — please try again.');
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Create Free Account →';
+  }
+}
+</script>
+</body>
+</html>
