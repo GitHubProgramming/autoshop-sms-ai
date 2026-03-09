@@ -303,6 +303,18 @@
 </footer>
 
 <script>
+// ── Return-to-target helper ──────────────────────────────────────────────────
+// Reads ?next= query param and validates against an exact allowlist of local
+// pages. Rejects anything with path separators, protocols, or query strings.
+// Defaults to app.html — no open redirect possible.
+var ALLOWED_NEXT = { 'app.html': true, 'admin.html': true };
+function getNextTarget() {
+  var param = new URLSearchParams(window.location.search).get('next') || '';
+  // Strip query/fragment, then strip any leading path components
+  var filename = param.replace(/[?#].*$/, '').replace(/^.*[/\\]/, '');
+  return ALLOWED_NEXT[filename] ? filename : 'app.html';
+}
+
 // ── Auth check ──────────────────────────────────────────────────────────────
 // Verify existing JWT with server before skipping login screen.
 // This replaces the old localStorage-only forgeable check.
@@ -312,7 +324,7 @@
   // Quick server-side check — if token still valid, skip login
   fetch('/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
     .then(function(res) {
-      if (res.ok) window.location.replace('app.html');
+      if (res.ok) window.location.replace(getNextTarget());
     })
     .catch(function() { /* network error — stay on login */ });
 })();
@@ -350,7 +362,7 @@ async function handleLogin(e) {
         shopName: data.shopName,
         loginAt:  Date.now()
       }));
-      window.location.href = 'app.html';
+      window.location.href = getNextTarget();
     } else {
       errorEl.textContent = data.error || 'Invalid credentials';
       errorEl.classList.add('visible');

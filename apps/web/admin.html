@@ -376,7 +376,7 @@ document.getElementById('apiBaseLabel').textContent = API;
 function initAuth() {
   const token = localStorage.getItem('autoshop_jwt');
   if (!token) {
-    window.location.replace('login.html');
+    window.location.replace('login.html?next=admin.html');
     return;
   }
   showAdmin();

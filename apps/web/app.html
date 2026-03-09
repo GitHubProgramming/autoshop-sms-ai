@@ -1851,7 +1851,7 @@ function toggleChecklist() {
   // Replaces the forgeable autoshop_demo_login localStorage check.
   var token = localStorage.getItem('autoshop_jwt');
   if (!token) {
-    window.location.replace('login.html');
+    window.location.replace('login.html?next=app.html');
     return;
   }
   // Verify token with server. If invalid/expired, redirect to login.
@@ -1860,7 +1860,7 @@ function toggleChecklist() {
       if (!res.ok) {
         localStorage.removeItem('autoshop_jwt');
         localStorage.removeItem('autoshop_session');
-        window.location.replace('login.html');
+        window.location.replace('login.html?next=app.html');
       }
     })
     .catch(function() { /* network error — allow dashboard to render */ });
