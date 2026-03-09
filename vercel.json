@@ -1,5 +1,11 @@
 {
   "outputDirectory": "apps/web",
   "trailingSlash": false,
-  "cleanUrls": true
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/health", "destination": "https://autoshop-api-7ek9.onrender.com/health" },
+    { "source": "/auth/:path*", "destination": "https://autoshop-api-7ek9.onrender.com/auth/:path*" },
+    { "source": "/billing/:path*", "destination": "https://autoshop-api-7ek9.onrender.com/billing/:path*" },
+    { "source": "/webhooks/:path*", "destination": "https://autoshop-api-7ek9.onrender.com/webhooks/:path*" }
+  ]
 }
