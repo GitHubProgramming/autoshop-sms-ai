@@ -18,6 +18,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY apps/api/ .
 # Copy migration SQL files so they land in the production image
 COPY db/migrations/ ./migrations/
+# Copy frontend static files so they are served by the API
+COPY apps/web/ ./public/
 RUN npm run build
 
 FROM base AS prod
@@ -26,6 +28,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/migrations ./migrations
 COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/public ./public
 EXPOSE 3000
 # Run migrations first; exit loudly on failure so Render detects the broken deploy
 CMD ["sh", "-c", "node scripts/migrate.js && node dist/index.js"]

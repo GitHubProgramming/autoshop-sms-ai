@@ -4,6 +4,8 @@ import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import formbody from "@fastify/formbody";
 import fastifyJwt from "@fastify/jwt";
+import fastifyStatic from "@fastify/static";
+import { join } from "path";
 
 import { healthRoute } from "./routes/health";
 import { twilioSmsRoute } from "./routes/webhooks/twilio-sms";
@@ -61,6 +63,18 @@ async function bootstrap() {
   await app.register(loginRoute, { prefix: "/auth" });
   await app.register(signupRoute, { prefix: "/auth" });
   await app.register(billingCheckoutRoute, { prefix: "/billing" });
+
+  // ── Static frontend (login.html, signup.html, etc.) ───────
+  // Served AFTER API routes so API paths are never shadowed.
+  // STATIC_DIR is set in the Docker image (Dockerfile copies apps/web/ → /app/public/).
+  // Falls back to ../public relative to dist/index.js, which also resolves
+  // to /app/public inside the container.
+  const staticDir = process.env.STATIC_DIR ?? join(__dirname, "../public");
+  await app.register(fastifyStatic, {
+    root: staticDir,
+    prefix: "/",
+    decorateReply: false,
+  });
 
   // ── Graceful shutdown ─────────────────────────────────────
   const signals: NodeJS.Signals[] = ["SIGINT", "SIGTERM"];
