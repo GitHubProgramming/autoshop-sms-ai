@@ -9,6 +9,41 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: fix-signup-login-entry-flow — 2026-03-09
+
+**Branch:** ai/fix-signup-login-entry-flow
+**Commit:** 49077e4
+**Status:** COMPLETE — PR open, awaiting deploy + env var setup
+
+### Root Cause
+`POST /auth/signup` and `POST /auth/login` returned 404 in production.
+Route files existed only on `ai/paid-launch-pass` (never merged to main).
+`@fastify/jwt` was in package.json but never registered in `index.ts`.
+
+### Files Changed
+| File | Change |
+|------|--------|
+| `apps/api/src/routes/auth/signup.ts` | NEW |
+| `apps/api/src/routes/auth/login.ts` | NEW |
+| `apps/api/src/middleware/require-auth.ts` | NEW |
+| `apps/api/src/db/audit.ts` | NEW |
+| `apps/api/src/index.ts` | Register jwt + loginRoute + signupRoute |
+| `apps/api/package.json` | Add bcryptjs, @fastify/cors |
+| `db/migrations/006_password_hash.sql` | ADD COLUMN password_hash |
+| `db/migrations/007_auth_tables.sql` | CREATE users + signup_attempts |
+| `db/migrations/008_admin_events.sql` | CREATE audit_log |
+
+### Verification
+- tsc --noEmit: PASS
+- 19/19 tests: PASS
+
+### Blockers Before This Works in Production
+1. Set `JWT_SECRET` env var on render.com (hard-required — API won't start without it)
+2. Apply migrations 006/007/008 on production Postgres
+3. Deploy updated API to render.com
+
+---
+
 # FULL PIPELINE VERIFIED — 2026-03-08 (PILOT READY)
 
 **Branch:** ai/local-demo-verification
