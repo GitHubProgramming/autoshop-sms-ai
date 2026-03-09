@@ -9,6 +9,35 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: fix-vercel-rewrites-missing — 2026-03-09
+
+**Branch:** deploy/auth-routes-to-main
+**Commit:** ae56b59
+**Status:** COMPLETE — pushed, awaiting Vercel redeploy from main
+
+### Root Cause
+Vercel project root directory is `apps/web` (Render dashboard setting).
+Vercel reads `apps/web/vercel.json`, not the repo-root `vercel.json`.
+The repo-root `vercel.json` had correct rewrites for `/auth/:path*` → API, but they were never applied.
+`fetch('/auth/login')` from `autoshopsmsai.com` → hit Vercel → 404 `text/plain` → `res.json()` threw SyntaxError → "Connection error."
+
+### Evidence
+| Request | Expected | Actual |
+|---------|----------|--------|
+| `POST autoshopsmsai.com/auth/login` | 401 JSON (via proxy) | 404 text/plain |
+| `POST autoshop-api-7ek9.onrender.com/auth/login` | 401 JSON | 401 JSON ✓ |
+| `GET autoshopsmsai.com/health` | 200 JSON (via proxy) | 404 text/plain |
+
+### Files Changed
+| File | Change |
+|------|--------|
+| `apps/web/vercel.json` | NEW — rewrites for /auth/*, /billing/*, /webhooks/*, /health |
+
+### Next Action
+Merge deploy/auth-routes-to-main → main → Vercel auto-deploys → rewrites active.
+
+---
+
 ## TASK: fix-connection-error-login-signup — 2026-03-09
 
 **Branch:** deploy/auth-routes-to-main
