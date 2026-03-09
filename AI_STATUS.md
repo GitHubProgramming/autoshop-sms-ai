@@ -9,7 +9,36 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
-## LAST COMPLETED TASK — Deployment Truth + Admin Stabilization (2026-03-08)
+## LAST COMPLETED TASK — Production Deploy Fix (2026-03-09)
+
+**Branch:** ai/paid-launch-pass
+**Commit:** b2caa5a
+**Status:** PR OPEN — awaiting merge to main → Vercel auto-redeploys
+
+### What was done
+
+**Root cause identified:** Vercel serves `autoshopsmsai.com` from `main` branch.
+`main` was at `bf43d31` (before signup CTA fixes). `signup.html` returned 404 on production.
+
+**Fix:**
+1. `vercel.json` (NEW) — explicitly sets `outputDirectory: "apps/web"` so Vercel
+   config is repo-driven, not just Vercel dashboard state.
+2. PR opened: https://github.com/GitHubProgramming/autoshop-sms-ai/compare/main...ai/paid-launch-pass
+   Merging it brings all 10 updated `apps/web/` files to production.
+
+### Verified (local)
+- `apps/web/index.html` — all trial CTAs → `signup.html` (no `login.html` CTAs remain)
+- `apps/web/signup.html` — exists, 200 OK locally
+
+### Remaining blocker (post-merge)
+- **Production API**: `/auth/*` routes return 404 on Vercel — no production API server deployed.
+  Signup form will show network error until a production API is deployed and
+  `vercel.json` rewrites are added pointing to the production backend URL.
+  This is a separate deployment task.
+
+---
+
+## PREVIOUS TASK — Deployment Truth + Admin Stabilization (2026-03-08)
 
 **Branch:** ai/paid-launch-pass
 **Commit:** 63c698e
