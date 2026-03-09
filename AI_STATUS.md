@@ -9,32 +9,53 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
-## LAST COMPLETED TASK — Production Deploy Fix (2026-03-09)
+## LAST SESSION — Production Deploy Fix (2026-03-09)
 
-**Branch:** ai/paid-launch-pass
-**Commit:** b2caa5a
-**Status:** PR OPEN — awaiting merge to main → Vercel auto-redeploys
+**Branch:** deploy/signup-flow-to-production
+**Commit:** 9f047a8
+**Status:** PR OPEN — merge required at GitHub
 
-### What was done
+### PR URL
+https://github.com/GitHubProgramming/autoshop-sms-ai/pull/new/deploy/signup-flow-to-production
 
-**Root cause identified:** Vercel serves `autoshopsmsai.com` from `main` branch.
-`main` was at `bf43d31` (before signup CTA fixes). `signup.html` returned 404 on production.
+### Root cause confirmed
+Production (Vercel) deploys from `main`. `main` was missing signup.html and had
+old login.html CTAs. No production API exists anywhere (api.autoshopsmsai.com = NXDOMAIN).
 
-**Fix:**
-1. `vercel.json` (NEW) — explicitly sets `outputDirectory: "apps/web"` so Vercel
-   config is repo-driven, not just Vercel dashboard state.
-2. PR opened: https://github.com/GitHubProgramming/autoshop-sms-ai/compare/main...ai/paid-launch-pass
-   Merging it brings all 10 updated `apps/web/` files to production.
+### Files prepared on deploy branch
+- `apps/web/index.html` — trial CTAs → signup.html
+- `apps/web/signup.html` — NEW signup form
+- `apps/web/onboarding.html`, `privacy.html`, `terms.html` — NEW
+- `apps/web/login.html`, `app.html`, `admin.html`, `demo.html` — updated
+- `vercel.json` — explicit outputDirectory=apps/web
+- `render.yaml` — one-click API deployment config for Render.com
 
-### Verified (local)
-- `apps/web/index.html` — all trial CTAs → `signup.html` (no `login.html` CTAs remain)
-- `apps/web/signup.html` — exists, 200 OK locally
+### Production state when this session ended (2026-03-09 ~07:30 UTC)
+- GET / → old index.html (login.html CTAs) — PENDING PR MERGE
+- GET /signup.html → 404 — PENDING PR MERGE
+- POST /auth/signup → 404 — NO PRODUCTION API EXISTS
 
-### Remaining blocker (post-merge)
-- **Production API**: `/auth/*` routes return 404 on Vercel — no production API server deployed.
-  Signup form will show network error until a production API is deployed and
-  `vercel.json` rewrites are added pointing to the production backend URL.
-  This is a separate deployment task.
+### Remaining blockers
+
+**BLOCKER 1 — Merge PR (30 seconds, manual)**
+https://github.com/GitHubProgramming/autoshop-sms-ai/pull/new/deploy/signup-flow-to-production
+→ Vercel auto-deploys within 60s
+
+**BLOCKER 2 — Deploy production API (~30 min, manual)**
+1. render.com → New → Blueprint → connect repo → render.yaml auto-configures
+2. Set env vars manually: TWILIO_*, STRIPE_*, OPENAI_API_KEY, ADMIN_EMAILS
+3. Copy the service URL (e.g. https://autoshop-api.onrender.com)
+4. Update vercel.json with rewrites (snippet below) → push → Vercel redeploys
+
+**vercel.json rewrites to add after API is deployed:**
+```json
+"rewrites": [
+  { "source": "/auth/:path*", "destination": "https://YOUR_API_URL/auth/:path*" },
+  { "source": "/billing/:path*", "destination": "https://YOUR_API_URL/billing/:path*" },
+  { "source": "/webhooks/:path*", "destination": "https://YOUR_API_URL/webhooks/:path*" },
+  { "source": "/health", "destination": "https://YOUR_API_URL/health" }
+]
+```
 
 ---
 
