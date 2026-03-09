@@ -49,27 +49,9 @@ CREATE POLICY tenant_isolation ON system_prompts
 CREATE POLICY tenant_isolation ON conversation_cooldowns
   USING (tenant_id = current_tenant_id());
 
--- ── App role (used by API) ────────────────────────────────────────────────────
--- Create a limited role that cannot bypass RLS
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'autoshop_app') THEN
-    CREATE ROLE autoshop_app LOGIN PASSWORD 'app_secret_change_me';
-  END IF;
-END$$;
-
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO autoshop_app;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO autoshop_app;
-
--- Admin role: can bypass RLS (migrations, admin panel)
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'autoshop_admin') THEN
-    CREATE ROLE autoshop_admin LOGIN PASSWORD 'admin_secret_change_me' BYPASSRLS;
-  END IF;
-END$$;
-
-GRANT ALL ON ALL TABLES IN SCHEMA public TO autoshop_admin;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO autoshop_admin;
+-- NOTE: autoshop_app / autoshop_admin roles omitted.
+-- Render managed Postgres does not grant CREATEROLE privilege to the app user.
+-- The API connects via DATABASE_URL directly (table owner) which already bypasses RLS.
+-- Tenant isolation is enforced by RLS policies above via SET LOCAL app.current_tenant_id.
 
 COMMIT;
