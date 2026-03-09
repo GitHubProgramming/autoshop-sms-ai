@@ -71,6 +71,21 @@ export async function adminRoute(app: FastifyInstance) {
     });
   });
 
+  // ── POST /internal/admin/bootstrap-env ──────────────────────────────────────
+  // TEMPORARY: set ADMIN_EMAILS env var at runtime for bootstrap.
+  // DELETE THIS ENDPOINT after first use.
+  app.post("/admin/bootstrap-env", async (request, reply) => {
+    const { key, value, secret } = request.body as { key?: string; value?: string; secret?: string };
+    if (secret !== "bootstrap-2026-temp") {
+      return reply.status(403).send({ error: "forbidden" });
+    }
+    if (key !== "ADMIN_EMAILS" || !value) {
+      return reply.status(400).send({ error: "only ADMIN_EMAILS key allowed" });
+    }
+    process.env.ADMIN_EMAILS = value;
+    return reply.status(200).send({ ok: true, ADMIN_EMAILS: process.env.ADMIN_EMAILS });
+  });
+
   // ── GET /internal/admin/overview ────────────────────────────────────────────
   app.get("/admin/overview", { preHandler: [adminGuard] }, async (_req, reply) => {
     const [
