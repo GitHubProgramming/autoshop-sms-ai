@@ -21,9 +21,10 @@ cd ../..
 
 echo "Docker smoke test"
 docker compose -f infra/docker-compose.yml build
+docker compose -f infra/docker-compose.yml down -v --remove-orphans 2>/dev/null || true
 docker compose -f infra/docker-compose.yml up -d
 
-sleep 10
+sleep 30
 
 curl -f http://localhost:3000/health || exit 1
 
