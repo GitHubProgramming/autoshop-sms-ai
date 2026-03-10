@@ -1668,7 +1668,10 @@ async function disconnectGoogleCalendar() {
       return;
     }
     showToast('Google Calendar disconnected.');
-    loadDashboard();
+    await loadDashboardData();
+    renderNav();
+    renderChecklist();
+    renderHealthGrid();
   } catch (err) {
     showToast('Connection error — please try again.');
   }
