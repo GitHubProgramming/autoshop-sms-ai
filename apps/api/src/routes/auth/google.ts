@@ -170,4 +170,20 @@ export async function googleAuthRoute(app: FastifyInstance) {
     // Redirect back to the app dashboard with a success flag
     return reply.redirect(`${publicOrigin}/app.html?calendar=connected`);
   });
+
+  /**
+   * DELETE /auth/google/disconnect
+   * Removes the tenant's Google Calendar tokens, effectively disconnecting.
+   */
+  app.delete("/disconnect", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { tenantId } = request.user as { tenantId: string };
+
+    await query(
+      `DELETE FROM tenant_calendar_tokens WHERE tenant_id = $1`,
+      [tenantId]
+    );
+
+    request.log.info({ tenantId }, "Google Calendar disconnected for tenant");
+    return reply.send({ ok: true });
+  });
 }
