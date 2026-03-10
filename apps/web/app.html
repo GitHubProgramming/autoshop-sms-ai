@@ -889,7 +889,7 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
     <div class="view" id="view-billing">
       <div class="page-header">
         <div><div class="page-title">Billing</div><div class="page-subtitle">Subscription, usage, and payment</div></div>
-        <div class="page-actions"><a href="#" class="btn-sm primary">Open Billing Portal</a></div>
+        <div class="page-actions"><a href="#" class="btn-sm primary" onclick="openBillingPortal();return false;">Open Billing Portal</a></div>
       </div>
       <div id="billingContent"></div>
     </div>
@@ -1167,6 +1167,18 @@ document.addEventListener('DOMContentLoaded', async function() {
     showToast('Google Calendar connection was denied or failed.');
     window.history.replaceState({}, '', window.location.pathname);
   }
+
+  // Handle Stripe checkout return
+  var billingParam = new URLSearchParams(window.location.search).get('billing');
+  if (billingParam === 'success') {
+    showToast('Subscription activated! Your plan will update shortly.');
+    switchView('billing');
+    window.history.replaceState({}, '', window.location.pathname);
+  } else if (billingParam === 'canceled') {
+    showToast('Checkout canceled — no charges were made.');
+    switchView('billing');
+    window.history.replaceState({}, '', window.location.pathname);
+  }
 });
 
 // ════════════════════════════════════════════
@@ -1179,13 +1191,13 @@ function renderBanners() {
 
   if (isSuspended) {
     const msgs = { suspended:'Your account has been suspended. Service is paused — no new conversations will be started.', canceled:'Your subscription is canceled. Reactivate to resume missed-call recovery.', trial_expired:'Your trial has expired. Upgrade to continue recovering missed-call revenue.' };
-    html += `<div class="banner paused"><div class="banner-left"><span class="banner-label red">⚠ Service Paused</span><span class="banner-msg red">${msgs[s.status]}</span></div><a href="/signup" class="btn-upgrade red">Reactivate Now</a></div>`;
+    html += `<div class="banner paused"><div class="banner-left"><span class="banner-label red">⚠ Service Paused</span><span class="banner-msg red">${msgs[s.status]}</span></div><a href="#" onclick="switchView('billing');return false;" class="btn-upgrade red">Reactivate Now</a></div>`;
   } else if (s.plan === 'trial') {
     const limit = s.trialLimit;
     const pct = Math.round((s.convUsed / limit) * 100);
-    html += `<div class="banner trial"><div class="banner-left"><span class="banner-label rust">14-Day Trial</span><div style="display:flex;align-items:center;gap:10px;"><div class="banner-bar-bg"><div class="banner-bar-fill" style="width:${pct}%;background:linear-gradient(90deg,var(--rust),var(--amber));"></div></div><span class="banner-count"><strong>${s.convUsed}</strong> / ${limit} conversations used</span></div><span class="banner-days">Ends ${s.trialEndsAt}</span></div><a href="/signup" class="btn-upgrade">Upgrade Now</a></div>`;
+    html += `<div class="banner trial"><div class="banner-left"><span class="banner-label rust">14-Day Trial</span><div style="display:flex;align-items:center;gap:10px;"><div class="banner-bar-bg"><div class="banner-bar-fill" style="width:${pct}%;background:linear-gradient(90deg,var(--rust),var(--amber));"></div></div><span class="banner-count"><strong>${s.convUsed}</strong> / ${limit} conversations used</span></div><span class="banner-days">Ends ${s.trialEndsAt}</span></div><a href="#" onclick="switchView('billing');return false;" class="btn-upgrade">Upgrade Now</a></div>`;
   } else if (s.status === 'past_due') {
-    html += `<div class="banner warning-80"><div class="banner-left"><span class="banner-label amber">Payment Past Due</span><span class="banner-msg amber">Update your payment method to prevent service interruption.</span></div><a href="#" class="btn-upgrade amber">Update Payment</a></div>`;
+    html += `<div class="banner warning-80"><div class="banner-left"><span class="banner-label amber">Payment Past Due</span><span class="banner-msg amber">Update your payment method to prevent service interruption.</span></div><a href="#" onclick="openBillingPortal();return false;" class="btn-upgrade amber">Update Payment</a></div>`;
   }
 
   // Usage warnings (paid only)
@@ -1547,9 +1559,9 @@ function renderBillingPage() {
         <div class="billing-card-header">Billing Actions</div>
         <div class="billing-card-body">
           <div style="display:flex;flex-direction:column;gap:10px;">
-            <a href="#" class="btn-sm primary" style="text-align:center;">Open Billing Portal</a>
-            <button class="btn-sm" onclick="showToast('Opening invoice history...')">View Invoices</button>
-            <button class="btn-sm" onclick="showToast('Opening payment method update...')">Update Payment Method</button>
+            <a href="#" class="btn-sm primary" style="text-align:center;" onclick="openBillingPortal();return false;">Open Billing Portal</a>
+            <button class="btn-sm" onclick="openBillingPortal()">View Invoices</button>
+            <button class="btn-sm" onclick="openBillingPortal()">Update Payment Method</button>
           </div>
           <div style="font-family:var(--mono);font-size:11px;color:var(--steel);margin-top:20px;line-height:1.8;letter-spacing:.04em;">
             Billing secured by Stripe.<br>
@@ -1567,24 +1579,71 @@ function renderBillingPage() {
           <div class="plan-option-name">Starter</div>
           <div class="plan-option-price">$199<span>/mo</span></div>
           <div class="plan-option-limit">150 conversations/mo</div>
-          <button class="btn-sm" style="margin-top:14px;" onclick="showToast('Redirecting to Stripe checkout...')">Select</button>
+          <button class="btn-sm" style="margin-top:14px;" onclick="startCheckout('starter')">Select</button>
         </div>
         <div class="plan-option recommended">
           <div class="plan-option-name">Pro</div>
           <div class="plan-option-price">$299<span>/mo</span></div>
           <div class="plan-option-limit">400 conversations/mo</div>
           <div class="plan-option-tag">Most Popular</div>
-          <button class="btn-sm primary" style="margin-top:14px;" onclick="showToast('Redirecting to Stripe checkout...')">Upgrade</button>
+          <button class="btn-sm primary" style="margin-top:14px;" onclick="startCheckout('pro')">Upgrade</button>
         </div>
         <div class="plan-option">
           <div class="plan-option-name">Premium</div>
           <div class="plan-option-price">$499<span>/mo</span></div>
           <div class="plan-option-limit">1,000 conversations/mo</div>
-          <button class="btn-sm" style="margin-top:14px;" onclick="showToast('Redirecting to Stripe checkout...')">Select</button>
+          <button class="btn-sm" style="margin-top:14px;" onclick="startCheckout('premium')">Select</button>
         </div>
       </div>
     </div>`;
   document.getElementById('billingContent').innerHTML = html;
+}
+
+// ════════════════════════════════════════════
+// BILLING ACTIONS
+// ════════════════════════════════════════════
+async function startCheckout(plan) {
+  var session = JSON.parse(localStorage.getItem('autoshop_session') || '{}');
+  if (!session.token) { showToast('Session expired — please log in again.'); return; }
+
+  showToast('Redirecting to Stripe checkout...');
+  try {
+    var res = await fetch('/billing/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.token },
+      body: JSON.stringify({
+        plan: plan,
+        successUrl: window.location.origin + '/app.html?billing=success',
+        cancelUrl: window.location.origin + '/app.html?billing=canceled'
+      })
+    });
+    if (res.status === 401) { showToast('Session expired — please log in again.'); return; }
+    var data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Checkout failed — please try again.'); return; }
+    if (data.url) { window.location.href = data.url; }
+  } catch (err) {
+    console.error('Checkout error:', err);
+    showToast('Connection error — please try again.');
+  }
+}
+
+async function openBillingPortal() {
+  var session = JSON.parse(localStorage.getItem('autoshop_session') || '{}');
+  if (!session.token) { showToast('Session expired — please log in again.'); return; }
+
+  showToast('Opening billing portal...');
+  try {
+    var res = await fetch('/billing/portal', {
+      headers: { 'Authorization': 'Bearer ' + session.token }
+    });
+    if (res.status === 401) { showToast('Session expired — please log in again.'); return; }
+    var data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Could not open billing portal.'); return; }
+    if (data.url) { window.location.href = data.url; }
+  } catch (err) {
+    console.error('Portal error:', err);
+    showToast('Connection error — please try again.');
+  }
 }
 
 // ════════════════════════════════════════════
