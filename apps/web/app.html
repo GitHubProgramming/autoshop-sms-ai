@@ -622,7 +622,7 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
   <div class="nav-left">
     <a href="index.html" class="nav-logo">AutoShop <span>SMS</span> AI</a>
     <div class="nav-divider"></div>
-    <span class="nav-shop" id="navShopName">Dallas Auto Care</span>
+    <span class="nav-shop" id="navShopName">—</span>
     <span class="plan-badge" id="navPlanBadge">Trial</span>
   </div>
   <div class="nav-right">
@@ -631,8 +631,8 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
       <div class="nav-usage-mini"><div class="nav-usage-mini-fill" id="navUsageFill"></div></div>
     </div>
     <div class="nav-account">
-      <div class="nav-avatar">M</div>
-      <span class="nav-account-name">Mike R.</span>
+      <div class="nav-avatar" id="navAvatar">?</div>
+      <span class="nav-account-name" id="navAccountName">—</span>
       <span style="font-size:10px;color:var(--steel);margin-left:2px;">▾</span>
       <div class="nav-dropdown">
         <a href="#" onclick="switchView('billing');return false;">Billing</a>
@@ -701,7 +701,7 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
       <div class="page-header">
         <div>
           <div class="page-title">Revenue Recovery</div>
-          <div class="page-subtitle" id="dashSubtitle">June 2025 · Dallas Auto Care</div>
+          <div class="page-subtitle" id="dashSubtitle">—</div>
         </div>
         <div class="page-actions">
           <a href="#" class="btn-sm">Export CSV</a>
@@ -717,21 +717,9 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
         <div class="hero-metrics" id="heroMetrics"></div>
       </div>
 
-      <!-- REVENUE SINCE ACTIVATION -->
+      <!-- REVENUE SINCE ACTIVATION (populated by JS) -->
       <div class="section-label">All-Time Performance</div>
-      <div class="kpi-grid" style="grid-template-columns:1fr;margin-bottom:2px;">
-        <div class="kpi-card since-activation">
-          <div>
-            <div class="since-label">Revenue Recovered Since Activation</div>
-            <div class="since-value"><span class="curr">$</span>27,540</div>
-            <div class="since-sub"><span>82 appointments booked</span><span>System active 64 days</span></div>
-          </div>
-          <div class="since-right">
-            <div class="since-stat"><div class="since-stat-val">$336</div><div class="since-stat-label">Daily Avg</div></div>
-            <div class="since-stat"><div class="since-stat-val">92x</div><div class="since-stat-label">Lifetime ROI</div></div>
-          </div>
-        </div>
-      </div>
+      <div id="sinceActivationBlock" class="kpi-grid" style="grid-template-columns:1fr;margin-bottom:2px;"></div>
 
       <!-- ACTIVATION CHECKLIST -->
       <div class="section-label">Setup Status</div>
@@ -762,122 +750,17 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
       </div>
       </div><!-- /checklistWrapper -->
 
-      <!-- KPI CARDS -->
+      <!-- KPI CARDS (populated by JS) -->
       <div class="section-label">Performance Snapshot</div>
-      <div class="kpi-grid">
-        <div class="kpi-card revenue fade-in">
-          <div class="kpi-tag">Recovered Revenue — This Month</div>
-          <div class="kpi-value"><span class="curr">$</span>4,320</div>
-          <div class="kpi-change up">▲ 18% vs last month</div>
-          <div class="kpi-sub">Estimated from 8 booked appointments × avg ARO</div>
-        </div>
-        <div class="kpi-card calls fade-in">
-          <div class="kpi-tag">Missed Calls Captured</div>
-          <div class="kpi-value">32</div>
-          <div class="kpi-change up">▲ 5 vs last month</div>
-          <div class="kpi-sub">Calls that triggered instant SMS response</div>
-        </div>
-        <div class="kpi-card booked fade-in">
-          <div class="kpi-tag">Appointments Booked</div>
-          <div class="kpi-value">8</div>
-          <div class="kpi-change up">▲ 2 vs last month</div>
-          <div class="kpi-sub">Confirmed &amp; added to Google Calendar</div>
-        </div>
-        <div class="kpi-card health-card fade-in">
-          <div class="health-header">
-            <div class="kpi-tag" style="margin-bottom:0;">System Health</div>
-          </div>
-          <div class="health-row">
-            <span class="health-label">Twilio SMS</span>
-            <span class="health-val ok"><span class="hdot green"></span>Connected</span>
-          </div>
-          <div class="health-row">
-            <span class="health-label">Google Calendar</span>
-            <span class="health-val ok"><span class="hdot green"></span>Connected</span>
-          </div>
-          <div class="health-row">
-            <span class="health-label">Last SMS Sent</span>
-            <span class="health-val neutral">2 min ago</span>
-          </div>
-          <div class="health-row">
-            <span class="health-label">Last Appt Booked</span>
-            <span class="health-val neutral">Today 10:32 AM</span>
-          </div>
-        </div>
-      </div>
+      <div class="kpi-grid" id="kpiGrid"></div>
 
-      <!-- TODAY ACTIVITY -->
+      <!-- TODAY ACTIVITY (populated by JS) -->
       <div class="section-label">Today's Activity</div>
-      <div class="today-grid">
-        <div class="today-card">
-          <div class="today-tag">Missed Calls Today</div>
-          <div class="today-num">4</div>
-        </div>
-        <div class="today-card">
-          <div class="today-tag">SMS Sent</div>
-          <div class="today-num">4</div>
-        </div>
-        <div class="today-card" style="border-bottom-color:var(--amber);">
-          <div class="today-tag">Active Conversations</div>
-          <div class="today-num amber">3</div>
-        </div>
-        <div class="today-card">
-          <div class="today-tag">Appointments Booked</div>
-          <div class="today-num green">2</div>
-        </div>
-      </div>
+      <div class="today-grid" id="todayGrid"></div>
 
-      <!-- PIPELINE -->
-      <div class="section-label">Conversion Pipeline — June 2025</div>
-      <div class="pipeline-wrap">
-        <div class="pipeline-stages">
-          <div class="pipeline-stage">
-            <div class="pipeline-stage-inner">
-              <div class="p-stage-name">Missed Calls</div>
-              <div class="p-stage-count">32</div>
-              <div class="p-stage-conv" style="color:var(--steel-mid);">Baseline</div>
-              <div class="p-stage-drop">100% entered</div>
-              <div class="p-stage-bar"><div class="p-stage-bar-fill" style="width:100%;background:var(--green);"></div></div>
-            </div><div class="pipeline-arrow">→</div>
-          </div>
-          <div class="pipeline-stage">
-            <div class="pipeline-stage-inner">
-              <div class="p-stage-name">SMS Sent</div>
-              <div class="p-stage-count">32</div>
-              <div class="p-stage-conv" style="color:var(--green);">100% delivery</div>
-              <div class="p-stage-drop">0 failed sends</div>
-              <div class="p-stage-bar"><div class="p-stage-bar-fill" style="width:100%;background:var(--green);"></div></div>
-            </div><div class="pipeline-arrow">→</div>
-          </div>
-          <div class="pipeline-stage">
-            <div class="pipeline-stage-inner">
-              <div class="p-stage-name">Replied</div>
-              <div class="p-stage-count">21</div>
-              <div class="p-stage-conv" style="color:var(--green);">66% reply rate</div>
-              <div class="p-stage-drop warn">↓ 34% no reply</div>
-              <div class="p-stage-bar"><div class="p-stage-bar-fill" style="width:66%;background:var(--green);"></div></div>
-            </div><div class="pipeline-arrow">→</div>
-          </div>
-          <div class="pipeline-stage">
-            <div class="pipeline-stage-inner">
-              <div class="p-stage-name">Booked</div>
-              <div class="p-stage-count">8</div>
-              <div class="p-stage-conv" style="color:var(--amber);">38% of replies</div>
-              <div class="p-stage-drop warn">↓ 62% not booked</div>
-              <div class="p-stage-bar"><div class="p-stage-bar-fill" style="width:38%;background:var(--amber);"></div></div>
-            </div><div class="pipeline-arrow">→</div>
-          </div>
-          <div class="pipeline-stage lost">
-            <div class="pipeline-stage-inner">
-              <div class="p-stage-name">Lost</div>
-              <div class="p-stage-count">24</div>
-              <div class="p-stage-conv" style="color:var(--red);">75% of all calls</div>
-              <div class="p-stage-drop danger">Est. $14,400 lost ARO</div>
-              <div class="p-stage-bar"><div class="p-stage-bar-fill" style="width:75%;background:var(--red);"></div></div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <!-- PIPELINE (populated by JS) -->
+      <div class="section-label" id="pipelineLabel">Conversion Pipeline</div>
+      <div class="pipeline-wrap" id="pipelineWrap"></div>
 
       <!-- INTEGRATIONS & HEALTH PANEL -->
       <div class="section-label">Integrations &amp; Health</div>
@@ -909,33 +792,14 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
             <tbody id="dashConvBody"></tbody>
           </table>
         </div>
-        <div class="revenue-sidebar">
-          <div class="rev-card">
-            <div class="rev-card-title">Revenue Summary — June</div>
-            <div class="rev-stat"><div class="rev-stat-label">Recovered (This Month)</div><div class="rev-stat-value green">$4,320</div></div>
-            <div class="rev-stat"><div class="rev-stat-label">Avg Revenue Per Booking</div><div class="rev-stat-value amber">$540</div></div>
-            <div class="rev-stat"><div class="rev-stat-label">Recovered YTD</div><div class="rev-stat-value">$18,760</div></div>
-          </div>
-          <div class="roi-highlight">
-            <div class="rev-card-title" style="margin-bottom:12px;">ROI vs Subscription</div>
-            <div class="roi-x"><span>14</span>x</div>
-            <div class="roi-desc">$4,320 recovered vs $299/mo subscription cost. Every dollar spent returns fourteen.</div>
-          </div>
-          <div class="rev-card" style="border-top:none;margin-top:-1px;">
-            <div class="rev-card-title">Revenue vs Subscription</div>
-            <div class="rev-sub-row"><span class="rev-sub-label">Recovered (This Month)</span><span class="rev-sub-value green">$4,320</span></div>
-            <div class="rev-sub-row"><span class="rev-sub-label">Subscription Cost</span><span class="rev-sub-value" style="color:var(--steel-mid);">$299</span></div>
-            <div class="rev-sub-row" style="border-bottom:none;padding-bottom:0;"><span class="rev-sub-label" style="color:var(--white);font-weight:600;">ROI</span><span class="rev-sub-value" style="color:var(--green);font-size:20px;font-family:var(--display);font-weight:900;">14.4x</span></div>
-            <div style="font-family:var(--mono);font-size:10px;color:var(--steel);letter-spacing:.05em;line-height:1.6;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">Estimated from booked appointments and average repair order.</div>
-          </div>
-        </div>
+        <div class="revenue-sidebar" id="revenueSidebar"></div>
       </div>
     </div>
 
     <!-- ═══ CONVERSATIONS ═══ -->
     <div class="view" id="view-conversations">
       <div class="page-header">
-        <div><div class="page-title">Conversations</div><div class="page-subtitle">All SMS threads — June 2025</div></div>
+        <div><div class="page-title">Conversations</div><div class="page-subtitle" id="convsSubtitle">All SMS threads</div></div>
         <div class="page-actions"><button class="btn-sm" onclick="showToast('Export coming soon.')">Export CSV</button></div>
       </div>
       <div class="log-wrap">
@@ -984,7 +848,7 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
     <!-- ═══ REVENUE ═══ -->
     <div class="view" id="view-revenue">
       <div class="page-header">
-        <div><div class="page-title">Revenue Analytics</div><div class="page-subtitle">Recovered revenue tracking — Dallas Auto Care</div></div>
+        <div><div class="page-title">Revenue Analytics</div><div class="page-subtitle" id="revenueSubtitle">Recovered revenue tracking</div></div>
       </div>
       <div class="chart-wrap">
         <div class="chart-header">
@@ -1008,16 +872,16 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
             <circle cx="650" cy="20" r="5" fill="#D97706"/><circle cx="800" cy="25" r="4" fill="#C94B1F"/>
           </svg>
         </div>
-        <div class="chart-meta">
-          <div class="chart-meta-item"><div class="chart-meta-label">Total Recovered YTD</div><div class="chart-meta-value">$18,760</div></div>
-          <div class="chart-meta-item"><div class="chart-meta-label">Avg Revenue Per Booking</div><div class="chart-meta-value amber">$540</div></div>
-          <div class="chart-meta-item"><div class="chart-meta-label">ROI vs Subscription</div><div class="chart-meta-value green">14x</div></div>
+        <div class="chart-meta" id="revenueChartMeta">
+          <div class="chart-meta-item"><div class="chart-meta-label">Total Bookings</div><div class="chart-meta-value" id="revTotalBookings">—</div></div>
+          <div class="chart-meta-item"><div class="chart-meta-label">Bookings This Month</div><div class="chart-meta-value amber" id="revMonthBookings">—</div></div>
+          <div class="chart-meta-item"><div class="chart-meta-label">Conversations This Month</div><div class="chart-meta-value green" id="revMonthConvs">—</div></div>
         </div>
       </div>
-      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">
-        <div class="kpi-card revenue"><div class="kpi-tag">Best Month (YTD)</div><div class="kpi-value"><span class="curr">$</span>5,040</div><div class="kpi-sub">May 2025 — 10 appointments booked</div></div>
-        <div class="kpi-card calls"><div class="kpi-tag">Total Bookings (YTD)</div><div class="kpi-value">38</div><div class="kpi-sub">Across 6 months of operation</div></div>
-        <div class="kpi-card booked"><div class="kpi-tag">Subscription Cost (YTD)</div><div class="kpi-value"><span class="curr">$</span>1,794</div><div class="kpi-sub">$299/mo × 6 months — $18,760 returned</div></div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);" id="revenueKpiGrid">
+        <div class="kpi-card revenue"><div class="kpi-tag">Total Conversations</div><div class="kpi-value" id="revTotalConvs">—</div><div class="kpi-sub">All-time since activation</div></div>
+        <div class="kpi-card calls"><div class="kpi-tag">Total Bookings</div><div class="kpi-value" id="revTotalBookings2">—</div><div class="kpi-sub">All-time appointments booked</div></div>
+        <div class="kpi-card booked"><div class="kpi-tag">Plan</div><div class="kpi-value" id="revPlan" style="font-size:36px;">—</div><div class="kpi-sub" id="revPlanSub">Current subscription plan</div></div>
       </div>
     </div>
 
@@ -1075,7 +939,7 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
           </div>
           <div class="settings-row">
             <div><div class="settings-row-label">Shop Name in Messages</div></div>
-            <input class="s-input" type="text" value="Dallas Auto Care" style="width:200px;">
+            <input class="s-input" type="text" id="settingsShopName" value="" style="width:200px;">
           </div>
         </div>
       </div>
@@ -1084,22 +948,25 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
           <div class="settings-group-title">Twilio SMS</div>
           <div class="settings-row">
             <div><div class="settings-row-label">SMS Number</div><div class="settings-row-sub">Dedicated number provisioned for your shop</div></div>
-            <div style="display:flex;gap:10px;align-items:center;"><span class="int-connected">+1 (214) 555-0182</span><button class="btn-sm">View Number</button></div>
+            <div style="display:flex;gap:10px;align-items:center;"><span id="settingsTwilioNumber" class="int-connected">—</span></div>
           </div>
           <div class="settings-row">
             <div><div class="settings-row-label">Connection Status</div></div>
-            <span class="int-connected">Connected</span>
+            <span id="settingsTwilioStatus">—</span>
           </div>
         </div>
         <div class="settings-group">
           <div class="settings-group-title">Google Calendar</div>
           <div class="settings-row">
-            <div><div class="settings-row-label">Connected Account</div></div>
-            <div style="display:flex;gap:10px;align-items:center;"><span class="int-connected" id="calendarConnectedEmail">—</span><button class="btn-sm" onclick="connectGoogleCalendar()">Connect / Reconnect</button></div>
+            <div><div class="settings-row-label">Status</div></div>
+            <div style="display:flex;gap:10px;align-items:center;">
+              <span id="calendarConnectedStatus" style="font-family:var(--mono);font-size:12px;">—</span>
+              <button class="btn-sm" id="calendarActionBtn" onclick="connectGoogleCalendar()">Connect Calendar</button>
+            </div>
           </div>
           <div class="settings-row">
-            <div><div class="settings-row-label">Last Sync</div></div>
-            <span style="font-family:var(--mono);font-size:12px;color:var(--steel);">2 minutes ago</span>
+            <div><div class="settings-row-label">Calendar ID</div></div>
+            <span id="calendarConnectedEmail" style="font-family:var(--mono);font-size:12px;color:var(--steel);">—</span>
           </div>
         </div>
       </div>
@@ -1129,152 +996,162 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
 
 <script>
 // ════════════════════════════════════════════
-// TENANT STATE — edit this to change everything
+// TENANT STATE — populated from API
 // ════════════════════════════════════════════
-const tenantState = {
-  shopName:    'Dallas Auto Care',
-  plan:        'trial',         // trial | starter | pro | premium
-  status:      'trial',         // trial | active | past_due | suspended | canceled | trial_expired
-  trialEndsAt: '2025-06-23',
-  convUsed:    32,
-  convLimit:   150,             // paid plan limit
+let tenantState = {
+  shopName:    '—',
+  plan:        'trial',
+  status:      'trial',
+  trialEndsAt: '',
+  convUsed:    0,
+  convLimit:   50,
   trialLimit:  50,
-  billingRenewalDate: '2025-07-14',
+  billingRenewalDate: '',
   warnings:    { at80: false, at100: false },
   integrations: {
-    googleCalendar: 'connected',    // connected | token_expired | revoked | failed
-    twilioNumber:   'active',       // active | provisioning | released
-    callForwarding: 'verified',     // not_verified | verified
-    testSms:        'passed'        // passed | failed
+    googleCalendar: 'not_connected',
+    twilioNumber:   'not_provisioned',
+    callForwarding: 'not_verified',
+    testSms:        'failed'
   },
   health: {
-    twilioWebhooks: { status: 'healthy',  lastAt: '2 minutes ago' },
-    calendarSync:   { status: 'healthy',  lastAt: '2 minutes ago' },
-    aiEngine:       { status: 'healthy',  lastMs: 312 },
+    twilioWebhooks: { status: 'healthy',  lastAt: '—' },
+    calendarSync:   { status: 'healthy',  lastAt: '—' },
+    aiEngine:       { status: 'healthy',  lastMs: 0 },
     queue:          { status: 'healthy',  queuedJobs: 0 }
   }
 };
 
-// ════════════════════════════════════════════
-// DEMO DATA
-// ════════════════════════════════════════════
-const conversationsData = [
-  { id:'conv1', date:'Jun 14, 8:22 AM', phone:'(214) 555-0147', issue:'Check Engine Light',      status:'booked',      aro:'$640',   duration:'3m 42s' },
-  { id:'conv2', date:'Jun 14, 9:07 AM', phone:'(972) 555-0293', issue:'Brake Service',            status:'booked',      aro:'$420',   duration:'2m 18s' },
-  { id:'conv3', date:'Jun 13, 5:48 PM', phone:'(469) 555-0381', issue:'Oil Change + Inspection',  status:'active',      aro:'—',      duration:'Ongoing' },
-  { id:'conv4', date:'Jun 13, 2:15 PM', phone:'(817) 555-0512', issue:'AC Not Working',           status:'no-response', aro:'—',      duration:'—' },
-  { id:'conv5', date:'Jun 12, 11:30 AM',phone:'(214) 555-0774', issue:'Transmission Issue',       status:'booked',      aro:'$1,240', duration:'5m 09s' },
-  { id:'conv6', date:'Jun 12, 8:55 AM', phone:'(972) 555-0866', issue:'Battery Dead',             status:'lost',        aro:'—',      duration:'—' },
-  { id:'conv7', date:'Jun 11, 7:40 AM', phone:'(214) 555-0321', issue:'Tire Rotation',            status:'booked',      aro:'$180',   duration:'1m 55s' },
-  { id:'conv8', date:'Jun 10, 4:22 PM', phone:'(469) 555-0914', issue:'Strange Noise, Front End', status:'booked',      aro:'$520',   duration:'4m 11s' },
-];
+// Live data arrays — populated from API
+let conversationsData = [];
+let bookingsData = [];
+let convThreads = {};
+let dashboardStats = {};
 
-const bookingsData = [
-  { date:'Jun 19, 9:00 AM', phone:'(214) 555-0147', service:'Diagnostic — Check Engine Light', vehicle:'2019 Ford F-150',     syncStatus:'synced' },
-  { date:'Jun 14, 1:00 PM', phone:'(972) 555-0293', service:'Brake Service — Front & Rear',    vehicle:'2021 Chevrolet Silverado', syncStatus:'synced' },
-  { date:'Jun 13, 8:00 AM', phone:'(214) 555-0774', service:'Transmission Diagnostic',          vehicle:'2017 Ram 1500',        syncStatus:'synced' },
-  { date:'Jun 11, 7:30 AM', phone:'(214) 555-0321', service:'Tire Rotation + Balance',          vehicle:'2020 Toyota Tundra',   syncStatus:'synced' },
-  { date:'Jun 10, 2:00 PM', phone:'(469) 555-0914', service:'Front End Inspection',             vehicle:'2018 Ford Explorer',   syncStatus:'failed', failNote:'Token expired — reconnect calendar.' },
-  { date:'Jun 7, 10:00 AM', phone:'(972) 555-0512', service:'Full Synthetic Oil Change',        vehicle:'2022 GMC Sierra',      syncStatus:'synced' },
-  { date:'Jun 5, 8:30 AM',  phone:'(214) 555-0888', service:'AC Diagnostic + Recharge',        vehicle:'2016 Dodge Ram',       syncStatus:'pending' },
-];
+// ════════════════════════════════════════════
+// FORMAT HELPERS
+// ════════════════════════════════════════════
+function fmtDate(iso) {
+  if (!iso) return '—';
+  var d = new Date(iso);
+  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var h = d.getHours(); var m = d.getMinutes();
+  var ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return months[d.getMonth()] + ' ' + d.getDate() + ', ' + h + ':' + (m < 10 ? '0' : '') + m + ' ' + ampm;
+}
 
-const convThreads = {
-  conv1: {
-    title:'Check Engine Light', meta:'Jun 14, 2025 · 8:22 AM · (214) 555-0147',
-    info:[{l:'Status',v:'Booked',c:'green'},{l:'Est. ARO',v:'$640',c:'amber'},{l:'Duration',v:'3m 42s',c:''}],
-    thread:[
-      {d:'ai',t:"Hey — you just called Dallas Auto Care and we missed you. What can we help you with today?",ts:'8:22 AM'},
-      {d:'cu',t:"Check engine light came on this morning, driving a 2019 F-150."},
-      {d:'ai',t:"Got it. We can run a full diagnostic on that. We have Thursday at 9 AM or Friday at 2 PM open — which works?"},
-      {d:'cu',t:"Thursday at 9 works."},
-      {d:'ai',t:"Confirmed — Thursday June 19 at 9 AM for a diagnostic on your F-150. We'll send a reminder the day before. Anything else?"},
-      {d:'cu',t:"Nope that's it, thanks."},
-    ],
-    result:'Appointment booked — Thu Jun 19, 9:00 AM · Added to Google Calendar'
-  },
-  conv2: {
-    title:'Brake Service', meta:'Jun 14, 2025 · 9:07 AM · (972) 555-0293',
-    info:[{l:'Status',v:'Booked',c:'green'},{l:'Est. ARO',v:'$420',c:'amber'},{l:'Duration',v:'2m 18s',c:''}],
-    thread:[
-      {d:'ai',t:"Hi, you called Dallas Auto Care — we missed you. What brings you in?",ts:'9:07 AM'},
-      {d:'cu',t:"Brakes are squealing real bad. Front and back I think."},
-      {d:'ai',t:"Understood. Brake jobs are same-day for most vehicles. We have this afternoon at 1 PM or Monday morning at 8 AM. Which works?"},
-      {d:'cu',t:"This afternoon works."},
-      {d:'ai',t:"Perfect — today at 1 PM for brake service. What's your vehicle make and model?"},
-      {d:'cu',t:"2021 Silverado."},
-      {d:'ai',t:"Booked. See you at 1 PM today. We'll have you squared away."},
-    ],
-    result:'Appointment booked — Today, 1:00 PM · Added to Google Calendar'
-  },
-  conv3: {
-    title:'Oil Change + Inspection', meta:'Jun 13, 2025 · 5:48 PM · (469) 555-0381',
-    info:[{l:'Status',v:'Active',c:''},{l:'Est. ARO',v:'—',c:''},{l:'Messages',v:'3 sent',c:''}],
-    thread:[
-      {d:'ai',t:"Hey — missed your call at Dallas Auto Care. What can we help with?",ts:'5:48 PM'},
-      {d:'cu',t:"Need an oil change and probably a full inspection. Been a while."},
-      {d:'ai',t:"No problem. We do full synthetic oil + 30-point inspection together. Slots available this Saturday at 8 AM or Monday at 11 AM — which works?"},
-    ],
-    result: null
-  },
-  conv4: {
-    title:'AC Not Working', meta:'Jun 13, 2025 · 2:15 PM · (817) 555-0512',
-    info:[{l:'Status',v:'No Response',c:''},{l:'Est. ARO',v:'—',c:''},{l:'SMS Sent',v:'1 message',c:''}],
-    thread:[{d:'ai',t:"Hi — you called Dallas Auto Care and we missed you. What's going on with your vehicle?",ts:'2:15 PM'}],
-    result: null
-  },
-  conv5: {
-    title:'Transmission Issue', meta:'Jun 12, 2025 · 11:30 AM · (214) 555-0774',
-    info:[{l:'Status',v:'Booked',c:'green'},{l:'Est. ARO',v:'$1,240',c:'amber'},{l:'Duration',v:'5m 09s',c:''}],
-    thread:[
-      {d:'ai',t:"Hey — missed your call at Dallas Auto Care. How can we help?",ts:'11:30 AM'},
-      {d:'cu',t:"My truck is slipping gears bad. Getting worse every day."},
-      {d:'ai',t:"That sounds like it needs attention soon. A transmission diagnostic takes about an hour. Can you come in tomorrow morning or Thursday?"},
-      {d:'cu',t:"Tomorrow morning if possible."},
-      {d:'ai',t:"We can fit you in Thursday June 13 at 8 AM. Sound good?"},
-      {d:'cu',t:"Yeah works. 2017 Ram 1500."},
-      {d:'ai',t:"Booked — Thu Jun 13 at 8 AM, transmission diagnostic on your Ram 1500. See you then."},
-    ],
-    result:'Appointment booked — Thu Jun 13, 8:00 AM · Added to Google Calendar'
-  },
-  conv6: {
-    title:'Battery Dead', meta:'Jun 12, 2025 · 8:55 AM · (972) 555-0866',
-    info:[{l:'Status',v:'Lost',c:''},{l:'Est. ARO',v:'—',c:''},{l:'SMS Sent',v:'1 message',c:''}],
-    thread:[{d:'ai',t:"Hey — missed your call at Dallas Auto Care. What's going on?",ts:'8:55 AM'}],
-    result: null
-  },
-  conv7: {
-    title:'Tire Rotation', meta:'Jun 11, 2025 · 7:40 AM · (214) 555-0321',
-    info:[{l:'Status',v:'Booked',c:'green'},{l:'Est. ARO',v:'$180',c:'amber'},{l:'Duration',v:'1m 55s',c:''}],
-    thread:[
-      {d:'ai',t:"Hey — missed your call at Dallas Auto Care. What can we help with?",ts:'7:40 AM'},
-      {d:'cu',t:"Need a tire rotation, I think I'm overdue."},
-      {d:'ai',t:"Easy one. We can get you in today at 2 PM or tomorrow at 8 AM — which is better?"},
-      {d:'cu',t:"Today at 2 is fine."},
-      {d:'ai',t:"Booked — today at 2 PM for a tire rotation. What vehicle?"},
-      {d:'cu',t:"2020 Tundra."},
-      {d:'ai',t:"Perfect. See you at 2 PM today."},
-    ],
-    result:'Appointment booked — Today, 2:00 PM · Added to Google Calendar'
-  },
-  conv8: {
-    title:'Strange Noise — Front End', meta:'Jun 10, 2025 · 4:22 PM · (469) 555-0914',
-    info:[{l:'Status',v:'Booked',c:'green'},{l:'Est. ARO',v:'$520',c:'amber'},{l:'Duration',v:'4m 11s',c:''}],
-    thread:[
-      {d:'ai',t:"Hi — missed your call at Dallas Auto Care. What's going on?",ts:'4:22 PM'},
-      {d:'cu',t:"There's a clunking sound coming from the front end when I go over bumps."},
-      {d:'ai',t:"Sounds like it could be a sway bar link or strut. We can do a full front end inspection. Tomorrow at 2 PM work?"},
-      {d:'cu',t:"Yeah that works, 2018 Explorer."},
-      {d:'ai',t:"Booked — tomorrow at 2 PM, front end inspection on your Explorer. We'll find it."},
-    ],
-    result:'Appointment booked — Jun 11, 2:00 PM · Added to Google Calendar'
-  },
-};
+function fmtPhone(phone) {
+  if (!phone) return '—';
+  var clean = phone.replace(/\D/g, '');
+  if (clean.length === 11 && clean[0] === '1') clean = clean.slice(1);
+  if (clean.length === 10) return '(' + clean.slice(0,3) + ') ' + clean.slice(3,6) + '-' + clean.slice(6);
+  return phone;
+}
+
+function mapConvStatus(dbStatus) {
+  var map = { open: 'active', closed: 'booked', 'no-response': 'no-response' };
+  return map[dbStatus] || dbStatus || 'no-response';
+}
+
+// ════════════════════════════════════════════
+// FETCH REAL TENANT DATA FROM API
+// ════════════════════════════════════════════
+async function loadDashboardData() {
+  var token = localStorage.getItem('autoshop_jwt');
+  if (!token) return false;
+
+  try {
+    var res = await fetch('/tenant/dashboard', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (res.status === 401 || res.status === 403) {
+      localStorage.removeItem('autoshop_jwt');
+      localStorage.removeItem('autoshop_session');
+      window.location.replace('login.html?next=app.html');
+      return false;
+    }
+    if (!res.ok) return false;
+
+    var data = await res.json();
+    dashboardStats = data.stats;
+
+    // ── Map API response → tenantState ──
+    var t = data.tenant;
+    var isTrial = t.billing_status === 'trial';
+    var planId = t.plan_id || (isTrial ? 'trial' : 'starter');
+
+    tenantState.shopName = t.shop_name || '—';
+    tenantState.plan = planId;
+    tenantState.status = t.billing_status;
+    tenantState.trialEndsAt = t.trial_ends_at ? new Date(t.trial_ends_at).toISOString().slice(0,10) : '';
+    tenantState.convUsed = t.conv_used_this_cycle || 0;
+    tenantState.convLimit = t.conv_limit_this_cycle || 150;
+    tenantState.trialLimit = 50;
+    tenantState.warnings = { at80: !!t.warned_80pct, at100: !!t.warned_100pct };
+
+    // Integrations
+    var cal = data.integrations.google_calendar;
+    tenantState.integrations.googleCalendar = cal.status; // connected | token_expired | not_connected
+    var tw = data.integrations.twilio;
+    tenantState.integrations.twilioNumber = tw.status; // active | not_provisioned
+
+    // Store raw values for settings page
+    tenantState._twilioPhone = tw.phone_number ? fmtPhone(tw.phone_number) : null;
+    tenantState._calendarId = cal.calendar_id || null;
+    tenantState.created_at = t.created_at;
+
+    // Health — derive from integration status
+    tenantState.health.calendarSync.status = cal.status === 'connected' ? 'healthy' : (cal.status === 'token_expired' ? 'token_expired' : 'failing');
+    tenantState.health.calendarSync.lastAt = cal.connected_at ? fmtDate(cal.connected_at) : '—';
+    tenantState.health.twilioWebhooks.status = tw.status === 'active' ? 'healthy' : 'failing';
+
+    // ── Map conversations ──
+    conversationsData = (data.recent_conversations || []).map(function(c) {
+      var hasBooking = (data.recent_bookings || []).some(function(b) { return b.conversation_id === c.id; });
+      var status = c.status === 'closed' ? (hasBooking ? 'booked' : 'lost') : (c.turn_count <= 1 ? 'no-response' : 'active');
+      return {
+        id: c.id,
+        date: fmtDate(c.opened_at),
+        phone: fmtPhone(c.customer_phone),
+        issue: c.close_reason || 'SMS Conversation',
+        status: status,
+        aro: '—',
+        duration: c.turn_count ? c.turn_count + ' msgs' : '—'
+      };
+    });
+
+    // ── Map bookings ──
+    bookingsData = (data.recent_bookings || []).map(function(b) {
+      var syncStatus = b.calendar_synced ? 'synced' : (b.google_event_id ? 'pending' : 'failed');
+      return {
+        date: fmtDate(b.scheduled_at || b.created_at),
+        phone: fmtPhone(b.customer_phone),
+        service: b.service_type || 'Appointment',
+        vehicle: b.customer_name || '—',
+        syncStatus: syncStatus,
+        failNote: syncStatus === 'failed' ? 'Not synced to Google Calendar.' : ''
+      };
+    });
+
+    // Update session storage with real shop name
+    var session = JSON.parse(localStorage.getItem('autoshop_session') || '{}');
+    session.shopName = t.shop_name;
+    localStorage.setItem('autoshop_session', JSON.stringify(session));
+
+    return true;
+  } catch (err) {
+    console.error('Dashboard data fetch failed:', err);
+    return false;
+  }
+}
 
 // ════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+  await loadDashboardData();
+
   renderBanners();
   renderNav();
   renderChecklist();
@@ -1286,6 +1163,20 @@ document.addEventListener('DOMContentLoaded', function() {
   renderBookingsCalendarAlert();
   renderSystemHero();
   checkActivationState();
+  renderLiveKPIs();
+  renderLiveTodayActivity();
+  renderLivePipeline();
+  renderLiveRevenueBlocks();
+
+  // Handle Google Calendar OAuth return
+  var calParam = new URLSearchParams(window.location.search).get('calendar');
+  if (calParam === 'connected') {
+    showToast('Google Calendar connected successfully!');
+    window.history.replaceState({}, '', window.location.pathname);
+  } else if (calParam === 'denied') {
+    showToast('Google Calendar connection was denied or failed.');
+    window.history.replaceState({}, '', window.location.pathname);
+  }
 });
 
 // ════════════════════════════════════════════
@@ -1340,6 +1231,55 @@ function renderNav() {
   const fill = document.getElementById('navUsageFill');
   fill.style.width = pct + '%';
   fill.style.background = pct >= 100 ? 'var(--red)' : pct >= 80 ? 'var(--amber)' : 'var(--rust)';
+
+  // Settings — Twilio
+  const twEl = document.getElementById('settingsTwilioNumber');
+  const twSt = document.getElementById('settingsTwilioStatus');
+  if (twEl) {
+    if (s.integrations.twilioNumber === 'active') {
+      twEl.className = 'int-connected';
+      twEl.textContent = s._twilioPhone || '(provisioned)';
+    } else {
+      twEl.className = '';
+      twEl.style.cssText = 'font-family:var(--mono);font-size:12px;color:var(--red);';
+      twEl.textContent = 'Not provisioned';
+    }
+  }
+  if (twSt) {
+    twSt.className = s.integrations.twilioNumber === 'active' ? 'int-connected' : '';
+    twSt.textContent = s.integrations.twilioNumber === 'active' ? 'Connected' : 'Not Connected';
+    if (s.integrations.twilioNumber !== 'active') twSt.style.cssText = 'font-family:var(--mono);font-size:12px;color:var(--red);';
+  }
+
+  // Settings — Google Calendar
+  const calStatus = document.getElementById('calendarConnectedStatus');
+  const calBtn = document.getElementById('calendarActionBtn');
+  const calEmail = document.getElementById('calendarConnectedEmail');
+  if (calStatus) {
+    if (s.integrations.googleCalendar === 'connected') {
+      calStatus.className = 'int-connected';
+      calStatus.textContent = 'Connected';
+    } else if (s.integrations.googleCalendar === 'token_expired') {
+      calStatus.style.cssText = 'font-family:var(--mono);font-size:12px;color:var(--amber);';
+      calStatus.textContent = 'Token Expired';
+    } else {
+      calStatus.style.cssText = 'font-family:var(--mono);font-size:12px;color:var(--red);';
+      calStatus.textContent = 'Not Connected';
+    }
+  }
+  if (calBtn) {
+    if (s.integrations.googleCalendar === 'connected') {
+      calBtn.textContent = 'Reconnect Calendar';
+      calBtn.className = 'btn-sm';
+    } else if (s.integrations.googleCalendar === 'token_expired') {
+      calBtn.textContent = 'Reconnect Calendar';
+      calBtn.className = 'btn-sm amber-btn';
+    } else {
+      calBtn.textContent = 'Connect Calendar';
+      calBtn.className = 'btn-sm primary';
+    }
+  }
+  if (calEmail) calEmail.textContent = s._calendarId || '—';
 }
 
 // ════════════════════════════════════════════
@@ -1503,7 +1443,7 @@ function emptyConvState() {
       <div class="empty-step"><span>02</span>Call your shop number and let it ring through</div>
       <div class="empty-step"><span>03</span>Watch the first AI SMS conversation appear here</div>
     </div>
-    <button class="btn-sm primary" onclick="showToast('Sending test missed call to +1 (214) 555-0182...')">Send Test Missed Call</button>
+    <button class="btn-sm primary" onclick="showToast('Sending test missed call to ' + (tenantState._twilioPhone || 'your shop number') + '...')">Send Test Missed Call</button>
   </div>`;
 }
 
@@ -1696,23 +1636,33 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal()
 // ════════════════════════════════════════════
 // GOOGLE CALENDAR CONNECT (Task C)
 // ════════════════════════════════════════════
-function connectGoogleCalendar() {
-  // Send the signed JWT as a query param so the server can verify ownership
-  // without needing a cookie. The server extracts tenantId from the verified token.
+async function connectGoogleCalendar() {
   var token = localStorage.getItem('autoshop_jwt');
   if (!token) {
     showToast('Session expired — please log in again.');
     setTimeout(function() { window.location.href = 'login.html'; }, 1500);
     return;
   }
-  // Navigate to backend Google OAuth start — server redirects to Google consent screen.
-  // tenantId is NOT in the URL (extracted server-side from the verified JWT).
-  var apiBase = window.location.protocol + '//' + window.location.hostname +
-    (window.location.port ? ':' + window.location.port : '');
-  // Point at the API (port 3000 in dev, same origin in production behind reverse proxy)
-  var apiPort = window.API_PORT || '3000';
-  var apiOrigin = window.location.protocol + '//' + window.location.hostname + ':' + apiPort;
-  window.location.href = apiOrigin + '/auth/google/start?token=' + encodeURIComponent(token);
+  try {
+    // Fetch the Google consent URL via authenticated API call (JWT in header, not URL)
+    var res = await fetch('/auth/google/url', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (res.status === 401) {
+      showToast('Session expired — please log in again.');
+      setTimeout(function() { window.location.href = 'login.html'; }, 1500);
+      return;
+    }
+    var data = await res.json();
+    if (!res.ok || !data.url) {
+      showToast(data.error || 'Could not start Google Calendar connection.');
+      return;
+    }
+    // Redirect browser to Google consent screen
+    window.location.href = data.url;
+  } catch (err) {
+    showToast('Connection error — please try again.');
+  }
 }
 
 // ════════════════════════════════════════════
@@ -1808,6 +1758,178 @@ function renderSystemHero() {
 }
 
 // ════════════════════════════════════════════
+// LIVE KPI RENDERING (from API data)
+// ════════════════════════════════════════════
+function renderLiveKPIs() {
+  var s = dashboardStats;
+  var cal = tenantState.integrations.googleCalendar;
+  var tw = tenantState.integrations.twilioNumber;
+
+  var calClass = cal === 'connected' ? 'ok' : (cal === 'token_expired' ? 'warn' : 'err');
+  var calDot = cal === 'connected' ? 'green' : (cal === 'token_expired' ? 'amber' : 'red');
+  var calLabel = cal === 'connected' ? 'Connected' : (cal === 'token_expired' ? 'Token Expired' : 'Not Connected');
+  var twClass = tw === 'active' ? 'ok' : 'err';
+  var twDot = tw === 'active' ? 'green' : 'red';
+  var twLabel = tw === 'active' ? 'Connected' : 'Not Provisioned';
+
+  // Calendar action button
+  var calAction = '';
+  if (cal !== 'connected') {
+    var btnLabel = cal === 'not_connected' ? 'Connect Calendar' : 'Reconnect Calendar';
+    var btnCls = cal === 'not_connected' ? 'btn-sm primary' : 'btn-sm amber-btn';
+    calAction = '<button class="' + btnCls + '" onclick="connectGoogleCalendar()" style="margin-top:8px;font-size:11px;padding:5px 10px;">' + btnLabel + '</button>';
+  }
+
+  document.getElementById('kpiGrid').innerHTML =
+    '<div class="kpi-card revenue fade-in">' +
+      '<div class="kpi-tag">Conversations — This Month</div>' +
+      '<div class="kpi-value">' + (s.conversations_this_month || 0) + '</div>' +
+      '<div class="kpi-sub">SMS conversations triggered by missed calls</div>' +
+    '</div>' +
+    '<div class="kpi-card calls fade-in">' +
+      '<div class="kpi-tag">Total Conversations</div>' +
+      '<div class="kpi-value">' + (s.total_conversations || 0) + '</div>' +
+      '<div class="kpi-sub">All-time conversations since activation</div>' +
+    '</div>' +
+    '<div class="kpi-card booked fade-in">' +
+      '<div class="kpi-tag">Appointments Booked</div>' +
+      '<div class="kpi-value">' + (s.appointments_this_month || 0) + '</div>' +
+      '<div class="kpi-sub">This month · ' + (s.total_appointments || 0) + ' all time</div>' +
+    '</div>' +
+    '<div class="kpi-card health-card fade-in">' +
+      '<div class="health-header"><div class="kpi-tag" style="margin-bottom:0;">System Health</div></div>' +
+      '<div class="health-row"><span class="health-label">Twilio SMS</span><span class="health-val ' + twClass + '"><span class="hdot ' + twDot + '"></span>' + twLabel + '</span></div>' +
+      '<div class="health-row"><span class="health-label">Google Calendar</span><span class="health-val ' + calClass + '"><span class="hdot ' + calDot + '"></span>' + calLabel + '</span>' + calAction + '</div>' +
+      '<div class="health-row"><span class="health-label">Active Convos</span><span class="health-val neutral">' + (s.active_conversations || 0) + '</span></div>' +
+      '<div class="health-row"><span class="health-label">Appts Today</span><span class="health-val neutral">' + (s.appointments_today || 0) + '</span></div>' +
+    '</div>';
+}
+
+function renderLiveTodayActivity() {
+  var s = dashboardStats;
+  document.getElementById('todayGrid').innerHTML =
+    '<div class="today-card"><div class="today-tag">Conversations Today</div><div class="today-num">' + (s.conversations_today || 0) + '</div></div>' +
+    '<div class="today-card"><div class="today-tag">SMS Conversations</div><div class="today-num">' + (s.conversations_today || 0) + '</div></div>' +
+    '<div class="today-card" style="border-bottom-color:var(--amber);"><div class="today-tag">Active Conversations</div><div class="today-num amber">' + (s.active_conversations || 0) + '</div></div>' +
+    '<div class="today-card"><div class="today-tag">Appointments Booked</div><div class="today-num green">' + (s.appointments_today || 0) + '</div></div>';
+}
+
+function renderLivePipeline() {
+  var s = dashboardStats;
+  var total = s.conversations_this_month || 0;
+  var booked = s.appointments_this_month || 0;
+  var active = s.active_conversations || 0;
+  var lost = Math.max(0, total - booked - active);
+  var repliedPct = total > 0 ? Math.round(((total - 0) / total) * 100) : 0;
+  var bookedPct = total > 0 ? Math.round((booked / total) * 100) : 0;
+  var lostPct = total > 0 ? Math.round((lost / total) * 100) : 0;
+
+  var now = new Date();
+  var monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('pipelineLabel').textContent = 'Conversion Pipeline — ' + monthNames[now.getMonth()] + ' ' + now.getFullYear();
+
+  document.getElementById('pipelineWrap').innerHTML =
+    '<div class="pipeline-stages">' +
+      '<div class="pipeline-stage"><div class="pipeline-stage-inner">' +
+        '<div class="p-stage-name">Conversations</div><div class="p-stage-count">' + total + '</div>' +
+        '<div class="p-stage-conv" style="color:var(--steel-mid);">Baseline</div>' +
+        '<div class="p-stage-drop">100% entered</div>' +
+        '<div class="p-stage-bar"><div class="p-stage-bar-fill" style="width:100%;background:var(--green);"></div></div>' +
+      '</div><div class="pipeline-arrow">&rarr;</div></div>' +
+      '<div class="pipeline-stage"><div class="pipeline-stage-inner">' +
+        '<div class="p-stage-name">Active</div><div class="p-stage-count">' + active + '</div>' +
+        '<div class="p-stage-conv" style="color:var(--amber);">In progress</div>' +
+        '<div class="p-stage-drop">Awaiting reply</div>' +
+        '<div class="p-stage-bar"><div class="p-stage-bar-fill" style="width:' + (total > 0 ? Math.round(active/total*100) : 0) + '%;background:var(--amber);"></div></div>' +
+      '</div><div class="pipeline-arrow">&rarr;</div></div>' +
+      '<div class="pipeline-stage"><div class="pipeline-stage-inner">' +
+        '<div class="p-stage-name">Booked</div><div class="p-stage-count">' + booked + '</div>' +
+        '<div class="p-stage-conv" style="color:var(--green);">' + bookedPct + '% of conversations</div>' +
+        '<div class="p-stage-drop">' + booked + ' appointments</div>' +
+        '<div class="p-stage-bar"><div class="p-stage-bar-fill" style="width:' + bookedPct + '%;background:var(--green);"></div></div>' +
+      '</div><div class="pipeline-arrow">&rarr;</div></div>' +
+      '<div class="pipeline-stage' + (lost > 0 ? ' lost' : '') + '"><div class="pipeline-stage-inner">' +
+        '<div class="p-stage-name">Lost / No Reply</div><div class="p-stage-count">' + lost + '</div>' +
+        '<div class="p-stage-conv" style="color:var(--red);">' + lostPct + '% of conversations</div>' +
+        '<div class="p-stage-drop danger">Not booked</div>' +
+        '<div class="p-stage-bar"><div class="p-stage-bar-fill" style="width:' + lostPct + '%;background:var(--red);"></div></div>' +
+      '</div></div>' +
+    '</div>';
+}
+
+function renderLiveRevenueBlocks() {
+  var s = dashboardStats;
+  var shopName = tenantState.shopName;
+
+  // Update nav and subtitle with real shop name
+  document.getElementById('navShopName').textContent = shopName;
+  var now = new Date();
+  var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('dashSubtitle').textContent = months[now.getMonth()] + ' ' + now.getFullYear() + ' · ' + shopName;
+  var revSub = document.getElementById('revenueSubtitle');
+  if (revSub) revSub.textContent = 'Recovered revenue tracking — ' + shopName;
+  var convsSub = document.getElementById('convsSubtitle');
+  if (convsSub) convsSub.textContent = 'All SMS threads — ' + months[now.getMonth()] + ' ' + now.getFullYear();
+  var settingsShop = document.getElementById('settingsShopName');
+  if (settingsShop) settingsShop.value = shopName;
+
+  // Nav account
+  var avatar = document.getElementById('navAvatar');
+  var accountName = document.getElementById('navAccountName');
+  if (avatar) avatar.textContent = shopName.charAt(0).toUpperCase();
+  if (accountName) accountName.textContent = shopName;
+
+  // Since-activation block
+  var totalAppts = s.total_appointments || 0;
+  var created = tenantState.created_at ? new Date(tenantState.created_at) : new Date();
+  var daysActive = Math.max(1, Math.ceil((Date.now() - created.getTime()) / 86400000));
+
+  document.getElementById('sinceActivationBlock').innerHTML =
+    '<div class="kpi-card since-activation">' +
+      '<div>' +
+        '<div class="since-label">Performance Since Activation</div>' +
+        '<div class="since-value" style="font-size:42px;">' + totalAppts + ' <span class="curr" style="font-size:20px;">bookings</span></div>' +
+        '<div class="since-sub"><span>' + (s.total_conversations || 0) + ' conversations</span><span>System active ' + daysActive + ' days</span></div>' +
+      '</div>' +
+      '<div class="since-right">' +
+        '<div class="since-stat"><div class="since-stat-val">' + (s.conversations_this_month || 0) + '</div><div class="since-stat-label">This Month</div></div>' +
+        '<div class="since-stat"><div class="since-stat-val">' + (s.appointments_this_month || 0) + '</div><div class="since-stat-label">Booked This Month</div></div>' +
+      '</div>' +
+    '</div>';
+
+  // Revenue analytics page
+  var rtb = document.getElementById('revTotalBookings');
+  if (rtb) rtb.textContent = totalAppts;
+  var rmb = document.getElementById('revMonthBookings');
+  if (rmb) rmb.textContent = s.appointments_this_month || 0;
+  var rmc = document.getElementById('revMonthConvs');
+  if (rmc) rmc.textContent = s.conversations_this_month || 0;
+  var rtc = document.getElementById('revTotalConvs');
+  if (rtc) rtc.textContent = s.total_conversations || 0;
+  var rtb2 = document.getElementById('revTotalBookings2');
+  if (rtb2) rtb2.textContent = totalAppts;
+  var rp = document.getElementById('revPlan');
+  if (rp) rp.textContent = tenantState.plan.charAt(0).toUpperCase() + tenantState.plan.slice(1);
+  var rps = document.getElementById('revPlanSub');
+  if (rps) rps.textContent = tenantState.status.replace(/_/g, ' ');
+
+  // Revenue sidebar
+  document.getElementById('revenueSidebar').innerHTML =
+    '<div class="rev-card">' +
+      '<div class="rev-card-title">Activity Summary</div>' +
+      '<div class="rev-stat"><div class="rev-stat-label">Conversations (This Month)</div><div class="rev-stat-value green">' + (s.conversations_this_month || 0) + '</div></div>' +
+      '<div class="rev-stat"><div class="rev-stat-label">Appointments Booked (This Month)</div><div class="rev-stat-value amber">' + (s.appointments_this_month || 0) + '</div></div>' +
+      '<div class="rev-stat"><div class="rev-stat-label">Total Bookings (All Time)</div><div class="rev-stat-value">' + totalAppts + '</div></div>' +
+    '</div>' +
+    '<div class="rev-card">' +
+      '<div class="rev-card-title">Usage</div>' +
+      '<div class="rev-sub-row"><span class="rev-sub-label">Conversations Used</span><span class="rev-sub-value">' + tenantState.convUsed + ' / ' + (tenantState.plan === 'trial' ? tenantState.trialLimit : tenantState.convLimit) + '</span></div>' +
+      '<div class="rev-sub-row"><span class="rev-sub-label">Plan</span><span class="rev-sub-value">' + tenantState.plan.charAt(0).toUpperCase() + tenantState.plan.slice(1) + '</span></div>' +
+      '<div class="rev-sub-row" style="border-bottom:none;"><span class="rev-sub-label">Status</span><span class="rev-sub-value" style="color:var(--green);">' + tenantState.status.replace(/_/g,' ') + '</span></div>' +
+    '</div>';
+}
+
+// ════════════════════════════════════════════
 // ACTIVATION COMPLETE CHECK
 // ════════════════════════════════════════════
 function checkActivationState() {
@@ -1882,7 +2004,7 @@ function toggleChecklist() {
       var avatar = document.querySelector('.nav-avatar');
       if (avatar) avatar.textContent = session.initials || 'D';
       var name = document.querySelector('.nav-account-name');
-      if (name) name.textContent = session.name || 'Demo User';
+      if (name) name.textContent = session.shopName || session.name || 'User';
     }
   });
 })();

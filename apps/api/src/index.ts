@@ -17,6 +17,7 @@ import { googleAuthRoute } from "./routes/auth/google";
 import { loginRoute } from "./routes/auth/login";
 import { signupRoute } from "./routes/auth/signup";
 import { billingCheckoutRoute } from "./routes/billing/checkout";
+import { tenantDashboardRoute } from "./routes/tenant/dashboard";
 import { db } from "./db/client";
 import { redis } from "./queues/redis";
 import { startSmsInboundWorker } from "./workers/sms-inbound.worker";
@@ -65,6 +66,7 @@ async function bootstrap() {
   await app.register(loginRoute, { prefix: "/auth" });
   await app.register(signupRoute, { prefix: "/auth" });
   await app.register(billingCheckoutRoute, { prefix: "/billing" });
+  await app.register(tenantDashboardRoute, { prefix: "/tenant" });
 
   // ── Static frontend (login.html, signup.html, etc.) ───────
   // Served AFTER API routes so API paths are never shadowed.

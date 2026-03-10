@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 import { query } from "../../db/client";
+import { requireAuth } from "../../middleware/require-auth";
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -67,12 +68,8 @@ async function upsertCalendarTokens(
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
-const StartQuerySchema = z.object({
-  tenantId: z.string().uuid(),
-});
-
 const CallbackQuerySchema = z.object({
-  code: z.string().min(1),
+  code: z.string().min(1).optional(),
   state: z.string().uuid(), // tenantId passed as state
   error: z.string().optional(),
 });
@@ -81,22 +78,20 @@ export async function googleAuthRoute(app: FastifyInstance) {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
   const redirectUri = process.env.GOOGLE_REDIRECT_URI;
+  const publicOrigin = process.env.PUBLIC_ORIGIN ?? "https://autoshopsmsai.com";
 
   /**
-   * GET /auth/google/start?tenantId=<uuid>
-   * Redirects the shop owner to Google OAuth consent screen.
+   * GET /auth/google/url
+   * Requires Bearer token in Authorization header.
+   * Returns the Google consent URL as JSON — frontend redirects the browser.
+   * No JWT in query params.
    */
-  app.get("/start", async (request, reply) => {
+  app.get("/url", { preHandler: [requireAuth] }, async (request, reply) => {
     if (!clientId || !redirectUri) {
       return reply.status(503).send({ error: "Google OAuth not configured" });
     }
 
-    const parsed = StartQuerySchema.safeParse(request.query);
-    if (!parsed.success) {
-      return reply.status(400).send({ error: "tenantId is required" });
-    }
-
-    const { tenantId } = parsed.data;
+    const { tenantId } = request.user as { tenantId: string };
 
     const params = new URLSearchParams({
       client_id: clientId,
@@ -108,7 +103,7 @@ export async function googleAuthRoute(app: FastifyInstance) {
       state: tenantId,
     });
 
-    return reply.redirect(`${GOOGLE_AUTH_URL}?${params.toString()}`);
+    return reply.send({ url: `${GOOGLE_AUTH_URL}?${params.toString()}` });
   });
 
   /**
@@ -124,9 +119,9 @@ export async function googleAuthRoute(app: FastifyInstance) {
 
     const { code, state: tenantId, error } = parsed.data;
 
-    if (error) {
+    if (error || !code) {
       request.log.warn({ tenantId, error }, "Google OAuth denied by user");
-      return reply.status(400).send({ error: `OAuth error: ${error}` });
+      return reply.redirect(`${publicOrigin}/app.html?calendar=denied`);
     }
 
     if (!clientId || !clientSecret || !redirectUri) {
@@ -172,9 +167,7 @@ export async function googleAuthRoute(app: FastifyInstance) {
 
     request.log.info({ tenantId }, "Google Calendar connected for tenant");
 
-    return reply.status(200).send({
-      status: "connected",
-      message: "Google Calendar successfully connected",
-    });
+    // Redirect back to the app dashboard with a success flag
+    return reply.redirect(`${publicOrigin}/app.html?calendar=connected`);
   });
 }

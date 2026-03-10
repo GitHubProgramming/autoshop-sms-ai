@@ -1,0 +1,87 @@
+{
+  "id": "wf003CloseConversation",
+  "name": "WF-003: Close Conversation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "close-conversation",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook: Close Conversation",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "close-conversation-wf003"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SET LOCAL app.current_tenant_id = '{{ $json.body.tenantId }}';\nUPDATE conversations\nSET\n  status = '{{ $json.body.status }}',\n  close_reason = '{{ $json.body.closeReason }}',\n  closed_at = NOW()\nWHERE id = '{{ $json.body.conversationId }}'::uuid\n  AND tenant_id = '{{ $json.body.tenantId }}'::uuid\n  AND status = 'open';",
+        "options": {}
+      },
+      "id": "db-close-conversation",
+      "name": "DB: Close Conversation",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [
+        500,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "AutoShop Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"ok\": true }"
+      },
+      "id": "respond-ok",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        750,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: Close Conversation": {
+      "main": [
+        [
+          {
+            "node": "DB: Close Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Close Conversation": {
+      "main": [
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "active": true
+}

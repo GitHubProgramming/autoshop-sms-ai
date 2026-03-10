@@ -1,0 +1,417 @@
+{
+  "id": "OfR92OEfwYdxxOb3",
+  "name": "WF-002: AI Worker (Booking Intent + Response)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-worker",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook: AI Worker Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "ai-worker-wf002"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build OpenAI messages from conversation history\nconst data = $('Webhook: AI Worker Trigger').first().json.body;\nconst systemPrompt = data.systemPrompt || 'You are an auto shop scheduling assistant.';\nconst history = Array.isArray(data.history) ? data.history : [];\nconst newMessage = String(data.newMessage || '').substring(0, 500);\nconst messages = [{ role: 'system', content: systemPrompt }];\n// Filter out history messages with null/empty body to avoid OpenAI validation errors\nfor (const msg of history.slice(-8)) {\n  const content = msg.body || msg.content || null;\n  if (content && typeof content === 'string' && content.trim()) {\n    messages.push({ role: msg.direction === 'inbound' ? 'user' : 'assistant', content: content.trim() });\n  }\n}\nmessages.push({ role: 'user', content: newMessage });\nreturn [{ json: {\n  tenantId: data.tenantId,\n  conversationId: data.conversationId,\n  customerPhone: data.customerPhone,\n  ourPhone: data.ourPhone,\n  messages,\n  rawMessage: newMessage\n} }];"
+      },
+      "id": "build-openai-messages",
+      "name": "Build OpenAI Messages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.OPENAI_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"gpt-4o-mini\", messages: $json.messages, max_tokens: 800, temperature: 0.3 }) }}",
+        "options": {}
+      },
+      "id": "openai-chat",
+      "name": "OpenAI: Chat Completion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        750,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Detect booking intent from AI response\nconst aiResponse = $('OpenAI: Chat Completion').first().json.choices?.[0]?.message?.content || '';\nconst lowerResponse = aiResponse.toLowerCase();\nconst bookingKeywords = [\n  'appointment is confirmed',\n  'is confirmed',\n  'appointment confirmed',\n  'booked for',\n  'scheduled for',\n  'see you on',\n  'appointment set',\n  'confirmed for',\n  'confirmed, john',\n  'confirmed,',\n];\nconst isBooked = bookingKeywords.some(k => lowerResponse.includes(k));\nconst closeKeywords = ['stop','cancel','nevermind','never mind','no thanks','not interested'];\nconst rawMessage = $('Build OpenAI Messages').first().json.rawMessage || '';\nconst userWantsClose = closeKeywords.some(k => rawMessage.toLowerCase().includes(k));\n// Extract ISO 8601 date from user message; fallback to +24h\nconst isoDateMatch = rawMessage.match(/\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}[+-]\\d{2}:\\d{2}/i);\nconst scheduledAt = isoDateMatch ? isoDateMatch[0] : new Date(Date.now() + 86400000).toISOString();\nconst scheduledAtExtracted = !!isoDateMatch;\n// Extract service type from user message\nconst serviceKeywords = ['oil change','tire rotation','brake','inspection','tune up','alignment','transmission'];\nconst serviceType = serviceKeywords.find(k => rawMessage.toLowerCase().includes(k)) || 'general service';\nreturn [{ json: {\n  tenantId: $('Build OpenAI Messages').first().json.tenantId,\n  conversationId: $('Build OpenAI Messages').first().json.conversationId,\n  customerPhone: $('Build OpenAI Messages').first().json.customerPhone,\n  ourPhone: $('Build OpenAI Messages').first().json.ourPhone,\n  aiResponse, isBooked, userWantsClose, scheduledAt, scheduledAtExtracted, serviceType,\n  tokensUsed: $('OpenAI: Chat Completion').first().json.usage?.total_tokens ?? 0\n} }];"
+      },
+      "id": "detect-booking-intent",
+      "name": "Detect Booking Intent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SET LOCAL app.current_tenant_id = '{{ $json.tenantId }}';\nINSERT INTO messages (tenant_id, conversation_id, direction, body, tokens_used, model_version)\nVALUES ('{{ $json.tenantId }}'::uuid,'{{ $json.conversationId }}'::uuid,'outbound','{{ $json.aiResponse.replace(/'/g, \"''\") }}',{{ $json.tokensUsed }},'gpt-4o-mini');\nSELECT touch_conversation('{{ $json.conversationId }}'::uuid, '{{ $json.tenantId }}'::uuid);",
+        "options": {}
+      },
+      "id": "db-save-response",
+      "name": "DB: Save AI Response",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [
+        1250,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "AutoShop Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.twilio.com/2010-04-01/Accounts/' + $env.TWILIO_ACCOUNT_SID + '/Messages.json' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Basic ' + Buffer.from($env.TWILIO_ACCOUNT_SID + ':' + $env.TWILIO_AUTH_TOKEN).toString('base64') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "string",
+        "body": "={{ 'MessagingServiceSid=' + $env.TWILIO_MESSAGING_SERVICE_SID + '&To=' + encodeURIComponent($('Detect Booking Intent').first().json.customerPhone) + '&Body=' + encodeURIComponent($('Detect Booking Intent').first().json.aiResponse) }}",
+        "options": {}
+      },
+      "id": "send-sms",
+      "name": "Twilio: Send SMS Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1500,
+        300
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $('Detect Booking Intent').first().json.isBooked }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ]
+        }
+      },
+      "id": "check-if-booked",
+      "name": "Booking Confirmed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1750,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SET LOCAL app.current_tenant_id = '{{ $('Detect Booking Intent').first().json.tenantId }}';\nINSERT INTO appointments (tenant_id, conversation_id, customer_phone, service_type, scheduled_at)\nVALUES (\n  '{{ $('Detect Booking Intent').first().json.tenantId }}'::uuid,\n  '{{ $('Detect Booking Intent').first().json.conversationId }}'::uuid,\n  '{{ $('Detect Booking Intent').first().json.customerPhone }}',\n  '{{ $('Detect Booking Intent').first().json.serviceType }}',\n  '{{ $('Detect Booking Intent').first().json.scheduledAt }}'::timestamptz\n)\nON CONFLICT (conversation_id) DO UPDATE\n  SET service_type = EXCLUDED.service_type,\n      scheduled_at = EXCLUDED.scheduled_at\nRETURNING id, tenant_id, conversation_id, customer_phone, service_type, scheduled_at;",
+        "options": {}
+      },
+      "id": "db-save-appointment",
+      "name": "DB: Save Appointment",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [
+        2000,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "AutoShop Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://n8n:5678/webhook/calendar-sync",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ appointmentId: $json.id, tenantId: $json.tenant_id, conversationId: $json.conversation_id, customerPhone: $json.customer_phone, serviceType: $json.service_type, scheduledAt: $json.scheduled_at }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "call-wf004",
+      "name": "Call WF-004: Calendar Sync",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2250,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://n8n:5678/webhook/close-conversation",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversationId",
+              "value": "={{ $('Detect Booking Intent').first().json.conversationId }}"
+            },
+            {
+              "name": "tenantId",
+              "value": "={{ $('Detect Booking Intent').first().json.tenantId }}"
+            },
+            {
+              "name": "status",
+              "value": "booked"
+            },
+            {
+              "name": "closeReason",
+              "value": "booking_completed"
+            }
+          ]
+        }
+      },
+      "id": "trigger-close-booked",
+      "name": "Trigger: Close (Booked)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $('Detect Booking Intent').first().json.userWantsClose }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ]
+        }
+      },
+      "id": "check-user-close",
+      "name": "User Wants to Close?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://n8n:5678/webhook/close-conversation",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversationId",
+              "value": "={{ $('Detect Booking Intent').first().json.conversationId }}"
+            },
+            {
+              "name": "tenantId",
+              "value": "={{ $('Detect Booking Intent').first().json.tenantId }}"
+            },
+            {
+              "name": "status",
+              "value": "closed"
+            },
+            {
+              "name": "closeReason",
+              "value": "user_closed"
+            }
+          ]
+        }
+      },
+      "id": "trigger-close-user",
+      "name": "Trigger: Close (User)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2250,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: AI Worker Trigger": {
+      "main": [
+        [
+          {
+            "node": "Build OpenAI Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build OpenAI Messages": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: Chat Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: Chat Completion": {
+      "main": [
+        [
+          {
+            "node": "Detect Booking Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Booking Intent": {
+      "main": [
+        [
+          {
+            "node": "DB: Save AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Save AI Response": {
+      "main": [
+        [
+          {
+            "node": "Twilio: Send SMS Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Twilio: Send SMS Reply": {
+      "main": [
+        [
+          {
+            "node": "Booking Confirmed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Booking Confirmed?": {
+      "main": [
+        [
+          {
+            "node": "DB: Save Appointment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "User Wants to Close?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Save Appointment": {
+      "main": [
+        [
+          {
+            "node": "Call WF-004: Calendar Sync",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call WF-004: Calendar Sync": {
+      "main": [
+        [
+          {
+            "node": "Trigger: Close (Booked)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "User Wants to Close?": {
+      "main": [
+        [
+          {
+            "node": "Trigger: Close (User)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "active": true
+}

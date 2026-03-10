@@ -1,0 +1,173 @@
+import { FastifyInstance } from "fastify";
+import { query } from "../../db/client";
+import { requireAuth } from "../../middleware/require-auth";
+
+/**
+ * GET /tenant/dashboard
+ *
+ * Returns real tenant identity, usage, integration status, KPIs,
+ * recent conversations, and recent bookings for the signed-in tenant.
+ * Protected by JWT auth — tenantId comes from the verified token.
+ */
+export async function tenantDashboardRoute(app: FastifyInstance) {
+  app.get("/dashboard", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { tenantId } = request.user as { tenantId: string; email: string };
+
+    const [
+      tenantRows,
+      calendarRows,
+      phoneRows,
+      convsTodayRows,
+      appointmentsTodayRows,
+      activeConvsRows,
+      convsThisMonthRows,
+      appointmentsThisMonthRows,
+      totalConvsRows,
+      totalAppointmentsRows,
+      recentConvRows,
+      recentBookingRows,
+    ] = await Promise.all([
+      // Tenant identity + billing
+      query(
+        `SELECT id, shop_name, owner_email, billing_status, plan_id,
+                conv_used_this_cycle, conv_limit_this_cycle,
+                trial_started_at, trial_ends_at,
+                warned_80pct, warned_100pct, created_at
+         FROM tenants WHERE id = $1`,
+        [tenantId]
+      ),
+      // Google Calendar integration
+      query(
+        `SELECT calendar_id, connected_at, last_refreshed, token_expiry
+         FROM tenant_calendar_tokens WHERE tenant_id = $1`,
+        [tenantId]
+      ),
+      // Twilio phone
+      query(
+        `SELECT phone_number, status, provisioned_at
+         FROM tenant_phone_numbers WHERE tenant_id = $1
+         ORDER BY provisioned_at DESC LIMIT 1`,
+        [tenantId]
+      ),
+      // Conversations today
+      query(
+        `SELECT COUNT(*)::int AS count FROM conversations
+         WHERE tenant_id = $1 AND opened_at >= CURRENT_DATE`,
+        [tenantId]
+      ),
+      // Appointments today
+      query(
+        `SELECT COUNT(*)::int AS count FROM appointments
+         WHERE tenant_id = $1 AND created_at >= CURRENT_DATE`,
+        [tenantId]
+      ),
+      // Active conversations
+      query(
+        `SELECT COUNT(*)::int AS count FROM conversations
+         WHERE tenant_id = $1 AND status = 'open'`,
+        [tenantId]
+      ),
+      // Conversations this month
+      query(
+        `SELECT COUNT(*)::int AS count FROM conversations
+         WHERE tenant_id = $1
+           AND opened_at >= date_trunc('month', CURRENT_DATE)`,
+        [tenantId]
+      ),
+      // Appointments this month
+      query(
+        `SELECT COUNT(*)::int AS count FROM appointments
+         WHERE tenant_id = $1
+           AND created_at >= date_trunc('month', CURRENT_DATE)`,
+        [tenantId]
+      ),
+      // Total conversations (all time)
+      query(
+        `SELECT COUNT(*)::int AS count FROM conversations WHERE tenant_id = $1`,
+        [tenantId]
+      ),
+      // Total appointments (all time)
+      query(
+        `SELECT COUNT(*)::int AS count FROM appointments WHERE tenant_id = $1`,
+        [tenantId]
+      ),
+      // Recent conversations (last 20)
+      query(
+        `SELECT id, customer_phone, status, turn_count,
+                opened_at, last_message_at, closed_at, close_reason
+         FROM conversations
+         WHERE tenant_id = $1
+         ORDER BY opened_at DESC LIMIT 20`,
+        [tenantId]
+      ),
+      // Recent bookings (last 20)
+      query(
+        `SELECT id, conversation_id, customer_phone, customer_name,
+                service_type, scheduled_at, calendar_synced,
+                google_event_id, created_at
+         FROM appointments
+         WHERE tenant_id = $1
+         ORDER BY created_at DESC LIMIT 20`,
+        [tenantId]
+      ),
+    ]);
+
+    const tenant = (tenantRows as any[])[0];
+    if (!tenant) {
+      return reply.status(404).send({ error: "Tenant not found" });
+    }
+
+    const calendar = (calendarRows as any[])[0] || null;
+    const phone = (phoneRows as any[])[0] || null;
+
+    // Determine calendar integration status
+    let calendarStatus: string = "not_connected";
+    if (calendar) {
+      const expiry = new Date(calendar.token_expiry);
+      if (expiry < new Date()) {
+        calendarStatus = "token_expired";
+      } else {
+        calendarStatus = "connected";
+      }
+    }
+
+    return reply.status(200).send({
+      tenant: {
+        id: tenant.id,
+        shop_name: tenant.shop_name,
+        owner_email: tenant.owner_email,
+        billing_status: tenant.billing_status,
+        plan_id: tenant.plan_id,
+        conv_used_this_cycle: tenant.conv_used_this_cycle,
+        conv_limit_this_cycle: tenant.conv_limit_this_cycle,
+        trial_ends_at: tenant.trial_ends_at,
+        warned_80pct: tenant.warned_80pct,
+        warned_100pct: tenant.warned_100pct,
+        created_at: tenant.created_at,
+      },
+      integrations: {
+        google_calendar: {
+          status: calendarStatus,
+          calendar_id: calendar?.calendar_id ?? null,
+          connected_at: calendar?.connected_at ?? null,
+          token_expiry: calendar?.token_expiry ?? null,
+        },
+        twilio: {
+          phone_number: phone?.phone_number ?? null,
+          status: phone?.status ?? "not_provisioned",
+        },
+      },
+      stats: {
+        conversations_today: (convsTodayRows as any[])[0]?.count ?? 0,
+        appointments_today: (appointmentsTodayRows as any[])[0]?.count ?? 0,
+        active_conversations: (activeConvsRows as any[])[0]?.count ?? 0,
+        conversations_this_month: (convsThisMonthRows as any[])[0]?.count ?? 0,
+        appointments_this_month: (appointmentsThisMonthRows as any[])[0]?.count ?? 0,
+        total_conversations: (totalConvsRows as any[])[0]?.count ?? 0,
+        total_appointments: (totalAppointmentsRows as any[])[0]?.count ?? 0,
+      },
+      recent_conversations: recentConvRows,
+      recent_bookings: recentBookingRows,
+    });
+  });
+}

@@ -1,0 +1,292 @@
+{
+  "id": "wf004CalendarSync",
+  "name": "WF-004: Calendar Sync + Confirmation SMS",
+  "nodes": [
+    {
+      "id": "webhook-trigger",
+      "name": "Webhook: Calendar Sync Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "calendar-sync-wf004",
+      "parameters": {
+        "path": "calendar-sync",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "lastNode"
+      },
+      "typeVersion": 1.1
+    },
+    {
+      "id": "db-fetch-data",
+      "name": "DB: Fetch Appointment + Tokens",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SET LOCAL app.current_tenant_id = '{{ $json.body.tenantId }}';\nSELECT a.id AS appointment_id, a.customer_phone, a.service_type, a.scheduled_at, a.duration_minutes,\n  t.shop_name, t.timezone, tpn.phone_number AS our_phone,\n  tct.refresh_token, tct.calendar_id\nFROM appointments a\nJOIN tenants t ON t.id = a.tenant_id\nJOIN tenant_phone_numbers tpn ON tpn.tenant_id = a.tenant_id AND tpn.status = 'active'\nLEFT JOIN tenant_calendar_tokens tct ON tct.tenant_id = a.tenant_id\nWHERE a.id = '{{ $json.body.appointmentId }}'::uuid AND a.tenant_id = '{{ $json.body.tenantId }}'::uuid;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "AutoShop Postgres"
+        }
+      },
+      "typeVersion": 2.3
+    },
+    {
+      "id": "refresh-token",
+      "name": "Google: Refresh Token",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://oauth2.googleapis.com/token",
+        "sendBody": true,
+        "specifyBody": "string",
+        "body": "={{ 'grant_type=refresh_token&client_id=' + encodeURIComponent($env.GOOGLE_CLIENT_ID) + '&client_secret=' + encodeURIComponent($env.GOOGLE_CLIENT_SECRET) + '&refresh_token=' + encodeURIComponent($('DB: Fetch Appointment + Tokens').first().json.refresh_token) }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput",
+      "typeVersion": 4.1
+    },
+    {
+      "id": "build-event-body",
+      "name": "Code: Build Event Body",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1000,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const row = $('DB: Fetch Appointment + Tokens').first().json;\nconst tokenRes = $('Google: Refresh Token').first().json;\nconst tz = row.timezone || 'America/Chicago';\nconst scheduledAt = new Date(row.scheduled_at);\nconst dateStr = scheduledAt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: tz });\nconst timeStr = scheduledAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });\nconst endAt = new Date(scheduledAt.getTime() + (row.duration_minutes || 60) * 60000);\nconst calId = row.calendar_id || 'primary';\nconst access_token = tokenRes.access_token || '';\nconst hasToken = !!access_token && !tokenRes.error;\nconst wh = $('Webhook: Calendar Sync Trigger').first().json.body;\nreturn [{ json: {\n  appointment_id: row.appointment_id,\n  customer_phone: row.customer_phone,\n  service_type: row.service_type,\n  our_phone: row.our_phone,\n  shop_name: row.shop_name,\n  calId, dateStr, timeStr, tz, scheduledAt: scheduledAt.toISOString(),\n  endAt: endAt.toISOString(),\n  access_token, hasToken,\n  tenantId: wh.tenantId,\n  appointmentId: wh.appointmentId,\n  eventSummary: row.service_type + ' \\u2014 ' + (row.customer_phone || 'Customer'),\n  eventDescription: 'AutoShop AI booking. Service: ' + row.service_type,\n} }];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "create-calendar-event",
+      "name": "Google Calendar: Create Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1250,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://www.googleapis.com/calendar/v3/calendars/' + encodeURIComponent($json.calId) + '/events' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access_token }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ summary: $json.eventSummary, description: $json.eventDescription, start: { dateTime: $json.scheduledAt, timeZone: $json.tz }, end: { dateTime: $json.endAt, timeZone: $json.tz } }) }}",
+        "options": {}
+      },
+      "onError": "continueRegularOutput",
+      "typeVersion": 4.1
+    },
+    {
+      "id": "code-build-sms",
+      "name": "Code: Build Confirmation SMS",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1500,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const data = $('Code: Build Event Body').first().json;\nconst calResult = $('Google Calendar: Create Event').first().json;\nconst calendarSynced = !!(calResult.id && !calResult.error);\nconst googleEventId = calResult.id || '';\nconst calendarSyncError = calResult.error ? JSON.stringify(calResult.error).substring(0,200) : '';\nconst smsText = calendarSynced\n  ? `Your ${data.service_type} appt is confirmed for ${data.dateStr} at ${data.timeStr}. Added to our calendar! - ${data.shop_name}`\n  : `Your ${data.service_type} appt is confirmed for ${data.dateStr} at ${data.timeStr}. See you then! - ${data.shop_name}`;\nreturn [{ json: {\n  customerPhone: data.customer_phone,\n  ourPhone: data.our_phone,\n  googleEventId, calendarSynced, calendarSyncError, smsText,\n  tenantId: data.tenantId,\n  appointmentId: data.appointmentId,\n} }];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "db-update-appointment",
+      "name": "DB: Update Appointment Sync",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        1750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SET LOCAL app.current_tenant_id = '{{ $json.tenantId }}';\nUPDATE appointments\nSET\n  google_event_id = CASE WHEN '{{ $json.googleEventId }}' = '' THEN NULL ELSE '{{ $json.googleEventId }}' END,\n  calendar_synced = {{ $json.calendarSynced }}\nWHERE id = '{{ $json.appointmentId }}'::uuid;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "AutoShop Postgres"
+        }
+      },
+      "typeVersion": 2.3
+    },
+    {
+      "id": "twilio-send-confirmation",
+      "name": "Twilio: Send Confirmation SMS",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        2000,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.twilio.com/2010-04-01/Accounts/' + $env.TWILIO_ACCOUNT_SID + '/Messages.json' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Basic ' + Buffer.from($env.TWILIO_ACCOUNT_SID + ':' + $env.TWILIO_AUTH_TOKEN).toString('base64') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "string",
+        "body": "={{ 'MessagingServiceSid=' + $env.TWILIO_MESSAGING_SERVICE_SID + '&To=' + encodeURIComponent($json.customerPhone) + '&Body=' + encodeURIComponent($json.smsText) }}",
+        "options": {}
+      },
+      "onError": "continueRegularOutput",
+      "typeVersion": 4.1
+    },
+    {
+      "id": "respond-ok",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        2250,
+        300
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, calendarSynced: $('Code: Build Confirmation SMS').first().json.calendarSynced, googleEventId: $('Code: Build Confirmation SMS').first().json.googleEventId }) }}"
+      },
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Webhook: Calendar Sync Trigger": {
+      "main": [
+        [
+          {
+            "node": "DB: Fetch Appointment + Tokens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Fetch Appointment + Tokens": {
+      "main": [
+        [
+          {
+            "node": "Google: Refresh Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google: Refresh Token": {
+      "main": [
+        [
+          {
+            "node": "Code: Build Event Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Build Event Body": {
+      "main": [
+        [
+          {
+            "node": "Google Calendar: Create Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Calendar: Create Event": {
+      "main": [
+        [
+          {
+            "node": "Code: Build Confirmation SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Build Confirmation SMS": {
+      "main": [
+        [
+          {
+            "node": "DB: Update Appointment Sync",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Update Appointment Sync": {
+      "main": [
+        [
+          {
+            "node": "Twilio: Send Confirmation SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Twilio: Send Confirmation SMS": {
+      "main": [
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "active": true
+}
