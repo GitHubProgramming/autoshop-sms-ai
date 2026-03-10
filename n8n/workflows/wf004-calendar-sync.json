@@ -180,6 +180,19 @@
       "typeVersion": 4.1
     },
     {
+      "id": "check-confirmation-sms",
+      "name": "Check Confirmation SMS Delivery",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        2125,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const smsResult = $('Twilio: Send Confirmation SMS').first().json;\nconst sid = smsResult?.sid || null;\nconst errorCode = smsResult?.code || smsResult?.error_code || null;\nconst errorMessage = smsResult?.message || smsResult?.error_message || null;\n\nif (errorCode || errorMessage || !sid) {\n  console.error('[WF-004] CONFIRMATION SMS FAILED', JSON.stringify({\n    customerPhone: $('Code: Build Confirmation SMS').first().json.customerPhone,\n    tenantId: $('Code: Build Confirmation SMS').first().json.tenantId,\n    errorCode, errorMessage\n  }));\n}\n\nreturn [$input.first()];"
+      },
+      "typeVersion": 2
+    },
+    {
       "id": "respond-ok",
       "name": "Respond 200",
       "type": "n8n-nodes-base.respondToWebhook",
@@ -273,6 +286,17 @@
       ]
     },
     "Twilio: Send Confirmation SMS": {
+      "main": [
+        [
+          {
+            "node": "Check Confirmation SMS Delivery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Confirmation SMS Delivery": {
       "main": [
         [
           {

@@ -13,7 +13,6 @@ import { twilioVoiceStatusRoute } from "./routes/webhooks/twilio-voice-status";
 import { stripeRoute } from "./routes/webhooks/stripe";
 import { provisionNumberRoute } from "./routes/internal/provision-number";
 import { adminRoute } from "./routes/internal/admin";
-import { calendarTokensRoute } from "./routes/internal/calendar-tokens";
 import { googleAuthRoute } from "./routes/auth/google";
 import { loginRoute } from "./routes/auth/login";
 import { signupRoute } from "./routes/auth/signup";
@@ -22,6 +21,8 @@ import { tenantDashboardRoute } from "./routes/tenant/dashboard";
 import { db } from "./db/client";
 import { redis } from "./queues/redis";
 import { startSmsInboundWorker } from "./workers/sms-inbound.worker";
+import { startProvisionNumberWorker } from "./workers/provision-number.worker";
+import { startBillingEventsWorker } from "./workers/billing-events.worker";
 
 const app = Fastify({
   logger: {
@@ -36,6 +37,8 @@ const app = Fastify({
 async function bootstrap() {
   // ── BullMQ workers ────────────────────────────────────────
   const smsWorker = startSmsInboundWorker();
+  const provisionWorker = startProvisionNumberWorker();
+  const billingWorker = startBillingEventsWorker();
 
   // ── Security ──────────────────────────────────────────────
   await app.register(helmet);
@@ -63,7 +66,6 @@ async function bootstrap() {
   await app.register(stripeRoute, { prefix: "/webhooks" });
   await app.register(provisionNumberRoute, { prefix: "/internal" });
   await app.register(adminRoute, { prefix: "/internal" });
-  await app.register(calendarTokensRoute, { prefix: "/internal" });
   await app.register(googleAuthRoute, { prefix: "/auth/google" });
   await app.register(loginRoute, { prefix: "/auth" });
   await app.register(signupRoute, { prefix: "/auth" });
@@ -89,6 +91,8 @@ async function bootstrap() {
       app.log.info(`Received ${signal}, shutting down...`);
       await app.close();
       await smsWorker.close();
+      await provisionWorker.close();
+      await billingWorker.close();
       await db.end();
       redis.disconnect();
       process.exit(0);

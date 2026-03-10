@@ -2,7 +2,12 @@ import { FastifyInstance, FastifyRequest } from "fastify";
 import Stripe from "stripe";
 import { query } from "../../db/client";
 import { updateBillingStatus } from "../../db/tenants";
-import { billingQueue, checkIdempotency, markIdempotency } from "../../queues/redis";
+import {
+  billingQueue,
+  provisionNumberQueue,
+  checkIdempotency,
+  markIdempotency,
+} from "../../queues/redis";
 
 type BillingStatus =
   | "trial" | "trial_expired" | "active"
@@ -111,6 +116,39 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
          WHERE id = $5`,
         [planId, sub.id, convLimit, sub.current_period_end, tenantId]
       );
+
+      // On first subscription: provision a Twilio number if tenant doesn't have one yet
+      if (event.type === "customer.subscription.created") {
+        const existing = await query(
+          `SELECT id FROM tenant_phone_numbers
+           WHERE tenant_id = $1 AND status = 'active' LIMIT 1`,
+          [tenantId]
+        );
+        if (existing.length === 0) {
+          const tenantRows = await query<{ shop_name: string; owner_phone: string | null }>(
+            `SELECT shop_name, owner_phone FROM tenants WHERE id = $1`,
+            [tenantId]
+          );
+          const areaCode =
+            tenantRows[0]?.owner_phone?.replace(/\D/g, "").slice(1, 4) || "512";
+          await provisionNumberQueue.add(
+            "provision-twilio-number",
+            {
+              tenantId,
+              areaCode,
+              shopName: tenantRows[0]?.shop_name ?? "AutoShop",
+            },
+            {
+              jobId: `provision-${tenantId}`,
+              attempts: 5,
+              backoff: { type: "exponential", delay: 5_000 },
+            }
+          );
+          console.info(
+            `[stripe] Provisioning Twilio number for tenant ${tenantId} (area code ${areaCode})`
+          );
+        }
+      }
       break;
     }
 
