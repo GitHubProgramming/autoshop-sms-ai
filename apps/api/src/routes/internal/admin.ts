@@ -24,6 +24,63 @@ import { adminGuard } from "../../middleware/admin-guard";
  *   GET /internal/admin/audit
  */
 export async function adminRoute(app: FastifyInstance) {
+  // ── GET /internal/admin/metrics/signups ───────────────────────────────────
+  app.get("/admin/metrics/signups", { preHandler: [adminGuard] }, async (_req, reply) => {
+    const rows = await query(
+      `SELECT d::date AS day, COALESCE(c.cnt, 0)::int AS count
+       FROM generate_series(CURRENT_DATE - INTERVAL '29 days', CURRENT_DATE, '1 day') d
+       LEFT JOIN (
+         SELECT created_at::date AS day, COUNT(*)::int AS cnt
+         FROM tenants
+         WHERE created_at >= CURRENT_DATE - INTERVAL '29 days'
+         GROUP BY created_at::date
+       ) c ON c.day = d::date
+       ORDER BY d`
+    );
+    return reply.send({
+      labels: (rows as any[]).map(r => r.day.toISOString().slice(0, 10)),
+      data: (rows as any[]).map(r => r.count),
+    });
+  });
+
+  // ── GET /internal/admin/metrics/conversations ──────────────────────────────
+  app.get("/admin/metrics/conversations", { preHandler: [adminGuard] }, async (_req, reply) => {
+    const rows = await query(
+      `SELECT d::date AS day, COALESCE(c.cnt, 0)::int AS count
+       FROM generate_series(CURRENT_DATE - INTERVAL '29 days', CURRENT_DATE, '1 day') d
+       LEFT JOIN (
+         SELECT opened_at::date AS day, COUNT(*)::int AS cnt
+         FROM conversations
+         WHERE opened_at >= CURRENT_DATE - INTERVAL '29 days'
+         GROUP BY opened_at::date
+       ) c ON c.day = d::date
+       ORDER BY d`
+    );
+    return reply.send({
+      labels: (rows as any[]).map(r => r.day.toISOString().slice(0, 10)),
+      data: (rows as any[]).map(r => r.count),
+    });
+  });
+
+  // ── GET /internal/admin/metrics/bookings ───────────────────────────────────
+  app.get("/admin/metrics/bookings", { preHandler: [adminGuard] }, async (_req, reply) => {
+    const rows = await query(
+      `SELECT d::date AS day, COALESCE(c.cnt, 0)::int AS count
+       FROM generate_series(CURRENT_DATE - INTERVAL '29 days', CURRENT_DATE, '1 day') d
+       LEFT JOIN (
+         SELECT created_at::date AS day, COUNT(*)::int AS cnt
+         FROM appointments
+         WHERE created_at >= CURRENT_DATE - INTERVAL '29 days'
+         GROUP BY created_at::date
+       ) c ON c.day = d::date
+       ORDER BY d`
+    );
+    return reply.send({
+      labels: (rows as any[]).map(r => r.day.toISOString().slice(0, 10)),
+      data: (rows as any[]).map(r => r.count),
+    });
+  });
+
   // ── GET /internal/admin/overview ────────────────────────────────────────────
   app.get("/admin/overview", { preHandler: [adminGuard] }, async (_req, reply) => {
     const [

@@ -3,6 +3,7 @@ import { z } from "zod";
 import Stripe from "stripe";
 import { query } from "../../db/client";
 import { getTenantById } from "../../db/tenants";
+import { requireAuth } from "../../middleware/require-auth";
 
 const PLAN_PRICE_MAP: Record<string, string | undefined> = {
   starter: process.env.STRIPE_PRICE_STARTER,
@@ -11,7 +12,6 @@ const PLAN_PRICE_MAP: Record<string, string | undefined> = {
 };
 
 const CheckoutBody = z.object({
-  tenantId: z.string().uuid(),
   plan: z.enum(["starter", "pro", "premium"]),
   successUrl: z.string().url(),
   cancelUrl: z.string().url(),
@@ -21,12 +21,11 @@ export async function billingCheckoutRoute(app: FastifyInstance) {
   /**
    * POST /billing/checkout
    *
+   * Requires JWT auth. Uses tenantId from the authenticated session.
    * Creates a Stripe Checkout Session for subscription purchase.
    * Returns { url } — redirect the shop owner's browser there.
-   *
-   * Stripe metadata carries tenant_id so webhooks can route events back.
    */
-  app.post("/checkout", async (request, reply) => {
+  app.post("/checkout", { preHandler: [requireAuth] }, async (request, reply) => {
     const stripeKey = process.env.STRIPE_SECRET_KEY;
     if (!stripeKey) {
       return reply.status(503).send({ error: "Stripe not configured" });
@@ -37,7 +36,8 @@ export async function billingCheckoutRoute(app: FastifyInstance) {
       return reply.status(400).send({ error: parsed.error.flatten() });
     }
 
-    const { tenantId, plan, successUrl, cancelUrl } = parsed.data;
+    const { plan, successUrl, cancelUrl } = parsed.data;
+    const { tenantId } = request.user as { tenantId: string };
 
     const priceId = PLAN_PRICE_MAP[plan];
     if (!priceId) {

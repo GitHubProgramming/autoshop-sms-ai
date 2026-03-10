@@ -37,10 +37,10 @@ OPENAI_API_KEY=sk-...
 
 # Google OAuth — get from console.cloud.google.com
 # Create OAuth 2.0 Client ID → Web application
-# Add authorized redirect URI: http://localhost:3000/auth/google/callback
+# Add authorized redirect URI: https://autoshopsmsai.com/auth/google/callback
 GOOGLE_CLIENT_ID=XXXXXXXXXX.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-...
-GOOGLE_REDIRECT_URI=http://localhost:3000/auth/google/callback
+GOOGLE_REDIRECT_URI=https://autoshopsmsai.com/auth/google/callback
 
 # Stripe — test keys from dashboard.stripe.com/test/apikeys
 STRIPE_SECRET_KEY=sk_test_...
@@ -227,10 +227,10 @@ After creating all three, go back to each workflow and confirm credentials are l
 
 ## Step 6 — Connect Google Calendar
 
-This step requires your `.env` to have valid `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI=http://localhost:3000/auth/google/callback`.
+This step requires your `.env` to have valid `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI=https://autoshopsmsai.com/auth/google/callback`.
 
 You also need to configure your Google Cloud project:
-- Authorized redirect URI: `http://localhost:3000/auth/google/callback`
+- Authorized redirect URI: `https://autoshopsmsai.com/auth/google/callback`
 
 Run the OAuth flow. Replace `<TENANT_UUID>` with the UUID from Step 3:
 
