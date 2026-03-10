@@ -717,18 +717,6 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
         <div class="hero-metrics" id="heroMetrics"></div>
       </div>
 
-      <!-- CALENDAR CONNECT CALLOUT (hidden when connected) -->
-      <div id="calendarCallout" class="hidden" style="margin:16px 0;padding:16px 20px;background:var(--bg-panel);border:1px solid var(--amber);border-radius:4px;display:flex;align-items:center;justify-content:space-between;gap:16px;">
-        <div style="display:flex;align-items:center;gap:12px;">
-          <span style="font-size:22px;line-height:1;">&#128197;</span>
-          <div>
-            <div style="font-weight:700;color:var(--white);font-size:14px;" id="calCalloutTitle">Connect Google Calendar</div>
-            <div style="color:var(--steel);font-size:12px;margin-top:2px;" id="calCalloutSub">Booked appointments will sync automatically to your calendar.</div>
-          </div>
-        </div>
-        <button class="btn-sm primary" id="calCalloutBtn" onclick="connectGoogleCalendar()">Connect Calendar</button>
-      </div>
-
       <!-- REVENUE SINCE ACTIVATION (populated by JS) -->
       <div class="section-label">All-Time Performance</div>
       <div id="sinceActivationBlock" class="kpi-grid" style="grid-template-columns:1fr;margin-bottom:2px;"></div>
@@ -1174,7 +1162,6 @@ document.addEventListener('DOMContentLoaded', async function() {
   renderBillingPage();
   renderBookingsCalendarAlert();
   renderSystemHero();
-  renderCalendarCallout();
   checkActivationState();
   renderLiveKPIs();
   renderLiveTodayActivity();
@@ -1306,8 +1293,8 @@ function renderChecklist() {
       label: 'Connect Google Calendar',
       status: s.integrations.googleCalendar,
       pills: { connected:{cls:'done',text:'Connected'}, token_expired:{cls:'warn',text:'Needs Reconnect'}, revoked:{cls:'fail',text:'Revoked'}, failed:{cls:'fail',text:'Failed'} },
-      ctas:  { connected:'', token_expired:'<button class="btn-sm amber-btn" onclick="connectGoogleCalendar()">Reconnect</button>', revoked:'<button class="btn-sm red-btn" onclick="connectGoogleCalendar()">Reconnect</button>', failed:'<button class="btn-sm red-btn" onclick="connectGoogleCalendar()">Reconnect</button>' },
-      defaultCta: '<button class="btn-sm" onclick="showToast(\'Redirecting to Google OAuth...\')">Connect</button>'
+      ctas:  { connected:'<button class="btn-sm" onclick="switchView(\'settings\')">Manage</button>', token_expired:'<button class="btn-sm amber-btn" onclick="connectGoogleCalendar()">Reconnect</button>', revoked:'<button class="btn-sm red-btn" onclick="connectGoogleCalendar()">Reconnect</button>', failed:'<button class="btn-sm red-btn" onclick="connectGoogleCalendar()">Reconnect</button>' },
+      defaultCta: '<button class="btn-sm primary" onclick="connectGoogleCalendar()">Connect</button>'
     },
     {
       num: '02',
@@ -1771,39 +1758,6 @@ function renderSystemHero() {
 }
 
 // ════════════════════════════════════════════
-// CALENDAR CALLOUT (prominent on dashboard)
-// ════════════════════════════════════════════
-function renderCalendarCallout() {
-  var el = document.getElementById('calendarCallout');
-  if (!el) return;
-  var cal = tenantState.integrations.googleCalendar;
-  if (cal === 'connected') {
-    el.classList.add('hidden');
-    return;
-  }
-  el.classList.remove('hidden');
-  var title = document.getElementById('calCalloutTitle');
-  var sub = document.getElementById('calCalloutSub');
-  var btn = document.getElementById('calCalloutBtn');
-  if (cal === 'token_expired') {
-    if (title) title.textContent = 'Google Calendar Token Expired';
-    if (sub) sub.textContent = 'Reconnect to keep syncing booked appointments to your calendar.';
-    if (btn) { btn.textContent = 'Reconnect Calendar'; btn.className = 'btn-sm amber-btn'; }
-    el.style.borderColor = 'var(--amber)';
-  } else if (cal === 'revoked' || cal === 'failed') {
-    if (title) title.textContent = 'Google Calendar Disconnected';
-    if (sub) sub.textContent = 'Calendar sync failed. Reconnect to prevent lost bookings.';
-    if (btn) { btn.textContent = 'Reconnect Calendar'; btn.className = 'btn-sm red-btn'; }
-    el.style.borderColor = 'var(--red)';
-  } else {
-    if (title) title.textContent = 'Connect Google Calendar';
-    if (sub) sub.textContent = 'Booked appointments will sync automatically to your calendar.';
-    if (btn) { btn.textContent = 'Connect Calendar'; btn.className = 'btn-sm primary'; }
-    el.style.borderColor = 'var(--rust)';
-  }
-}
-
-// ════════════════════════════════════════════
 // LIVE KPI RENDERING (from API data)
 // ════════════════════════════════════════════
 function renderLiveKPIs() {
@@ -1817,14 +1771,6 @@ function renderLiveKPIs() {
   var twClass = tw === 'active' ? 'ok' : 'err';
   var twDot = tw === 'active' ? 'green' : 'red';
   var twLabel = tw === 'active' ? 'Connected' : 'Not Provisioned';
-
-  // Calendar action button
-  var calAction = '';
-  if (cal !== 'connected') {
-    var btnLabel = cal === 'not_connected' ? 'Connect Calendar' : 'Reconnect Calendar';
-    var btnCls = cal === 'not_connected' ? 'btn-sm primary' : 'btn-sm amber-btn';
-    calAction = '<button class="' + btnCls + '" onclick="connectGoogleCalendar()" style="margin-top:8px;font-size:11px;padding:5px 10px;">' + btnLabel + '</button>';
-  }
 
   document.getElementById('kpiGrid').innerHTML =
     '<div class="kpi-card revenue fade-in">' +
@@ -1845,7 +1791,7 @@ function renderLiveKPIs() {
     '<div class="kpi-card health-card fade-in">' +
       '<div class="health-header"><div class="kpi-tag" style="margin-bottom:0;">System Health</div></div>' +
       '<div class="health-row"><span class="health-label">Twilio SMS</span><span class="health-val ' + twClass + '"><span class="hdot ' + twDot + '"></span>' + twLabel + '</span></div>' +
-      '<div class="health-row"><span class="health-label">Google Calendar</span><span class="health-val ' + calClass + '"><span class="hdot ' + calDot + '"></span>' + calLabel + '</span>' + calAction + '</div>' +
+      '<div class="health-row"><span class="health-label">Google Calendar</span><span class="health-val ' + calClass + '"><span class="hdot ' + calDot + '"></span>' + calLabel + '</span></div>' +
       '<div class="health-row"><span class="health-label">Active Convos</span><span class="health-val neutral">' + (s.active_conversations || 0) + '</span></div>' +
       '<div class="health-row"><span class="health-label">Appts Today</span><span class="health-val neutral">' + (s.appointments_today || 0) + '</span></div>' +
     '</div>';
