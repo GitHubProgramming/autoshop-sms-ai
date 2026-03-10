@@ -4,7 +4,7 @@
     {
       "parameters": {
         "path": "provision-number",
-        "responseMode": "responseNode",
+        "responseMode": "lastNode",
         "options": {}
       },
       "id": "webhook-trigger",
@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validate input\nconst data = $json;\nif (!data.tenantId || !data.areaCode) {\n  throw new Error('Missing tenantId or areaCode');\n}\n\n// Texas area codes fallback list\nconst TX_AREA_CODES = ['512', '737', '210', '214', '972', '469', '817', '682', '281', '832', '713', '346', '361', '915', '806', '903', '936', '956'];\n\nconst primaryAreaCode = data.areaCode;\nconst fallbacks = TX_AREA_CODES.filter(c => c !== primaryAreaCode).slice(0, 3);\n\nreturn [{\n  json: {\n    tenantId: data.tenantId,\n    areaCode: primaryAreaCode,\n    fallbackAreaCodes: fallbacks,\n    shopName: data.shopName || 'AutoShop',\n    attempt: 0,\n  }\n}];"
+        "jsCode": "// Validate input — webhook v1.1 wraps POST body under $json.body\nconst data = $json.body || $json;\nif (!data.tenantId || !data.areaCode) {\n  throw new Error('Missing tenantId or areaCode');\n}\n\n// Texas area codes fallback list\nconst TX_AREA_CODES = ['512', '737', '210', '214', '972', '469', '817', '682', '281', '832', '713', '346', '361', '915', '806', '903', '936', '956'];\n\nconst primaryAreaCode = data.areaCode;\nconst fallbacks = TX_AREA_CODES.filter(c => c !== primaryAreaCode).slice(0, 3);\n\nreturn [{\n  json: {\n    tenantId: data.tenantId,\n    areaCode: primaryAreaCode,\n    fallbackAreaCodes: fallbacks,\n    shopName: data.shopName || 'AutoShop',\n    attempt: 0,\n  }\n}];"
       },
       "id": "validate-input",
       "name": "Validate + Prepare",
