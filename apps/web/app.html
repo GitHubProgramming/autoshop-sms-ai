@@ -1603,14 +1603,14 @@ function renderBillingPage() {
 // BILLING ACTIONS
 // ════════════════════════════════════════════
 async function startCheckout(plan) {
-  var session = JSON.parse(localStorage.getItem('autoshop_session') || '{}');
-  if (!session.token) { showToast('Session expired — please log in again.'); return; }
+  var token = localStorage.getItem('autoshop_jwt');
+  if (!token) { showToast('Session expired — please log in again.'); return; }
 
   showToast('Redirecting to Stripe checkout...');
   try {
     var res = await fetch('/billing/checkout', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.token },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({
         plan: plan,
         successUrl: window.location.origin + '/app.html?billing=success',
@@ -1628,13 +1628,13 @@ async function startCheckout(plan) {
 }
 
 async function openBillingPortal() {
-  var session = JSON.parse(localStorage.getItem('autoshop_session') || '{}');
-  if (!session.token) { showToast('Session expired — please log in again.'); return; }
+  var token = localStorage.getItem('autoshop_jwt');
+  if (!token) { showToast('Session expired — please log in again.'); return; }
 
   showToast('Opening billing portal...');
   try {
     var res = await fetch('/billing/portal', {
-      headers: { 'Authorization': 'Bearer ' + session.token }
+      headers: { 'Authorization': 'Bearer ' + token }
     });
     if (res.status === 401) { showToast('Session expired — please log in again.'); return; }
     var data = await res.json();
