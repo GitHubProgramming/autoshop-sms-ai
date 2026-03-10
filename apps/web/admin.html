@@ -3,662 +3,267 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AutoShop Admin</title>
+<title>AutoShop Admin — Internal Ops</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 :root {
-  /* ── PREMIUM LIGHT THEME ── */
-  --bg:           #f5f6f8;
-  --bg-panel:     #ffffff;
-  --bg-hover:     #f0f2f5;
-  --bg-sidebar:   #ffffff;
-  --bg-topnav:    #ffffff;
-
-  --primary:      #2563eb;
-  --primary-light:#3b82f6;
-  --primary-dim:  rgba(37,99,235,.06);
-
-  --amber:        #d97706;
-  --amber-dim:    rgba(217,119,6,.08);
-  --green:        #059669;
-  --green-dim:    rgba(5,150,105,.06);
-  --red:          #dc2626;
-  --red-dim:      rgba(220,38,38,.05);
-
-  --text:         #111827;
-  --text-secondary: #6b7280;
-  --text-tertiary:  #9ca3af;
-
-  --border:       #e5e7eb;
-  --border-strong: #d1d5db;
-  --shadow-sm:    0 1px 2px rgba(0,0,0,.04);
-  --shadow-md:    0 2px 8px rgba(0,0,0,.06);
-  --shadow-lg:    0 8px 24px rgba(0,0,0,.08);
-
-  --radius-sm:    8px;
-  --radius-md:    12px;
-  --radius-lg:    16px;
-  --radius-xl:    20px;
-
-  --mono:         'JetBrains Mono', monospace;
-  --sans:         'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  /* ── COLOR SYSTEM ── */
+  --bg:         #f8fafc;
+  --bg-mid:     #0f172a;
+  --bg-panel:   #ffffff;
+  --bg-hover:   #f1f5f9;
+  --sidebar-hover: #1e293b;
+  --sidebar-active: #334155;
+  --rust:       #3b82f6;
+  --rust-light: #60a5fa;
+  --amber:      #f59e0b;
+  --green:      #16a34a;
+  --green-dim:  rgba(22,163,74,0.08);
+  --red:        #ef4444;
+  --red-dim:    rgba(239,68,68,0.06);
+  --steel:      #6b7280;
+  --steel-mid:  #6b7280;
+  --steel-light:#111827;
+  --white:      #111827;
+  --sidebar-text: #e5e7eb;
+  --border:     #e5e7eb;
+  --border-mid: #d1d5db;
+  --mono:       'JetBrains Mono', monospace;
+  --display:    'Inter', sans-serif;
+  --body:       'Inter', sans-serif;
 }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:16px;}
+body{background:var(--bg);color:var(--white);font-family:var(--body);line-height:1.6;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;min-height:100vh;font-feature-settings:'cv02','cv03','cv04','cv11';}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border-mid);border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:#9ca3af;}
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-size: 16px; }
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--sans);
-  line-height: 1.6;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  min-height: 100vh;
-  font-feature-settings: 'cv02','cv03','cv04','cv11';
-}
-
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
-
-/* ── ACCESS DENIED ── */
-.access-denied {
-  min-height: 100vh; display: flex; align-items: center; justify-content: center;
-  background: var(--bg);
-}
-.access-denied-box {
-  background: var(--bg-panel); border: 1px solid var(--border); padding: 56px 48px;
-  width: 440px; text-align: center; border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-}
-.access-denied-title {
-  font-size: 24px; font-weight: 700; color: var(--red); margin-bottom: 12px;
-  letter-spacing: -.02em;
-}
-.access-denied-msg {
-  font-size: 15px; color: var(--text-secondary); line-height: 1.7; margin-bottom: 32px;
-}
-.access-denied-btn {
-  display: inline-block; background: var(--primary); color: #fff; font-size: 15px;
-  font-weight: 600; padding: 12px 32px; border: none; cursor: pointer;
-  text-decoration: none; border-radius: var(--radius-sm);
-  transition: background .2s, box-shadow .2s;
-}
-.access-denied-btn:hover {
-  background: var(--primary-light); box-shadow: 0 2px 8px rgba(37,99,235,.25);
-}
+/* ── ACCESS DENIED SCREEN ── */
+.access-denied{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);}
+.access-denied-box{background:var(--bg-panel);border:1px solid rgba(220,38,38,.2);padding:48px 40px;width:420px;text-align:center;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.06);}
+.access-denied-title{font-family:var(--body);font-size:22px;font-weight:700;letter-spacing:-.01em;color:var(--red);margin-bottom:12px;}
+.access-denied-msg{font-family:var(--body);font-size:15px;color:var(--steel);line-height:1.6;margin-bottom:28px;}
+.access-denied-btn{display:inline-block;background:var(--rust);color:#fff;font-family:var(--body);font-size:15px;font-weight:600;padding:12px 28px;border:none;cursor:pointer;text-decoration:none;border-radius:8px;transition:background .2s;}
+.access-denied-btn:hover{background:var(--rust-light);}
 
 /* ── TOP NAV ── */
-.topnav {
-  background: var(--bg-topnav); border-bottom: 1px solid var(--border);
-  padding: 0 32px; height: 56px; display: flex; align-items: center;
-  justify-content: space-between; position: sticky; top: 0; z-index: 100;
-}
-.nav-left { display: flex; align-items: center; gap: 14px; }
-.nav-logo {
-  font-size: 18px; font-weight: 700; letter-spacing: -.02em;
-  color: var(--text); text-decoration: none;
-}
-.nav-logo span { color: var(--primary); }
-.admin-badge {
-  font-family: var(--mono); font-size: 10px; letter-spacing: .08em;
-  text-transform: uppercase; color: var(--text-tertiary);
-  background: var(--bg); border: 1px solid var(--border);
-  padding: 3px 10px; border-radius: 6px; font-weight: 500;
-}
-.nav-right { display: flex; align-items: center; gap: 12px; }
-.nav-api-base { font-family: var(--mono); font-size: 12px; color: var(--text-tertiary); }
-
-/* ── BUTTONS ── */
-.btn-sm {
-  font-family: var(--sans); font-size: 13px; font-weight: 600;
-  padding: 8px 18px; border: 1px solid var(--border);
-  background: var(--bg-panel); color: var(--text); cursor: pointer;
-  transition: all .15s; border-radius: var(--radius-sm);
-}
-.btn-sm:hover {
-  border-color: var(--border-strong); background: var(--bg-hover);
-  box-shadow: var(--shadow-sm);
-}
-.btn-sm.primary {
-  background: var(--primary); border-color: var(--primary); color: #fff;
-}
-.btn-sm.primary:hover {
-  background: var(--primary-light);
-  box-shadow: 0 2px 8px rgba(37,99,235,.2);
-}
-.btn-sm.logout {
-  background: transparent; border-color: var(--border);
-  color: var(--text-secondary);
-}
-.btn-sm.logout:hover { color: var(--text); border-color: var(--border-strong); }
+.topnav{background:var(--bg-mid);border-bottom:1px solid rgba(255,255,255,.06);padding:0 32px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.nav-left{display:flex;align-items:center;gap:16px;}
+.nav-logo{font-family:var(--body);font-size:18px;font-weight:700;letter-spacing:-.01em;color:#fff;text-decoration:none;}
+.nav-logo span{color:var(--rust-light);}
+.admin-badge{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.45);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);padding:3px 10px;border-radius:6px;}
+.nav-right{display:flex;align-items:center;gap:12px;}
+.nav-api-base{font-family:var(--mono);font-size:12px;color:rgba(255,255,255,.45);}
+.btn-sm{font-family:var(--body);font-size:13px;font-weight:600;padding:8px 16px;border:1px solid var(--border);background:var(--bg-panel);color:var(--white);cursor:pointer;transition:all .15s;border-radius:8px;}
+.btn-sm:hover{border-color:var(--border-mid);background:var(--bg-hover);box-shadow:0 1px 3px rgba(0,0,0,.06);}
+.btn-sm.primary{background:var(--rust);border-color:var(--rust);color:#fff;border-radius:8px;}
+.btn-sm.primary:hover{background:#2563eb;}
 
 /* ── LAYOUT ── */
-.layout { display: flex; min-height: calc(100vh - 56px); }
+.layout{display:flex;min-height:calc(100vh - 56px);}
 
 /* ── SIDEBAR ── */
-.sidebar {
-  width: 260px; flex-shrink: 0; background: var(--bg-sidebar);
-  border-right: 1px solid var(--border); padding: 24px 0;
-  display: flex; flex-direction: column; position: sticky;
-  top: 56px; height: calc(100vh - 56px); overflow-y: auto;
-}
-.sidebar-label {
-  font-size: 11px; font-weight: 600; letter-spacing: .08em;
-  color: var(--text-tertiary); text-transform: uppercase;
-  padding: 6px 24px 6px; margin-top: 24px;
-}
-.sidebar-label:first-child { margin-top: 0; }
-.sidebar-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 24px; cursor: pointer; color: var(--text-secondary);
-  font-size: 14px; font-weight: 500; border-radius: 0;
-  margin: 1px 12px 1px 0; transition: all .15s;
-  border-left: 3px solid transparent;
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-}
-.sidebar-item:hover {
-  background: var(--bg-hover); color: var(--text);
-}
-.sidebar-item.active {
-  background: var(--primary-dim); color: var(--primary);
-  border-left-color: var(--primary); font-weight: 600;
-}
-.sidebar-icon {
-  font-size: 14px; width: 20px; text-align: center; flex-shrink: 0;
-  opacity: .6;
-}
-.sidebar-item.active .sidebar-icon { opacity: 1; }
-.sidebar-badge {
-  margin-left: auto; background: var(--red); color: #fff;
-  font-family: var(--mono); font-size: 10px; padding: 2px 8px;
-  border-radius: 10px; font-weight: 600;
-}
+.sidebar{width:260px;flex-shrink:0;background:var(--bg-mid);border-right:1px solid rgba(255,255,255,.06);padding:20px 0;display:flex;flex-direction:column;position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto;}
+.sidebar-label{font-family:var(--body);font-size:11px;font-weight:600;letter-spacing:.08em;color:rgba(255,255,255,.3);text-transform:uppercase;padding:8px 20px 6px;margin-top:20px;}
+.sidebar-label:first-child{margin-top:4px;}
+.sidebar-item{display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;color:var(--sidebar-text);font-size:15px;font-weight:500;border-left:3px solid transparent;border-radius:0 8px 8px 0;margin:2px 8px 2px 0;transition:background .15s,color .15s,border-color .15s;}
+.sidebar-item:hover{background:var(--sidebar-hover);color:#fff;}
+.sidebar-item.active{background:var(--sidebar-active);color:#fff;border-left-color:var(--rust);}
+.sidebar-icon{font-size:15px;width:20px;text-align:center;flex-shrink:0;opacity:.7;}
+.sidebar-item.active .sidebar-icon{opacity:1;}
+.sidebar-badge{margin-left:auto;background:var(--red);color:#fff;font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;}
 
 /* ── MAIN ── */
-.main {
-  flex: 1; padding: 40px 48px 80px; overflow-x: hidden;
-  min-width: 0; max-width: 1200px;
-}
+.main{flex:1;padding:32px 40px 60px;overflow-x:hidden;min-width:0;max-width:1400px;}
+.page-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:32px;gap:16px;flex-wrap:wrap;}
+.page-title{font-family:var(--body);font-size:32px;font-weight:700;color:var(--white);letter-spacing:-.02em;line-height:1;}
+.page-subtitle{font-family:var(--body);font-size:14px;color:var(--steel);margin-top:8px;font-weight:400;}
+.section-label{font-family:var(--body);font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--steel);margin-bottom:16px;margin-top:8px;display:flex;align-items:center;gap:12px;}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border);}
 
-/* ── PAGE HEADER ── */
-.page-header {
-  display: flex; align-items: flex-end; justify-content: space-between;
-  margin-bottom: 36px; gap: 16px; flex-wrap: wrap;
-}
-.page-title {
-  font-size: 32px; font-weight: 700; color: var(--text);
-  letter-spacing: -.03em; line-height: 1.1;
-}
-.page-subtitle {
-  font-size: 15px; color: var(--text-secondary); margin-top: 6px; font-weight: 400;
-}
-
-/* ── SECTION LABEL ── */
-.section-label {
-  font-size: 13px; font-weight: 600; letter-spacing: .06em;
-  text-transform: uppercase; color: var(--text-tertiary);
-  margin-bottom: 16px; margin-top: 12px;
-  display: flex; align-items: center; gap: 12px;
-}
-.section-label::after {
-  content: ''; flex: 1; height: 1px; background: var(--border);
-}
-
-/* ── STAT GRID ── */
-.stat-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px; margin-bottom: 36px;
-}
-.stat-card {
-  background: var(--bg-panel); padding: 24px 28px;
-  border-radius: var(--radius-lg); border: 1px solid var(--border);
-  box-shadow: var(--shadow-sm); transition: box-shadow .2s, transform .2s;
-  border-top: 3px solid transparent;
-}
-.stat-card:hover {
-  box-shadow: var(--shadow-md); transform: translateY(-1px);
-}
-.stat-card.rust  { border-top-color: var(--primary); }
-.stat-card.amber { border-top-color: var(--amber); }
-.stat-card.green { border-top-color: var(--green); }
-.stat-card.red   { border-top-color: var(--red); }
-.stat-card.steel { border-top-color: var(--text-tertiary); }
-
-.stat-tag {
-  font-size: 13px; font-weight: 600; letter-spacing: .02em;
-  color: var(--text-secondary); margin-bottom: 12px;
-}
-.stat-val {
-  font-size: 36px; font-weight: 700; color: var(--text);
-  line-height: 1; letter-spacing: -.03em;
-}
-.stat-val.amber { color: var(--amber); }
-.stat-val.red   { color: var(--red); }
-.stat-val.green { color: var(--green); }
-.stat-sub {
-  font-size: 13px; color: var(--text-tertiary); margin-top: 8px;
-}
+/* ── STAT GRID (overview) ── */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:20px;margin-bottom:32px;}
+.stat-card{background:var(--bg-panel);padding:24px;border-top:3px solid transparent;transition:box-shadow .2s,transform .2s;border-radius:12px;border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.04);}
+.stat-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.08);transform:translateY(-1px);}
+.stat-card.rust{border-top-color:var(--rust);}
+.stat-card.amber{border-top-color:var(--amber);}
+.stat-card.green{border-top-color:var(--green);}
+.stat-card.red{border-top-color:var(--red);}
+.stat-card.steel{border-top-color:var(--steel);}
+.stat-tag{font-family:var(--body);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--steel);margin-bottom:14px;}
+.stat-val{font-family:var(--body);font-size:40px;font-weight:700;color:var(--white);line-height:1;letter-spacing:-.03em;}
+.stat-val.amber{color:var(--amber);}
+.stat-val.red{color:var(--red);}
+.stat-val.green{color:var(--green);}
+.stat-sub{font-family:var(--body);font-size:12px;color:var(--steel);margin-top:8px;}
 
 /* ── FILTER TABS ── */
-.filter-tabs { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
-.filter-tab {
-  font-family: var(--sans); font-size: 13px; font-weight: 500;
-  padding: 8px 16px; border: 1px solid var(--border);
-  color: var(--text-secondary); cursor: pointer;
-  transition: all .15s; background: var(--bg-panel);
-  border-radius: var(--radius-sm);
-}
-.filter-tab:hover {
-  border-color: var(--border-strong); color: var(--text);
-  background: var(--bg-hover);
-}
-.filter-tab.active {
-  border-color: var(--primary); color: var(--primary);
-  background: var(--primary-dim); font-weight: 600;
-}
+.filter-tabs{display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap;}
+.filter-tab{font-family:var(--body);font-size:13px;font-weight:500;padding:7px 16px;border:1px solid var(--border);color:var(--steel);cursor:pointer;transition:all .15s;background:var(--bg-panel);border-radius:8px;}
+.filter-tab:hover{border-color:var(--border-mid);color:var(--white);background:var(--bg-hover);}
+.filter-tab.active{border-color:var(--rust);color:var(--rust);background:rgba(59,130,246,.06);font-weight:600;}
 
-/* ── TABLE ── */
-.table-wrap {
-  background: var(--bg-panel); border: 1px solid var(--border);
-  overflow: hidden; margin-bottom: 24px;
-  border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
-}
-.table-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 20px 24px; border-bottom: 1px solid var(--border);
-  gap: 12px; flex-wrap: wrap;
-}
-.table-title {
-  font-size: 16px; font-weight: 700; color: var(--text);
-  letter-spacing: -.01em;
-}
-.table-controls { display: flex; gap: 8px; align-items: center; }
-.search-input {
-  background: var(--bg); border: 1px solid var(--border);
-  color: var(--text); font-family: var(--sans); font-size: 14px;
-  padding: 10px 16px; outline: none; width: 260px;
-  transition: border-color .15s, box-shadow .15s;
-  border-radius: var(--radius-sm);
-}
-.search-input:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(37,99,235,.08);
-}
-.search-input::placeholder { color: var(--text-tertiary); }
+/* ── DATA TABLE ── */
+.table-wrap{background:var(--bg-panel);border:1px solid var(--border);overflow:hidden;margin-bottom:24px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+.table-header{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--border);background:var(--bg-panel);gap:12px;flex-wrap:wrap;}
+.table-title{font-family:var(--body);font-size:16px;font-weight:700;color:var(--white);letter-spacing:-.01em;}
+.table-controls{display:flex;gap:8px;align-items:center;}
+.search-input{background:var(--bg);border:1px solid var(--border);color:var(--white);font-family:var(--body);font-size:14px;padding:9px 14px;outline:none;width:240px;transition:border-color .15s,box-shadow .15s;border-radius:8px;}
+.search-input:focus{border-color:var(--rust);box-shadow:0 0 0 3px rgba(59,130,246,.1);}
+.search-input::placeholder{color:var(--steel);}
+.data-table{width:100%;border-collapse:collapse;}
+.data-table th{font-family:var(--body);font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--steel);padding:14px 16px;text-align:left;border-bottom:2px solid var(--border);background:var(--bg);white-space:nowrap;}
+.data-table td{padding:14px 16px;font-size:14px;color:var(--steel-light);border-bottom:1px solid var(--border);vertical-align:middle;height:48px;}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tbody tr{transition:background .1s;}
+.data-table tbody tr:hover td{background:var(--bg-hover);cursor:pointer;}
+.data-table tbody tr:nth-child(even) td{background:rgba(248,250,252,.5);}
+.data-table tbody tr:nth-child(even):hover td{background:var(--bg-hover);}
+.data-table .mono{font-family:var(--mono);font-size:12px;}
+.data-table .dim{color:var(--steel);}
 
-.data-table { width: 100%; border-collapse: collapse; }
-.data-table th {
-  font-size: 12px; font-weight: 600; letter-spacing: .04em;
-  text-transform: uppercase; color: var(--text-tertiary);
-  padding: 14px 18px; text-align: left;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg); white-space: nowrap;
-}
-.data-table td {
-  padding: 16px 18px; font-size: 14px; color: var(--text);
-  border-bottom: 1px solid #f3f4f6; vertical-align: middle;
-  height: 52px;
-}
-.data-table tr:last-child td { border-bottom: none; }
-.data-table tbody tr { transition: background .1s; }
-.data-table tbody tr:hover td { background: var(--bg-hover); cursor: pointer; }
-.data-table .mono { font-family: var(--mono); font-size: 12px; }
-.data-table .dim { color: var(--text-secondary); }
-
-/* ── BADGES ── */
-.badge {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-family: var(--sans); font-size: 11px; letter-spacing: .03em;
-  text-transform: uppercase; padding: 4px 10px;
-  border-radius: 6px; white-space: nowrap; font-weight: 600;
-}
-.badge::before {
-  content: ''; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
-}
-.badge.trial {
-  background: var(--amber-dim); color: var(--amber);
-  border: 1px solid rgba(217,119,6,.2);
-}
-.badge.trial::before { background: var(--amber); }
-.badge.active {
-  background: var(--green-dim); color: var(--green);
-  border: 1px solid rgba(5,150,105,.2);
-}
-.badge.active::before { background: var(--green); }
-.badge.past_due, .badge.past-due {
-  background: var(--red-dim); color: var(--red);
-  border: 1px solid rgba(220,38,38,.15);
-}
-.badge.past_due::before, .badge.past-due::before { background: var(--red); }
-.badge.past_due_blocked, .badge.blocked {
-  background: rgba(220,38,38,.08); color: var(--red);
-  border: 1px solid rgba(220,38,38,.25);
-}
-.badge.past_due_blocked::before, .badge.blocked::before { background: var(--red); }
-.badge.trial_expired, .badge.expired {
-  background: rgba(107,114,128,.06); color: var(--text-tertiary);
-  border: 1px solid rgba(107,114,128,.15);
-}
-.badge.trial_expired::before, .badge.expired::before { background: var(--text-tertiary); }
-.badge.canceled {
-  background: rgba(107,114,128,.05); color: var(--text-tertiary);
-  border: 1px solid rgba(107,114,128,.12);
-}
-.badge.canceled::before { background: var(--text-tertiary); }
-.badge.paused {
-  background: var(--amber-dim); color: var(--amber);
-  border: 1px solid rgba(217,119,6,.15);
-}
-.badge.paused::before { background: var(--amber); }
-.badge.synced {
-  background: var(--green-dim); color: var(--green);
-  border: 1px solid rgba(5,150,105,.2);
-}
-.badge.synced::before { background: var(--green); }
-.badge.pending {
-  background: var(--amber-dim); color: var(--amber);
-  border: 1px solid rgba(217,119,6,.15);
-}
-.badge.pending::before { background: var(--amber); }
-.badge.sync_failed, .badge.failed {
-  background: var(--red-dim); color: var(--red);
-  border: 1px solid rgba(220,38,38,.15);
-}
-.badge.sync_failed::before, .badge.failed::before { background: var(--red); }
-.badge.open {
-  background: var(--primary-dim); color: var(--primary);
-  border: 1px solid rgba(37,99,235,.15);
-}
-.badge.open::before { background: var(--primary); }
-.badge.booked {
-  background: var(--green-dim); color: var(--green);
-  border: 1px solid rgba(5,150,105,.2);
-}
-.badge.booked::before { background: var(--green); }
-.badge.closed {
-  background: rgba(107,114,128,.05); color: var(--text-tertiary);
-  border: 1px solid rgba(107,114,128,.12);
-}
-.badge.closed::before { background: var(--text-tertiary); }
-.badge.expired-conv {
-  background: rgba(107,114,128,.05); color: var(--text-tertiary);
-  border: 1px solid rgba(107,114,128,.12);
-}
-.badge.expired-conv::before { background: var(--text-tertiary); }
-.badge.high {
-  background: var(--red-dim); color: var(--red);
-  border: 1px solid rgba(220,38,38,.15);
-}
-.badge.high::before { background: var(--red); }
-.badge.medium {
-  background: var(--amber-dim); color: var(--amber);
-  border: 1px solid rgba(217,119,6,.2);
-}
-.badge.medium::before { background: var(--amber); }
-.badge.low {
-  background: rgba(107,114,128,.05); color: var(--text-tertiary);
-  border: 1px solid rgba(107,114,128,.12);
-}
-.badge.low::before { background: var(--text-tertiary); }
-.badge.started {
-  background: var(--primary-dim); color: var(--primary);
-  border: 1px solid rgba(37,99,235,.15);
-}
-.badge.started::before { background: var(--primary); }
-.badge.completed {
-  background: var(--green-dim); color: var(--green);
-  border: 1px solid rgba(5,150,105,.2);
-}
-.badge.completed::before { background: var(--green); }
-.badge.abandoned {
-  background: rgba(107,114,128,.05); color: var(--text-tertiary);
-  border: 1px solid rgba(107,114,128,.12);
-}
-.badge.abandoned::before { background: var(--text-tertiary); }
+/* ── STATUS BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:5px;font-family:var(--body);font-size:11px;letter-spacing:.04em;text-transform:uppercase;padding:4px 10px;border-radius:6px;white-space:nowrap;font-weight:600;}
+.badge::before{content:'';width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.badge.trial{background:rgba(217,119,6,.1);color:#b45309;border:1px solid rgba(217,119,6,.25);}
+.badge.trial::before{background:var(--amber);}
+.badge.active{background:var(--green-dim);color:#15803d;border:1px solid rgba(22,163,74,.2);}
+.badge.active::before{background:var(--green);}
+.badge.past_due,.badge.past-due{background:rgba(220,38,38,.06);color:var(--red);border:1px solid rgba(220,38,38,.2);}
+.badge.past_due::before,.badge.past-due::before{background:var(--red);}
+.badge.past_due_blocked,.badge.blocked{background:rgba(220,38,38,.1);color:var(--red);border:1px solid rgba(220,38,38,.3);}
+.badge.past_due_blocked::before,.badge.blocked::before{background:var(--red);}
+.badge.trial_expired,.badge.expired{background:rgba(107,114,128,.1);color:var(--steel);border:1px solid rgba(107,114,128,.2);}
+.badge.trial_expired::before,.badge.expired::before{background:var(--steel);}
+.badge.canceled{background:rgba(107,114,128,.08);color:var(--steel);border:1px solid rgba(107,114,128,.15);}
+.badge.canceled::before{background:var(--steel);}
+.badge.paused{background:rgba(217,119,6,.08);color:#b45309;border:1px solid rgba(217,119,6,.2);}
+.badge.paused::before{background:var(--amber);}
+.badge.synced{background:var(--green-dim);color:#15803d;border:1px solid rgba(22,163,74,.2);}
+.badge.synced::before{background:var(--green);}
+.badge.pending{background:rgba(217,119,6,.08);color:#b45309;border:1px solid rgba(217,119,6,.2);}
+.badge.pending::before{background:var(--amber);}
+.badge.sync_failed,.badge.failed{background:var(--red-dim);color:var(--red);border:1px solid rgba(220,38,38,.2);}
+.badge.sync_failed::before,.badge.failed::before{background:var(--red);}
+.badge.open{background:rgba(37,99,235,.06);color:var(--rust);border:1px solid rgba(37,99,235,.2);}
+.badge.open::before{background:var(--rust);}
+.badge.booked{background:var(--green-dim);color:#15803d;border:1px solid rgba(22,163,74,.2);}
+.badge.booked::before{background:var(--green);}
+.badge.closed{background:rgba(107,114,128,.08);color:var(--steel);border:1px solid rgba(107,114,128,.15);}
+.badge.closed::before{background:var(--steel);}
+.badge.expired-conv{background:rgba(107,114,128,.08);color:var(--steel);border:1px solid rgba(107,114,128,.15);}
+.badge.expired-conv::before{background:var(--steel);}
+.badge.high{background:var(--red-dim);color:var(--red);border:1px solid rgba(220,38,38,.2);}
+.badge.high::before{background:var(--red);}
+.badge.medium{background:rgba(217,119,6,.1);color:#b45309;border:1px solid rgba(217,119,6,.25);}
+.badge.medium::before{background:var(--amber);}
+.badge.low{background:rgba(107,114,128,.08);color:var(--steel);border:1px solid rgba(107,114,128,.15);}
+.badge.low::before{background:var(--steel);}
 
 /* ── USAGE BAR ── */
-.usage-bar-wrap { display: flex; align-items: center; gap: 10px; }
-.usage-bar-bg {
-  width: 90px; height: 6px; background: var(--bg);
-  border-radius: 3px; overflow: hidden; flex-shrink: 0;
-}
-.usage-bar-fill { height: 100%; border-radius: 3px; transition: width .3s ease; }
-.usage-bar-fill.green { background: var(--green); }
-.usage-bar-fill.amber { background: var(--amber); }
-.usage-bar-fill.red   { background: var(--red); }
-.usage-bar-pct { font-family: var(--mono); font-size: 12px; color: var(--text-secondary); }
+.usage-bar-wrap{display:flex;align-items:center;gap:10px;}
+.usage-bar-bg{width:90px;height:5px;background:rgba(0,0,0,.06);border-radius:3px;overflow:hidden;flex-shrink:0;}
+.usage-bar-fill{height:100%;border-radius:3px;transition:width .3s ease;}
+.usage-bar-fill.green{background:var(--green);}
+.usage-bar-fill.amber{background:var(--amber);}
+.usage-bar-fill.red{background:var(--red);}
+.usage-bar-pct{font-family:var(--mono);font-size:12px;color:var(--steel);}
 
 /* ── BOOL ICON ── */
-.bool-ok      { color: var(--green); font-size: 16px; }
-.bool-fail    { color: var(--red); font-size: 16px; }
-.bool-neutral { color: var(--text-tertiary); font-size: 16px; }
+.bool-ok{color:var(--green);font-size:16px;}
+.bool-fail{color:var(--red);font-size:16px;}
+.bool-neutral{color:var(--steel);font-size:16px;}
 
 /* ── DETAIL PANELS ── */
-.panel {
-  background: var(--bg-panel); border: 1px solid var(--border);
-  overflow: hidden; margin-bottom: 24px;
-  border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
-}
-.panel-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 20px 24px; border-bottom: 1px solid var(--border);
-  background: var(--bg);
-}
-.panel-title {
-  font-size: 15px; font-weight: 700; letter-spacing: -.01em; color: var(--text);
-}
-.panel-body { padding: 28px; }
-.kv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-.kv-label {
-  font-size: 12px; font-weight: 600; letter-spacing: .04em;
-  text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 6px;
-}
-.kv-val { font-size: 14px; color: var(--text); font-weight: 500; word-break: break-all; }
-.kv-val.mono { font-family: var(--mono); font-size: 13px; }
-.kv-val.dim  { color: var(--text-secondary); }
+.detail-section{margin-bottom:24px;}
+.panel{background:var(--bg-panel);border:1px solid var(--border);overflow:hidden;margin-bottom:24px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+.panel-header{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--border);background:var(--bg);}
+.panel-title{font-family:var(--body);font-size:15px;font-weight:700;letter-spacing:-.01em;color:var(--white);}
+.panel-body{padding:24px;}
+.kv-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.kv-item{}
+.kv-label{font-family:var(--body);font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--steel);margin-bottom:6px;}
+.kv-val{font-size:14px;color:var(--white);font-weight:500;word-break:break-all;}
+.kv-val.mono{font-family:var(--mono);font-size:13px;}
+.kv-val.dim{color:var(--steel);}
 
 /* ── DETAIL TABS ── */
-.detail-tabs {
-  display: flex; border-bottom: 2px solid var(--border);
-  margin-bottom: 32px; overflow-x: auto; gap: 0;
-}
-.detail-tab {
-  font-size: 14px; font-weight: 500; padding: 14px 22px;
-  cursor: pointer; color: var(--text-secondary); white-space: nowrap;
-  border-bottom: 2px solid transparent; margin-bottom: -2px;
-  transition: color .15s, border-color .15s;
-}
-.detail-tab:hover { color: var(--text); }
-.detail-tab.active {
-  color: var(--primary); border-bottom-color: var(--primary); font-weight: 600;
-}
+.detail-tabs{display:flex;border-bottom:2px solid var(--border);margin-bottom:28px;overflow-x:auto;gap:0;}
+.detail-tab{font-family:var(--body);font-size:13px;font-weight:500;padding:12px 20px;cursor:pointer;color:var(--steel);white-space:nowrap;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color .15s,border-color .15s;}
+.detail-tab:hover{color:var(--white);}
+.detail-tab.active{color:var(--rust);border-bottom-color:var(--rust);font-weight:600;}
 
 /* ── FUNNEL ── */
-.funnel-wrap { display: flex; gap: 16px; margin-bottom: 36px; }
-.funnel-bar {
-  flex: 1; background: var(--bg-panel); padding: 28px;
-  border-radius: var(--radius-lg); border: 1px solid var(--border);
-  box-shadow: var(--shadow-sm); transition: box-shadow .2s, transform .2s;
-}
-.funnel-bar:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
-.funnel-label {
-  font-size: 13px; font-weight: 600; letter-spacing: .04em;
-  text-transform: uppercase; color: var(--text-secondary); margin-bottom: 12px;
-}
-.funnel-val {
-  font-size: 36px; font-weight: 700; color: var(--text);
-  line-height: 1; margin-bottom: 14px; letter-spacing: -.03em;
-}
-.funnel-track {
-  height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden;
-}
-.funnel-fill { height: 100%; border-radius: 3px; }
+.funnel-wrap{display:flex;gap:20px;margin-bottom:32px;}
+.funnel-bar{flex:1;background:var(--bg-panel);padding:24px;position:relative;border-radius:12px;border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.04);transition:box-shadow .2s,transform .2s;}
+.funnel-bar:hover{box-shadow:0 4px 16px rgba(0,0,0,.08);transform:translateY(-1px);}
+.funnel-label{font-family:var(--body);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--steel);margin-bottom:12px;}
+.funnel-val{font-family:var(--body);font-size:40px;font-weight:700;color:var(--white);line-height:1;margin-bottom:12px;letter-spacing:-.03em;}
+.funnel-track{height:6px;background:rgba(0,0,0,.06);border-radius:3px;overflow:hidden;}
+.funnel-fill{height:100%;border-radius:3px;}
 
 /* ── MODAL ── */
-.modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,.3);
-  backdrop-filter: blur(4px); z-index: 500; display: none;
-  align-items: flex-start; justify-content: center;
-  padding: 60px 20px; overflow-y: auto;
-}
-.modal-overlay.open { display: flex; }
-.modal-box {
-  background: var(--bg-panel); border: 1px solid var(--border);
-  width: 100%; max-width: 800px; flex-shrink: 0;
-  border-radius: var(--radius-xl); box-shadow: var(--shadow-lg);
-}
-.modal-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 22px 28px; border-bottom: 1px solid var(--border);
-}
-.modal-title {
-  font-size: 18px; font-weight: 700; letter-spacing: -.01em; color: var(--text);
-}
-.modal-close {
-  background: var(--bg); border: 1px solid var(--border);
-  color: var(--text-secondary); font-size: 16px; width: 36px; height: 36px;
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
-  transition: all .15s; border-radius: var(--radius-sm);
-}
-.modal-close:hover {
-  border-color: var(--border-strong); color: var(--text);
-  background: var(--bg-hover);
-}
-.modal-body { padding: 28px; }
+.modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(6px);z-index:500;display:none;align-items:flex-start;justify-content:center;padding:60px 20px;overflow-y:auto;}
+.modal-overlay.open{display:flex;}
+.modal-box{background:var(--bg-panel);border:1px solid var(--border);width:100%;max-width:800px;flex-shrink:0;border-radius:16px;box-shadow:0 24px 80px rgba(0,0,0,.16);}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--border);background:var(--bg);border-radius:16px 16px 0 0;}
+.modal-title{font-family:var(--body);font-size:17px;font-weight:700;letter-spacing:-.01em;}
+.modal-close{background:var(--bg-panel);border:1px solid var(--border);color:var(--steel);font-size:16px;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;border-radius:8px;}
+.modal-close:hover{border-color:var(--border-mid);color:var(--white);background:var(--bg-hover);}
+.modal-body{padding:24px;}
 
 /* ── MESSAGES ── */
-.msg-list { display: flex; flex-direction: column; gap: 10px; }
-.msg-item { padding: 16px 18px; border-radius: var(--radius-md); max-width: 80%; }
-.msg-item.inbound {
-  background: var(--bg); border: 1px solid var(--border); align-self: flex-start;
-}
-.msg-item.outbound {
-  background: var(--primary-dim); border: 1px solid rgba(37,99,235,.1);
-  align-self: flex-end;
-}
-.msg-body { font-size: 14px; line-height: 1.7; color: var(--text); margin-bottom: 6px; }
-.msg-meta { font-family: var(--mono); font-size: 11px; color: var(--text-tertiary); }
+.msg-list{display:flex;flex-direction:column;gap:10px;}
+.msg-item{padding:14px 16px;border-radius:12px;max-width:80%;}
+.msg-item.inbound{background:var(--bg);border:1px solid var(--border);align-self:flex-start;}
+.msg-item.outbound{background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.12);align-self:flex-end;}
+.msg-body{font-size:14px;line-height:1.6;color:var(--white);margin-bottom:4px;}
+.msg-meta{font-family:var(--mono);font-size:11px;color:var(--steel);}
 
 /* ── LOADING / ERROR / EMPTY ── */
-.loading {
-  display: flex; align-items: center; justify-content: center;
-  padding: 60px; gap: 12px; color: var(--text-secondary); font-size: 15px;
-}
-.spinner {
-  width: 20px; height: 20px; border: 2px solid var(--border);
-  border-top-color: var(--primary); border-radius: 50%;
-  animation: spin .6s linear infinite; flex-shrink: 0;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
+.loading{display:flex;align-items:center;justify-content:center;padding:60px;gap:12px;color:var(--steel);font-size:14px;}
+.spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--rust);border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.error-msg{background:var(--red-dim);border:1px solid rgba(239,68,68,.15);color:var(--red);padding:16px 20px;font-family:var(--mono);font-size:13px;margin-bottom:20px;border-radius:10px;}
+.empty-state{padding:60px;text-align:center;color:var(--steel);font-family:var(--body);font-size:14px;}
 
-.error-msg {
-  background: var(--red-dim); border: 1px solid rgba(220,38,38,.12);
-  color: var(--red); padding: 18px 22px; font-family: var(--mono);
-  font-size: 13px; margin-bottom: 20px; border-radius: var(--radius-md);
-}
-.empty-state {
-  padding: 60px; text-align: center; color: var(--text-tertiary);
-  font-size: 15px; line-height: 1.6;
-}
+/* ── SYSTEM HEALTH SUMMARY ── */
+.health-summary{display:flex;gap:12px;margin-bottom:24px;}
+.health-pill{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:10px;font-family:var(--body);font-size:13px;font-weight:600;}
+.health-pill.healthy{background:var(--green-dim);color:#15803d;border:1px solid rgba(22,163,74,.2);}
+.health-pill.degraded{background:rgba(217,119,6,.08);color:#b45309;border:1px solid rgba(217,119,6,.2);}
+.health-pill.failing{background:var(--red-dim);color:var(--red);border:1px solid rgba(220,38,38,.2);}
 
-/* ── HEALTH PILLS ── */
-.health-summary { display: flex; gap: 12px; margin-bottom: 24px; }
-.health-pill {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 10px 20px; border-radius: var(--radius-md);
-  font-size: 14px; font-weight: 600;
-}
-.health-pill.healthy {
-  background: var(--green-dim); color: var(--green);
-  border: 1px solid rgba(5,150,105,.15);
-}
-.health-pill.degraded {
-  background: var(--amber-dim); color: var(--amber);
-  border: 1px solid rgba(217,119,6,.15);
-}
-.health-pill.failing {
-  background: var(--red-dim); color: var(--red);
-  border: 1px solid rgba(220,38,38,.15);
-}
+/* ── TWO-COL GRID ── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;}
 
-/* ── TWO-COL ── */
-.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+/* ── ATTENTION ROW ── */
+.attention-issues{display:flex;flex-wrap:wrap;gap:6px;}
+.issue-tag{font-family:var(--mono);font-size:11px;letter-spacing:.04em;padding:3px 8px;border-radius:4px;font-weight:600;}
+.issue-tag.red{background:var(--red-dim);color:var(--red);}
+.issue-tag.amber{background:rgba(217,119,6,.08);color:#b45309;}
 
-/* ── ATTENTION TAGS ── */
-.attention-issues { display: flex; flex-wrap: wrap; gap: 6px; }
-.issue-tag {
-  font-family: var(--mono); font-size: 11px; letter-spacing: .03em;
-  padding: 3px 8px; border-radius: 4px; font-weight: 600;
-}
-.issue-tag.red   { background: var(--red-dim); color: var(--red); }
-.issue-tag.amber { background: var(--amber-dim); color: var(--amber); }
-
-/* ── LINK BUTTON ── */
-.link-btn {
-  background: transparent; border: none; color: var(--primary);
-  font-family: var(--sans); font-size: 14px; cursor: pointer;
-  text-decoration: none; padding: 0; font-weight: 500;
-}
-.link-btn:hover { color: var(--primary-light); text-decoration: underline; }
+/* ── MINI LINK ── */
+.link-btn{background:transparent;border:none;color:var(--rust);font-family:var(--body);font-size:14px;cursor:pointer;text-decoration:underline;padding:0;font-weight:500;}
+.link-btn:hover{color:var(--rust-light);}
 
 /* ── SMALL LIST ── */
-.small-list { list-style: none; }
-.small-list li {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 20px; border-bottom: 1px solid #f3f4f6;
-  font-size: 14px; transition: background .1s;
-}
-.small-list li:last-child { border-bottom: none; }
-.small-list li:hover { background: var(--bg-hover); }
+.small-list{list-style:none;}
+.small-list li{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);font-size:14px;transition:background .1s;}
+.small-list li:last-child{border-bottom:none;}
+.small-list li:hover{background:var(--bg-hover);}
 
-/* ── CHART CARDS ── */
-.chart-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 16px; margin-bottom: 36px;
-}
-.card-chart {
-  background: var(--bg-panel); border: 1px solid var(--border);
-  border-radius: var(--radius-lg); padding: 24px 24px 20px;
-  box-shadow: var(--shadow-sm);
-}
-.card-chart-title {
-  font-size: 13px; font-weight: 600; letter-spacing: .04em;
-  text-transform: uppercase; color: var(--text-secondary); margin-bottom: 16px;
-}
-
-/* ── RESPONSIVE ── */
-@media(max-width: 1100px) {
-  .chart-grid { grid-template-columns: 1fr 1fr; }
-  .main { padding: 32px 24px 60px; }
-}
-@media(max-width: 960px) {
-  .chart-grid { grid-template-columns: 1fr; }
-  .two-col { grid-template-columns: 1fr; }
-  .funnel-wrap { flex-direction: column; }
-  .sidebar { width: 220px; }
-}
-@media(max-width: 768px) {
-  .sidebar { display: none; }
-  .main { padding: 24px 16px 60px; }
-  .topnav { padding: 0 16px; }
-  .stat-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
-}
-@media(prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: .01ms !important;
-    transition-duration: .01ms !important;
-  }
-}
+/* ── TRANSITIONS ── */
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;}}
 </style>
 </head>
 <body>
 
-<!-- ── ACCESS DENIED ── -->
+<!-- ── ACCESS DENIED (shown server-side when 403 returned) ── -->
 <div id="accessDenied" class="access-denied" style="display:none">
   <div class="access-denied-box">
     <div class="access-denied-title">Access Denied</div>
@@ -681,7 +286,7 @@ body {
     </div>
     <div class="nav-right">
       <span class="nav-api-base" id="apiBaseLabel"></span>
-      <button class="btn-sm logout" onclick="logout()">Logout</button>
+      <button class="btn-sm" style="background:transparent;border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7)" onclick="logout()">Logout</button>
     </div>
   </nav>
 
@@ -692,42 +297,42 @@ body {
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-label">Operations</div>
       <div class="sidebar-item active" data-section="overview" onclick="navigate('overview')">
-        <span class="sidebar-icon">&#9633;</span> Overview
+        <span class="sidebar-icon">⊡</span> Overview
       </div>
       <div class="sidebar-item" data-section="accounts" onclick="navigate('accounts')">
-        <span class="sidebar-icon">&#9643;</span> Accounts
+        <span class="sidebar-icon">◫</span> Accounts
       </div>
       <div class="sidebar-item" data-section="conversations" onclick="navigate('conversations')">
-        <span class="sidebar-icon">&#9672;</span> Conversations
+        <span class="sidebar-icon">◈</span> Conversations
       </div>
       <div class="sidebar-item" data-section="bookings" onclick="navigate('bookings')">
-        <span class="sidebar-icon">&#9719;</span> Bookings
+        <span class="sidebar-icon">◷</span> Bookings
       </div>
       <div class="sidebar-label">Finance</div>
       <div class="sidebar-item" data-section="billing" onclick="navigate('billing')">
-        <span class="sidebar-icon">&#9678;</span> Billing &amp; Trial
+        <span class="sidebar-icon">◎</span> Billing &amp; Trial
       </div>
       <div class="sidebar-label">System</div>
       <div class="sidebar-item" data-section="integrations" onclick="navigate('integrations')">
-        <span class="sidebar-icon">&#9672;</span> Integrations
+        <span class="sidebar-icon">◈</span> Integrations
       </div>
       <div class="sidebar-item" data-section="errors" onclick="navigate('errors')">
-        <span class="sidebar-icon">&#9888;</span> Errors
+        <span class="sidebar-icon">⚠</span> Errors
         <span class="sidebar-badge" id="errorBadge" style="display:none">!</span>
       </div>
       <div class="sidebar-label">Growth</div>
       <div class="sidebar-item" data-section="signup" onclick="navigate('signup')">
-        <span class="sidebar-icon">&#8853;</span> Signup Funnel
+        <span class="sidebar-icon">⊕</span> Signup Funnel
       </div>
       <div class="sidebar-label">Logs</div>
       <div class="sidebar-item" data-section="audit" onclick="navigate('audit')">
-        <span class="sidebar-icon">&#8801;</span> Audit Log
+        <span class="sidebar-icon">≡</span> Audit Log
       </div>
     </aside>
 
     <!-- Main Content -->
     <main class="main" id="mainContent">
-      <div class="loading"><div class="spinner"></div> Loading&hellip;</div>
+      <div class="loading"><div class="spinner"></div> Loading…</div>
     </main>
 
   </div>
@@ -738,7 +343,7 @@ body {
   <div class="modal-box">
     <div class="modal-header">
       <span class="modal-title" id="convModalTitle">Conversation</span>
-      <button class="modal-close" onclick="closeModal()">&#10005;</button>
+      <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
     <div class="modal-body" id="convModalBody">
       <div class="loading"><div class="spinner"></div></div>
@@ -756,6 +361,7 @@ function getApiBase() {
   const origin = window.location.origin;
   const port = window.location.port;
   if (!port || port === '80' || port === '443') {
+    // Production: same-origin (Vercel rewrites proxy to API)
     return origin;
   }
   return origin;
@@ -777,6 +383,11 @@ let _accountAttention = false;
 document.getElementById('apiBaseLabel').textContent = API;
 
 // ── AUTH ─────────────────────────────────────────────────────────────────────
+// Admin access is server-side: JWT (autoshop_jwt from localStorage) + ADMIN_EMAILS allowlist.
+// The server returns 401 if the token is missing/invalid → redirect to login.
+// The server returns 403 if the token is valid but email is not in ADMIN_EMAILS → show denied.
+// No master key is entered in the browser.
+
 function initAuth() {
   const token = localStorage.getItem('autoshop_jwt');
   if (!token) {
@@ -824,6 +435,7 @@ async function apiFetch(path, params) {
   }
   if (res.status === 403) {
     const body = await res.json().catch(() => ({}));
+    // Clear stale JWT so "Back to Login" doesn't auto-redirect with wrong email
     localStorage.removeItem('autoshop_jwt');
     localStorage.removeItem('autoshop_session');
     showAccessDenied(body.error || 'Your account is not authorized to access the admin panel.');
@@ -843,7 +455,7 @@ function navigate(section, params) {
     el.classList.toggle('active', el.dataset.section === section);
   });
   const main = document.getElementById('mainContent');
-  main.innerHTML = '<div class="loading"><div class="spinner"></div> Loading&hellip;</div>';
+  main.innerHTML = '<div class="loading"><div class="spinner"></div> Loading…</div>';
 
   switch (section) {
     case 'overview':      loadOverview(); break;
@@ -863,14 +475,14 @@ function navigate(section, params) {
 // ── HELPERS ──────────────────────────────────────────────────────────────────
 function statusBadge(status) {
   const s = (status || 'unknown').toLowerCase().replace(/[_\s]/g, '_');
-  const label = (status || '\u2014').replace(/_/g, ' ');
+  const label = (status || '—').replace(/_/g, ' ');
   return `<span class="badge ${s}">${label}</span>`;
 }
 
 function relTime(iso) {
-  if (!iso) return '\u2014';
+  if (!iso) return '—';
   const d = new Date(iso);
-  if (isNaN(d)) return '\u2014';
+  if (isNaN(d)) return '—';
   const diff = Date.now() - d.getTime();
   const abs = Math.abs(diff);
   if (abs < 60000)    return 'just now';
@@ -881,14 +493,14 @@ function relTime(iso) {
 }
 
 function fmtDate(iso) {
-  if (!iso) return '\u2014';
+  if (!iso) return '—';
   const d = new Date(iso);
-  if (isNaN(d)) return '\u2014';
+  if (isNaN(d)) return '—';
   return d.toLocaleString();
 }
 
 function usageBar(used, limit) {
-  if (!limit || limit === 0) return `<span class="mono dim">\u2014</span>`;
+  if (!limit || limit === 0) return `<span class="mono dim">—</span>`;
   const pct = Math.min(100, Math.round((used / limit) * 100));
   const cls = pct >= 100 ? 'red' : pct >= 80 ? 'amber' : 'green';
   return `<div class="usage-bar-wrap">
@@ -898,12 +510,12 @@ function usageBar(used, limit) {
 }
 
 function boolIcon(val) {
-  if (val === null || val === undefined) return '<span class="bool-neutral">\u2014</span>';
-  return val ? '<span class="bool-ok">\u2713</span>' : '<span class="bool-fail">\u2717</span>';
+  if (val === null || val === undefined) return '<span class="bool-neutral">—</span>';
+  return val ? '<span class="bool-ok">✓</span>' : '<span class="bool-fail">✗</span>';
 }
 
 function escHtml(str) {
-  if (str === null || str === undefined) return '\u2014';
+  if (str === null || str === undefined) return '—';
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
@@ -913,61 +525,6 @@ function renderError(err) {
 
 function renderEmpty(msg) {
   return `<div class="empty-state">${msg || 'No data'}</div>`;
-}
-
-// ── CHART HELPERS ────────────────────────────────────────────────────────────
-function renderGrowthChart(canvasId, label, labels, data, color) {
-  const ctx = document.getElementById(canvasId);
-  if (!ctx) return;
-  new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labels.map(l => l.slice(5)),
-      datasets: [{
-        label,
-        data,
-        borderColor: color,
-        backgroundColor: color + '12',
-        fill: true,
-        tension: 0.4,
-        pointRadius: 0,
-        pointHitRadius: 8,
-        borderWidth: 2,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { intersect: false, mode: 'index' },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#fff',
-          titleColor: '#111827',
-          bodyColor: '#6b7280',
-          borderColor: '#e5e7eb',
-          borderWidth: 1,
-          padding: 12,
-          cornerRadius: 8,
-          displayColors: false,
-          titleFont: { weight: '600' },
-        },
-      },
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: { color: '#9ca3af', font: { size: 11, family: 'Inter' }, maxTicksLimit: 8 },
-          border: { display: false },
-        },
-        y: {
-          beginAtZero: true,
-          grid: { color: '#f3f4f6', drawBorder: false },
-          ticks: { color: '#9ca3af', font: { size: 11, family: 'Inter' }, precision: 0 },
-          border: { display: false },
-        },
-      },
-    },
-  });
 }
 
 // ── SECTION 1: OVERVIEW ──────────────────────────────────────────────────────
@@ -981,6 +538,7 @@ async function loadOverview() {
     const canceled  = sc.canceled || 0;
     const expired   = sc.trial_expired || 0;
 
+    // Update error badge
     if (d.failed_calendar_syncs > 0 || d.no_twilio > 0) {
       document.getElementById('errorBadge').style.display = '';
     }
@@ -991,24 +549,7 @@ async function loadOverview() {
           <div class="page-title">Overview</div>
           <div class="page-subtitle">System status at a glance</div>
         </div>
-        <button class="btn-sm" onclick="navigate('overview')">Refresh</button>
-      </div>
-
-      <!-- Growth Charts -->
-      <div class="section-label">System Growth &mdash; Last 30 Days</div>
-      <div class="chart-grid">
-        <div class="card-chart">
-          <div class="card-chart-title">Signups</div>
-          <div style="height:180px"><canvas id="chartSignups"></canvas></div>
-        </div>
-        <div class="card-chart">
-          <div class="card-chart-title">Conversations</div>
-          <div style="height:180px"><canvas id="chartConversations"></canvas></div>
-        </div>
-        <div class="card-chart">
-          <div class="card-chart-title">Bookings</div>
-          <div style="height:180px"><canvas id="chartBookings"></canvas></div>
-        </div>
+        <button class="btn-sm" onclick="navigate('overview')">↻ Refresh</button>
       </div>
 
       <!-- Main stats -->
@@ -1031,17 +572,17 @@ async function loadOverview() {
 
       <div class="section-label">Alerts</div>
       <div class="stat-grid">
-        <div class="stat-card red"><div class="stat-tag">Failed Syncs</div><div class="stat-val ${d.failed_calendar_syncs > 0 ? 'red' : ''}">${d.failed_calendar_syncs}</div><div class="stat-sub">Calendar sync failures &gt;1h</div></div>
-        <div class="stat-card amber"><div class="stat-tag">No Twilio</div><div class="stat-val ${d.no_twilio > 0 ? 'red' : ''}">${d.no_twilio}</div><div class="stat-sub">Missing active phone number</div></div>
-        <div class="stat-card amber"><div class="stat-tag">No Calendar</div><div class="stat-val ${d.no_calendar > 0 ? 'amber' : ''}">${d.no_calendar}</div><div class="stat-sub">Google Calendar not connected</div></div>
-        <div class="stat-card amber"><div class="stat-tag">Near Expiry</div><div class="stat-val ${d.near_expiry > 0 ? 'amber' : ''}">${d.near_expiry}</div><div class="stat-sub">Trial ending within 3 days</div></div>
-        <div class="stat-card amber"><div class="stat-tag">High Usage</div><div class="stat-val ${d.high_usage > 0 ? 'amber' : ''}">${d.high_usage}</div><div class="stat-sub">80%+ of conversation limit</div></div>
+        <div class="stat-card red"><div class="stat-tag">Failed Syncs</div><div class="stat-val ${d.failed_calendar_syncs > 0 ? 'red' : ''}">${d.failed_calendar_syncs}</div><div class="stat-sub">cal sync &gt;1h</div></div>
+        <div class="stat-card amber"><div class="stat-tag">No Twilio</div><div class="stat-val ${d.no_twilio > 0 ? 'red' : ''}">${d.no_twilio}</div><div class="stat-sub">no active phone</div></div>
+        <div class="stat-card amber"><div class="stat-tag">No Calendar</div><div class="stat-val ${d.no_calendar > 0 ? 'amber' : ''}">${d.no_calendar}</div><div class="stat-sub">not connected</div></div>
+        <div class="stat-card amber"><div class="stat-tag">Near Expiry</div><div class="stat-val ${d.near_expiry > 0 ? 'amber' : ''}">${d.near_expiry}</div><div class="stat-sub">trial ≤3 days</div></div>
+        <div class="stat-card amber"><div class="stat-tag">High Usage</div><div class="stat-val ${d.high_usage > 0 ? 'amber' : ''}">${d.high_usage}</div><div class="stat-sub">≥80% of limit</div></div>
       </div>
 
       <!-- Needs Attention -->
-      <div class="section-label">At-Risk Accounts</div>
+      <div class="section-label">Needs Attention</div>
       <div class="table-wrap">
-        <div class="table-header"><span class="table-title">Needs Attention</span></div>
+        <div class="table-header"><span class="table-title">At-Risk Accounts</span></div>
         ${d.needs_attention && d.needs_attention.length > 0 ? `
         <table class="data-table">
           <thead><tr>
@@ -1062,10 +603,10 @@ async function loadOverview() {
               if (pct >= 0.8) issues.push('<span class="issue-tag amber">High Usage</span>');
             }
             return `<tr onclick="navigate('account-detail',{id:'${t.id}'})">
-              <td style="font-weight:600">${escHtml(t.shop_name)}</td>
+              <td>${escHtml(t.shop_name)}</td>
               <td class="mono dim">${escHtml(t.owner_email)}</td>
               <td>${statusBadge(t.billing_status)}</td>
-              <td class="mono dim">${t.trial_ends_at ? relTime(t.trial_ends_at) : '\u2014'}</td>
+              <td class="mono dim">${t.trial_ends_at ? relTime(t.trial_ends_at) : '—'}</td>
               <td>${usageBar(t.conv_used_this_cycle, t.conv_limit_this_cycle)}</td>
               <td><div class="attention-issues">${issues.join('')}</div></td>
             </tr>`;
@@ -1074,18 +615,17 @@ async function loadOverview() {
         </table>` : renderEmpty('No accounts need attention')}
       </div>
 
-      <!-- Recent Activity -->
-      <div class="section-label">Recent Activity</div>
+      <!-- Three-column lists -->
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
         <!-- Recent Signups -->
         <div class="table-wrap">
           <div class="table-header"><span class="table-title">Recent Signups</span></div>
           ${d.recent_signups && d.recent_signups.length > 0 ?
             `<ul class="small-list">${d.recent_signups.map(t => `
-              <li onclick="navigate('account-detail',{id:'${t.id}'})" style="cursor:pointer;flex-direction:column;align-items:flex-start;gap:4px">
-                <span style="font-weight:600;font-size:14px">${escHtml(t.shop_name)}</span>
-                <span class="mono dim" style="font-size:12px">${escHtml(t.owner_email)}</span>
-                <div style="display:flex;gap:8px;margin-top:4px;align-items:center">${statusBadge(t.billing_status)}<span class="mono dim" style="font-size:11px">${relTime(t.created_at)}</span></div>
+              <li onclick="navigate('account-detail',{id:'${t.id}'})" style="cursor:pointer;flex-direction:column;align-items:flex-start;gap:2px">
+                <span style="font-weight:600">${escHtml(t.shop_name)}</span>
+                <span class="mono dim" style="font-size:11px">${escHtml(t.owner_email)}</span>
+                <div style="display:flex;gap:6px;margin-top:4px">${statusBadge(t.billing_status)}<span class="mono dim" style="font-size:10px">${relTime(t.created_at)}</span></div>
               </li>`).join('')}
             </ul>` : renderEmpty('No recent signups')}
         </div>
@@ -1095,10 +635,10 @@ async function loadOverview() {
           <div class="table-header"><span class="table-title">Recent Conversations</span></div>
           ${d.recent_conversations && d.recent_conversations.length > 0 ?
             `<ul class="small-list">${d.recent_conversations.map(c => `
-              <li onclick="loadConversationDetail('${c.id}')" style="cursor:pointer;flex-direction:column;align-items:flex-start;gap:4px">
-                <span style="font-weight:600;font-size:14px">${escHtml(c.shop_name)}</span>
-                <span class="mono dim" style="font-size:12px">${escHtml(c.customer_phone)}</span>
-                <div style="display:flex;gap:8px;margin-top:4px;align-items:center">${statusBadge(c.status)}<span class="mono dim" style="font-size:11px">${relTime(c.opened_at)}</span></div>
+              <li onclick="loadConversationDetail('${c.id}')" style="cursor:pointer;flex-direction:column;align-items:flex-start;gap:2px">
+                <span style="font-weight:600">${escHtml(c.shop_name)}</span>
+                <span class="mono dim" style="font-size:11px">${escHtml(c.customer_phone)}</span>
+                <div style="display:flex;gap:6px;margin-top:4px">${statusBadge(c.status)}<span class="mono dim" style="font-size:10px">${relTime(c.opened_at)}</span></div>
               </li>`).join('')}
             </ul>` : renderEmpty('No recent conversations')}
         </div>
@@ -1108,27 +648,15 @@ async function loadOverview() {
           <div class="table-header"><span class="table-title">Recent Billing Events</span></div>
           ${d.recent_billing_events && d.recent_billing_events.length > 0 ?
             `<ul class="small-list">${d.recent_billing_events.map(b => `
-              <li style="flex-direction:column;align-items:flex-start;gap:4px">
-                <span style="font-weight:600;font-size:13px;font-family:var(--mono)">${escHtml(b.event_type)}</span>
-                <span class="mono dim" style="font-size:12px">${escHtml(b.shop_name || '\u2014')}</span>
-                <span class="mono dim" style="font-size:11px">${relTime(b.processed_at)}</span>
+              <li style="flex-direction:column;align-items:flex-start;gap:2px">
+                <span style="font-weight:600;font-size:12px;font-family:var(--mono)">${escHtml(b.event_type)}</span>
+                <span class="mono dim" style="font-size:11px">${escHtml(b.shop_name || '—')}</span>
+                <span class="mono dim" style="font-size:10px">${relTime(b.processed_at)}</span>
               </li>`).join('')}
             </ul>` : renderEmpty('No billing events')}
         </div>
       </div>
     `;
-
-    // Fetch and render growth charts
-    Promise.all([
-      apiFetch('/internal/admin/metrics/signups'),
-      apiFetch('/internal/admin/metrics/conversations'),
-      apiFetch('/internal/admin/metrics/bookings'),
-    ]).then(([signups, convs, bookings]) => {
-      renderGrowthChart('chartSignups', 'Signups', signups.labels, signups.data, '#2563eb');
-      renderGrowthChart('chartConversations', 'Conversations', convs.labels, convs.data, '#059669');
-      renderGrowthChart('chartBookings', 'Bookings', bookings.labels, bookings.data, '#d97706');
-    }).catch(() => {});
-
   } catch (err) {
     document.getElementById('mainContent').innerHTML = renderError(err);
   }
@@ -1160,13 +688,13 @@ function loadAccounts(filter, search, attention) {
     <div class="page-header">
       <div><div class="page-title">Accounts</div><div class="page-subtitle">All tenant accounts</div></div>
     </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px">
       <div class="filter-tabs">
         ${filters.map(f => `<button class="filter-tab ${_accountFilter === f.val ? 'active' : ''}"
           onclick="loadAccounts('${f.val}',undefined,undefined)">${f.label}</button>`).join('')}
       </div>
       <div style="display:flex;gap:8px;align-items:center">
-        <input class="search-input" id="accountSearch" placeholder="Search shop or email\u2026" value="${escHtml(_accountSearch)}"
+        <input class="search-input" id="accountSearch" placeholder="Search shop or email…" value="${escHtml(_accountSearch)}"
           oninput="debounceSearch(this.value)">
         <button class="filter-tab ${_accountAttention ? 'active' : ''}"
           onclick="loadAccounts(undefined,undefined,${!_accountAttention})">Needs Attention</button>
@@ -1174,17 +702,17 @@ function loadAccounts(filter, search, attention) {
     </div>
   `;
 
-  document.getElementById('mainContent').innerHTML = header + '<div class="loading"><div class="spinner"></div> Loading accounts&hellip;</div>';
+  document.getElementById('mainContent').innerHTML = header + '<div class="loading"><div class="spinner"></div> Loading accounts…</div>';
 
   apiFetch('/internal/admin/tenants', params)
     .then(d => {
       const tbody = d.tenants.length > 0 ? d.tenants.map(t => {
-        const days = t.trial_days_left !== null ? `${t.trial_days_left}d` : '\u2014';
+        const days = t.trial_days_left !== null ? `${t.trial_days_left}d` : '—';
         return `<tr onclick="navigate('account-detail',{id:'${t.id}'})">
           <td style="font-weight:600">${escHtml(t.shop_name)}</td>
           <td class="mono dim">${escHtml(t.owner_email)}</td>
           <td>${statusBadge(t.billing_status)}</td>
-          <td class="mono dim">${t.plan_id || '\u2014'}</td>
+          <td class="mono dim">${t.plan_id || '—'}</td>
           <td class="mono dim">${days}</td>
           <td>${usageBar(t.conv_used_this_cycle, t.conv_limit_this_cycle)}</td>
           <td>${boolIcon(t.has_phone)}</td>
@@ -1212,6 +740,7 @@ function loadAccounts(filter, search, attention) {
           </div>
         </div>`;
 
+      // Re-bind search
       const si = document.getElementById('accountSearch');
       if (si) si.oninput = e => debounceSearch(e.target.value);
     })
@@ -1234,7 +763,7 @@ async function loadAccountDetail(id) {
     renderAccountDetail(d);
   } catch (err) {
     document.getElementById('mainContent').innerHTML =
-      `<button class="btn-sm" style="margin-bottom:16px" onclick="navigate('accounts')">&#8592; Back to Accounts</button>` +
+      `<button class="btn-sm" style="margin-bottom:16px" onclick="navigate('accounts')">← Back to Accounts</button>` +
       renderError(err);
   }
 }
@@ -1258,12 +787,12 @@ function renderAccountDetail(d) {
               <div class="kv-grid">
                 <div class="kv-item"><div class="kv-label">Shop Name</div><div class="kv-val">${escHtml(t.shop_name)}</div></div>
                 <div class="kv-item"><div class="kv-label">Status</div><div class="kv-val">${statusBadge(t.billing_status)}</div></div>
-                <div class="kv-item"><div class="kv-label">Owner Name</div><div class="kv-val">${escHtml(t.owner_name || '\u2014')}</div></div>
+                <div class="kv-item"><div class="kv-label">Owner Name</div><div class="kv-val">${escHtml(t.owner_name || '—')}</div></div>
                 <div class="kv-item"><div class="kv-label">Owner Email</div><div class="kv-val mono">${escHtml(t.owner_email)}</div></div>
-                <div class="kv-item"><div class="kv-label">Owner Phone</div><div class="kv-val mono">${escHtml(t.owner_phone || '\u2014')}</div></div>
-                <div class="kv-item"><div class="kv-label">Timezone</div><div class="kv-val mono">${escHtml(t.timezone || '\u2014')}</div></div>
-                <div class="kv-item"><div class="kv-label">Plan</div><div class="kv-val">${escHtml(t.plan_id || '\u2014')}</div></div>
-                <div class="kv-item"><div class="kv-label">Tenant ID</div><div class="kv-val mono dim" style="font-size:11px">${escHtml(t.id)}</div></div>
+                <div class="kv-item"><div class="kv-label">Owner Phone</div><div class="kv-val mono">${escHtml(t.owner_phone || '—')}</div></div>
+                <div class="kv-item"><div class="kv-label">Timezone</div><div class="kv-val mono">${escHtml(t.timezone || '—')}</div></div>
+                <div class="kv-item"><div class="kv-label">Plan</div><div class="kv-val">${escHtml(t.plan_id || '—')}</div></div>
+                <div class="kv-item"><div class="kv-label">Tenant ID</div><div class="kv-val mono dim" style="font-size:10px">${escHtml(t.id)}</div></div>
                 <div class="kv-item"><div class="kv-label">Created</div><div class="kv-val mono dim">${fmtDate(t.created_at)}</div></div>
                 <div class="kv-item"><div class="kv-label">Updated</div><div class="kv-val mono dim">${fmtDate(t.updated_at)}</div></div>
               </div>
@@ -1273,10 +802,10 @@ function renderAccountDetail(d) {
             <div class="panel-header"><span class="panel-title">Users</span></div>
             <div class="panel-body">
               ${d.users && d.users.length > 0 ? d.users.map(u => `
-                <div style="padding:12px 0;border-bottom:1px solid #f3f4f6">
-                  <div style="font-weight:600;margin-bottom:4px;font-size:14px">${escHtml(u.email)}</div>
-                  <div class="mono dim" style="font-size:12px">Provider: ${escHtml(u.auth_provider)} &middot; ${relTime(u.created_at)}</div>
-                </div>`).join('') : '<div class="empty-state" style="padding:24px">No users</div>'}
+                <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+                  <div style="font-weight:600;margin-bottom:2px">${escHtml(u.email)}</div>
+                  <div class="mono dim" style="font-size:11px">Provider: ${escHtml(u.auth_provider)} · ${relTime(u.created_at)}</div>
+                </div>`).join('') : '<div class="empty-state" style="padding:20px">No users</div>'}
             </div>
           </div>
         </div>`;
@@ -1287,16 +816,16 @@ function renderAccountDetail(d) {
         <div class="panel">
           <div class="panel-header"><span class="panel-title">Conversation Usage</span></div>
           <div class="panel-body">
-            <div style="margin-bottom:24px">
+            <div style="margin-bottom:20px">
               ${usageBar(t.conv_used_this_cycle, t.conv_limit_this_cycle)}
-              <div class="mono dim" style="font-size:13px;margin-top:10px">
-                ${t.conv_used_this_cycle} / ${t.conv_limit_this_cycle || '\u2014'} conversations &middot; ${d.usage_pct ?? 0}%
+              <div class="mono dim" style="font-size:12px;margin-top:8px">
+                ${t.conv_used_this_cycle} / ${t.conv_limit_this_cycle || '—'} conversations · ${d.usage_pct ?? 0}%
               </div>
             </div>
             <div class="kv-grid">
               <div class="kv-item"><div class="kv-label">Used This Cycle</div><div class="kv-val">${t.conv_used_this_cycle}</div></div>
-              <div class="kv-item"><div class="kv-label">Limit This Cycle</div><div class="kv-val">${t.conv_limit_this_cycle || '\u2014'}</div></div>
-              <div class="kv-item"><div class="kv-label">Trial Conv Limit</div><div class="kv-val">${t.trial_conv_limit || '\u2014'}</div></div>
+              <div class="kv-item"><div class="kv-label">Limit This Cycle</div><div class="kv-val">${t.conv_limit_this_cycle || '—'}</div></div>
+              <div class="kv-item"><div class="kv-label">Trial Conv Limit</div><div class="kv-val">${t.trial_conv_limit || '—'}</div></div>
               <div class="kv-item"><div class="kv-label">Cycle Reset At</div><div class="kv-val mono dim">${fmtDate(t.cycle_reset_at)}</div></div>
               <div class="kv-item"><div class="kv-label">Warned 80%</div><div class="kv-val">${boolIcon(t.warned_80pct)}</div></div>
               <div class="kv-item"><div class="kv-label">Warned 100%</div><div class="kv-val">${boolIcon(t.warned_100pct)}</div></div>
@@ -1312,12 +841,12 @@ function renderAccountDetail(d) {
           <div class="panel-body">
             <div class="kv-grid">
               <div class="kv-item"><div class="kv-label">Status</div><div class="kv-val">${statusBadge(t.billing_status)}</div></div>
-              <div class="kv-item"><div class="kv-label">Plan</div><div class="kv-val">${escHtml(t.plan_id || '\u2014')}</div></div>
+              <div class="kv-item"><div class="kv-label">Plan</div><div class="kv-val">${escHtml(t.plan_id || '—')}</div></div>
               <div class="kv-item"><div class="kv-label">Trial Started</div><div class="kv-val mono dim">${fmtDate(t.trial_started_at)}</div></div>
               <div class="kv-item"><div class="kv-label">Trial Ends</div><div class="kv-val mono dim">${fmtDate(t.trial_ends_at)}</div></div>
-              <div class="kv-item"><div class="kv-label">Stripe Customer ID</div><div class="kv-val mono dim" style="font-size:12px">${escHtml(t.stripe_customer_id || '\u2014')}</div></div>
-              <div class="kv-item"><div class="kv-label">Stripe Subscription ID</div><div class="kv-val mono dim" style="font-size:12px">${escHtml(t.stripe_subscription_id || '\u2014')}</div></div>
-              <div class="kv-item"><div class="kv-label">Stripe Price ID</div><div class="kv-val mono dim" style="font-size:12px">${escHtml(t.stripe_price_id || '\u2014')}</div></div>
+              <div class="kv-item"><div class="kv-label">Stripe Customer ID</div><div class="kv-val mono dim" style="font-size:11px">${escHtml(t.stripe_customer_id || '—')}</div></div>
+              <div class="kv-item"><div class="kv-label">Stripe Subscription ID</div><div class="kv-val mono dim" style="font-size:11px">${escHtml(t.stripe_subscription_id || '—')}</div></div>
+              <div class="kv-item"><div class="kv-label">Stripe Price ID</div><div class="kv-val mono dim" style="font-size:11px">${escHtml(t.stripe_price_id || '—')}</div></div>
               <div class="kv-item"><div class="kv-label">Period Start</div><div class="kv-val mono dim">${fmtDate(t.current_period_start)}</div></div>
               <div class="kv-item"><div class="kv-label">Cancel at Period End</div><div class="kv-val">${boolIcon(t.cancel_at_period_end)}</div></div>
             </div>
@@ -1339,7 +868,7 @@ function renderAccountDetail(d) {
               <td class="mono dim">${relTime(c.opened_at)}</td>
               <td class="mono dim">${relTime(c.last_message_at)}</td>
               <td class="mono dim">${relTime(c.closed_at)}</td>
-              <td class="mono dim">${escHtml(c.close_reason || '\u2014')}</td>
+              <td class="mono dim">${escHtml(c.close_reason || '—')}</td>
             </tr>`).join('')}
             </tbody>
           </table>` : renderEmpty('No conversations')}
@@ -1355,11 +884,11 @@ function renderAccountDetail(d) {
             <thead><tr><th>Customer</th><th>Name</th><th>Service</th><th>Scheduled</th><th>Cal Synced</th><th>Google Event ID</th><th>Created</th></tr></thead>
             <tbody>${d.bookings.map(b => `<tr>
               <td class="mono dim">${escHtml(b.customer_phone)}</td>
-              <td>${escHtml(b.customer_name || '\u2014')}</td>
-              <td>${escHtml(b.service_type || '\u2014')}</td>
+              <td>${escHtml(b.customer_name || '—')}</td>
+              <td>${escHtml(b.service_type || '—')}</td>
               <td class="mono dim">${fmtDate(b.scheduled_at)}</td>
               <td>${boolIcon(b.calendar_synced)}</td>
-              <td class="mono dim" style="font-size:11px">${escHtml(b.google_event_id || '\u2014')}</td>
+              <td class="mono dim" style="font-size:10px">${escHtml(b.google_event_id || '—')}</td>
               <td class="mono dim">${relTime(b.created_at)}</td>
             </tr>`).join('')}
             </tbody>
@@ -1378,20 +907,20 @@ function renderAccountDetail(d) {
               ${ph ? `<div class="kv-grid">
                 <div class="kv-item"><div class="kv-label">Phone Number</div><div class="kv-val mono">${escHtml(ph.phone_number)}</div></div>
                 <div class="kv-item"><div class="kv-label">Status</div><div class="kv-val">${statusBadge(ph.status)}</div></div>
-                <div class="kv-item"><div class="kv-label">Twilio SID</div><div class="kv-val mono dim" style="font-size:12px">${escHtml(ph.twilio_sid || '\u2014')}</div></div>
+                <div class="kv-item"><div class="kv-label">Twilio SID</div><div class="kv-val mono dim" style="font-size:11px">${escHtml(ph.twilio_sid || '—')}</div></div>
                 <div class="kv-item"><div class="kv-label">Provisioned</div><div class="kv-val mono dim">${fmtDate(ph.provisioned_at)}</div></div>
-              </div>` : '<div class="empty-state" style="padding:24px">No Twilio number provisioned</div>'}
+              </div>` : '<div class="empty-state" style="padding:20px">No Twilio number</div>'}
             </div>
           </div>
           <div class="panel">
             <div class="panel-header"><span class="panel-title">Google Calendar</span></div>
             <div class="panel-body">
               ${cal ? `<div class="kv-grid">
-                <div class="kv-item"><div class="kv-label">Calendar ID</div><div class="kv-val mono dim" style="font-size:12px">${escHtml(cal.calendar_id || '\u2014')}</div></div>
+                <div class="kv-item"><div class="kv-label">Calendar ID</div><div class="kv-val mono dim" style="font-size:11px">${escHtml(cal.calendar_id || '—')}</div></div>
                 <div class="kv-item"><div class="kv-label">Connected</div><div class="kv-val mono dim">${fmtDate(cal.connected_at)}</div></div>
                 <div class="kv-item"><div class="kv-label">Last Refreshed</div><div class="kv-val mono dim">${fmtDate(cal.last_refreshed)}</div></div>
                 <div class="kv-item"><div class="kv-label">Token Expiry</div><div class="kv-val mono dim">${fmtDate(cal.token_expiry)}</div></div>
-              </div>` : '<div class="empty-state" style="padding:24px">Google Calendar not connected</div>'}
+              </div>` : '<div class="empty-state" style="padding:20px">Google Calendar not connected</div>'}
             </div>
           </div>
         </div>`;
@@ -1407,7 +936,7 @@ function renderAccountDetail(d) {
             <tbody>${d.billing_events.map(e => `<tr>
               <td class="mono">${escHtml(e.event_type)}</td>
               <td class="mono dim">${fmtDate(e.processed_at)}</td>
-              <td class="mono dim" style="font-size:11px">${escHtml(e.id)}</td>
+              <td class="mono dim" style="font-size:10px">${escHtml(e.id)}</td>
             </tr>`).join('')}
             </tbody>
           </table>` : renderEmpty('No billing events recorded')}
@@ -1416,7 +945,7 @@ function renderAccountDetail(d) {
 
     case 'audit':
       tabContent = `
-        <div style="margin-bottom:16px;font-size:13px;color:var(--text-secondary);line-height:1.6">
+        <div style="margin-bottom:12px;font-family:var(--mono);font-size:11px;color:var(--steel)">
           Audit log entries written by system on key events (signup, trial, plan change, integration).
         </div>
         <div class="table-wrap">
@@ -1426,9 +955,9 @@ function renderAccountDetail(d) {
             <thead><tr><th>Event Type</th><th>Actor</th><th>Time</th><th>Metadata</th></tr></thead>
             <tbody>${d.audit_log.map(e => `<tr>
               <td class="mono">${escHtml(e.event_type)}</td>
-              <td class="mono dim">${escHtml(e.actor || '\u2014')}</td>
+              <td class="mono dim">${escHtml(e.actor || '—')}</td>
               <td class="mono dim">${fmtDate(e.created_at)}</td>
-              <td class="mono dim" style="font-size:11px">${escHtml(e.metadata ? JSON.stringify(e.metadata) : '\u2014')}</td>
+              <td class="mono dim" style="font-size:10px">${escHtml(e.metadata ? JSON.stringify(e.metadata) : '—')}</td>
             </tr>`).join('')}
             </tbody>
           </table>` : renderEmpty('No audit events recorded yet')}
@@ -1438,12 +967,12 @@ function renderAccountDetail(d) {
 
   document.getElementById('mainContent').innerHTML = `
     <div style="margin-bottom:16px">
-      <button class="btn-sm" onclick="navigate('accounts')">&#8592; Accounts</button>
+      <button class="btn-sm" onclick="navigate('accounts')">← Accounts</button>
     </div>
     <div class="page-header">
       <div>
         <div class="page-title">${escHtml(t.shop_name)}</div>
-        <div class="page-subtitle">${escHtml(t.owner_email)} &middot; ${escHtml(t.id)}</div>
+        <div class="page-subtitle">${escHtml(t.owner_email)} · ${escHtml(t.id)}</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         ${statusBadge(t.billing_status)}
@@ -1456,6 +985,7 @@ function renderAccountDetail(d) {
     <div id="accountTabContent">${tabContent}</div>
   `;
 
+  // Store data for tab switching
   window._accountDetailData = d;
 }
 
@@ -1477,14 +1007,14 @@ function loadConversations(filter) {
 
   const header = `
     <div class="page-header">
-      <div><div class="page-title">Conversations</div><div class="page-subtitle">All SMS conversations across tenants</div></div>
+      <div><div class="page-title">Conversations</div><div class="page-subtitle">All SMS conversations</div></div>
     </div>
     <div class="filter-tabs">
       ${filters.map(f => `<button class="filter-tab ${_convFilter === f.val ? 'active' : ''}"
         onclick="loadConversations('${f.val}')">${f.label}</button>`).join('')}
     </div>`;
 
-  document.getElementById('mainContent').innerHTML = header + '<div class="loading"><div class="spinner"></div> Loading&hellip;</div>';
+  document.getElementById('mainContent').innerHTML = header + '<div class="loading"><div class="spinner"></div> Loading…</div>';
 
   apiFetch('/internal/admin/conversations', params)
     .then(d => {
@@ -1497,7 +1027,7 @@ function loadConversations(filter) {
           <td class="mono dim">${relTime(c.opened_at)}</td>
           <td class="mono dim">${relTime(c.last_message_at)}</td>
           <td>${boolIcon(c.has_booking)}</td>
-          <td>${c.booking_synced !== null ? boolIcon(c.booking_synced) : '<span class="bool-neutral">\u2014</span>'}</td>
+          <td>${c.booking_synced !== null ? boolIcon(c.booking_synced) : '<span class="bool-neutral">—</span>'}</td>
           <td class="mono dim">${c.message_count}</td>
         </tr>`).join('') : `<tr><td colspan="9">${renderEmpty('No conversations match')}</td></tr>`;
 
@@ -1529,16 +1059,16 @@ async function loadConversationDetail(id) {
   try {
     const d = await apiFetch(`/internal/admin/conversations/${id}`);
     const c = d.conversation;
-    document.getElementById('convModalTitle').textContent = `${c.customer_phone} \u2014 ${c.shop_name}`;
+    document.getElementById('convModalTitle').textContent = `${c.customer_phone} — ${c.shop_name}`;
 
     const apptHtml = d.appointment ? `
-      <div class="panel" style="margin-bottom:20px">
+      <div class="panel" style="margin-bottom:16px">
         <div class="panel-header"><span class="panel-title">Appointment</span></div>
         <div class="panel-body">
           <div class="kv-grid">
-            <div class="kv-item"><div class="kv-label">Service</div><div class="kv-val">${escHtml(d.appointment.service_type || '\u2014')}</div></div>
+            <div class="kv-item"><div class="kv-label">Service</div><div class="kv-val">${escHtml(d.appointment.service_type || '—')}</div></div>
             <div class="kv-item"><div class="kv-label">Scheduled</div><div class="kv-val mono dim">${fmtDate(d.appointment.scheduled_at)}</div></div>
-            <div class="kv-item"><div class="kv-label">Customer</div><div class="kv-val">${escHtml(d.appointment.customer_name || '\u2014')}</div></div>
+            <div class="kv-item"><div class="kv-label">Customer</div><div class="kv-val">${escHtml(d.appointment.customer_name || '—')}</div></div>
             <div class="kv-item"><div class="kv-label">Calendar Synced</div><div class="kv-val">${boolIcon(d.appointment.calendar_synced)}</div></div>
           </div>
         </div>
@@ -1548,12 +1078,12 @@ async function loadConversationDetail(id) {
       `<div class="msg-list">${d.messages.map(m => `
         <div class="msg-item ${m.direction}">
           <div class="msg-body">${escHtml(m.body)}</div>
-          <div class="msg-meta">${m.direction} &middot; ${relTime(m.sent_at)}${m.tokens_used ? ` &middot; ${m.tokens_used} tokens` : ''}</div>
+          <div class="msg-meta">${m.direction} · ${relTime(m.sent_at)}${m.tokens_used ? ` · ${m.tokens_used} tokens` : ''}</div>
         </div>`).join('')}
       </div>` : renderEmpty('No messages');
 
     document.getElementById('convModalBody').innerHTML = `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
         <div class="kv-item"><div class="kv-label">Status</div><div class="kv-val">${statusBadge(c.status)}</div></div>
         <div class="kv-item"><div class="kv-label">Turns</div><div class="kv-val mono">${c.turn_count}</div></div>
         <div class="kv-item"><div class="kv-label">Opened</div><div class="kv-val mono dim">${fmtDate(c.opened_at)}</div></div>
@@ -1589,27 +1119,27 @@ function loadBookings(filter) {
 
   const header = `
     <div class="page-header">
-      <div><div class="page-title">Bookings</div><div class="page-subtitle">All appointments across tenants</div></div>
+      <div><div class="page-title">Bookings</div><div class="page-subtitle">All appointments</div></div>
     </div>
     <div class="filter-tabs">
       ${filters.map(f => `<button class="filter-tab ${_bookFilter === f.val ? 'active' : ''}"
         onclick="loadBookings('${f.val}')">${f.label}</button>`).join('')}
     </div>`;
 
-  document.getElementById('mainContent').innerHTML = header + '<div class="loading"><div class="spinner"></div> Loading&hellip;</div>';
+  document.getElementById('mainContent').innerHTML = header + '<div class="loading"><div class="spinner"></div> Loading…</div>';
 
   apiFetch('/internal/admin/bookings', params)
     .then(d => {
       const tbody = d.bookings.length > 0 ? d.bookings.map(b => `<tr>
         <td style="font-weight:600">${escHtml(b.shop_name)}</td>
-        <td>${escHtml(b.customer_name || '\u2014')}</td>
+        <td>${escHtml(b.customer_name || '—')}</td>
         <td class="mono dim">${escHtml(b.customer_phone)}</td>
-        <td>${escHtml(b.service_type || '\u2014')}</td>
+        <td>${escHtml(b.service_type || '—')}</td>
         <td class="mono dim">${fmtDate(b.scheduled_at)}</td>
         <td class="mono dim">${relTime(b.created_at)}</td>
         <td>${statusBadge(b.sync_status)}</td>
-        <td class="mono dim" style="font-size:11px">${escHtml(b.google_event_id || '\u2014')}</td>
-        <td>${b.conversation_id ? `<button class="link-btn" onclick="loadConversationDetail('${b.conversation_id}')">View</button>` : '\u2014'}</td>
+        <td class="mono dim" style="font-size:10px">${escHtml(b.google_event_id || '—')}</td>
+        <td>${b.conversation_id ? `<button class="link-btn" onclick="loadConversationDetail('${b.conversation_id}')">View</button>` : '—'}</td>
       </tr>`).join('') : `<tr><td colspan="9">${renderEmpty('No bookings match')}</td></tr>`;
 
       document.getElementById('mainContent').innerHTML = header + `
@@ -1637,8 +1167,8 @@ async function loadBilling() {
     const d = await apiFetch('/internal/admin/billing');
 
     const rowColor = (row) => {
-      if (row.billing_status === 'past_due_blocked' || row.billing_status === 'trial_expired' || row.usage_pct >= 100) return 'style="background:rgba(220,38,38,.03)"';
-      if (row.billing_status === 'past_due' || (row.billing_status === 'trial' && row.trial_days_left !== null && row.trial_days_left <= 3) || row.usage_pct >= 80) return 'style="background:rgba(217,119,6,.03)"';
+      if (row.billing_status === 'past_due_blocked' || row.billing_status === 'trial_expired' || row.usage_pct >= 100) return 'style="background:rgba(239,68,68,.04)"';
+      if (row.billing_status === 'past_due' || (row.billing_status === 'trial' && row.trial_days_left !== null && row.trial_days_left <= 3) || row.usage_pct >= 80) return 'style="background:rgba(217,119,6,.04)"';
       return '';
     };
 
@@ -1646,18 +1176,18 @@ async function loadBilling() {
       <td style="font-weight:600" onclick="navigate('account-detail',{id:'${row.id}'})" style="cursor:pointer">${escHtml(row.shop_name)}</td>
       <td class="mono dim">${escHtml(row.owner_email)}</td>
       <td>${statusBadge(row.billing_status)}</td>
-      <td class="mono dim">${row.plan_id || '\u2014'}</td>
-      <td class="mono dim">${row.trial_ends_at ? relTime(row.trial_ends_at) : '\u2014'}</td>
-      <td class="mono dim">${row.trial_days_left !== null ? row.trial_days_left + 'd' : '\u2014'}</td>
+      <td class="mono dim">${row.plan_id || '—'}</td>
+      <td class="mono dim">${row.trial_ends_at ? relTime(row.trial_ends_at) : '—'}</td>
+      <td class="mono dim">${row.trial_days_left !== null ? row.trial_days_left + 'd' : '—'}</td>
       <td>${usageBar(row.conv_used_this_cycle, row.conv_limit_this_cycle)}</td>
       <td class="mono dim ${row.usage_pct >= 100 ? 'style="color:var(--red)"' : row.usage_pct >= 80 ? 'style="color:var(--amber)"' : ''}">${row.usage_pct}%</td>
-      <td class="mono dim">${row.current_period_start ? relTime(row.current_period_start) : '\u2014'}</td>
+      <td class="mono dim">${row.current_period_start ? relTime(row.current_period_start) : '—'}</td>
       <td>${boolIcon(row.has_stripe)} ${boolIcon(row.has_subscription)}</td>
     </tr>`).join('') : `<tr><td colspan="10">${renderEmpty('No billing data')}</td></tr>`;
 
     document.getElementById('mainContent').innerHTML = `
       <div class="page-header">
-        <div><div class="page-title">Billing &amp; Trial</div><div class="page-subtitle">Sorted by urgency &mdash; past due accounts first</div></div>
+        <div><div class="page-title">Billing &amp; Trial</div><div class="page-subtitle">Sorted by urgency — past due first</div></div>
       </div>
       <div class="table-wrap">
         <div class="table-header"><span class="table-title">All Accounts <span class="mono dim">(${d.count})</span></span></div>
@@ -1691,16 +1221,16 @@ async function loadIntegrations() {
       const tokenSoon = tokenExpiry && (tokenExpiry - Date.now()) < 7 * 86400000;
 
       let rowClass = '';
-      if (!hasPhone || failedSyncs > 0) { rowClass = 'style="background:rgba(220,38,38,.03)"'; failing++; }
-      else if (!hasCal || tokenSoon) { rowClass = 'style="background:rgba(217,119,6,.03)"'; degraded++; }
+      if (!hasPhone || failedSyncs > 0) { rowClass = 'style="background:rgba(239,68,68,.04)"'; failing++; }
+      else if (!hasCal || tokenSoon) { rowClass = 'style="background:rgba(217,119,6,.04)"'; degraded++; }
       else { healthy++; }
 
       return `<tr ${rowClass} onclick="navigate('account-detail',{id:'${row.id}'})">
         <td style="font-weight:600">${escHtml(row.shop_name)}</td>
         <td class="mono dim">${row.twilio_phone || '<span style="color:var(--red)">None</span>'}</td>
-        <td>${row.twilio_status ? statusBadge(row.twilio_status) : '<span class="mono dim">\u2014</span>'}</td>
-        <td>${hasCal ? `<span class="bool-ok">\u2713</span> <span class="mono dim" style="font-size:11px">${escHtml(row.calendar_id.substring(0,30))}\u2026</span>` : '<span class="bool-fail">\u2717 Not connected</span>'}</td>
-        <td class="mono dim ${tokenSoon ? 'style="color:var(--amber)"' : ''}">${row.calendar_token_expiry ? relTime(row.calendar_token_expiry) : '\u2014'}</td>
+        <td>${row.twilio_status ? statusBadge(row.twilio_status) : '<span class="mono dim">—</span>'}</td>
+        <td>${hasCal ? `<span class="bool-ok">✓</span> <span class="mono dim" style="font-size:10px">${escHtml(row.calendar_id.substring(0,30))}…</span>` : '<span class="bool-fail">✗ Not connected</span>'}</td>
+        <td class="mono dim ${tokenSoon ? 'style="color:var(--amber)"' : ''}">${row.calendar_token_expiry ? relTime(row.calendar_token_expiry) : '—'}</td>
         <td class="mono ${failedSyncs > 0 ? 'style="color:var(--red)"' : 'dim'}">${failedSyncs}</td>
         <td class="mono dim">${row.synced_count || 0}</td>
         <td class="mono dim">${relTime(row.last_conversation_at)}</td>
@@ -1710,12 +1240,12 @@ async function loadIntegrations() {
 
     document.getElementById('mainContent').innerHTML = `
       <div class="page-header">
-        <div><div class="page-title">Integrations</div><div class="page-subtitle">Per-tenant integration health overview</div></div>
+        <div><div class="page-title">Integrations</div><div class="page-subtitle">Per-tenant integration health</div></div>
       </div>
       <div class="health-summary">
-        <div class="health-pill healthy">\u2713 ${healthy} Healthy</div>
-        <div class="health-pill degraded">\u26a0 ${degraded} Degraded</div>
-        <div class="health-pill failing">\u2717 ${failing} Failing</div>
+        <div class="health-pill healthy">✓ ${healthy} Healthy</div>
+        <div class="health-pill degraded">⚠ ${degraded} Degraded</div>
+        <div class="health-pill failing">✗ ${failing} Failing</div>
       </div>
       <div class="table-wrap">
         <div class="table-header"><span class="table-title">All Tenants <span class="mono dim">(${d.count})</span></span></div>
@@ -1746,15 +1276,15 @@ async function loadErrors() {
       if (items.length === 0) return '';
       return `
         <div class="section-label">${label}</div>
-        <div class="table-wrap" style="margin-bottom:20px">
+        <div class="table-wrap" style="margin-bottom:16px">
           <table class="data-table">
             <thead><tr><th>Severity</th><th>Type</th><th>Tenant</th><th>Time</th><th>Summary</th></tr></thead>
             <tbody>${items.map(e => `<tr>
               <td>${statusBadge(e.severity)}</td>
               <td class="mono">${escHtml(e.error_type)}</td>
-              <td>${escHtml(e.shop_name || '\u2014')}${e.tenant_id ? `<br><span class="mono dim" style="font-size:10px">${e.tenant_id}</span>` : ''}</td>
+              <td>${escHtml(e.shop_name || '—')}${e.tenant_id ? `<br><span class="mono dim" style="font-size:9px">${e.tenant_id}</span>` : ''}</td>
               <td class="mono dim">${relTime(e.event_time)}</td>
-              <td style="font-size:13px;max-width:400px;word-break:break-word">${escHtml(e.summary)}</td>
+              <td style="font-size:12px;max-width:400px;word-break:break-word">${escHtml(e.summary)}</td>
             </tr>`).join('')}</tbody>
           </table>
         </div>`;
@@ -1763,10 +1293,10 @@ async function loadErrors() {
     document.getElementById('mainContent').innerHTML = `
       <div class="page-header">
         <div><div class="page-title">Errors &amp; Alerts</div><div class="page-subtitle">System issues requiring attention</div></div>
-        <button class="btn-sm" onclick="navigate('errors')">Refresh</button>
+        <button class="btn-sm" onclick="navigate('errors')">↻ Refresh</button>
       </div>
       ${d.errors.length === 0
-        ? `<div class="table-wrap">${renderEmpty('No active errors \u2014 system is healthy')}</div>`
+        ? `<div class="table-wrap">${renderEmpty('No active errors — system is healthy')}</div>`
         : renderGroup('High Severity', high) + renderGroup('Medium Severity', medium) + renderGroup('Low Severity', low)
       }`;
   } catch (err) {
@@ -1794,16 +1324,16 @@ async function loadSignupFunnel() {
 
     document.getElementById('mainContent').innerHTML = `
       <div class="page-header">
-        <div><div class="page-title">Signup Funnel</div><div class="page-subtitle">Conversion analysis for the last 7 days</div></div>
+        <div><div class="page-title">Signup Funnel</div><div class="page-subtitle">Last 7 days</div></div>
       </div>
 
       <div class="section-label">Last 7 Days</div>
       <div class="funnel-wrap">
         ${[
-          {label:'Started',val:started,col:'var(--primary)'},
+          {label:'Started',val:started,col:'var(--rust)'},
           {label:'Completed',val:completed,col:'var(--green)'},
           {label:'Failed',val:failed,col:'var(--red)'},
-          {label:'Abandoned',val:abandoned,col:'var(--text-tertiary)'},
+          {label:'Abandoned',val:abandoned,col:'var(--steel)'},
         ].map(f => `
           <div class="funnel-bar">
             <div class="funnel-label">${f.label}</div>
@@ -1811,7 +1341,7 @@ async function loadSignupFunnel() {
             <div class="funnel-track">
               <div class="funnel-fill" style="background:${f.col};width:${funPct(f.val)}%"></div>
             </div>
-            <div class="mono dim" style="font-size:12px;margin-top:6px">${funPct(f.val)}%</div>
+            <div class="mono dim" style="font-size:11px;margin-top:4px">${funPct(f.val)}%</div>
           </div>`).join('')}
       </div>
 
@@ -1824,13 +1354,13 @@ async function loadSignupFunnel() {
             <th>IP</th><th>Created</th><th>Duration</th>
           </tr></thead>
           <tbody>${attempts.attempts.length > 0 ? attempts.attempts.map(a => `<tr>
-            <td class="mono dim">${escHtml(a.email || '\u2014')}</td>
-            <td class="mono dim">${escHtml(a.provider || '\u2014')}</td>
+            <td class="mono dim">${escHtml(a.email || '—')}</td>
+            <td class="mono dim">${escHtml(a.provider || '—')}</td>
             <td>${statusBadge(a.status)}</td>
-            <td class="mono dim" style="font-size:12px">${escHtml(a.failure_reason || '\u2014')}</td>
-            <td class="mono dim">${escHtml(a.ip_address || '\u2014')}</td>
+            <td class="mono dim" style="font-size:11px">${escHtml(a.failure_reason || '—')}</td>
+            <td class="mono dim">${escHtml(a.ip_address || '—')}</td>
             <td class="mono dim">${relTime(a.created_at)}</td>
-            <td class="mono dim">${a.duration_seconds !== null ? a.duration_seconds + 's' : '\u2014'}</td>
+            <td class="mono dim">${a.duration_seconds !== null ? a.duration_seconds + 's' : '—'}</td>
           </tr>`).join('') : `<tr><td colspan="7">${renderEmpty('No signup attempts')}</td></tr>`}
           </tbody>
         </table>
@@ -1853,28 +1383,28 @@ function loadAudit(source) {
 
   const header = `
     <div class="page-header">
-      <div><div class="page-title">Audit Log</div><div class="page-subtitle">Billing events, signup attempts, and system audit entries</div></div>
+      <div><div class="page-title">Audit Log</div><div class="page-subtitle">Billing events + signup attempts + native audit entries</div></div>
     </div>
-    <div style="margin-bottom:16px;background:var(--bg-panel);border:1px solid var(--border);padding:16px 20px;font-size:13px;color:var(--text-secondary);line-height:1.6;border-radius:var(--radius-md)">
-      Audit log is populated from billing events + signup attempts. Native audit_log entries are written
-      as the system generates events (signup, trial start/end, plan change, integration connect/disconnect).
+    <div style="margin-bottom:12px;background:var(--bg-panel);border:1px solid var(--border);padding:12px 16px;font-family:var(--mono);font-size:11px;color:var(--steel);line-height:1.6">
+      Audit log is populated from billing events + signup attempts. The native audit_log table is present
+      but entries are written as the system generates events (signup, trial start/end, plan change, integration connect/disconnect).
     </div>
     <div class="filter-tabs">
       ${sources.map(s => `<button class="filter-tab ${(!source && !s.val) || source === s.val ? 'active' : ''}"
         onclick="loadAudit('${s.val || ''}')">${s.label}</button>`).join('')}
     </div>`;
 
-  document.getElementById('mainContent').innerHTML = header + '<div class="loading"><div class="spinner"></div> Loading&hellip;</div>';
+  document.getElementById('mainContent').innerHTML = header + '<div class="loading"><div class="spinner"></div> Loading…</div>';
 
   apiFetch('/internal/admin/audit', params)
     .then(d => {
       const tbody = d.events.length > 0 ? d.events.map(e => `<tr>
         <td><span class="badge ${e.source === 'billing' ? 'active' : e.source === 'signup' ? 'trial' : 'closed'}">${e.source}</span></td>
-        <td>${escHtml(e.shop_name || '\u2014')}</td>
+        <td>${escHtml(e.shop_name || '—')}</td>
         <td class="mono">${escHtml(e.event_type)}</td>
-        <td class="mono dim">${escHtml(e.actor || '\u2014')}</td>
+        <td class="mono dim">${escHtml(e.actor || '—')}</td>
         <td class="mono dim">${relTime(e.created_at)}</td>
-        <td style="font-size:12px;max-width:300px;word-break:break-word;font-family:var(--mono);color:var(--text-secondary)">${escHtml(e.summary || '\u2014')}</td>
+        <td style="font-size:11px;max-width:300px;word-break:break-word;font-family:var(--mono);color:var(--steel)">${escHtml(e.summary || '—')}</td>
       </tr>`).join('') : `<tr><td colspan="6">${renderEmpty('No audit events in this range')}</td></tr>`;
 
       document.getElementById('mainContent').innerHTML = header + `
