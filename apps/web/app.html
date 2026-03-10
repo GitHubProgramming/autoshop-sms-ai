@@ -717,6 +717,18 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
         <div class="hero-metrics" id="heroMetrics"></div>
       </div>
 
+      <!-- CALENDAR CONNECT CALLOUT (hidden when connected) -->
+      <div id="calendarCallout" class="hidden" style="margin:16px 0;padding:16px 20px;background:var(--bg-panel);border:1px solid var(--amber);border-radius:4px;display:flex;align-items:center;justify-content:space-between;gap:16px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="font-size:22px;line-height:1;">&#128197;</span>
+          <div>
+            <div style="font-weight:700;color:var(--white);font-size:14px;" id="calCalloutTitle">Connect Google Calendar</div>
+            <div style="color:var(--steel);font-size:12px;margin-top:2px;" id="calCalloutSub">Booked appointments will sync automatically to your calendar.</div>
+          </div>
+        </div>
+        <button class="btn-sm primary" id="calCalloutBtn" onclick="connectGoogleCalendar()">Connect Calendar</button>
+      </div>
+
       <!-- REVENUE SINCE ACTIVATION (populated by JS) -->
       <div class="section-label">All-Time Performance</div>
       <div id="sinceActivationBlock" class="kpi-grid" style="grid-template-columns:1fr;margin-bottom:2px;"></div>
@@ -1162,6 +1174,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   renderBillingPage();
   renderBookingsCalendarAlert();
   renderSystemHero();
+  renderCalendarCallout();
   checkActivationState();
   renderLiveKPIs();
   renderLiveTodayActivity();
@@ -1754,6 +1767,39 @@ function renderSystemHero() {
     label.innerHTML = '<span class="status-dot green" style="width:8px;height:8px;"></span> System Active';
     desc.textContent = 'Recovering missed calls in real time.';
     metr.innerHTML = `Avg AI response: <span style="color:var(--green);">${h.aiEngine.lastMs}ms</span> &nbsp;·&nbsp; Last SMS: ${h.twilioWebhooks.lastAt}`;
+  }
+}
+
+// ════════════════════════════════════════════
+// CALENDAR CALLOUT (prominent on dashboard)
+// ════════════════════════════════════════════
+function renderCalendarCallout() {
+  var el = document.getElementById('calendarCallout');
+  if (!el) return;
+  var cal = tenantState.integrations.googleCalendar;
+  if (cal === 'connected') {
+    el.classList.add('hidden');
+    return;
+  }
+  el.classList.remove('hidden');
+  var title = document.getElementById('calCalloutTitle');
+  var sub = document.getElementById('calCalloutSub');
+  var btn = document.getElementById('calCalloutBtn');
+  if (cal === 'token_expired') {
+    if (title) title.textContent = 'Google Calendar Token Expired';
+    if (sub) sub.textContent = 'Reconnect to keep syncing booked appointments to your calendar.';
+    if (btn) { btn.textContent = 'Reconnect Calendar'; btn.className = 'btn-sm amber-btn'; }
+    el.style.borderColor = 'var(--amber)';
+  } else if (cal === 'revoked' || cal === 'failed') {
+    if (title) title.textContent = 'Google Calendar Disconnected';
+    if (sub) sub.textContent = 'Calendar sync failed. Reconnect to prevent lost bookings.';
+    if (btn) { btn.textContent = 'Reconnect Calendar'; btn.className = 'btn-sm red-btn'; }
+    el.style.borderColor = 'var(--red)';
+  } else {
+    if (title) title.textContent = 'Connect Google Calendar';
+    if (sub) sub.textContent = 'Booked appointments will sync automatically to your calendar.';
+    if (btn) { btn.textContent = 'Connect Calendar'; btn.className = 'btn-sm primary'; }
+    el.style.borderColor = 'var(--rust)';
   }
 }
 
