@@ -17,6 +17,7 @@ import { googleAuthRoute } from "./routes/auth/google";
 import { loginRoute } from "./routes/auth/login";
 import { signupRoute } from "./routes/auth/signup";
 import { billingCheckoutRoute } from "./routes/billing/checkout";
+import { billingPortalRoute } from "./routes/billing/portal";
 import { tenantDashboardRoute } from "./routes/tenant/dashboard";
 import { db } from "./db/client";
 import { redis } from "./queues/redis";
@@ -70,6 +71,7 @@ async function bootstrap() {
   await app.register(loginRoute, { prefix: "/auth" });
   await app.register(signupRoute, { prefix: "/auth" });
   await app.register(billingCheckoutRoute, { prefix: "/billing" });
+  await app.register(billingPortalRoute, { prefix: "/billing" });
   await app.register(tenantDashboardRoute, { prefix: "/tenant" });
 
   // ── Static frontend (login.html, signup.html, etc.) ───────
