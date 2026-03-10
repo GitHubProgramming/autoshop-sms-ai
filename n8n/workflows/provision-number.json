@@ -92,7 +92,7 @@
             },
             {
               "name": "SmsUrl",
-              "value": "=http://api:3000/webhooks/twilio/sms"
+              "value": "={{ $env.PUBLIC_ORIGIN }}/webhooks/twilio/sms"
             },
             {
               "name": "SmsMethod",
@@ -100,11 +100,11 @@
             },
             {
               "name": "StatusCallback",
-              "value": "=http://api:3000/webhooks/twilio/voice-status"
+              "value": "={{ $env.PUBLIC_ORIGIN }}/webhooks/twilio/voice-status"
             },
             {
               "name": "VoiceUrl",
-              "value": "=http://api:3000/webhooks/twilio/voice-status"
+              "value": "={{ $env.PUBLIC_ORIGIN }}/webhooks/twilio/voice-status"
             }
           ]
         },

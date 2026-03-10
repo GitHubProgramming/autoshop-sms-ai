@@ -131,6 +131,19 @@
     },
     {
       "parameters": {
+        "jsCode": "// Check SMS delivery result — log failures for visibility\nconst smsResult = $('Twilio: Send SMS Reply').first().json;\nconst sid = smsResult?.sid || null;\nconst errorCode = smsResult?.code || smsResult?.error_code || null;\nconst errorMessage = smsResult?.message || smsResult?.error_message || null;\nconst httpStatus = smsResult?.status;\n\nif (errorCode || errorMessage || !sid) {\n  console.error('[WF-002] SMS DELIVERY FAILED', JSON.stringify({\n    customerPhone: $('Detect Booking Intent').first().json.customerPhone,\n    tenantId: $('Detect Booking Intent').first().json.tenantId,\n    conversationId: $('Detect Booking Intent').first().json.conversationId,\n    errorCode, errorMessage, httpStatus\n  }));\n}\n\nreturn [$input.first()];"
+      },
+      "id": "check-sms-delivery",
+      "name": "Check SMS Delivery",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1625,
+        300
+      ]
+    },
+    {
+      "parameters": {
         "conditions": {
           "conditions": [
             {
@@ -346,6 +359,17 @@
       ]
     },
     "Twilio: Send SMS Reply": {
+      "main": [
+        [
+          {
+            "node": "Check SMS Delivery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check SMS Delivery": {
       "main": [
         [
           {
