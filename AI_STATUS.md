@@ -9,6 +9,44 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: fix-google-calendar-oauth — 2026-03-10
+
+**Branch:** ai/fix-google-calendar-oauth
+**Status:** COMPLETE — 3 fixes applied, typecheck + build pass
+
+### Problem
+1. Google OAuth callback redirected to production URL instead of localhost (PUBLIC_ORIGIN missing from .env)
+2. "Connect Calendar" button buried in Settings tab — not discoverable on main dashboard
+3. WF-004 (calendar sync) passed encrypted tokens directly to Google API — always fails. Also used `fetch()` which is unavailable in n8n Code node sandbox.
+
+### Fixes Applied
+| # | Fix | File |
+|---|-----|------|
+| 1 | Added `PUBLIC_ORIGIN=http://localhost:8090` to .env | `.env` |
+| 2 | Added prominent calendar connect callout on dashboard (below system hero, above KPIs) with state-aware messaging | `apps/web/app.html` |
+| 3a | Created `/internal/calendar-tokens/:tenantId` endpoint to decrypt tokens server-side | `apps/api/src/routes/internal/calendar-tokens.ts` (NEW) |
+| 3b | Registered new route in app | `apps/api/src/index.ts` |
+| 3c | Restructured WF-004 to use httpRequest nodes + internal API for token decryption | `n8n/workflows/calendar-sync.json` |
+
+### Verification
+- `npm run typecheck` — PASS
+- `npm run build` — PASS
+- Docker build — pending
+
+### Files Changed
+- `.env` — added PUBLIC_ORIGIN
+- `apps/web/app.html` — calendar callout div + renderCalendarCallout() + wired into render pipeline
+- `apps/api/src/routes/internal/calendar-tokens.ts` — NEW internal endpoint
+- `apps/api/src/index.ts` — registered calendarTokensRoute
+- `n8n/workflows/calendar-sync.json` — full restructure (httpRequest nodes, no fetch, API decryption)
+- `AI_STATUS.md` — this entry
+
+### Next Action
+- Import updated WF-004 into live n8n database
+- Test full E2E: dashboard → Google consent → callback → token save → calendar sync
+
+---
+
 ## TASK: fix-vercel-rewrites-missing — 2026-03-09
 
 **Branch:** deploy/auth-routes-to-main

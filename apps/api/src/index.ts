@@ -13,6 +13,7 @@ import { twilioVoiceStatusRoute } from "./routes/webhooks/twilio-voice-status";
 import { stripeRoute } from "./routes/webhooks/stripe";
 import { provisionNumberRoute } from "./routes/internal/provision-number";
 import { adminRoute } from "./routes/internal/admin";
+import { calendarTokensRoute } from "./routes/internal/calendar-tokens";
 import { googleAuthRoute } from "./routes/auth/google";
 import { loginRoute } from "./routes/auth/login";
 import { signupRoute } from "./routes/auth/signup";
@@ -62,6 +63,7 @@ async function bootstrap() {
   await app.register(stripeRoute, { prefix: "/webhooks" });
   await app.register(provisionNumberRoute, { prefix: "/internal" });
   await app.register(adminRoute, { prefix: "/internal" });
+  await app.register(calendarTokensRoute, { prefix: "/internal" });
   await app.register(googleAuthRoute, { prefix: "/auth/google" });
   await app.register(loginRoute, { prefix: "/auth" });
   await app.register(signupRoute, { prefix: "/auth" });
