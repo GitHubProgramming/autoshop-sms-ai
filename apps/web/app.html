@@ -957,17 +957,7 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
         </div>
         <div class="settings-group">
           <div class="settings-group-title">Google Calendar</div>
-          <div class="settings-row">
-            <div><div class="settings-row-label">Status</div></div>
-            <div style="display:flex;gap:10px;align-items:center;">
-              <span id="calendarConnectedStatus" style="font-family:var(--mono);font-size:12px;">—</span>
-              <button class="btn-sm" id="calendarActionBtn" onclick="connectGoogleCalendar()">Connect Calendar</button>
-            </div>
-          </div>
-          <div class="settings-row">
-            <div><div class="settings-row-label">Calendar ID</div></div>
-            <span id="calendarConnectedEmail" style="font-family:var(--mono);font-size:12px;color:var(--steel);">—</span>
-          </div>
+          <div id="settingsCalendarBlock"></div>
         </div>
       </div>
     </div>
@@ -1252,34 +1242,24 @@ function renderNav() {
   }
 
   // Settings — Google Calendar
-  const calStatus = document.getElementById('calendarConnectedStatus');
-  const calBtn = document.getElementById('calendarActionBtn');
-  const calEmail = document.getElementById('calendarConnectedEmail');
-  if (calStatus) {
-    if (s.integrations.googleCalendar === 'connected') {
-      calStatus.className = 'int-connected';
-      calStatus.textContent = 'Connected';
-    } else if (s.integrations.googleCalendar === 'token_expired') {
-      calStatus.style.cssText = 'font-family:var(--mono);font-size:12px;color:var(--amber);';
-      calStatus.textContent = 'Token Expired';
+  var calBlock = document.getElementById('settingsCalendarBlock');
+  if (calBlock) {
+    var calSt = s.integrations.googleCalendar;
+    var calId = s._calendarId || null;
+    var rows = '';
+    if (calSt === 'connected') {
+      rows += '<div class="settings-row"><div><div class="settings-row-label">Status</div></div><span class="int-connected">Connected</span></div>';
+      if (calId) rows += '<div class="settings-row"><div><div class="settings-row-label">Calendar ID</div></div><span style="font-family:var(--mono);font-size:12px;color:var(--steel);">' + calId + '</span></div>';
+      rows += '<div class="settings-row"><div><div class="settings-row-label">Actions</div></div><div style="display:flex;gap:8px;"><button class="btn-sm" onclick="connectGoogleCalendar()">Change Account</button><button class="btn-sm red-btn" onclick="disconnectGoogleCalendar()">Disconnect</button></div></div>';
+    } else if (calSt === 'token_expired') {
+      rows += '<div class="settings-row"><div><div class="settings-row-label">Status</div></div><span style="font-family:var(--mono);font-size:12px;color:var(--amber);">Reconnect Required</span></div>';
+      rows += '<div class="settings-row"><div><div class="settings-row-label">Actions</div></div><button class="btn-sm amber-btn" onclick="connectGoogleCalendar()">Reconnect</button></div>';
     } else {
-      calStatus.style.cssText = 'font-family:var(--mono);font-size:12px;color:var(--red);';
-      calStatus.textContent = 'Not Connected';
+      rows += '<div class="settings-row"><div><div class="settings-row-label">Status</div></div><span style="font-family:var(--mono);font-size:12px;color:var(--red);">Not Connected</span></div>';
+      rows += '<div class="settings-row"><div><div class="settings-row-label">Actions</div></div><button class="btn-sm primary" onclick="connectGoogleCalendar()">Connect Calendar</button></div>';
     }
+    calBlock.innerHTML = rows;
   }
-  if (calBtn) {
-    if (s.integrations.googleCalendar === 'connected') {
-      calBtn.textContent = 'Reconnect Calendar';
-      calBtn.className = 'btn-sm';
-    } else if (s.integrations.googleCalendar === 'token_expired') {
-      calBtn.textContent = 'Reconnect Calendar';
-      calBtn.className = 'btn-sm amber-btn';
-    } else {
-      calBtn.textContent = 'Connect Calendar';
-      calBtn.className = 'btn-sm primary';
-    }
-  }
-  if (calEmail) calEmail.textContent = s._calendarId || '—';
 }
 
 // ════════════════════════════════════════════
@@ -1293,7 +1273,7 @@ function renderChecklist() {
       label: 'Connect Google Calendar',
       status: s.integrations.googleCalendar,
       pills: { connected:{cls:'done',text:'Connected'}, token_expired:{cls:'warn',text:'Needs Reconnect'}, revoked:{cls:'fail',text:'Revoked'}, failed:{cls:'fail',text:'Failed'} },
-      ctas:  { connected:'<button class="btn-sm" onclick="switchView(\'settings\')">Manage</button>', token_expired:'<button class="btn-sm amber-btn" onclick="connectGoogleCalendar()">Reconnect</button>', revoked:'<button class="btn-sm red-btn" onclick="connectGoogleCalendar()">Reconnect</button>', failed:'<button class="btn-sm red-btn" onclick="connectGoogleCalendar()">Reconnect</button>' },
+      ctas:  { connected:'<button class="btn-sm" onclick="switchView(\'settings\');switchTab(document.querySelector(\'[onclick*=tab-integrations]\'),\'tab-integrations\')">Manage</button>', token_expired:'<button class="btn-sm amber-btn" onclick="connectGoogleCalendar()">Reconnect</button>', revoked:'<button class="btn-sm red-btn" onclick="connectGoogleCalendar()">Reconnect</button>', failed:'<button class="btn-sm red-btn" onclick="connectGoogleCalendar()">Reconnect</button>' },
       defaultCta: '<button class="btn-sm primary" onclick="connectGoogleCalendar()">Connect</button>'
     },
     {
@@ -1660,6 +1640,35 @@ async function connectGoogleCalendar() {
     }
     // Redirect browser to Google consent screen
     window.location.href = data.url;
+  } catch (err) {
+    showToast('Connection error — please try again.');
+  }
+}
+
+async function disconnectGoogleCalendar() {
+  if (!confirm('Disconnect Google Calendar? Appointments will no longer sync.')) return;
+  var token = localStorage.getItem('autoshop_jwt');
+  if (!token) {
+    showToast('Session expired — please log in again.');
+    setTimeout(function() { window.location.href = 'login.html'; }, 1500);
+    return;
+  }
+  try {
+    var res = await fetch('/auth/google/disconnect', {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (res.status === 401) {
+      showToast('Session expired — please log in again.');
+      setTimeout(function() { window.location.href = 'login.html'; }, 1500);
+      return;
+    }
+    if (!res.ok) {
+      showToast('Failed to disconnect — please try again.');
+      return;
+    }
+    showToast('Google Calendar disconnected.');
+    loadDashboard();
   } catch (err) {
     showToast('Connection error — please try again.');
   }
