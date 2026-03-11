@@ -29,6 +29,9 @@ Workflow:
 ## OPEN
 (none — all automatable tasks complete; remaining blockers require credentials)
 
+## DONE (this session, continued — 2026-03-11)
+- Make n8n deploy script update-safe and duplicate-safe (three-tier matching, duplicate detection, real dry-run mode)
+
 ## DONE (this session, continued)
 - Add Stripe checkout endpoint (POST /billing/checkout): creates Stripe customer if needed, creates Checkout Session, returns URL
 - Fix SMS conversation logging: add "DB: Save Inbound Message" node to WF-001 so customer messages are persisted before AI call
