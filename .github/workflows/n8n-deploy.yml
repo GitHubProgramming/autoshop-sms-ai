@@ -26,10 +26,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Python (for JSON parsing)
-        uses: actions/setup-python@v5
+      - name: Setup Node.js (for JSON parsing)
+        uses: actions/setup-node@v4
         with:
-          python-version: '3.x'
+          node-version: '20'
 
       - name: Validate workflow JSON files
         run: |
@@ -37,7 +37,7 @@ jobs:
           errors=0
           for f in n8n/workflows/US_AutoShop/*.json n8n/workflows/TEST/*.json n8n/workflows/LT_Proteros/*.json; do
             if [ -f "$f" ]; then
-              if python3 -c "import json; json.load(open('$f'))" 2>/dev/null; then
+              if node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))" 2>/dev/null; then
                 echo "  OK: $f"
               else
                 echo "  INVALID: $f"
