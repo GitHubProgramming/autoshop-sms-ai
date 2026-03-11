@@ -3,7 +3,7 @@
 const fs = require('fs');
 
 // Verify WF-004 structure
-const wf4 = JSON.parse(fs.readFileSync('n8n/workflows/calendar-sync.json', 'utf8'));
+const wf4 = JSON.parse(fs.readFileSync('n8n/workflows/_archive/calendar-sync.json', 'utf8'));
 console.log('WF-004 nodes:', wf4.nodes.map(n => n.name).join(' -> '));
 console.log('WF-004 connections:');
 for (const [from, to] of Object.entries(wf4.connections)) {
@@ -11,7 +11,7 @@ for (const [from, to] of Object.entries(wf4.connections)) {
 }
 
 // Verify WF-003 has the calendar sync trigger
-const wf3 = JSON.parse(fs.readFileSync('n8n/workflows/close-conversation.json', 'utf8'));
+const wf3 = JSON.parse(fs.readFileSync('n8n/workflows/_archive/close-conversation.json', 'utf8'));
 const trigNode = wf3.nodes.find(n => n.id === 'trigger-calendar-sync');
 console.log('\nWF-003 trigger node present:', !!trigNode);
 const dbConn = wf3.connections['DB: Create Appointment'];

@@ -1,0 +1,59 @@
+name: Deploy n8n Workflows
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'n8n/workflows/US_AutoShop/**'
+      - 'n8n/workflows/TEST/**'
+      - 'n8n/workflows/LT_Proteros/**'
+
+  workflow_dispatch:
+    inputs:
+      project:
+        description: 'Deploy specific project (leave empty for all)'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Dry run only'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python (for JSON parsing)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Validate workflow JSON files
+        run: |
+          echo "Validating workflow JSON files..."
+          errors=0
+          for f in n8n/workflows/US_AutoShop/*.json n8n/workflows/TEST/*.json n8n/workflows/LT_Proteros/*.json; do
+            if [ -f "$f" ]; then
+              if python3 -c "import json; json.load(open('$f'))" 2>/dev/null; then
+                echo "  OK: $f"
+              else
+                echo "  INVALID: $f"
+                errors=$((errors + 1))
+              fi
+            fi
+          done
+          if [ "$errors" -gt 0 ]; then
+            echo "ERROR: $errors invalid JSON files found"
+            exit 1
+          fi
+
+      - name: Deploy workflows to n8n
+        env:
+          N8N_URL: ${{ secrets.N8N_URL }}
+          N8N_API_KEY: ${{ secrets.N8N_API_KEY }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+        run: |
+          bash scripts/n8n-deploy.sh "${{ github.event.inputs.project || '' }}"
