@@ -37,8 +37,8 @@ failed=0
 skipped=0
 
 # Strip fields that n8n API does not accept in request body.
-# The API only accepts: name, nodes, connections, settings, staticData, tags.
-# Fields like id, active, pinData, versionId cause HTTP 400.
+# The API only accepts: name, nodes, connections, settings, staticData.
+# Fields like id, active, pinData, versionId, tags cause HTTP 400.
 strip_payload() {
   local file="$1"
   node -e "
@@ -51,6 +51,7 @@ strip_payload() {
     delete wf.meta;
     delete wf.createdAt;
     delete wf.updatedAt;
+    delete wf.tags;
     process.stdout.write(JSON.stringify(wf));
   " "$file"
 }
