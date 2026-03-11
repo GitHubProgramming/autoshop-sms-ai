@@ -249,7 +249,7 @@ const wf004 = {
   ].join(' ')
 };
 
-const wf004Path = path.join(root, 'n8n/workflows/calendar-sync.json');
+const wf004Path = path.join(root, 'n8n/workflows/_archive/calendar-sync.json');
 fs.writeFileSync(wf004Path, JSON.stringify(wf004, null, 2));
 // Validate
 JSON.parse(fs.readFileSync(wf004Path, 'utf8'));
@@ -258,7 +258,7 @@ console.log('calendar-sync.json: OK (' + wf004.nodes.length + ' nodes)');
 // ── Update WF-003: close-conversation.json ──────────────────────────────────
 // After "DB: Create Appointment" insert the "Trigger: Calendar Sync (WF-004)" node,
 // then chain into the existing "Respond 200".
-const wf003Path = path.join(root, 'n8n/workflows/close-conversation.json');
+const wf003Path = path.join(root, 'n8n/workflows/_archive/close-conversation.json');
 const wf003 = JSON.parse(fs.readFileSync(wf003Path, 'utf8'));
 
 // 1. Add the new HTTP trigger node
