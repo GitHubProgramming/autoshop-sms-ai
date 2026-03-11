@@ -41,10 +41,138 @@ NC='\033[0m'
 deployed=0
 failed=0
 skipped=0
+conflicts=0
 transferred=0
 transfer_failed=0
 folder_placed=0
 folder_place_failed=0
+
+# ─── Live Workflow Index ─────────────────────────────────────────────────
+# Fetched once at startup. Used for ID and name-based matching.
+# Format: JSON array cached in LIVE_WORKFLOWS_JSON
+LIVE_WORKFLOWS_JSON=""
+
+fetch_live_workflows() {
+  echo -e "${BLUE}Fetching all live workflows from n8n...${NC}"
+
+  local cursor="" all_workflows="[]"
+  while true; do
+    local url="$N8N_URL/api/v1/workflows?limit=250"
+    if [ -n "$cursor" ]; then
+      url="$url&cursor=$cursor"
+    fi
+
+    local response http_code body
+    response="$(curl -s -w "\n%{http_code}" \
+      -H "X-N8N-API-KEY: $N8N_API_KEY" \
+      -H "accept: application/json" \
+      "$url")"
+
+    http_code="$(echo "$response" | tail -1)"
+    body="$(echo "$response" | sed '$d')"
+
+    if [ "$http_code" != "200" ]; then
+      echo -e "  ${RED}ERROR${NC}: Could not fetch workflows (HTTP $http_code)"
+      echo "  Response: $body"
+      exit 1
+    fi
+
+    # Merge this page into all_workflows and extract nextCursor
+    local result
+    result="$(node -e "
+      const all = JSON.parse(process.argv[1]);
+      const resp = JSON.parse(process.argv[2]);
+      const page = resp.data || resp;
+      if (Array.isArray(page)) {
+        page.forEach(w => all.push({
+          id: w.id,
+          name: w.name,
+          active: w.active || false,
+          projectId: (w.projectId) || (w.parentProject && w.parentProject.id) || '',
+          folderId: (w.parentFolder && w.parentFolder.id) || w.parentFolderId || ''
+        }));
+      }
+      const nc = resp.nextCursor || '';
+      console.log(JSON.stringify({ workflows: all, nextCursor: nc }));
+    " "$all_workflows" "$body" 2>/dev/null)"
+
+    all_workflows="$(node -e "process.stdout.write(JSON.stringify(JSON.parse(process.argv[1]).workflows))" "$result")"
+    cursor="$(node -e "process.stdout.write(JSON.parse(process.argv[1]).nextCursor || '')" "$result")"
+
+    if [ -z "$cursor" ]; then
+      break
+    fi
+  done
+
+  LIVE_WORKFLOWS_JSON="$all_workflows"
+  local count
+  count="$(node -e "process.stdout.write(String(JSON.parse(process.argv[1]).length))" "$LIVE_WORKFLOWS_JSON")"
+  echo -e "  Found ${GREEN}$count${NC} live workflows"
+  echo ""
+}
+
+# Resolve a repo workflow to a live n8n workflow ID.
+# Priority: (a) exact ID match, (b) exact name match in target project, (c) create.
+# Sets RESOLVED_ID (live n8n ID or empty for create) and RESOLVED_ACTION (update/create/conflict).
+RESOLVED_ID=""
+RESOLVED_ACTION=""
+
+resolve_workflow() {
+  local repo_id="$1"
+  local repo_name="$2"
+  local target_project_id="${PROJECT_IDS[$N8N_TARGET_PROJECT]:-}"
+
+  # (a) Check if the exact repo ID exists live
+  local id_match
+  id_match="$(node -e "
+    const wfs = JSON.parse(process.argv[1]);
+    const match = wfs.find(w => w.id === process.argv[2]);
+    process.stdout.write(match ? match.id : '');
+  " "$LIVE_WORKFLOWS_JSON" "$repo_id" 2>/dev/null || echo "")"
+
+  if [ -n "$id_match" ]; then
+    RESOLVED_ID="$id_match"
+    RESOLVED_ACTION="update"
+    return
+  fi
+
+  # (b) Search by exact name within the target project
+  local name_result
+  name_result="$(node -e "
+    const wfs = JSON.parse(process.argv[1]);
+    const name = process.argv[2];
+    const projId = process.argv[3];
+    // Match by name; if we have a project ID, filter to that project
+    let matches = wfs.filter(w => w.name === name);
+    if (projId) {
+      const projMatches = matches.filter(w => w.projectId === projId);
+      if (projMatches.length > 0) matches = projMatches;
+    }
+    console.log(JSON.stringify({ count: matches.length, id: matches.length === 1 ? matches[0].id : '', ids: matches.map(m => m.id) }));
+  " "$LIVE_WORKFLOWS_JSON" "$repo_name" "$target_project_id" 2>/dev/null)"
+
+  local match_count match_id
+  match_count="$(node -e "process.stdout.write(String(JSON.parse(process.argv[1]).count))" "$name_result")"
+  match_id="$(node -e "process.stdout.write(JSON.parse(process.argv[1]).id)" "$name_result")"
+
+  if [ "$match_count" = "1" ]; then
+    RESOLVED_ID="$match_id"
+    RESOLVED_ACTION="update"
+    return
+  fi
+
+  if [ "$match_count" -gt 1 ] 2>/dev/null; then
+    local dup_ids
+    dup_ids="$(node -e "process.stdout.write(JSON.parse(process.argv[1]).ids.join(', '))" "$name_result")"
+    RESOLVED_ID=""
+    RESOLVED_ACTION="conflict:$dup_ids"
+    return
+  fi
+
+  # (c) No match — create
+  RESOLVED_ID=""
+  RESOLVED_ACTION="create"
+}
 
 # Strip fields that n8n API does not accept in request body.
 # The API only accepts: name, nodes, connections, settings, staticData.
@@ -406,41 +534,61 @@ deploy_workflow() {
   local filename
   filename="$(basename "$file")"
 
-  # Extract workflow ID and name from JSON
-  local wf_id wf_name
-  wf_id="$(node -e "const d=require('$file'); process.stdout.write(d.id || '')" 2>/dev/null || echo "")"
-  wf_name="$(node -e "const d=require('$file'); process.stdout.write(d.name || '')" 2>/dev/null || echo "$filename")"
+  # Extract workflow ID and name from repo JSON
+  local repo_id repo_name
+  repo_id="$(node -e "const d=require('$file'); process.stdout.write(d.id || '')" 2>/dev/null || echo "")"
+  repo_name="$(node -e "const d=require('$file'); process.stdout.write(d.name || '')" 2>/dev/null || echo "$filename")"
 
-  if [ -z "$wf_id" ]; then
-    echo -e "  ${YELLOW}SKIP${NC} $filename — no 'id' field in JSON"
+  if [ -z "$repo_name" ]; then
+    echo -e "  ${YELLOW}SKIP${NC} $filename — no 'name' field in JSON"
     skipped=$((skipped + 1))
     return
   fi
 
-  echo -n "  [$project] $wf_name ($wf_id) ... "
+  # Resolve: find the correct live workflow to update, or decide to create
+  resolve_workflow "${repo_id:-}" "$repo_name"
+  local live_id="$RESOLVED_ID"
+  local action="$RESOLVED_ACTION"
 
+  # ── Handle duplicate conflict ──────────────────────────────────────────
+  if [[ "$action" == conflict:* ]]; then
+    local dup_ids="${action#conflict:}"
+    echo -e "  [$project] $repo_name — ${RED}DUPLICATE CONFLICT${NC}"
+    echo -e "    Multiple live workflows with this name: $dup_ids"
+    echo -e "    ${RED}STOPPING${NC} — resolve duplicates manually before deploying."
+    conflicts=$((conflicts + 1))
+    failed=$((failed + 1))
+    return
+  fi
+
+  # ── Dry-run reporting ──────────────────────────────────────────────────
   if [ "$DRY_RUN" = "true" ]; then
-    local project_id="${PROJECT_IDS[$N8N_TARGET_PROJECT]:-none}"
-    local folder_id="${FOLDER_IDS[$project]:-none}"
-    echo -e "${YELLOW}DRY RUN${NC} (target project: $project_id, target folder: $folder_id)"
+    local target_proj="${PROJECT_IDS[$N8N_TARGET_PROJECT]:-none}"
+    local target_fold="${FOLDER_IDS[$project]:-none}"
+    if [ "$action" = "update" ]; then
+      local match_method="repo ID"
+      if [ "$live_id" != "${repo_id:-}" ]; then
+        match_method="name match"
+      fi
+      echo -e "  [$project] $repo_name — ${GREEN}WOULD UPDATE${NC} (live id: $live_id, matched by: $match_method)"
+    else
+      echo -e "  [$project] $repo_name — ${YELLOW}WOULD CREATE${NC} (no live match found)"
+    fi
+    echo -e "    target project: $target_proj, target folder: $target_fold"
     skipped=$((skipped + 1))
     return
   fi
 
-  # Build the cleaned payload (without id, active, pinData, versionId)
-  local payload
-  payload="$(strip_payload "$file")"
+  # ── Execute deploy ─────────────────────────────────────────────────────
+  local wf_id="" action_result="" http_code response_body
 
-  # Check if workflow already exists in n8n
-  local http_code response_body
-  http_code="$(curl -s -o /dev/null -w "%{http_code}" \
-    -H "X-N8N-API-KEY: $N8N_API_KEY" \
-    "$N8N_URL/api/v1/workflows/$wf_id")"
+  if [ "$action" = "update" ]; then
+    wf_id="$live_id"
+    echo -n "  [$project] $repo_name -> UPDATE $wf_id ... "
 
-  local action_result=""
+    local payload
+    payload="$(strip_payload "$file")"
 
-  if [ "$http_code" = "200" ]; then
-    # Update existing workflow
     response_body="$(curl -s -w "\n%{http_code}" \
       -X PUT \
       -H "X-N8N-API-KEY: $N8N_API_KEY" \
@@ -461,8 +609,9 @@ deploy_workflow() {
       failed=$((failed + 1))
     fi
   else
-    # Create new workflow — n8n cloud treats 'id' as read-only, so omit it.
-    # The n8n-assigned ID is captured from the response for subsequent operations.
+    # Create new workflow
+    echo -n "  [$project] $repo_name -> CREATE ... "
+
     local create_payload
     create_payload="$(node -e "
       const fs = require('fs');
@@ -488,7 +637,6 @@ deploy_workflow() {
     response_body="$(echo "$response_body" | sed '$d')"
 
     if [ "$http_code" = "200" ] || [ "$http_code" = "201" ]; then
-      # n8n assigns its own ID — capture it for transfer + folder placement
       local created_id
       created_id="$(node -e "
         const r = JSON.parse(process.argv[1]);
@@ -516,25 +664,27 @@ deploy_workflow() {
   # 1. Transfer to the target project (public API)
   # 2. Move into the correct folder (internal API)
   if [ "$action_result" = "ok" ]; then
-    transfer_to_project "$wf_id" "$project" "$wf_name"
-    move_to_folder "$wf_id" "$project" "$wf_name"
+    transfer_to_project "$wf_id" "$project" "$repo_name"
+    move_to_folder "$wf_id" "$project" "$repo_name"
   fi
+
+  # Export the final live ID so activate_workflow can use it
+  RESOLVED_ID="$wf_id"
 }
 
-# Activate a workflow after deploy
+# Activate a workflow after deploy.
+# Accepts the resolved live n8n ID (not the repo ID).
 activate_workflow() {
-  local file="$1"
-  local wf_id
-  wf_id="$(node -e "const d=require('$file'); process.stdout.write(d.id || '')" 2>/dev/null || echo "")"
+  local live_id="$1"
 
-  if [ -z "$wf_id" ] || [ "$DRY_RUN" = "true" ]; then
+  if [ -z "$live_id" ] || [ "$DRY_RUN" = "true" ]; then
     return
   fi
 
   curl -s -o /dev/null \
     -X POST \
     -H "X-N8N-API-KEY: $N8N_API_KEY" \
-    "$N8N_URL/api/v1/workflows/$wf_id/activate" 2>/dev/null || true
+    "$N8N_URL/api/v1/workflows/$live_id/activate" 2>/dev/null || true
 }
 
 echo "========================================="
@@ -551,7 +701,10 @@ resolve_project_ids
 # Step 2: Resolve folder IDs inside the target project
 resolve_folder_ids
 
-# Step 3: Deploy each project folder (skip _archive)
+# Step 3: Fetch all live workflows for matching
+fetch_live_workflows
+
+# Step 4: Deploy each project folder (skip _archive)
 for project_dir in "$WORKFLOWS_DIR"/*/; do
   project="$(basename "$project_dir")"
 
@@ -578,7 +731,9 @@ for project_dir in "$WORKFLOWS_DIR"/*/; do
   for f in "${json_files[@]}"; do
     if [ -f "$f" ]; then
       deploy_workflow "$f" "$project"
-      activate_workflow "$f"
+      # activate_workflow uses the resolved live ID, which is stored in RESOLVED_ID
+      # after deploy_workflow runs. Only activate if we had a successful resolution.
+      activate_workflow "$RESOLVED_ID"
     fi
   done
   echo ""
@@ -586,6 +741,9 @@ done
 
 echo "========================================="
 echo -e " Deploy:    ${GREEN}$deployed deployed${NC}, ${RED}$failed failed${NC}, ${YELLOW}$skipped skipped${NC}"
+if [ "$conflicts" -gt 0 ]; then
+  echo -e " Conflicts: ${RED}$conflicts DUPLICATE CONFLICTS${NC} — must resolve before deploy"
+fi
 echo -e " Project:   ${GREEN}$transferred transferred${NC}, ${RED}$transfer_failed transfer failed${NC}"
 echo -e " Folders:   ${GREEN}$folder_placed placed${NC}, ${RED}$folder_place_failed failed${NC}"
 echo "========================================="

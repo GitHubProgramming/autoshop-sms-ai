@@ -9,6 +9,34 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: deploy-duplicate-safe — 2026-03-11
+
+**Branch:** ai/deploy-duplicate-safe
+**Status:** COMPLETE — deploy script patched for update-safe + duplicate-safe operation
+
+### Root Cause
+`deploy_workflow()` matched workflows ONLY by the `id` field from repo JSON.
+On n8n Cloud (which assigns its own IDs), the repo ID never matches → every deploy
+falls through to CREATE → duplicate workflows created on every run.
+
+### Fixes Applied
+| # | Fix | Detail |
+|---|-----|--------|
+| 1 | Fetch live workflow index | Single GET at startup, paginated, caches all live workflows |
+| 2 | Three-tier matching | (a) exact live ID → (b) exact name in target project → (c) create only if no match |
+| 3 | Duplicate detection | If >1 live workflow has same name → STOP with DUPLICATE CONFLICT error |
+| 4 | Real dry-run mode | Reports WOULD UPDATE / WOULD CREATE / DUPLICATE CONFLICT with match method |
+| 5 | activate_workflow fix | Now uses resolved live ID instead of repo ID |
+
+### Verification
+- `bash -n scripts/n8n-deploy.sh` — syntax check PASS
+- No other files changed
+
+### Files Changed
+- `scripts/n8n-deploy.sh` — 192 insertions, 34 deletions
+
+---
+
 ## TASK: fix-google-calendar-oauth — 2026-03-10
 
 **Branch:** ai/fix-google-calendar-oauth
