@@ -36,6 +36,25 @@ deployed=0
 failed=0
 skipped=0
 
+# Strip fields that n8n API does not accept in request body.
+# The API only accepts: name, nodes, connections, settings, staticData, tags.
+# Fields like id, active, pinData, versionId cause HTTP 400.
+strip_payload() {
+  local file="$1"
+  node -e "
+    const fs = require('fs');
+    const wf = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
+    delete wf.id;
+    delete wf.active;
+    delete wf.pinData;
+    delete wf.versionId;
+    delete wf.meta;
+    delete wf.createdAt;
+    delete wf.updatedAt;
+    process.stdout.write(JSON.stringify(wf));
+  " "$file"
+}
+
 deploy_workflow() {
   local file="$1"
   local project="$2"
@@ -44,8 +63,8 @@ deploy_workflow() {
 
   # Extract workflow ID and name from JSON
   local wf_id wf_name
-  wf_id="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('id',''))" "$file" 2>/dev/null || echo "")"
-  wf_name="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('name',''))" "$file" 2>/dev/null || echo "$filename")"
+  wf_id="$(node -e "const d=require('$file'); process.stdout.write(d.id || '')" 2>/dev/null || echo "")"
+  wf_name="$(node -e "const d=require('$file'); process.stdout.write(d.name || '')" 2>/dev/null || echo "$filename")"
 
   if [ -z "$wf_id" ]; then
     echo -e "  ${YELLOW}SKIP${NC} $filename — no 'id' field in JSON"
@@ -61,42 +80,54 @@ deploy_workflow() {
     return
   fi
 
+  # Build the cleaned payload (without id, active, pinData, versionId)
+  local payload
+  payload="$(strip_payload "$file")"
+
   # Check if workflow already exists in n8n
-  local http_code
+  local http_code response_body
   http_code="$(curl -s -o /dev/null -w "%{http_code}" \
     -H "X-N8N-API-KEY: $N8N_API_KEY" \
     "$N8N_URL/api/v1/workflows/$wf_id")"
 
   if [ "$http_code" = "200" ]; then
     # Update existing workflow
-    http_code="$(curl -s -o /dev/null -w "%{http_code}" \
+    response_body="$(curl -s -w "\n%{http_code}" \
       -X PUT \
       -H "X-N8N-API-KEY: $N8N_API_KEY" \
       -H "Content-Type: application/json" \
-      -d @"$file" \
+      -d "$payload" \
       "$N8N_URL/api/v1/workflows/$wf_id")"
+
+    http_code="$(echo "$response_body" | tail -1)"
+    response_body="$(echo "$response_body" | sed '$d')"
 
     if [ "$http_code" = "200" ]; then
       echo -e "${GREEN}UPDATED${NC}"
       deployed=$((deployed + 1))
     else
       echo -e "${RED}FAILED (HTTP $http_code)${NC}"
+      echo "    Response: $response_body"
       failed=$((failed + 1))
     fi
   else
     # Create new workflow
-    http_code="$(curl -s -o /dev/null -w "%{http_code}" \
+    response_body="$(curl -s -w "\n%{http_code}" \
       -X POST \
       -H "X-N8N-API-KEY: $N8N_API_KEY" \
       -H "Content-Type: application/json" \
-      -d @"$file" \
+      -d "$payload" \
       "$N8N_URL/api/v1/workflows")"
+
+    http_code="$(echo "$response_body" | tail -1)"
+    response_body="$(echo "$response_body" | sed '$d')"
 
     if [ "$http_code" = "200" ] || [ "$http_code" = "201" ]; then
       echo -e "${GREEN}CREATED${NC}"
       deployed=$((deployed + 1))
     else
       echo -e "${RED}FAILED (HTTP $http_code)${NC}"
+      echo "    Response: $response_body"
       failed=$((failed + 1))
     fi
   fi
@@ -106,7 +137,7 @@ deploy_workflow() {
 activate_workflow() {
   local file="$1"
   local wf_id
-  wf_id="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('id',''))" "$file" 2>/dev/null || echo "")"
+  wf_id="$(node -e "const d=require('$file'); process.stdout.write(d.id || '')" 2>/dev/null || echo "")"
 
   if [ -z "$wf_id" ] || [ "$DRY_RUN" = "true" ]; then
     return
