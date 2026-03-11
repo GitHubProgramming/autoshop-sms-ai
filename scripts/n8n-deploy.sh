@@ -137,8 +137,13 @@ login_internal_api() {
   fi
 
   COOKIE_FILE="$(mktemp)"
+
+  # n8n Cloud uses 'emailOrLdapLoginId' instead of 'email' for the login field.
+  # We send both for compatibility with self-hosted (email) and cloud (emailOrLdapLoginId).
   local login_body
-  login_body="{\"email\":\"${N8N_EMAIL}\",\"password\":\"${N8N_PASSWORD}\"}"
+  login_body="{\"email\":\"${N8N_EMAIL}\",\"emailOrLdapLoginId\":\"${N8N_EMAIL}\",\"password\":\"${N8N_PASSWORD}\"}"
+
+  echo -e "  Attempting login to $N8N_URL/rest/login ..."
 
   local response http_code body
   response="$(curl -s -w "\n%{http_code}" \
@@ -155,13 +160,33 @@ login_internal_api() {
     echo -e "  ${GREEN}Internal API login OK${NC}"
     INTERNAL_AUTH_HEADER="cookie"
     return 0
-  else
-    echo -e "  ${YELLOW}WARNING${NC}: Internal API login failed (HTTP $http_code)"
-    echo "  Response: $body"
-    rm -f "$COOKIE_FILE"
-    COOKIE_FILE=""
-    return 1
   fi
+
+  echo -e "  ${YELLOW}Login attempt 1 (/rest/login) failed (HTTP $http_code)${NC}"
+  echo "  Response: $body"
+
+  # Fallback: try /api/v1/login (some n8n versions use this)
+  response="$(curl -s -w "\n%{http_code}" \
+    -X POST \
+    -H "Content-Type: application/json" \
+    -c "$COOKIE_FILE" \
+    -d "$login_body" \
+    "$N8N_URL/api/v1/login")"
+
+  http_code="$(echo "$response" | tail -1)"
+  body="$(echo "$response" | sed '$d')"
+
+  if [ "$http_code" = "200" ]; then
+    echo -e "  ${GREEN}Internal API login OK (via /api/v1/login)${NC}"
+    INTERNAL_AUTH_HEADER="cookie"
+    return 0
+  fi
+
+  echo -e "  ${YELLOW}Login attempt 2 (/api/v1/login) failed (HTTP $http_code)${NC}"
+  echo "  Response: $body"
+  rm -f "$COOKIE_FILE"
+  COOKIE_FILE=""
+  return 1
 }
 
 # Build curl auth args for internal API calls
