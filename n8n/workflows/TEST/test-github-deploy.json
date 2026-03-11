@@ -1,0 +1,20 @@
+{
+  "id": "test-github-deploy-001",
+  "name": "TEST: GitHub Deploy Verification",
+  "active": false,
+  "nodes": [
+    {
+      "id": "manual-trigger-001",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {}
+    }
+  ],
+  "connections": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}
