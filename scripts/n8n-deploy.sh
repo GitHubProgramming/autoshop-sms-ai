@@ -140,7 +140,7 @@ for project_dir in "$WORKFLOWS_DIR"/*/; do
   fi
 
   # Find workflow JSON files
-  json_files=("$project_dir"/*.json 2>/dev/null)
+  json_files=("$project_dir"/*.json)
   if [ ! -e "${json_files[0]:-}" ]; then
     echo "[$project] No workflow files found"
     continue
