@@ -436,13 +436,13 @@ deploy_workflow() {
       failed=$((failed + 1))
     fi
   else
-    # Create new workflow — include the id in payload so n8n uses our ID
+    # Create new workflow — n8n cloud treats 'id' as read-only, so omit it.
+    # The n8n-assigned ID is captured from the response for subsequent operations.
     local create_payload
     create_payload="$(node -e "
       const fs = require('fs');
       const wf = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
       const clean = {
-        id: wf.id,
         name: wf.name,
         nodes: wf.nodes || [],
         connections: wf.connections || {},
@@ -463,18 +463,20 @@ deploy_workflow() {
     response_body="$(echo "$response_body" | sed '$d')"
 
     if [ "$http_code" = "200" ] || [ "$http_code" = "201" ]; then
-      # Extract the actual ID assigned by n8n (may differ from our requested ID)
+      # n8n assigns its own ID — capture it for transfer + folder placement
       local created_id
       created_id="$(node -e "
         const r = JSON.parse(process.argv[1]);
         process.stdout.write(r.id || '');
-      " "$response_body" 2>/dev/null || echo "$wf_id")"
+      " "$response_body" 2>/dev/null || echo "")"
 
-      if [ -n "$created_id" ] && [ "$created_id" != "$wf_id" ]; then
-        echo -e "${GREEN}CREATED${NC} (assigned id: $created_id)"
+      if [ -n "$created_id" ]; then
+        echo -e "${GREEN}CREATED${NC} (n8n id: $created_id)"
         wf_id="$created_id"
       else
-        echo -e "${GREEN}CREATED${NC}"
+        echo -e "${RED}CREATED but no ID in response — cannot transfer/place${NC}"
+        failed=$((failed + 1))
+        return
       fi
       deployed=$((deployed + 1))
       action_result="ok"
