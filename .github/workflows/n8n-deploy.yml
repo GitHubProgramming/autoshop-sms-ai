@@ -54,6 +54,9 @@ jobs:
         env:
           N8N_URL: ${{ secrets.N8N_URL }}
           N8N_API_KEY: ${{ secrets.N8N_API_KEY }}
+          N8N_EMAIL: ${{ secrets.N8N_EMAIL }}
+          N8N_PASSWORD: ${{ secrets.N8N_PASSWORD }}
+          N8N_TARGET_PROJECT: AutoShop Production
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
         run: |
           bash scripts/n8n-deploy.sh "${{ github.event.inputs.project || '' }}"

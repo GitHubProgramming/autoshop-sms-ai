@@ -42,17 +42,25 @@ DRY_RUN=true N8N_URL=http://localhost:5678 N8N_API_KEY=your-key bash scripts/n8n
 
 ### Project/Folder Placement
 
-The deploy script automatically places workflows into the correct n8n project:
-- `n8n/workflows/TEST/` → n8n project named **TEST**
-- `n8n/workflows/LT_Proteros/` → n8n project named **LT_Proteros**
-- `n8n/workflows/US_AutoShop/` → n8n project named **US_AutoShop**
+The live n8n instance has **one project** ("AutoShop Production") with **folders inside it**:
+- `n8n/workflows/TEST/` → folder **TEST** inside AutoShop Production
+- `n8n/workflows/LT_Proteros/` → folder **LT_Proteros** inside AutoShop Production
+- `n8n/workflows/US_AutoShop/` → folder **US_AutoShop** inside AutoShop Production
 
-**How it works:** The script calls `GET /api/v1/projects` to discover project IDs by name, then after each workflow create/update it calls `PUT /api/v1/workflows/:id/transfer` to move the workflow into the matching project.
+**How it works (two-step):**
+1. **Project transfer** (public API): `PUT /api/v1/workflows/:id/transfer` moves the workflow into the "AutoShop Production" project
+2. **Folder placement** (internal API): `PATCH /rest/workflows/:id` with `{ "parentFolderId": "..." }` places the workflow into the correct folder
+
+The internal API (`/rest/`) is required because the public API (`/api/v1/`) does not support folder operations.
 
 **Requirements:**
-- The n8n projects must already exist (create them in the n8n UI first)
-- Project names in n8n must match the folder names exactly (case-sensitive)
-- The API key must belong to a user with `workflow:move` permissions
+- The n8n project "AutoShop Production" must exist
+- Folders (TEST, LT_Proteros, US_AutoShop) must exist inside that project
+- GitHub Secrets needed:
+  - `N8N_URL` — n8n instance URL
+  - `N8N_API_KEY` — API key (for public API + may work for internal API)
+  - `N8N_EMAIL` — n8n login email (fallback auth for internal API)
+  - `N8N_PASSWORD` — n8n login password (fallback auth for internal API)
 
 ## Active Workflows (US_AutoShop)
 
