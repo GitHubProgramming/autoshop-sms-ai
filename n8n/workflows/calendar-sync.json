@@ -6,7 +6,10 @@
       "name": "Webhook: Calendar Sync Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1.1,
-      "position": [250, 300],
+      "position": [
+        250,
+        300
+      ],
       "parameters": {
         "httpMethod": "POST",
         "path": "calendar-sync",
@@ -17,10 +20,13 @@
     },
     {
       "id": "db-fetch-data",
-      "name": "DB: Fetch Appointment",
+      "name": "DB: Fetch Appointment + Tokens",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.3,
-      "position": [500, 300],
+      "position": [
+        500,
+        300
+      ],
       "credentials": {
         "postgres": {
           "id": "postgres-creds",
@@ -29,146 +35,21 @@
       },
       "parameters": {
         "operation": "executeQuery",
-        "query": "SET LOCAL app.current_tenant_id = '{{ $json.body.tenantId }}';\nSELECT\n  a.id               AS appointment_id,\n  a.customer_phone,\n  a.service_type,\n  a.scheduled_at,\n  a.duration_minutes,\n  t.shop_name,\n  t.timezone,\n  tpn.phone_number   AS our_phone\nFROM appointments a\nJOIN tenants t ON t.id = a.tenant_id\nJOIN tenant_phone_numbers tpn\n  ON tpn.tenant_id = a.tenant_id AND tpn.status = 'active'\nWHERE a.id        = '{{ $json.body.appointmentId }}'::uuid\n  AND a.tenant_id = '{{ $json.body.tenantId }}'::uuid;",
+        "query": "SET LOCAL app.current_tenant_id = '{{ $json.body.tenantId }}';\nSELECT\n  a.id               AS appointment_id,\n  a.customer_phone,\n  a.service_type,\n  a.scheduled_at,\n  a.duration_minutes,\n  t.shop_name,\n  t.timezone,\n  tpn.phone_number   AS our_phone,\n  tct.access_token,\n  tct.refresh_token,\n  tct.calendar_id,\n  tct.token_expiry\nFROM appointments a\nJOIN tenants t ON t.id = a.tenant_id\nJOIN tenant_phone_numbers tpn\n  ON tpn.tenant_id = a.tenant_id AND tpn.status = 'active'\nLEFT JOIN tenant_calendar_tokens tct\n  ON tct.tenant_id = a.tenant_id\nWHERE a.id        = '{{ $json.body.appointmentId }}'::uuid\n  AND a.tenant_id = '{{ $json.body.tenantId }}'::uuid;",
         "options": {}
       }
     },
     {
-      "id": "fetch-tokens",
-      "name": "API: Get Decrypted Tokens",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [750, 300],
-      "parameters": {
-        "url": "=http://api:3000/internal/calendar-tokens/{{ $('Webhook: Calendar Sync Trigger').first().json.body.tenantId }}",
-        "method": "GET",
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "json"
-            }
-          }
-        }
-      },
-      "continueOnFail": true
-    },
-    {
-      "id": "check-tokens",
-      "name": "IF: Has Tokens",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [1000, 300],
-      "parameters": {
-        "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
-          "combinator": "and",
-          "conditions": [
-            {
-              "id": "has-refresh",
-              "leftValue": "={{ $json.refresh_token }}",
-              "rightValue": "",
-              "operator": { "type": "string", "operation": "isNotEmpty" }
-            }
-          ]
-        }
-      }
-    },
-    {
-      "id": "refresh-google-token",
-      "name": "Google: Refresh Access Token",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [1250, 200],
-      "parameters": {
-        "url": "https://oauth2.googleapis.com/token",
-        "method": "POST",
-        "sendBody": true,
-        "contentType": "form-urlencoded",
-        "bodyParameters": {
-          "parameters": [
-            { "name": "grant_type", "value": "refresh_token" },
-            { "name": "client_id", "value": "={{ $env.GOOGLE_CLIENT_ID }}" },
-            { "name": "client_secret", "value": "={{ $env.GOOGLE_CLIENT_SECRET }}" },
-            { "name": "refresh_token", "value": "={{ $('API: Get Decrypted Tokens').first().json.refresh_token }}" }
-          ]
-        },
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "json"
-            }
-          }
-        }
-      },
-      "continueOnFail": true
-    },
-    {
-      "id": "code-prepare-event",
-      "name": "Code: Prepare Calendar Event",
+      "id": "code-calendar-sync",
+      "name": "Code: Calendar Sync",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1500, 200],
+      "position": [
+        750,
+        300
+      ],
       "parameters": {
-        "jsCode": "const row = $('DB: Fetch Appointment').first().json;\nconst tokenData = $('API: Get Decrypted Tokens').first().json;\nconst refreshResult = $('Google: Refresh Access Token').first().json;\n\nconst tz = row.timezone || 'America/Chicago';\nconst scheduledAt = new Date(row.scheduled_at);\nconst endAt = new Date(scheduledAt.getTime() + (row.duration_minutes || 60) * 60000);\nconst calId = tokenData.calendar_id || 'primary';\n\nreturn [{\n  json: {\n    access_token: refreshResult.access_token || '',\n    calendar_id: calId,\n    event: {\n      summary: (row.service_type || 'General Service') + ' — ' + row.customer_phone,\n      description: 'AutoShop AI booking. Service: ' + (row.service_type || 'General Service'),\n      start: { dateTime: scheduledAt.toISOString(), timeZone: tz },\n      end: { dateTime: endAt.toISOString(), timeZone: tz }\n    },\n    canSync: !!(refreshResult.access_token)\n  }\n}];"
-      }
-    },
-    {
-      "id": "check-can-sync",
-      "name": "IF: Can Sync",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [1750, 200],
-      "parameters": {
-        "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
-          "combinator": "and",
-          "conditions": [
-            {
-              "id": "has-access",
-              "leftValue": "={{ $json.canSync }}",
-              "rightValue": true,
-              "operator": { "type": "boolean", "operation": "equals" }
-            }
-          ]
-        }
-      }
-    },
-    {
-      "id": "create-calendar-event",
-      "name": "Google: Create Calendar Event",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [2000, 100],
-      "parameters": {
-        "url": "=https://www.googleapis.com/calendar/v3/calendars/{{ encodeURIComponent($('Code: Prepare Calendar Event').first().json.calendar_id) }}/events",
-        "method": "POST",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($('Code: Prepare Calendar Event').first().json.event) }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "Authorization", "value": "=Bearer {{ $('Code: Prepare Calendar Event').first().json.access_token }}" }
-          ]
-        },
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "json"
-            }
-          }
-        }
-      },
-      "continueOnFail": true
-    },
-    {
-      "id": "code-build-sms",
-      "name": "Code: Build SMS + Result",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [2250, 300],
-      "parameters": {
-        "jsCode": "const row = $('DB: Fetch Appointment').first().json;\nconst wh = $('Webhook: Calendar Sync Trigger').first().json.body;\n\nconst tz = row.timezone || 'America/Chicago';\nconst scheduledAt = new Date(row.scheduled_at);\nconst dateStr = scheduledAt.toLocaleDateString('en-US', {\n  weekday: 'long', month: 'long', day: 'numeric', timeZone: tz\n});\nconst timeStr = scheduledAt.toLocaleTimeString('en-US', {\n  hour: 'numeric', minute: '2-digit', timeZone: tz\n});\n\nconst serviceType = row.service_type || 'General Service';\nconst shopName = row.shop_name || 'Your Auto Shop';\n\n// Check if calendar event was created\nlet googleEventId = '';\nlet calendarSynced = false;\ntry {\n  const calResult = $('Google: Create Calendar Event').first().json;\n  if (calResult && calResult.id) {\n    googleEventId = calResult.id;\n    calendarSynced = true;\n  }\n} catch (e) {\n  // Calendar sync was skipped or failed\n}\n\nconst smsText = calendarSynced\n  ? `Your ${serviceType} appt is confirmed for ${dateStr} at ${timeStr}. Added to our calendar. See you then! - ${shopName}`\n  : `Your ${serviceType} appt is confirmed for ${dateStr} at ${timeStr}. See you then! - ${shopName}`;\n\nreturn [{\n  json: {\n    customerPhone: row.customer_phone,\n    ourPhone: row.our_phone,\n    googleEventId,\n    calendarSynced,\n    smsText,\n    tenantId: wh.tenantId,\n    appointmentId: wh.appointmentId\n  }\n}];"
+        "jsCode": "// WF-004: Calendar Sync + Confirmation SMS\n// Fetches appointment, optionally writes to Google Calendar, always sends SMS\nconst row = $('DB: Fetch Appointment + Tokens').first().json;\nconst wh  = $('Webhook: Calendar Sync Trigger').first().json.body;\n\n// Format date/time for SMS\nconst tz = row.timezone || 'America/Chicago';\nconst scheduledAt = new Date(row.scheduled_at);\nconst dateStr = scheduledAt.toLocaleDateString('en-US', {\n  weekday: 'long', month: 'long', day: 'numeric', timeZone: tz\n});\nconst timeStr = scheduledAt.toLocaleTimeString('en-US', {\n  hour: 'numeric', minute: '2-digit', timeZone: tz\n});\n\nconst serviceType  = row.service_type || 'General Service';\nconst shopName     = row.shop_name    || 'Your Auto Shop';\nconst customerPhone = row.customer_phone;\nconst ourPhone      = row.our_phone;\n\n// Attempt Google Calendar sync only when all credentials are present\nconst clientId     = $env.GOOGLE_CLIENT_ID;\nconst clientSecret = $env.GOOGLE_CLIENT_SECRET;\nconst canSync      = !!(clientId && clientSecret && row.refresh_token);\n\nlet googleEventId  = '';\nlet calendarSynced = false;\n\nif (canSync) {\n  try {\n    // Step 1: refresh access token\n    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },\n      body: new URLSearchParams({\n        grant_type:    'refresh_token',\n        client_id:     clientId,\n        client_secret: clientSecret,\n        refresh_token: row.refresh_token,\n      }).toString(),\n    });\n    if (!tokenRes.ok) throw new Error('Token refresh failed: ' + await tokenRes.text());\n    const { access_token } = await tokenRes.json();\n\n    // Step 2: create calendar event\n    const endAt     = new Date(scheduledAt.getTime() + (row.duration_minutes || 60) * 60000);\n    const calId     = row.calendar_id || 'primary';\n    const eventBody = {\n      summary:     serviceType + ' — ' + customerPhone,\n      description: 'AutoShop AI booking. Service: ' + serviceType,\n      start: { dateTime: scheduledAt.toISOString(), timeZone: tz },\n      end:   { dateTime: endAt.toISOString(),       timeZone: tz },\n    };\n\n    const calRes = await fetch(\n      'https://www.googleapis.com/calendar/v3/calendars/' +\n        encodeURIComponent(calId) + '/events',\n      {\n        method: 'POST',\n        headers: {\n          'Authorization': 'Bearer ' + access_token,\n          'Content-Type':  'application/json',\n        },\n        body: JSON.stringify(eventBody),\n      }\n    );\n    if (!calRes.ok) throw new Error('Calendar create failed: ' + await calRes.text());\n    const calData  = await calRes.json();\n    googleEventId  = calData.id || '';\n    calendarSynced = true;\n\n  } catch (err) {\n    // Calendar sync failed — SMS still sends below\n    console.error('[WF-004] calendar sync error:', err.message);\n  }\n}\n\nconst smsText = calendarSynced\n  ? `Your ${serviceType} appt is confirmed for ${dateStr} at ${timeStr}. Added to our calendar. See you then! - ${shopName}`\n  : `Your ${serviceType} appt is confirmed for ${dateStr} at ${timeStr}. See you then! - ${shopName}`;\n\nreturn [{\n  json: {\n    customerPhone,\n    ourPhone,\n    googleEventId,\n    calendarSynced,\n    smsText,\n    tenantId:      wh.tenantId,\n    appointmentId: wh.appointmentId,\n  }\n}];"
       }
     },
     {
@@ -176,7 +57,10 @@
       "name": "DB: Update Appointment Sync",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.3,
-      "position": [2500, 300],
+      "position": [
+        1000,
+        300
+      ],
       "credentials": {
         "postgres": {
           "id": "postgres-creds",
@@ -190,47 +74,37 @@
       }
     },
     {
-      "id": "twilio-send-sms",
+      "id": "twilio-send-confirmation",
       "name": "Twilio: Send Confirmation SMS",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [2750, 300],
-      "parameters": {
-        "url": "=https://api.twilio.com/2010-04-01/Accounts/{{ $env.TWILIO_ACCOUNT_SID }}/Messages.json",
-        "method": "POST",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpBasicAuth",
-        "sendBody": true,
-        "contentType": "form-urlencoded",
-        "bodyParameters": {
-          "parameters": [
-            { "name": "From", "value": "={{ $json.ourPhone }}" },
-            { "name": "To", "value": "={{ $json.customerPhone }}" },
-            { "name": "Body", "value": "={{ $json.smsText }}" }
-          ]
-        },
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "json"
-            }
-          }
-        }
-      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        300
+      ],
       "credentials": {
-        "httpBasicAuth": {
-          "id": "twilio-basic-auth",
-          "name": "Twilio Basic Auth"
+        "twilioApi": {
+          "id": "twilio-creds",
+          "name": "AutoShop Twilio"
         }
       },
-      "continueOnFail": true
+      "parameters": {
+        "resource": "message",
+        "operation": "create",
+        "from": "={{ $json.ourPhone }}",
+        "to": "={{ $json.customerPhone }}",
+        "body": "={{ $json.smsText }}"
+      }
     },
     {
       "id": "respond-ok",
       "name": "Respond 200",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [3000, 300],
+      "position": [
+        1500,
+        300
+      ],
       "parameters": {
         "respondWith": "json",
         "responseBody": "={ \"ok\": true }"
@@ -242,105 +116,25 @@
       "main": [
         [
           {
-            "node": "DB: Fetch Appointment",
+            "node": "DB: Fetch Appointment + Tokens",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "DB: Fetch Appointment": {
+    "DB: Fetch Appointment + Tokens": {
       "main": [
         [
           {
-            "node": "API: Get Decrypted Tokens",
+            "node": "Code: Calendar Sync",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "API: Get Decrypted Tokens": {
-      "main": [
-        [
-          {
-            "node": "IF: Has Tokens",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IF: Has Tokens": {
-      "main": [
-        [
-          {
-            "node": "Google: Refresh Access Token",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Code: Build SMS + Result",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Google: Refresh Access Token": {
-      "main": [
-        [
-          {
-            "node": "Code: Prepare Calendar Event",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code: Prepare Calendar Event": {
-      "main": [
-        [
-          {
-            "node": "IF: Can Sync",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IF: Can Sync": {
-      "main": [
-        [
-          {
-            "node": "Google: Create Calendar Event",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Code: Build SMS + Result",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Google: Create Calendar Event": {
-      "main": [
-        [
-          {
-            "node": "Code: Build SMS + Result",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code: Build SMS + Result": {
+    "Code: Calendar Sync": {
       "main": [
         [
           {
@@ -384,5 +178,5 @@
     "calendar",
     "core"
   ],
-  "notes": "WF-004 v2: Uses internal API endpoint to decrypt calendar tokens (no more encrypted tokens sent to Google). Uses httpRequest nodes for all external calls (fetch not available in n8n Code sandbox). Flow: Webhook → DB appointment → API decrypt tokens → Google refresh → Google create event → SMS → Respond 200. If tokens missing or refresh fails, calendar sync is skipped but SMS confirmation is always sent."
+  "notes": "Credential boundary: tenant_calendar_tokens must be populated via Google OAuth flow. If refresh_token is absent or GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET env vars are unset, calendar sync is skipped but the confirmation SMS is always sent. To enable calendar sync for a tenant: complete the OAuth flow and INSERT into tenant_calendar_tokens."
 }
