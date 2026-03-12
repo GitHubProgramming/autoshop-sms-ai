@@ -183,23 +183,32 @@ resolve_workflow() {
   RESOLVED_ACTION="create"
 }
 
-# Strip fields that n8n API does not accept in request body.
-# The API only accepts: name, nodes, connections, settings, staticData.
-# Fields like id, active, pinData, versionId, tags cause HTTP 400.
+# Settings keys accepted by n8n public API (PUT/POST /api/v1/workflows).
+# Keys like availableInMCP, binaryMode are internal/export-only and cause HTTP 400.
+SAFE_SETTINGS_KEYS='["executionOrder","saveManualExecutions","callerPolicy","errorWorkflow","timezone","executionTimeout","maxExecutionTimeout"]'
+
+# Build a clean payload (name, nodes, connections, whitelisted settings, staticData).
+# Used for both UPDATE and CREATE paths.
 strip_payload() {
   local file="$1"
   node -e "
     const fs = require('fs');
     const wf = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
+    const safeKeys = JSON.parse(process.argv[2]);
+    const rawSettings = wf.settings || {};
+    const settings = {};
+    for (const k of safeKeys) {
+      if (k in rawSettings) settings[k] = rawSettings[k];
+    }
     const clean = {
       name: wf.name,
       nodes: wf.nodes || [],
-      connections: wf.connections || {},
-      settings: wf.settings || {}
+      connections: wf.connections || {}
     };
+    if (Object.keys(settings).length) clean.settings = settings;
     if (wf.staticData) clean.staticData = wf.staticData;
     process.stdout.write(JSON.stringify(clean));
-  " "$file"
+  " "$file" "$SAFE_SETTINGS_KEYS"
 }
 
 # ─── Project ID Resolution ───────────────────────────────────────────────
@@ -621,18 +630,7 @@ deploy_workflow() {
     echo -n "  [$project] $repo_name -> CREATE ... "
 
     local create_payload
-    create_payload="$(node -e "
-      const fs = require('fs');
-      const wf = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
-      const clean = {
-        name: wf.name,
-        nodes: wf.nodes || [],
-        connections: wf.connections || {},
-        settings: wf.settings || {}
-      };
-      if (wf.staticData) clean.staticData = wf.staticData;
-      process.stdout.write(JSON.stringify(clean));
-    " "$file")"
+    create_payload="$(strip_payload "$file")"
 
     response_body="$(curl -s -w "\n%{http_code}" \
       -X POST \
