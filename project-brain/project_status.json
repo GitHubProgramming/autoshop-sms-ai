@@ -1,86 +1,60 @@
 {
   "overall_progress": 34,
+
   "current_phase": "TEST environment stabilization and SMS flow validation",
-  "current_focus": "LT Proteros sandbox SMS test flows — building and validating TEST workflows for the missed call → SMS → AI → booking pipeline",
+
+  "current_focus": "LT Proteros sandbox SMS test flows — building and validating TEST workflows for the missed call -> SMS -> AI -> booking pipeline",
+
   "stages": [
     {
-      "id": 1,
       "name": "Foundation & Operating Model",
-      "description": "Repo scaffolding, CI/CD pipeline, B-Lite operating model, project brain documentation, CLAUDE.md execution rules, AI contributor guardrails.",
       "weight": 10,
-      "progress": 100,
       "status": "done",
-      "completion_criteria": "Repo structure, CI pipeline, B-Lite operating model, project brain, CLAUDE.md rules — all in place and enforced."
+      "progress": 100
     },
     {
-      "id": 2,
       "name": "TEST Sandbox Workflow Chain",
-      "description": "Chain of n8n TEST workflows (wf001–wf006) that simulate the full missed call → SMS → AI → booking flow in the LT Proteros sandbox environment.",
       "weight": 15,
-      "progress": 40,
       "status": "in_progress",
-      "completion_criteria": "All TEST workflow JSONs (wf001–wf006) committed, importable into n8n, and executing successfully in sandbox environment with test credentials."
+      "progress": 40
     },
     {
-      "id": 3,
       "name": "Core Messaging & AI Flow",
-      "description": "Twilio webhook ingress, BullMQ queuing, n8n worker processing, OpenAI conversation, booking intent detection, and SMS reply.",
       "weight": 25,
-      "progress": 42,
       "status": "in_progress",
-      "completion_criteria": "Missed call triggers SMS, inbound SMS processed, AI generates reply, booking intent detected, appointment created. Verified end-to-end with real Twilio number."
+      "progress": 42
     },
     {
-      "id": 4,
       "name": "Calendar & Booking Reliability",
-      "description": "Google Calendar OAuth integration, appointment sync, confirmation SMS, and failure surfacing.",
       "weight": 15,
-      "progress": 30,
       "status": "blocked",
-      "completion_criteria": "OAuth flow complete, appointment syncs to Google Calendar, confirmation SMS sent, sync failures surface clearly. Verified with real Google credentials."
+      "progress": 30
     },
     {
-      "id": 5,
       "name": "Admin Visibility & Control",
-      "description": "Project ops dashboard powered by project_status.json, tenant health monitoring, conversation metrics.",
       "weight": 10,
-      "progress": 5,
       "status": "in_progress",
-      "completion_criteria": "Admin dashboard shows project status, tenant health, conversation metrics, and blocker visibility. Dashboard JSON data source created."
+      "progress": 10
     },
     {
-      "id": 6,
       "name": "Production Readiness",
-      "description": "Stripe billing, idempotency verification, error handling hardening, and environment configuration for real deployment.",
-      "weight": 10,
-      "progress": 20,
+      "weight": 15,
       "status": "in_progress",
-      "completion_criteria": "Billing (Stripe checkout, webhooks, trial limits, plan enforcement) live-tested. Idempotency verified. Error handling covers all failure modes."
+      "progress": 20
     },
     {
-      "id": 7,
       "name": "First Live Pilot",
-      "description": "One real Texas auto repair shop fully onboarded with real phone number, missed calls, AI conversations, and Google Calendar sync.",
       "weight": 10,
-      "progress": 0,
       "status": "not_started",
-      "completion_criteria": "One real Texas auto shop receiving missed-call SMS, AI replies working, bookings appearing in Google Calendar."
-    },
-    {
-      "id": 8,
-      "name": "Scale & Handoff",
-      "description": "Multi-tenant onboarding automation, monitoring dashboards, operational documentation, and handoff readiness.",
-      "weight": 5,
-      "progress": 0,
-      "status": "not_started",
-      "completion_criteria": "Multi-tenant onboarding flow, monitoring, documentation for handoff to non-AI operator."
+      "progress": 0
     }
   ],
+
   "active_tasks": {
     "todo": [
       "End-to-end demo run with real Twilio numbers",
       "Google Calendar OAuth tenant onboarding",
-      "Admin dashboard UI (consuming project_status.json)"
+      "Admin dashboard UI implementation (consuming project_status.json)"
     ],
     "in_progress": [
       "LT sandbox SMS test flow development",
@@ -96,27 +70,61 @@
       "Project brain foundation created"
     ]
   },
+
   "blockers": [
     {
-      "blocker": "n8n credentials (postgres, openai, twilio)",
+      "name": "n8n credentials (postgres, openai, twilio)",
       "required_action": "Manual setup in n8n UI",
       "owner": "Human",
-      "stages_affected": [2, 3]
+      "affects_stages": [
+        "TEST Sandbox Workflow Chain",
+        "Core Messaging & AI Flow"
+      ]
     },
     {
-      "blocker": "Google OAuth credentials",
+      "name": "Google OAuth credentials",
       "required_action": "Add GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET to .env",
       "owner": "Human",
-      "stages_affected": [4]
+      "affects_stages": [
+        "Calendar & Booking Reliability"
+      ]
     },
     {
-      "blocker": "First pilot tenant",
+      "name": "First pilot tenant",
       "required_action": "Requires working demo + real phone number",
       "owner": "Human",
-      "stages_affected": [7]
+      "affects_stages": [
+        "First Live Pilot"
+      ]
     }
   ],
+
   "recent_changes": [
+    {
+      "date": "2026-03-12",
+      "change": "Status totals normalized to conservative rounded value (34%) for md/json consistency",
+      "branch": "ai/lt-proteros-sms-test-flow"
+    },
+    {
+      "date": "2026-03-12",
+      "change": "Admin Project Ops dashboard spec created using project_status.json as canonical source",
+      "branch": "ai/lt-proteros-sms-test-flow"
+    },
+    {
+      "date": "2026-03-12",
+      "change": "project_status.md and project_status.json reconciled to a single canonical milestone model",
+      "branch": "ai/lt-proteros-sms-test-flow"
+    },
+    {
+      "date": "2026-03-12",
+      "change": "Dual status-update rule adopted: project_status.md and project_status.json must be updated together on every task",
+      "branch": "ai/lt-proteros-sms-test-flow"
+    },
+    {
+      "date": "2026-03-12",
+      "change": "Machine-readable project_status.json introduced as canonical state file for dashboards and task generation",
+      "branch": "ai/lt-proteros-sms-test-flow"
+    },
     {
       "date": "2026-03-12",
       "change": "Task generation rules introduced based on project_status.json",
@@ -149,7 +157,7 @@
     },
     {
       "date": "2026-03-12",
-      "change": "Project brain foundation created",
+      "change": "Project brain foundation created (architecture, decisions, rules, system state, status)",
       "branch": "ai/lt-proteros-sms-test-flow"
     },
     {
@@ -159,18 +167,15 @@
     },
     {
       "date": "2026-03-11",
-      "change": "Stripe checkout endpoint added",
-      "branch": null
+      "change": "Stripe checkout endpoint added"
     },
     {
       "date": "2026-03-11",
-      "change": "SMS conversation logging fix (WF-001)",
-      "branch": null
+      "change": "SMS conversation logging fix (WF-001)"
     },
     {
       "date": "2026-03-11",
-      "change": "n8n workflow settings whitelist",
-      "branch": null
+      "change": "n8n workflow settings whitelist"
     },
     {
       "date": "2026-03-10",
@@ -178,5 +183,10 @@
       "branch": "ai/fix-google-calendar-oauth"
     }
   ],
-  "next_owner_decision": "Provide n8n credentials (postgres, openai, twilio) to unblock end-to-end testing. Provide Google OAuth client ID/secret for calendar integration. Confirm priority: continue TEST sandbox work vs. unblock credential setup first."
+
+  "next_owner_decision": [
+    "Provide n8n credentials (postgres, openai, twilio) to unblock end-to-end testing",
+    "Provide Google OAuth client ID/secret for calendar integration",
+    "Confirm priority: continue TEST sandbox work vs. unblock credential setup first"
+  ]
 }
