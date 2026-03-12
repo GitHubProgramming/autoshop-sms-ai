@@ -29,6 +29,7 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/migrations ./migrations
 COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/project-status ./project-status
 EXPOSE 3000
 # Run migrations first; exit loudly on failure so Render detects the broken deploy
 CMD ["sh", "-c", "node scripts/migrate.js && node dist/index.js"]
