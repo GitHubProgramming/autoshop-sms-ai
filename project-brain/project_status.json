@@ -1,5 +1,5 @@
 {
-  "overall_progress": 34,
+  "overall_progress": 37,
 
   "current_phase": "TEST environment stabilization and SMS flow validation",
 
@@ -34,7 +34,7 @@
       "name": "Admin Visibility & Control",
       "weight": 10,
       "status": "in_progress",
-      "progress": 10
+      "progress": 40
     },
     {
       "name": "Production Readiness",
@@ -53,14 +53,14 @@
   "active_tasks": {
     "todo": [
       "End-to-end demo run with real Twilio numbers",
-      "Google Calendar OAuth tenant onboarding",
-      "Admin dashboard UI implementation (consuming project_status.json)"
+      "Google Calendar OAuth tenant onboarding"
     ],
     "in_progress": [
       "LT sandbox SMS test flow development",
       "Project milestone model + dashboard JSON status system"
     ],
     "done": [
+      "Admin dashboard UI (Project Ops page reading project_status.json)",
       "Project brain / B-Lite operating model setup",
       "Deploy script made update-safe and duplicate-safe",
       "Stripe checkout endpoint added",
@@ -100,6 +100,11 @@
   ],
 
   "recent_changes": [
+    {
+      "date": "2026-03-12",
+      "change": "Project Ops admin dashboard implemented (reads project_status.json)",
+      "branch": "ai/lt-proteros-sms-test-flow"
+    },
     {
       "date": "2026-03-12",
       "change": "Status totals normalized to conservative rounded value (34%) for md/json consistency",
