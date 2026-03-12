@@ -1,6 +1,6 @@
 {
   "id": "dhRnL4XBERa1Fmnm",
-  "name": "WF-001: Twilio SMS Ingest",
+  "name": "US AutoShop: SMS Inbound",
   "nodes": [
     {
       "parameters": {

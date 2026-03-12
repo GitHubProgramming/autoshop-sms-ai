@@ -1,6 +1,6 @@
 {
   "id": "OfR92OEfwYdxxOb3",
-  "name": "WF-002: AI Worker (Booking Intent + Response)",
+  "name": "US AutoShop: AI Booking Worker",
   "nodes": [
     {
       "parameters": {
