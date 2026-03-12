@@ -78,10 +78,12 @@ fetch_live_workflows() {
     fi
 
     # Merge this page into all_workflows and extract nextCursor
+    # NOTE: JSON is piped via stdin (not argv) to avoid OS argument-size limits in CI
     local result
-    result="$(node -e "
-      const all = JSON.parse(process.argv[1]);
-      const resp = JSON.parse(process.argv[2]);
+    result="$(printf '{"a":%s,"b":%s}' "$all_workflows" "$body" | node -e "
+      const input = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+      const all = input.a;
+      const resp = input.b;
       const page = resp.data || resp;
       if (Array.isArray(page)) {
         page.forEach(w => all.push({
@@ -94,10 +96,16 @@ fetch_live_workflows() {
       }
       const nc = resp.nextCursor || '';
       console.log(JSON.stringify({ workflows: all, nextCursor: nc }));
-    " "$all_workflows" "$body" 2>/dev/null)"
+    " 2>/dev/null)"
 
-    all_workflows="$(node -e "process.stdout.write(JSON.stringify(JSON.parse(process.argv[1]).workflows))" "$result")"
-    cursor="$(node -e "process.stdout.write(JSON.parse(process.argv[1]).nextCursor || '')" "$result")"
+    all_workflows="$(printf '%s' "$result" | node -e "
+      const r = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+      process.stdout.write(JSON.stringify(r.workflows));
+    ")"
+    cursor="$(printf '%s' "$result" | node -e "
+      const r = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+      process.stdout.write(r.nextCursor || '');
+    ")"
 
     if [ -z "$cursor" ]; then
       break
@@ -106,7 +114,9 @@ fetch_live_workflows() {
 
   LIVE_WORKFLOWS_JSON="$all_workflows"
   local count
-  count="$(node -e "process.stdout.write(String(JSON.parse(process.argv[1]).length))" "$LIVE_WORKFLOWS_JSON")"
+  count="$(printf '%s' "$LIVE_WORKFLOWS_JSON" | node -e "
+    process.stdout.write(String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).length));
+  ")"
   echo -e "  Found ${GREEN}$count${NC} live workflows"
   echo ""
 }
@@ -124,11 +134,11 @@ resolve_workflow() {
 
   # (a) Check if the exact repo ID exists live
   local id_match
-  id_match="$(node -e "
-    const wfs = JSON.parse(process.argv[1]);
-    const match = wfs.find(w => w.id === process.argv[2]);
+  id_match="$(printf '%s' "$LIVE_WORKFLOWS_JSON" | node -e "
+    const wfs = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+    const match = wfs.find(w => w.id === process.argv[1]);
     process.stdout.write(match ? match.id : '');
-  " "$LIVE_WORKFLOWS_JSON" "$repo_id" 2>/dev/null || echo "")"
+  " "$repo_id" 2>/dev/null || echo "")"
 
   if [ -n "$id_match" ]; then
     RESOLVED_ID="$id_match"
@@ -138,10 +148,10 @@ resolve_workflow() {
 
   # (b) Search by exact name within the target project
   local name_result
-  name_result="$(node -e "
-    const wfs = JSON.parse(process.argv[1]);
-    const name = process.argv[2];
-    const projId = process.argv[3];
+  name_result="$(printf '%s' "$LIVE_WORKFLOWS_JSON" | node -e "
+    const wfs = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+    const name = process.argv[1];
+    const projId = process.argv[2];
     // Match by name; if we have a project ID, filter to that project
     let matches = wfs.filter(w => w.name === name);
     if (projId) {
@@ -149,7 +159,7 @@ resolve_workflow() {
       if (projMatches.length > 0) matches = projMatches;
     }
     console.log(JSON.stringify({ count: matches.length, id: matches.length === 1 ? matches[0].id : '', ids: matches.map(m => m.id) }));
-  " "$LIVE_WORKFLOWS_JSON" "$repo_name" "$target_project_id" 2>/dev/null)"
+  " "$repo_name" "$target_project_id" 2>/dev/null)"
 
   local match_count match_id
   match_count="$(node -e "process.stdout.write(String(JSON.parse(process.argv[1]).count))" "$name_result")"
@@ -220,8 +230,8 @@ resolve_project_ids() {
   # Parse project names and IDs from the API response
   # Response format: { "data": [ { "id": "...", "name": "...", "type": "..." }, ... ] }
   local mapping
-  mapping="$(node -e "
-    const resp = JSON.parse(process.argv[1]);
+  mapping="$(printf '%s' "$body" | node -e "
+    const resp = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
     const projects = resp.data || resp;
     if (Array.isArray(projects)) {
       projects.forEach(p => {
@@ -230,7 +240,7 @@ resolve_project_ids() {
         }
       });
     }
-  " "$body" 2>/dev/null || echo "")"
+  " 2>/dev/null || echo "")"
 
   if [ -z "$mapping" ]; then
     echo -e "  ${YELLOW}WARNING${NC}: No projects found or unexpected response format."
@@ -371,8 +381,8 @@ resolve_folder_ids() {
   # Parse folder names and IDs
   # Response format: { "data": [ { "id": "...", "name": "...", ... } ], "count": N }
   local mapping
-  mapping="$(node -e "
-    const resp = JSON.parse(process.argv[1]);
+  mapping="$(printf '%s' "$body" | node -e "
+    const resp = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
     const folders = resp.data || resp;
     if (Array.isArray(folders)) {
       folders.forEach(f => {
@@ -381,7 +391,7 @@ resolve_folder_ids() {
         }
       });
     }
-  " "$body" 2>/dev/null || echo "")"
+  " 2>/dev/null || echo "")"
 
   if [ -z "$mapping" ]; then
     echo -e "  ${YELLOW}WARNING${NC}: No folders found inside project '$N8N_TARGET_PROJECT'."
@@ -421,11 +431,11 @@ transfer_to_project() {
     "$N8N_URL/api/v1/workflows/$wf_id")"
 
   local current_project_id
-  current_project_id="$(node -e "
-    const wf = JSON.parse(process.argv[1]);
+  current_project_id="$(printf '%s' "$get_resp" | node -e "
+    const wf = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
     const pid = (wf.projectId) || (wf.parentProject && wf.parentProject.id) || '';
     process.stdout.write(pid);
-  " "$get_resp" 2>/dev/null || echo "")"
+  " 2>/dev/null || echo "")"
 
   if [ "$current_project_id" = "$project_id" ]; then
     echo -e "    ${GREEN}ALREADY IN PROJECT${NC} '$N8N_TARGET_PROJECT'"
@@ -505,11 +515,11 @@ move_to_folder() {
   if [ "$http_code" = "200" ]; then
     # Verify the folder was actually set by checking the response
     local result_folder
-    result_folder="$(node -e "
-      const wf = JSON.parse(process.argv[1]);
+    result_folder="$(printf '%s' "$body" | node -e "
+      const wf = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
       const fid = (wf.parentFolder && wf.parentFolder.id) || wf.parentFolderId || '';
       process.stdout.write(fid);
-    " "$body" 2>/dev/null || echo "")"
+    " 2>/dev/null || echo "")"
 
     if [ "$result_folder" = "$folder_id" ]; then
       echo -e "${GREEN}PLACED IN FOLDER${NC} (verified)"
@@ -638,10 +648,10 @@ deploy_workflow() {
 
     if [ "$http_code" = "200" ] || [ "$http_code" = "201" ]; then
       local created_id
-      created_id="$(node -e "
-        const r = JSON.parse(process.argv[1]);
+      created_id="$(printf '%s' "$response_body" | node -e "
+        const r = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
         process.stdout.write(r.id || '');
-      " "$response_body" 2>/dev/null || echo "")"
+      " 2>/dev/null || echo "")"
 
       if [ -n "$created_id" ]; then
         echo -e "${GREEN}CREATED${NC} (n8n id: $created_id)"
