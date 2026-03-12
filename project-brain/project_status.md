@@ -79,6 +79,9 @@ Summary view (derived from Progress Model above):
 
 | Date | Change | Branch |
 |------|--------|--------|
+| 2026-03-12 | B-Lite operating model added to CLAUDE.md as permanent project instructions | `ai/lt-proteros-sms-test-flow` |
+| 2026-03-12 | Claude Code .claude/settings.json created — local reinforcement of B-Lite protocol | `ai/lt-proteros-sms-test-flow` |
+| 2026-03-12 | Mandatory status-update protocol adopted as non-negotiable execution rule | `ai/lt-proteros-sms-test-flow` |
 | 2026-03-12 | Weighted progress model added to project_status.md | `ai/lt-proteros-sms-test-flow` |
 | 2026-03-12 | B-Lite operating model defined; project_status.md made mandatory | `ai/lt-proteros-sms-test-flow` |
 | 2026-03-12 | Project brain foundation created (architecture, decisions, rules, system state, status) | `ai/lt-proteros-sms-test-flow` |

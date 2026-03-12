@@ -44,22 +44,35 @@ Before committing any code change:
 - Do not expand scope unless required by the core flow
 - Preserve existing working systems
 
-## Mandatory Status Updates
+## Mandatory Status Update Protocol
 
 `project-brain/project_status.md` is the single source of truth for project progress.
 
-**After every meaningful task completion, AI contributors MUST:**
+**This is a non-negotiable execution requirement.** Every task — code, documentation, or workflow — must include a `project_status.md` update as a required deliverable. A task without a status update is incomplete.
 
-1. Update `project_status.md` before opening or updating a PR
-2. If a task is completed — move it from Active Tasks to done and update Stage Progress
-3. If a task is blocked — add the blocker to Blocked Items with required action and owner
-4. If focus changes — update Current Focus to reflect the new priority
-5. If any code or workflow was changed — add an entry to Recent Changes with date and short summary
-6. Every PR description must note what status changes were made
+### Required steps before finishing any task
 
-**Failure to update `project_status.md` means the task is not considered done.**
+1. Update `project-brain/project_status.md`
+2. Reflect changes in all applicable sections:
+   - **Project Completion Estimate** — if weighted progress changed
+   - **Current Focus** — if the active priority shifted
+   - **Stage Progress / Progress Model** — if any stage advanced or regressed
+   - **Active Tasks** — move items between todo / in progress / done
+   - **Blocked Items** — add new blockers with required action, owner, and affected stages
+   - **Recent Changes** — add a dated entry for every meaningful change
+   - **Next Owner Decision** — if owner input is now needed
+3. In your final response, state exactly which sections of `project_status.md` were updated
+4. Include `project-brain/project_status.md` in the recommended `git add` command
+5. If no status update is needed, explicitly justify why — but the default assumption is that every meaningful task requires one
 
-**Progress tracking must be conservative:**
+### Strict completion rule
+
+A task is NOT done unless both are true:
+- The implementation / documentation work is completed
+- `project-brain/project_status.md` reflects reality
+
+### Progress tracking must be conservative
+
 - Stage percentages only advance when completion criteria objectively move
 - Blocked stages stay frozen at last verified progress
 - Code-complete but unverified stages are capped at 40–50%

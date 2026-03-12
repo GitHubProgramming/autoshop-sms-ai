@@ -245,3 +245,52 @@ bash scripts/ai-verify.sh
 7. Push branch
 8. Open PR
 9. Mark the task DONE in AI_TASKS.md
+
+## B-Lite Operating Model
+
+This project uses the B-Lite AI development operating model.
+Full details are in `project-brain/b-lite_operating_model.md`.
+
+### Session startup (mandatory)
+
+At the start of every session, before doing any work, read:
+1. `project-brain/rules.md` — hard guardrails
+2. `project-brain/b-lite_operating_model.md` — workflow and roles
+3. `project-brain/project_status.md` — current project state
+
+### Mandatory status update protocol
+
+`project-brain/project_status.md` is the project control dashboard.
+It MUST be updated after every meaningful task. A task is NOT done if `project_status.md` was not updated when reality changed.
+
+Before finishing any task, check:
+- Did progress change? → Update Stage Progress / Progress Model + recalculate Project Completion Estimate
+- Did tasks move? → Update Active Tasks (todo / in progress / done)
+- Did blockers appear? → Update Blocked Items (with required action, owner, affected stages)
+- Did focus shift? → Update Current Focus
+- Was anything changed? → Add dated entry to Recent Changes
+- Is owner input needed? → Update Next Owner Decision
+
+If any answer is yes → update `project_status.md` before finishing.
+If no update is needed → explicitly state why in the response.
+
+### Response format (end of every task)
+
+1. Changed files
+2. Whether `project_status.md` was updated
+3. Exact sections updated in `project_status.md`
+4. Any blockers added
+5. Recommended `git add` command (must include `project-brain/project_status.md` if it changed)
+
+### Progress discipline
+
+- Stage percentages only advance when completion criteria objectively move
+- Blocked stages stay frozen at last verified progress
+- Code-complete but unverified stages are capped at 40–50%
+- When uncertain, round down
+
+### Safety rules (B-Lite)
+
+- Do not modify production workflows (US_AutoShop, LT_Proteros)
+- Do not edit credentials, deploy scripts, or CI pipelines
+- Work on feature branches only, never commit directly to main

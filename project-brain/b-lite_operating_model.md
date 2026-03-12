@@ -49,27 +49,50 @@ Each gate must pass before proceeding to the next step.
 | **Code review** | PR approved by Owner before merge | GitHub branch protection |
 | **CI green** | GitHub Actions checks pass | GitHub Actions |
 
-## Status Update Policy
+## Mandatory Status Update Protocol
 
-`project-brain/project_status.md` is the mandatory project control file.
+`project-brain/project_status.md` is a **required deliverable** for every task. This is non-negotiable.
 
-**Builder must update it:**
-- After every task completion (before opening PR)
-- When a task becomes blocked
-- When focus or phase changes
-- When code or workflows are modified
+### What the Builder must do before finishing any task
 
-**PR descriptions must reference** which sections of `project_status.md` were updated.
+1. Open `project-brain/project_status.md`
+2. Update all applicable sections:
+   - **Project Completion Estimate** — recalculate if weighted progress changed
+   - **Current Focus** — update if active priority shifted
+   - **Stage Progress / Progress Model** — update if any stage advanced or regressed
+   - **Active Tasks** — move items between todo / in progress / done as appropriate
+   - **Blocked Items** — add new blockers with required action, owner, and affected stages
+   - **Recent Changes** — add a dated row for every meaningful change made
+   - **Next Owner Decision** — add if owner input is now required
+3. Include `project-brain/project_status.md` in the `git add` command
+4. In the final response, list exactly which sections were updated
+5. If genuinely no update is needed, state why explicitly
 
-**Owner should review** `project_status.md` at the start of each session to understand current state.
+### Strict completion rule
+
+A task is **NOT done** unless both conditions are met:
+- The implementation / documentation work is completed
+- `project-brain/project_status.md` has been updated to reflect reality
+
+### PR requirements
+
+- PR description must state which sections of `project_status.md` were updated
+- Reviewer (Owner) should verify that `project_status.md` accurately reflects the change
+
+### Owner responsibilities
+
+- Review `project_status.md` at the start of each session
+- Use it as the single entry point for understanding current project state
+- Flag any status entries that look overstated or stale
 
 ## Definition of Done
 
 A task is complete when ALL of the following are true:
 
 - [ ] Code change is implemented on a feature branch
-- [ ] `bash scripts/ai-verify.sh` passes
-- [ ] `project-brain/project_status.md` is updated (Active Tasks, Stage Progress, Recent Changes)
+- [ ] `bash scripts/ai-verify.sh` passes (for code changes)
+- [ ] `project-brain/project_status.md` is updated (Active Tasks, Stage Progress, Recent Changes — at minimum)
+- [ ] Final response lists exactly which `project_status.md` sections were updated
 - [ ] PR is opened with clear description of changes
 - [ ] No production workflows, deploy scripts, or credentials were modified
 - [ ] PR is reviewed and merged by Owner
