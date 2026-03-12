@@ -91,6 +91,7 @@ One real Texas auto repair shop fully onboarded: real phone number, real missed 
 
 | Date | Change | Branch |
 |------|--------|--------|
+| 2026-03-13 | Project status runtime file moved to API-local deploy-safe location (`apps/api/project-status/`) | `ai/lt-proteros-sms-test-flow` |
 | 2026-03-12 | Project status API path resolution fixed for deployed environments | `ai/lt-proteros-sms-test-flow` |
 | 2026-03-12 | Project Ops admin dashboard implemented (reads project_status.json via GET /internal/admin/project-status) | `ai/lt-proteros-sms-test-flow` |
 | 2026-03-12 | Status totals normalized to conservative rounded value (34%) for md/json consistency | `ai/lt-proteros-sms-test-flow` |

@@ -3,11 +3,17 @@ import { readFile, access } from "fs/promises";
 import { join, resolve } from "path";
 import { adminGuard } from "../../middleware/admin-guard";
 
-const STATUS_FILE = join("project-brain", "project_status.json");
+const REPO_STATUS_FILE = join("project-brain", "project_status.json");
+const API_LOCAL_FILE = join("project-status", "project_status.json");
 
 /**
  * Build an ordered list of candidate paths for project_status.json.
  * The first accessible path wins.
+ *
+ * Priority:
+ *   1. Env override (PROJECT_STATUS_JSON_PATH)
+ *   2. API-local deploy-safe copy (apps/api/project-status/ — guaranteed in container)
+ *   3. Legacy repo-root fallbacks (only useful in local dev)
  */
 function getCandidatePaths(): string[] {
   const candidates: string[] = [];
@@ -17,14 +23,16 @@ function getCandidatePaths(): string[] {
     candidates.push(resolve(process.env.PROJECT_STATUS_JSON_PATH));
   }
 
-  // 2. Relative to cwd (works when process runs from repo root)
-  candidates.push(resolve(process.cwd(), STATUS_FILE));
+  // 2. API-local runtime copy — deploy-safe, lives inside apps/api/
+  //    In container: /app/project-status/project_status.json
+  candidates.push(resolve(process.cwd(), API_LOCAL_FILE));
+  //    Relative to compiled dist/routes/internal/ -> ../../.. -> /app/
+  candidates.push(resolve(__dirname, "..", "..", "..", API_LOCAL_FILE));
 
-  // 3. Relative to __dirname — walk up from compiled dist/routes/internal/
-  candidates.push(resolve(__dirname, "..", "..", "..", "..", "..", STATUS_FILE));
-
-  // 4. Relative to __dirname — walk up from src/routes/internal/ (ts-node / tsx)
-  candidates.push(resolve(__dirname, "..", "..", "..", STATUS_FILE));
+  // 3. Legacy: repo-root project-brain/ (works in local dev from repo root)
+  candidates.push(resolve(process.cwd(), REPO_STATUS_FILE));
+  candidates.push(resolve(__dirname, "..", "..", "..", "..", "..", REPO_STATUS_FILE));
+  candidates.push(resolve(__dirname, "..", "..", "..", REPO_STATUS_FILE));
 
   return candidates;
 }
