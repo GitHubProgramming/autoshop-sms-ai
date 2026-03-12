@@ -77,13 +77,18 @@ fetch_live_workflows() {
       exit 1
     fi
 
-    # Merge this page into all_workflows and extract nextCursor
-    # NOTE: JSON is piped via stdin (not argv) to avoid OS argument-size limits in CI
-    local result
-    result="$(printf '{"a":%s,"b":%s}' "$all_workflows" "$body" | node -e "
-      const input = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
-      const all = input.a;
-      const resp = input.b;
+    # Merge this page into all_workflows and extract nextCursor.
+    # Uses temp files to avoid OS argument-size limits with large payloads.
+    local tmp_all tmp_body
+    tmp_all="$(mktemp)"
+    tmp_body="$(mktemp)"
+    printf '%s' "$all_workflows" > "$tmp_all"
+    printf '%s' "$body" > "$tmp_body"
+
+    cursor="$(node -e "
+      const fs = require('fs');
+      const all = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
+      const resp = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
       const page = resp.data || resp;
       if (Array.isArray(page)) {
         page.forEach(w => all.push({
@@ -94,18 +99,12 @@ fetch_live_workflows() {
           folderId: (w.parentFolder && w.parentFolder.id) || w.parentFolderId || ''
         }));
       }
-      const nc = resp.nextCursor || '';
-      console.log(JSON.stringify({ workflows: all, nextCursor: nc }));
-    " 2>/dev/null)"
+      fs.writeFileSync(process.argv[1], JSON.stringify(all));
+      process.stdout.write(resp.nextCursor || '');
+    " "$tmp_all" "$tmp_body")"
 
-    all_workflows="$(printf '%s' "$result" | node -e "
-      const r = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
-      process.stdout.write(JSON.stringify(r.workflows));
-    ")"
-    cursor="$(printf '%s' "$result" | node -e "
-      const r = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
-      process.stdout.write(r.nextCursor || '');
-    ")"
+    all_workflows="$(cat "$tmp_all")"
+    rm -f "$tmp_all" "$tmp_body"
 
     if [ -z "$cursor" ]; then
       break
