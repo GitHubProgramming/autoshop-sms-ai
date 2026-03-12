@@ -191,15 +191,14 @@ strip_payload() {
   node -e "
     const fs = require('fs');
     const wf = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
-    delete wf.id;
-    delete wf.active;
-    delete wf.pinData;
-    delete wf.versionId;
-    delete wf.meta;
-    delete wf.createdAt;
-    delete wf.updatedAt;
-    delete wf.tags;
-    process.stdout.write(JSON.stringify(wf));
+    const clean = {
+      name: wf.name,
+      nodes: wf.nodes || [],
+      connections: wf.connections || {},
+      settings: wf.settings || {}
+    };
+    if (wf.staticData) clean.staticData = wf.staticData;
+    process.stdout.write(JSON.stringify(clean));
   " "$file"
 }
 
