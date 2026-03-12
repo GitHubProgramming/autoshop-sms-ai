@@ -1,0 +1,351 @@
+{
+  "id": "LT-WF-001-missed-call-sms",
+  "name": "LT Proteros: Missed Call to SMS",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lt-proteros-missed-call",
+        "responseMode": "lastNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "lt-mc-webhook",
+      "name": "Webhook: Zadarma Missed Call",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "lt-proteros-missed-call"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst phone = body.caller_phone || '';\nconst callId = body.call_id || '';\nconst timestamp = body.timestamp || new Date().toISOString();\nconst status = body.status || '';\n\n// Validate: must be missed call with valid LT phone\nif (status !== 'missed') {\n  return [{ json: { valid: false, reason: 'Not a missed call', status } }];\n}\n\n// Basic Lithuanian phone validation: +370XXXXXXXX (11-12 digits)\nconst phoneClean = phone.replace(/[^+\\d]/g, '');\nif (!/^\\+370\\d{7,8}$/.test(phoneClean)) {\n  return [{ json: { valid: false, reason: 'Invalid LT phone number', phone } }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    callerPhone: phoneClean,\n    callId: callId,\n    timestamp: timestamp,\n    status: status\n  }\n}];"
+      },
+      "id": "lt-mc-validate",
+      "name": "Validate Phone & Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-valid",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "lt-mc-if-valid",
+      "name": "Is Valid Missed Call?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simple in-memory dedup using static data\n// In production, replace with Redis or DB lookup\nconst callerPhone = $input.first().json.callerPhone;\nconst callId = $input.first().json.callId;\nconst now = Date.now();\n\n// Use workflow static data for dedup (persists across executions)\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.recentCalls) {\n  staticData.recentCalls = {};\n}\n\n// Clean old entries (older than 30 minutes)\nfor (const key of Object.keys(staticData.recentCalls)) {\n  if (now - staticData.recentCalls[key] > 30 * 60 * 1000) {\n    delete staticData.recentCalls[key];\n  }\n}\n\n// Check if we already processed this caller in last 30 min\nconst dedupKey = callerPhone;\nif (staticData.recentCalls[dedupKey]) {\n  return [{ json: { duplicate: true, callerPhone, callId, reason: 'SMS already sent within 30 min' } }];\n}\n\n// Mark as processed\nstaticData.recentCalls[dedupKey] = now;\n\nreturn [{ json: { duplicate: false, callerPhone, callId, timestamp: $input.first().json.timestamp } }];"
+      },
+      "id": "lt-mc-dedup",
+      "name": "Deduplicate (30min window)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 250]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-not-dup",
+              "leftValue": "={{ $json.duplicate }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "lt-mc-if-not-dup",
+      "name": "Is New Call?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1250, 250]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "GOOGLE_SHEET_ID_PLACEHOLDER",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Missed Calls",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Call ID": "={{ $json.callId }}",
+            "Caller Phone": "={{ $json.callerPhone }}",
+            "Timestamp": "={{ $json.timestamp }}",
+            "SMS Sent": "={{ $('Send SMS (Placeholder)').first().json.error ? 'ne' : 'taip' }}",
+            "Status": "=missed"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "Call ID", "displayName": "Call ID", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "Caller Phone", "displayName": "Caller Phone", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "Timestamp", "displayName": "Timestamp", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "SMS Sent", "displayName": "SMS Sent", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "Status", "displayName": "Status", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      },
+      "id": "lt-mc-log-sheet",
+      "name": "Log: Missed Call (Google Sheets)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [1500, 200],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      },
+      "notes": "SETUP: 1) Create Google Sheet with columns: Call ID, Caller Phone, Timestamp, SMS Sent, Status. 2) Replace GOOGLE_SHEET_ID_PLACEHOLDER with the actual sheet ID. 3) Replace credential ID."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "sms-to",
+              "name": "to",
+              "type": "string",
+              "value": "={{ $('Deduplicate (30min window)').item.json.callerPhone }}"
+            },
+            {
+              "id": "sms-body",
+              "name": "body",
+              "type": "string",
+              "value": "Sveiki, čia Proteros Servisas. Matome, kad bandėte prisiskambinti. Parašykite, kuo galime padėti arba jei norite registracijos."
+            },
+            {
+              "id": "sms-from",
+              "name": "from",
+              "type": "string",
+              "value": "={{ $env.LT_PROTEROS_SMS_FROM || 'PROTEROS' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "lt-mc-compose-sms",
+      "name": "Compose SMS",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1750, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.LT_SMS_API_URL || 'https://placeholder-sms-api.example.com/send' }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "to", "value": "={{ $json.to }}" },
+            { "name": "from", "value": "={{ $json.from }}" },
+            { "name": "message", "value": "={{ $json.body }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "lt-mc-send-sms",
+      "name": "Send SMS (Placeholder)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2000, 200],
+      "continueOnFail": true,
+      "notes": "PLACEHOLDER: Replace URL with actual SMS provider. continueOnFail=true so workflow can log actual result."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"ok\", \"action\": \"sms_sent\", \"callerPhone\": $('Deduplicate (30min window)').item.json.callerPhone, \"callId\": $('Deduplicate (30min window)').item.json.callId } }}",
+        "options": {}
+      },
+      "id": "lt-mc-respond-ok",
+      "name": "Respond: SMS Sent",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [2250, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"skipped\", \"reason\": $json.reason || 'invalid or duplicate' } }}",
+        "options": {}
+      },
+      "id": "lt-mc-respond-skip",
+      "name": "Respond: Skipped",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1000, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"skipped\", \"reason\": \"duplicate_within_30min\" } }}",
+        "options": {}
+      },
+      "id": "lt-mc-respond-dup",
+      "name": "Respond: Duplicate",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1500, 400]
+    }
+  ],
+  "connections": {
+    "Webhook: Zadarma Missed Call": {
+      "main": [
+        [
+          {
+            "node": "Validate Phone & Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Phone & Status": {
+      "main": [
+        [
+          {
+            "node": "Is Valid Missed Call?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Valid Missed Call?": {
+      "main": [
+        [
+          {
+            "node": "Deduplicate (30min window)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: Skipped",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deduplicate (30min window)": {
+      "main": [
+        [
+          {
+            "node": "Is New Call?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is New Call?": {
+      "main": [
+        [
+          {
+            "node": "Compose SMS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose SMS": {
+      "main": [
+        [
+          {
+            "node": "Send SMS (Placeholder)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send SMS (Placeholder)": {
+      "main": [
+        [
+          {
+            "node": "Log: Missed Call (Google Sheets)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log: Missed Call (Google Sheets)": {
+      "main": [
+        [
+          {
+            "node": "Respond: SMS Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "errorWorkflow": ""
+  },
+  "active": false,
+  "tags": [
+    { "name": "LT_Proteros" },
+    { "name": "missed-call" },
+    { "name": "sms" }
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "id": "wf004CalendarSync",
-  "name": "WF-004: Calendar Sync + Confirmation SMS",
+  "name": "US AutoShop: Calendar Sync",
   "nodes": [
     {
       "id": "webhook-trigger",
