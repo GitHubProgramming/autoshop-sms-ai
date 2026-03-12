@@ -1,0 +1,182 @@
+{
+  "overall_progress": 34,
+  "current_phase": "TEST environment stabilization and SMS flow validation",
+  "current_focus": "LT Proteros sandbox SMS test flows — building and validating TEST workflows for the missed call → SMS → AI → booking pipeline",
+  "stages": [
+    {
+      "id": 1,
+      "name": "Foundation & Operating Model",
+      "description": "Repo scaffolding, CI/CD pipeline, B-Lite operating model, project brain documentation, CLAUDE.md execution rules, AI contributor guardrails.",
+      "weight": 10,
+      "progress": 100,
+      "status": "done",
+      "completion_criteria": "Repo structure, CI pipeline, B-Lite operating model, project brain, CLAUDE.md rules — all in place and enforced."
+    },
+    {
+      "id": 2,
+      "name": "TEST Sandbox Workflow Chain",
+      "description": "Chain of n8n TEST workflows (wf001–wf006) that simulate the full missed call → SMS → AI → booking flow in the LT Proteros sandbox environment.",
+      "weight": 15,
+      "progress": 40,
+      "status": "in_progress",
+      "completion_criteria": "All TEST workflow JSONs (wf001–wf006) committed, importable into n8n, and executing successfully in sandbox environment with test credentials."
+    },
+    {
+      "id": 3,
+      "name": "Core Messaging & AI Flow",
+      "description": "Twilio webhook ingress, BullMQ queuing, n8n worker processing, OpenAI conversation, booking intent detection, and SMS reply.",
+      "weight": 25,
+      "progress": 42,
+      "status": "in_progress",
+      "completion_criteria": "Missed call triggers SMS, inbound SMS processed, AI generates reply, booking intent detected, appointment created. Verified end-to-end with real Twilio number."
+    },
+    {
+      "id": 4,
+      "name": "Calendar & Booking Reliability",
+      "description": "Google Calendar OAuth integration, appointment sync, confirmation SMS, and failure surfacing.",
+      "weight": 15,
+      "progress": 30,
+      "status": "blocked",
+      "completion_criteria": "OAuth flow complete, appointment syncs to Google Calendar, confirmation SMS sent, sync failures surface clearly. Verified with real Google credentials."
+    },
+    {
+      "id": 5,
+      "name": "Admin Visibility & Control",
+      "description": "Project ops dashboard powered by project_status.json, tenant health monitoring, conversation metrics.",
+      "weight": 10,
+      "progress": 5,
+      "status": "in_progress",
+      "completion_criteria": "Admin dashboard shows project status, tenant health, conversation metrics, and blocker visibility. Dashboard JSON data source created."
+    },
+    {
+      "id": 6,
+      "name": "Production Readiness",
+      "description": "Stripe billing, idempotency verification, error handling hardening, and environment configuration for real deployment.",
+      "weight": 10,
+      "progress": 20,
+      "status": "in_progress",
+      "completion_criteria": "Billing (Stripe checkout, webhooks, trial limits, plan enforcement) live-tested. Idempotency verified. Error handling covers all failure modes."
+    },
+    {
+      "id": 7,
+      "name": "First Live Pilot",
+      "description": "One real Texas auto repair shop fully onboarded with real phone number, missed calls, AI conversations, and Google Calendar sync.",
+      "weight": 10,
+      "progress": 0,
+      "status": "not_started",
+      "completion_criteria": "One real Texas auto shop receiving missed-call SMS, AI replies working, bookings appearing in Google Calendar."
+    },
+    {
+      "id": 8,
+      "name": "Scale & Handoff",
+      "description": "Multi-tenant onboarding automation, monitoring dashboards, operational documentation, and handoff readiness.",
+      "weight": 5,
+      "progress": 0,
+      "status": "not_started",
+      "completion_criteria": "Multi-tenant onboarding flow, monitoring, documentation for handoff to non-AI operator."
+    }
+  ],
+  "active_tasks": {
+    "todo": [
+      "End-to-end demo run with real Twilio numbers",
+      "Google Calendar OAuth tenant onboarding",
+      "Admin dashboard UI (consuming project_status.json)"
+    ],
+    "in_progress": [
+      "LT sandbox SMS test flow development",
+      "Project milestone model + dashboard JSON status system"
+    ],
+    "done": [
+      "Project brain / B-Lite operating model setup",
+      "Deploy script made update-safe and duplicate-safe",
+      "Stripe checkout endpoint added",
+      "SMS conversation logging fix (WF-001)",
+      "n8n workflow settings whitelist",
+      "Google Calendar OAuth fix",
+      "Project brain foundation created"
+    ]
+  },
+  "blockers": [
+    {
+      "blocker": "n8n credentials (postgres, openai, twilio)",
+      "required_action": "Manual setup in n8n UI",
+      "owner": "Human",
+      "stages_affected": [2, 3]
+    },
+    {
+      "blocker": "Google OAuth credentials",
+      "required_action": "Add GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET to .env",
+      "owner": "Human",
+      "stages_affected": [4]
+    },
+    {
+      "blocker": "First pilot tenant",
+      "required_action": "Requires working demo + real phone number",
+      "owner": "Human",
+      "stages_affected": [7]
+    }
+  ],
+  "recent_changes": [
+    {
+      "date": "2026-03-12",
+      "change": "Task generation rules introduced based on project_status.json",
+      "branch": "ai/lt-proteros-sms-test-flow"
+    },
+    {
+      "date": "2026-03-12",
+      "change": "Project milestone model + dashboard JSON status system introduced",
+      "branch": "ai/lt-proteros-sms-test-flow"
+    },
+    {
+      "date": "2026-03-12",
+      "change": "B-Lite operating model added to CLAUDE.md as permanent project instructions",
+      "branch": "ai/lt-proteros-sms-test-flow"
+    },
+    {
+      "date": "2026-03-12",
+      "change": "Mandatory status-update protocol adopted as non-negotiable execution rule",
+      "branch": "ai/lt-proteros-sms-test-flow"
+    },
+    {
+      "date": "2026-03-12",
+      "change": "Weighted progress model added to project_status.md",
+      "branch": "ai/lt-proteros-sms-test-flow"
+    },
+    {
+      "date": "2026-03-12",
+      "change": "B-Lite operating model defined; project_status.md made mandatory",
+      "branch": "ai/lt-proteros-sms-test-flow"
+    },
+    {
+      "date": "2026-03-12",
+      "change": "Project brain foundation created",
+      "branch": "ai/lt-proteros-sms-test-flow"
+    },
+    {
+      "date": "2026-03-11",
+      "change": "Deploy script made update-safe and duplicate-safe",
+      "branch": "ai/deploy-duplicate-safe"
+    },
+    {
+      "date": "2026-03-11",
+      "change": "Stripe checkout endpoint added",
+      "branch": null
+    },
+    {
+      "date": "2026-03-11",
+      "change": "SMS conversation logging fix (WF-001)",
+      "branch": null
+    },
+    {
+      "date": "2026-03-11",
+      "change": "n8n workflow settings whitelist",
+      "branch": null
+    },
+    {
+      "date": "2026-03-10",
+      "change": "Google Calendar OAuth fix",
+      "branch": "ai/fix-google-calendar-oauth"
+    }
+  ],
+  "next_owner_decision": "Provide n8n credentials (postgres, openai, twilio) to unblock end-to-end testing. Provide Google OAuth client ID/secret for calendar integration. Confirm priority: continue TEST sandbox work vs. unblock credential setup first."
+}

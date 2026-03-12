@@ -289,6 +289,14 @@ If no update is needed → explicitly state why in the response.
 - Code-complete but unverified stages are capped at 40–50%
 - When uncertain, round down
 
+### Task generation protocol
+
+Before proposing next steps or recommending tasks:
+1. Read `project-brain/project_status.json` — this is the authoritative source for project state
+2. Follow `project-brain/task_generation_rules.md` — all task proposals must comply with these rules
+3. Proposed tasks must cite the specific stage, blocker, or `active_tasks` item they derive from
+4. Use `project-brain/next_tasks_template.md` as the output format for task recommendations
+
 ### Safety rules (B-Lite)
 
 - Do not modify production workflows (US_AutoShop, LT_Proteros)
