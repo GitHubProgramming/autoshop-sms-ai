@@ -102,6 +102,11 @@
   "recent_changes": [
     {
       "date": "2026-03-12",
+      "change": "Project status API path resolution fixed for deployed environments",
+      "branch": "ai/lt-proteros-sms-test-flow"
+    },
+    {
+      "date": "2026-03-12",
       "change": "Project Ops admin dashboard implemented (reads project_status.json)",
       "branch": "ai/lt-proteros-sms-test-flow"
     },
