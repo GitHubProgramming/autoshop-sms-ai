@@ -1,0 +1,531 @@
+{
+  "id": "LT-WF-002-sms-booking-agent",
+  "name": "LT Proteros: SMS Booking Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lt-proteros-sms-inbound",
+        "responseMode": "lastNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "lt-sms-webhook",
+      "name": "Webhook: Inbound SMS",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 400],
+      "webhookId": "lt-proteros-sms-inbound"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst from = (body.from || '').replace(/[^+\\d]/g, '');\nconst message = (body.message || '').trim();\nconst messageId = body.message_id || $execution.id;\n\nif (!from || !message) {\n  return [{ json: { valid: false, reason: 'Missing from or message' } }];\n}\n\nif (!/^\\+370\\d{7,8}$/.test(from)) {\n  return [{ json: { valid: false, reason: 'Invalid LT phone number', from } }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    customerPhone: from,\n    messageBody: message,\n    messageId: messageId,\n    receivedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "lt-sms-validate",
+      "name": "Validate Inbound SMS",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-valid-sms",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "lt-sms-if-valid",
+      "name": "Is Valid SMS?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [750, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Load conversation history from static data (keyed by phone)\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.conversations) {\n  staticData.conversations = {};\n}\n\nconst phone = $input.first().json.customerPhone;\nconst now = new Date().toISOString();\n\nif (!staticData.conversations[phone]) {\n  staticData.conversations[phone] = {\n    messages: [],\n    startedAt: now,\n    bookingStatus: 'none'\n  };\n}\n\nconst conv = staticData.conversations[phone];\n\n// Add incoming message\nconv.messages.push({\n  role: 'customer',\n  content: $input.first().json.messageBody,\n  timestamp: now\n});\n\n// Keep last 20 messages to avoid overflow\nif (conv.messages.length > 20) {\n  conv.messages = conv.messages.slice(-20);\n}\n\nreturn [{\n  json: {\n    customerPhone: phone,\n    messageBody: $input.first().json.messageBody,\n    messageId: $input.first().json.messageId,\n    conversationHistory: conv.messages,\n    bookingStatus: conv.bookingStatus,\n    isNewConversation: conv.messages.length === 1\n  }\n}];"
+      },
+      "id": "lt-sms-load-conv",
+      "name": "Load Conversation History",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 350]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI response and determine next action\nconst aiRaw = $input.first().json;\n\n// Handle OpenAI API response format\nlet aiText = '';\nif (aiRaw.choices && aiRaw.choices[0]) {\n  aiText = aiRaw.choices[0].message?.content || aiRaw.choices[0].text || '';\n} else if (typeof aiRaw === 'string') {\n  aiText = aiRaw;\n} else {\n  aiText = JSON.stringify(aiRaw);\n}\n\naiText = aiText.trim();\n\n// Check if AI returned booking-ready JSON\nlet bookingReady = false;\nlet bookingData = null;\n\ntry {\n  // Try to extract JSON from the response\n  const jsonMatch = aiText.match(/\\{[\\s\\S]*\"booking_ready\"\\s*:\\s*true[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    bookingData = JSON.parse(jsonMatch[0]);\n    bookingReady = true;\n  }\n} catch (e) {\n  // Not JSON, that's fine — it's a conversation reply\n}\n\nconst convData = $('Load Conversation History').first().json;\n\n// Save AI reply to conversation history\nconst staticData = $getWorkflowStaticData('global');\nif (staticData.conversations && staticData.conversations[convData.customerPhone]) {\n  staticData.conversations[convData.customerPhone].messages.push({\n    role: 'assistant',\n    content: bookingReady ? 'Registracija patvirtinta!' : aiText,\n    timestamp: new Date().toISOString()\n  });\n  if (bookingReady) {\n    staticData.conversations[convData.customerPhone].bookingStatus = 'booked';\n  }\n}\n\nreturn [{\n  json: {\n    bookingReady,\n    replyText: bookingReady ? null : aiText,\n    bookingData,\n    customerPhone: convData.customerPhone,\n    messageId: convData.messageId\n  }\n}];"
+      },
+      "id": "lt-sms-parse-ai",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 350]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-booking-ready",
+              "leftValue": "={{ $json.bookingReady }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "lt-sms-if-booking",
+      "name": "Booking Ready?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1750, 350]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.LT_SMS_API_URL || 'https://placeholder-sms-api.example.com/send' }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "to", "value": "={{ $json.customerPhone }}" },
+            { "name": "from", "value": "={{ $env.LT_PROTEROS_SMS_FROM || 'PROTEROS' }}" },
+            { "name": "message", "value": "={{ $json.replyText }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "lt-sms-send-reply",
+      "name": "Send SMS Reply (Placeholder)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2000, 500],
+      "continueOnFail": true,
+      "notes": "PLACEHOLDER: Replace with actual SMS provider API. continueOnFail=true so workflow can log result."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "GOOGLE_SHEET_ID_PLACEHOLDER",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "SMS Conversations",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Phone": "={{ $('Parse AI Response').item.json.customerPhone }}",
+            "Direction": "=inbound",
+            "Customer Message": "={{ $('Load Conversation History').item.json.messageBody }}",
+            "AI Reply": "={{ $('Parse AI Response').item.json.replyText || 'booking_created' }}",
+            "Timestamp": "={{ new Date().toISOString() }}",
+            "Booking Ready": "={{ $('Parse AI Response').item.json.bookingReady ? 'taip' : 'ne' }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "Phone", "displayName": "Phone", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "Direction", "displayName": "Direction", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "Customer Message", "displayName": "Customer Message", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "AI Reply", "displayName": "AI Reply", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "Timestamp", "displayName": "Timestamp", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "Booking Ready", "displayName": "Booking Ready", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      },
+      "id": "lt-sms-log-conv",
+      "name": "Log: SMS Conversation (Google Sheets)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [2250, 500],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      },
+      "notes": "SETUP: Create sheet 'SMS Conversations' with columns: Phone, Direction, Customer Message, AI Reply, Timestamp, Booking Ready."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"ok\", \"action\": \"reply_sent\", \"customerPhone\": $('Parse AI Response').item.json.customerPhone } }}",
+        "options": {}
+      },
+      "id": "lt-sms-respond-reply",
+      "name": "Respond: Reply Sent",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [2500, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Google Calendar event from booking data\nconst booking = $input.first().json.bookingData;\nconst phone = $input.first().json.customerPhone;\n\nconst preferredDate = booking.preferred_date || new Date().toISOString().split('T')[0];\nconst preferredTime = booking.preferred_time || '09:00';\n\n// Build start time with EET offset\nconst startISO = `${preferredDate}T${preferredTime}:00+02:00`;\n\n// Calculate end time: +1 hour using string math on local intended time\n// Safe for business hours (08:00-17:00), no UTC conversion involved\nconst [startH, startM] = preferredTime.split(':').map(Number);\nconst endH = startH + 1;\nconst endTimeISO = `${preferredDate}T${String(endH).padStart(2, '0')}:${String(startM).padStart(2, '0')}:00+02:00`;\n\nreturn [{\n  json: {\n    summary: `Proteros Servisas \\u2013 Appointment`,\n    description: `KLIENTAS\\nVardas: ${booking.client_name || 'Nežinomas'}\\nTelefonas: ${phone}\\n\\nPASLAUGA\\nTipas: ${booking.service_type || ''}\\nAuto: ${booking.car_info || ''}\\nPastabos: ${booking.notes || ''}\\n\\nSukurta automatiškai per SMS booking agent.`,\n    startDateTime: startISO,\n    endDateTime: endTimeISO,\n    clientName: booking.client_name || '',\n    serviceType: booking.service_type || '',\n    carInfo: booking.car_info || '',\n    customerPhone: phone,\n    notes: booking.notes || ''\n  }\n}];"
+      },
+      "id": "lt-sms-build-event",
+      "name": "Build Calendar Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 200]
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "PROTEROS_TEST_CALENDAR_ID",
+          "mode": "id"
+        },
+        "start": "={{ $json.startDateTime }}",
+        "end": "={{ $json.endDateTime }}",
+        "additionalFields": {
+          "summary": "={{ $json.summary }}",
+          "description": "={{ $json.description }}"
+        }
+      },
+      "id": "lt-sms-create-event",
+      "name": "Create Google Calendar Event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [2250, 200],
+      "retryOnFail": true,
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GOOGLE_CALENDAR_CREDENTIAL_ID",
+          "name": "Google Calendar account"
+        }
+      },
+      "notes": "SETUP: 1) Create calendar 'Proteros Test Registracijos'. 2) Replace PROTEROS_TEST_CALENDAR_ID with the actual calendar ID. 3) Replace credential ID."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "GOOGLE_SHEET_ID_PLACEHOLDER",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Bookings",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Phone": "={{ $('Build Calendar Event').item.json.customerPhone }}",
+            "Client Name": "={{ $('Build Calendar Event').item.json.clientName }}",
+            "Service Type": "={{ $('Build Calendar Event').item.json.serviceType }}",
+            "Car Info": "={{ $('Build Calendar Event').item.json.carInfo }}",
+            "Date": "={{ $('Build Calendar Event').item.json.startDateTime }}",
+            "Notes": "={{ $('Build Calendar Event').item.json.notes }}",
+            "Calendar Event ID": "={{ $json.id || '' }}",
+            "Created At": "={{ new Date().toISOString() }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "Phone", "displayName": "Phone", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "Client Name", "displayName": "Client Name", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "Service Type", "displayName": "Service Type", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "Car Info", "displayName": "Car Info", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "Date", "displayName": "Date", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "Notes", "displayName": "Notes", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "Calendar Event ID", "displayName": "Calendar Event ID", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "Created At", "displayName": "Created At", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      },
+      "id": "lt-sms-log-booking",
+      "name": "Log: Booking (Google Sheets)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [2500, 200],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      },
+      "notes": "SETUP: Create sheet 'Bookings' with columns: Phone, Client Name, Service Type, Car Info, Date, Notes, Calendar Event ID, Created At."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.LT_SMS_API_URL || 'https://placeholder-sms-api.example.com/send' }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "to", "value": "={{ $('Build Calendar Event').item.json.customerPhone }}" },
+            { "name": "from", "value": "={{ $env.LT_PROTEROS_SMS_FROM || 'PROTEROS' }}" },
+            {
+              "name": "message",
+              "value": "=Jūsų registracija patvirtinta! 📅\n\nData: {{ $('Build Calendar Event').item.json.startDateTime.split('T')[0] }}\nLaikas: {{ $('Build Calendar Event').item.json.startDateTime.split('T')[1].substring(0,5) }}\nPaslauga: {{ $('Build Calendar Event').item.json.serviceType }}\n\nProteros Servisas, Vilnius\nIki pasimatymo!"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "lt-sms-send-confirmation",
+      "name": "Send Booking Confirmation SMS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2750, 200],
+      "continueOnFail": true,
+      "notes": "Sends booking confirmation SMS to customer. continueOnFail=true so workflow can report result."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"ok\", \"action\": \"booking_created\", \"customerPhone\": $('Build Calendar Event').item.json.customerPhone, \"calendarEventId\": $('Create Google Calendar Event').item.json.id || 'unknown' } }}",
+        "options": {}
+      },
+      "id": "lt-sms-respond-booked",
+      "name": "Respond: Booking Created",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [3000, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"error\", \"reason\": \"invalid SMS payload\" } }}",
+        "options": {}
+      },
+      "id": "lt-sms-respond-invalid",
+      "name": "Respond: Invalid",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1000, 600]
+    },
+    {
+      "parameters": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.OPENAI_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o-mini\",\n  \"temperature\": 0.7,\n  \"max_tokens\": 500,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Tu esi Proteros Servisas automatinis SMS asistentas Lietuvoje.\\n\\nTavo tikslas:\\n1. Suprasti kliento žinutę\\n2. Nustatyti ar klientas nori registracijos\\n3. Surinkti registracijos informaciją:\\n   - Vardas\\n   - Telefono numeris (jau žinomas)\\n   - Paslauga / problema\\n   - Auto markė ir modelis (jei įmanoma)\\n   - Pageidaujama data ir laikas\\n4. Pasiūlyti laisvą laiką\\n5. Patvirtinti registraciją\\n\\nAtsakyk TIK lietuviškai.\\nBūk trumpas ir draugiškas.\\nKlausk tik vieno dalyko vienu metu.\\nJei klientas nenori registracijos, mandagiai padėk kuo gali.\\n\\nDarbo laikas: Pirmadienis-Penktadienis 08:00-17:00\\nAdresas: Proteros Servisas, Vilnius\\n\\nŠiandienos data: {{ new Date().toISOString().split('T')[0] }}\\n\\nKai turi visą registracijos informaciją, atsakyk JSON formatu:\\n{\\\"booking_ready\\\": true, \\\"client_name\\\": \\\"...\\\", \\\"service_type\\\": \\\"...\\\", \\\"car_info\\\": \\\"...\\\", \\\"preferred_date\\\": \\\"YYYY-MM-DD\\\", \\\"preferred_time\\\": \\\"HH:MM\\\", \\\"notes\\\": \\\"...\\\"}\\n\\nJei registracija dar nebaigta, tiesiog rašyk žinutę klientui.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Kliento telefonas: {{ $json.customerPhone }}\\n\\nPokalbio istorija:\\n{{ $json.conversationHistory.map(m => m.role + ': ' + m.content).join('\\\\n') }}\\n\\nPaskutinė kliento žinutė: {{ $json.messageBody }}\"\n    }\n  ]\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "lt-sms-openai-call",
+      "name": "OpenAI: Chat Completion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 350],
+      "notes": "Uses OPENAI_API_KEY env variable. Calls gpt-4o-mini for Lithuanian SMS conversation."
+    }
+  ],
+  "connections": {
+    "Webhook: Inbound SMS": {
+      "main": [
+        [
+          {
+            "node": "Validate Inbound SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Inbound SMS": {
+      "main": [
+        [
+          {
+            "node": "Is Valid SMS?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Valid SMS?": {
+      "main": [
+        [
+          {
+            "node": "Load Conversation History",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: Invalid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Conversation History": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: Chat Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: Chat Completion": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "Booking Ready?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Booking Ready?": {
+      "main": [
+        [
+          {
+            "node": "Build Calendar Event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send SMS Reply (Placeholder)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send SMS Reply (Placeholder)": {
+      "main": [
+        [
+          {
+            "node": "Log: SMS Conversation (Google Sheets)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log: SMS Conversation (Google Sheets)": {
+      "main": [
+        [
+          {
+            "node": "Respond: Reply Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Calendar Event": {
+      "main": [
+        [
+          {
+            "node": "Create Google Calendar Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Google Calendar Event": {
+      "main": [
+        [
+          {
+            "node": "Log: Booking (Google Sheets)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log: Booking (Google Sheets)": {
+      "main": [
+        [
+          {
+            "node": "Send Booking Confirmation SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Booking Confirmation SMS": {
+      "main": [
+        [
+          {
+            "node": "Respond: Booking Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "errorWorkflow": ""
+  },
+  "active": false,
+  "tags": [
+    { "name": "LT_Proteros" },
+    { "name": "sms-booking" },
+    { "name": "ai-agent" }
+  ]
+}
