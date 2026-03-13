@@ -60,13 +60,80 @@
     },
     {
       "parameters": {
-        "jsCode": "// Calendar placeholder — zero $env, zero external calls.\n// Google Calendar will be connected via n8n credential UI when ready.\nconst ai = $json;\nconst canBook = ai.booking_intent && !ai.needs_more_info && ai.requested_time_text;\n\nlet calendarStatus = 'not_configured';\n\nif (!canBook) {\n  calendarStatus = ai.booking_intent ? 'needs_more_info' : 'no_booking_intent';\n} else {\n  const start = new Date(ai.requested_time_text);\n  if (isNaN(start.getTime())) {\n    calendarStatus = 'invalid_time';\n  } else {\n    calendarStatus = 'booking_detected_calendar_pending';\n  }\n}\n\nreturn [{\n  json: {\n    ...ai,\n    google_event_id: null,\n    google_event_link: null,\n    calendar_status: calendarStatus\n  }\n}];"
+        "jsCode": "// Prepare calendar event data and determine routing.\n// Zero $env — all credentials handled by n8n credential system.\nconst ai = $json;\nconst canBook = ai.booking_intent && !ai.needs_more_info && ai.requested_time_text;\n\nlet should_create_event = false;\nlet event_start = '';\nlet event_end = '';\nlet calendar_status = 'no_booking_intent';\n\nif (!ai.booking_intent) {\n  calendar_status = 'no_booking_intent';\n} else if (ai.needs_more_info || !ai.requested_time_text) {\n  calendar_status = 'needs_more_info';\n} else {\n  const start = new Date(ai.requested_time_text);\n  if (isNaN(start.getTime())) {\n    calendar_status = 'invalid_time';\n  } else {\n    should_create_event = true;\n    event_start = start.toISOString();\n    // Default 1-hour appointment\n    event_end = new Date(start.getTime() + 60 * 60 * 1000).toISOString();\n    calendar_status = 'attempting_creation';\n  }\n}\n\nreturn [{\n  json: {\n    ...ai,\n    should_create_event,\n    event_start,\n    event_end,\n    calendar_status\n  }\n}];"
       },
-      "id": "d-calendar",
-      "name": "Calendar Status",
+      "id": "d-cal-prep",
+      "name": "Calendar Prep",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "cal-route-condition",
+              "leftValue": "={{ $json.should_create_event }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d-if-book",
+      "name": "Should Create Event?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1520, 300]
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "operation": "create",
+        "calendar": "primary",
+        "start": "={{ $json.event_start }}",
+        "end": "={{ $json.event_end }}",
+        "additionalFields": {
+          "summary": "={{ $json.calendar_summary }}",
+          "description": "={{ 'Customer: ' + $json.from + ' | Service: ' + $json.service_type + ' | SMS: ' + $json.body }}"
+        }
+      },
+      "id": "d-gcal",
+      "name": "Google Calendar - Create Event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1,
+      "position": [1740, 200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle Google Calendar API response.\n// If the node succeeded, $json contains the created event.\n// If continueOnFail fired, $json contains error info.\nconst calResponse = $json;\nconst prepData = $('Calendar Prep').first().json;\n\nconst eventId = calResponse.id || null;\nconst eventLink = calResponse.htmlLink || null;\nconst hasError = !eventId;\n\nlet calendar_status;\nlet calendar_error_detail = null;\n\nif (eventId) {\n  calendar_status = 'created';\n} else {\n  const errMsg = (calResponse.error?.message || calResponse.message || calResponse.errorMessage || JSON.stringify(calResponse) || '').toLowerCase();\n  calendar_error_detail = calResponse.error?.message || calResponse.message || calResponse.errorMessage || 'Unknown error';\n  if (errMsg.includes('credential') || errMsg.includes('auth') || errMsg.includes('token') || errMsg.includes('oauth') || errMsg.includes('no matching')) {\n    calendar_status = 'calendar_not_linked';\n  } else {\n    calendar_status = 'calendar_error';\n  }\n}\n\nreturn [{\n  json: {\n    ...prepData,\n    google_event_id: eventId,\n    google_event_link: eventLink,\n    calendar_status,\n    calendar_error_detail\n  }\n}];"
+      },
+      "id": "d-cal-result",
+      "name": "Handle Calendar Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1960, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// No booking to create — pass through with current calendar_status.\nconst data = $json;\nreturn [{\n  json: {\n    ...data,\n    google_event_id: null,\n    google_event_link: null,\n    calendar_error_detail: null\n  }\n}];"
+      },
+      "id": "d-cal-skip",
+      "name": "Handle No Booking",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1740, 450]
     },
     {
       "parameters": {
@@ -76,7 +143,7 @@
       "name": "Compose Demo Reply",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1560, 300]
+      "position": [2180, 300]
     },
     {
       "parameters": {
@@ -99,18 +166,18 @@
       "name": "Twilio - Send Reply SMS",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1820, 300],
+      "position": [2440, 300],
       "continueOnFail": true
     },
     {
       "parameters": {
-        "jsCode": "// Format clean demo response — zero $env.\nconst tw = $json;\nconst data = $('Compose Demo Reply').first().json;\n\nreturn [{\n  json: {\n    demo: true,\n    inbound_message: data.body,\n    from: data.from,\n    ai_reply: data.reply_text,\n    booking_intent: data.booking_intent,\n    service_type: data.service_type,\n    requested_time_text: data.requested_time_text || '',\n    needs_more_info: data.needs_more_info,\n    calendar_summary: data.calendar_summary,\n    calendar_status: data.calendar_status || 'skipped',\n    google_event_id: data.google_event_id || null,\n    google_event_link: data.google_event_link || null,\n    twilio_to: data.demo_to,\n    twilio_message_sid: tw.sid || null,\n    twilio_status: tw.status || null,\n    twilio_error: tw.message || null,\n    model: 'gpt-4o-mini'\n  }\n}];"
+        "jsCode": "// Format clean demo response — zero $env.\nconst tw = $json;\nconst data = $('Compose Demo Reply').first().json;\n\nreturn [{\n  json: {\n    demo: true,\n    inbound_message: data.body,\n    from: data.from,\n    ai_reply: data.reply_text,\n    booking_intent: data.booking_intent,\n    service_type: data.service_type,\n    requested_time_text: data.requested_time_text || '',\n    needs_more_info: data.needs_more_info,\n    calendar_summary: data.calendar_summary,\n    calendar_status: data.calendar_status || 'skipped',\n    google_event_id: data.google_event_id || null,\n    google_event_link: data.google_event_link || null,\n    calendar_error_detail: data.calendar_error_detail || null,\n    twilio_to: data.demo_to,\n    twilio_message_sid: tw.sid || null,\n    twilio_status: tw.status || null,\n    twilio_error: tw.message || null,\n    model: 'gpt-4o-mini'\n  }\n}];"
       },
       "id": "d-format",
       "name": "Format Demo Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2080, 300]
+      "position": [2700, 300]
     }
   ],
   "connections": {
@@ -124,9 +191,24 @@
       "main": [[{ "node": "Parse AI JSON", "type": "main", "index": 0 }]]
     },
     "Parse AI JSON": {
-      "main": [[{ "node": "Calendar Status", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Calendar Prep", "type": "main", "index": 0 }]]
     },
-    "Calendar Status": {
+    "Calendar Prep": {
+      "main": [[{ "node": "Should Create Event?", "type": "main", "index": 0 }]]
+    },
+    "Should Create Event?": {
+      "main": [
+        [{ "node": "Google Calendar - Create Event", "type": "main", "index": 0 }],
+        [{ "node": "Handle No Booking", "type": "main", "index": 0 }]
+      ]
+    },
+    "Google Calendar - Create Event": {
+      "main": [[{ "node": "Handle Calendar Result", "type": "main", "index": 0 }]]
+    },
+    "Handle Calendar Result": {
+      "main": [[{ "node": "Compose Demo Reply", "type": "main", "index": 0 }]]
+    },
+    "Handle No Booking": {
       "main": [[{ "node": "Compose Demo Reply", "type": "main", "index": 0 }]]
     },
     "Compose Demo Reply": {
@@ -139,5 +221,5 @@
   "active": true,
   "settings": { "executionOrder": "v1" },
   "pinData": {},
-  "versionId": "demo-sms-v6"
+  "versionId": "demo-sms-v7"
 }
