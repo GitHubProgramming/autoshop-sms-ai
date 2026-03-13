@@ -9,6 +9,36 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: gcal-token-refresh — 2026-03-13
+
+**Branch:** ai/gcal-event-creation
+**Status:** COMPLETE — Calendar token auto-refresh + route registration fix
+
+### What Was Done
+1. **Critical bug fix:** `calendarTokensRoute` was never registered in `index.ts` — the `GET /internal/calendar-tokens/:tenantId` endpoint was completely dead. n8n could not retrieve Google Calendar tokens at all.
+2. **Token auto-refresh:** When the calendar-tokens endpoint is called and the access_token is expired (or within 5 minutes of expiry), it automatically uses the stored refresh_token to obtain a fresh access_token from Google, updates the DB, and returns the new token.
+3. Graceful fallback: if refresh fails, returns stale token so n8n can surface the 401 error clearly.
+
+### Verification
+- TypeScript: compiles with zero errors
+- Tests: 53/53 pass (no regressions)
+- Code review: uses existing `encryptToken`/`decryptToken` from `auth/google.ts`
+
+### Files Changed
+- `apps/api/src/routes/internal/calendar-tokens.ts` — added auto-refresh logic
+- `apps/api/src/index.ts` — registered `calendarTokensRoute` at `/internal` prefix
+- `project-brain/project_status.md` — Stage 4 progress 30→35%, overall 39→40%
+- `project-brain/project_status.json` — synchronized
+- `AI_STATUS.md` — this entry
+
+### Blockers Discovered
+- None new. Existing blocker (Google OAuth e2e verification) remains human-dependent.
+
+### Next Recommended Task
+- Add test coverage for the calendar-tokens endpoint (token refresh happy path + error cases)
+
+---
+
 ## TASK: stripe-webhook-tests — 2026-03-13
 
 **Branch:** ai/lt-proteros-sms-test-flow

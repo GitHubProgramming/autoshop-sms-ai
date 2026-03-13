@@ -7,7 +7,7 @@
 
 ## Project Completion Estimate
 
-**~38%** (weighted)
+**~40%** (weighted)
 
 Calculated from weighted stage progress below. Only objectively verifiable progress counts. Code-complete but unverified stages are capped at 40-50%.
 
@@ -22,7 +22,7 @@ Phase: TEST environment stabilization and SMS flow validation.
 | Blocker | Required Action | Owner | Stages Affected |
 |---------|----------------|-------|-----------------|
 | n8n credentials (postgres, openai, twilio) | Manual setup in n8n UI | Human | 2, 3 |
-| Google OAuth credentials | Add `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` to `.env` | Human | 4 |
+| Google Calendar OAuth verification | End-to-end OAuth flow test with existing credentials | Human | 4 |
 | First pilot tenant | Requires working demo + real phone number | Human | 7 |
 
 ## Next Milestones
@@ -31,7 +31,7 @@ Phase: TEST environment stabilization and SMS flow validation.
 |-----------|-----------|--------------|
 | End-to-end SMS test in sandbox | n8n credentials setup | 2, 3 |
 | AI booking intent detection verified | End-to-end SMS test working | 3 |
-| Google Calendar sync verified | Google OAuth credentials | 4 |
+| Google Calendar sync verified | Google OAuth end-to-end verification | 4 |
 | Demo-ready flow for pilot shop | Stages 2-4 complete | 7 |
 
 ## Stage Progress
@@ -41,17 +41,16 @@ Phase: TEST environment stabilization and SMS flow validation.
 | 1 | Foundation & Operating Model | 10% | done | 100% | 10.0% |
 | 2 | TEST Sandbox Workflow Chain | 15% | in_progress | 40% | 6.0% |
 | 3 | Core Messaging & AI Flow | 25% | in_progress | 44% | 11.0% |
-| 4 | Calendar & Booking Reliability | 15% | blocked | 30% | 4.5% |
+| 4 | Calendar & Booking Reliability | 15% | blocked | 35% | 5.25% |
 | 5 | Admin Visibility & Control | 10% | in_progress | 40% | 4.0% |
-| 6 | Production Readiness | 15% | in_progress | 20% | 3.0% |
+| 6 | Production Readiness | 15% | in_progress | 25% | 3.75% |
 | 7 | First Live Pilot | 10% | not_started | 0% | 0.0% |
-| | **Total** | **100%** | | | **~38%** |
+| | **Total** | **100%** | | | **~40%** |
 
 ## Active Tasks
 
 ### In Progress
 - LT sandbox SMS test flow development (branch: `ai/lt-proteros-sms-test-flow`)
-- Project milestone model + dashboard JSON status system (branch: `ai/lt-proteros-sms-test-flow`)
 
 ### Todo
 - End-to-end demo run with real Twilio numbers
@@ -59,6 +58,9 @@ Phase: TEST environment stabilization and SMS flow validation.
 
 ## Done (Recent)
 
+- Google Calendar token auto-refresh + route registration fix (branch: `ai/gcal-event-creation`)
+- Project milestone model + dashboard JSON status system
+- Stripe webhook test coverage (20 tests passing)
 - Webhook test coverage hardening (SMS inbound + voice-status: 33 tests passing)
 - Admin dashboard UI implementation (Project Ops page consuming `project_status.json`)
 - Project brain / B-Lite operating model setup
@@ -73,6 +75,8 @@ Phase: TEST environment stabilization and SMS flow validation.
 
 | Date | Change | Branch |
 |------|--------|--------|
+| 2026-03-13 | Calendar token auto-refresh + calendarTokensRoute registration fix (endpoint was dead) | `ai/gcal-event-creation` |
+| 2026-03-13 | Status audit: Google OAuth blocker corrected (credentials exist in .env, blocker is now e2e verification), Stage 6 progress 20→25% (Stripe tests verified), dashboard task moved to done | `ai/claude-execution-agent` |
 | 2026-03-13 | project_status.md restructured as control page (blockers promoted, reference sections moved down) | `ai/lt-proteros-sms-test-flow` |
 | 2026-03-13 | Webhook test coverage hardened: SMS inbound (11 tests) + voice-status (13 tests) covering idempotency, billing blocks, soft limits, invalid payloads, priority, tenant lookup failures | `ai/lt-proteros-sms-test-flow` |
 | 2026-03-13 | Project status runtime file moved to API-local deploy-safe location (`apps/api/project-status/`) | `ai/lt-proteros-sms-test-flow` |
@@ -100,7 +104,7 @@ Phase: TEST environment stabilization and SMS flow validation.
 ## Next Owner Decision
 
 - Provide n8n credentials (postgres, openai, twilio) to unblock end-to-end testing
-- Provide Google OAuth client ID/secret for calendar integration
+- Verify Google Calendar OAuth flow end-to-end (credentials already in .env)
 - Confirm priority: continue TEST sandbox work vs. unblock credential setup first
 
 ---
