@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   checkIdempotency: vi.fn().mockResolvedValue(false),
   markIdempotency: vi.fn().mockResolvedValue(undefined),
   getTenantByPhoneNumber: vi.fn(),
-  getBlockReason: vi.fn(() => null),
+  getBlockReason: vi.fn((): string | null => null),
 }));
 
 // Prevent module-level guard throws (DATABASE_URL / REDIS_URL not set in test env)
@@ -163,6 +163,129 @@ describe("POST /webhooks/twilio/sms", () => {
     expect(res.statusCode).toBe(200);
     expect(res.body).toContain("<Response");
     expect(mocks.add).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("does not write idempotency key on duplicate", async () => {
+    mocks.checkIdempotency.mockResolvedValueOnce(true);
+
+    const app = await buildApp();
+    await app.inject({
+      method: "POST",
+      url: "/webhooks/twilio/sms",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: smsPayload(),
+    });
+
+    expect(mocks.markIdempotency).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("returns 200 without enqueueing when no tenant found", async () => {
+    mocks.getTenantByPhoneNumber.mockResolvedValueOnce(null);
+
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/webhooks/twilio/sms",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: smsPayload(),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toContain("<Response");
+    expect(mocks.add).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("returns 200 without enqueueing when tenant is blocked", async () => {
+    mocks.getBlockReason.mockReturnValueOnce("trial_limit_reached");
+
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/webhooks/twilio/sms",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: smsPayload(),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toContain("<Response");
+    expect(mocks.add).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("returns 400 for invalid body (missing required fields)", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/webhooks/twilio/sms",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: new URLSearchParams({ MessageSid: TEST_MESSAGE_SID }).toString(),
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(mocks.add).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("passes SMS body content in enqueued job payload", async () => {
+    const app = await buildApp();
+
+    await app.inject({
+      method: "POST",
+      url: "/webhooks/twilio/sms",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: smsPayload({ Body: "What time do you close?" }),
+    });
+
+    expect(mocks.add).toHaveBeenCalledWith(
+      "process-sms",
+      expect.objectContaining({ body: "What time do you close?" }),
+      expect.anything()
+    );
+    await app.close();
+  });
+
+  it("sets atSoftLimit=true when tenant is at 100% conversation usage", async () => {
+    mocks.getTenantByPhoneNumber.mockResolvedValueOnce({
+      ...MOCK_TENANT,
+      conv_used_this_cycle: 400,
+      conv_limit_this_cycle: 400,
+    });
+
+    const app = await buildApp();
+
+    await app.inject({
+      method: "POST",
+      url: "/webhooks/twilio/sms",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: smsPayload(),
+    });
+
+    expect(mocks.add).toHaveBeenCalledWith(
+      "process-sms",
+      expect.objectContaining({ atSoftLimit: true }),
+      expect.anything()
+    );
+    await app.close();
+  });
+
+  it("sets atSoftLimit=false when tenant is within limits", async () => {
+    const app = await buildApp();
+
+    await app.inject({
+      method: "POST",
+      url: "/webhooks/twilio/sms",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: smsPayload(),
+    });
+
+    expect(mocks.add).toHaveBeenCalledWith(
+      "process-sms",
+      expect.objectContaining({ atSoftLimit: false }),
+      expect.anything()
+    );
     await app.close();
   });
 });
