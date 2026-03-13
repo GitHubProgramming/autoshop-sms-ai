@@ -1,5 +1,5 @@
 {
-  "overall_progress": 38,
+  "overall_progress": 39,
 
   "current_phase": "TEST environment stabilization and SMS flow validation",
 
@@ -40,7 +40,7 @@
       "name": "Production Readiness",
       "weight": 15,
       "status": "in_progress",
-      "progress": 20
+      "progress": 25
     },
     {
       "name": "First Live Pilot",
@@ -56,10 +56,11 @@
       "Google Calendar OAuth tenant onboarding"
     ],
     "in_progress": [
-      "LT sandbox SMS test flow development",
-      "Project milestone model + dashboard JSON status system"
+      "LT sandbox SMS test flow development"
     ],
     "done": [
+      "Project milestone model + dashboard JSON status system",
+      "Stripe webhook test coverage (20 tests)",
       "Webhook test coverage hardening (SMS inbound + voice-status: 33 tests)",
       "Admin dashboard UI (Project Ops page reading project_status.json)",
       "Project brain / B-Lite operating model setup",
@@ -83,8 +84,8 @@
       ]
     },
     {
-      "name": "Google OAuth credentials",
-      "required_action": "Add GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET to .env",
+      "name": "Google Calendar OAuth verification",
+      "required_action": "End-to-end OAuth flow test with existing credentials",
       "owner": "Human",
       "affects_stages": [
         "Calendar & Booking Reliability"
@@ -101,6 +102,11 @@
   ],
 
   "recent_changes": [
+    {
+      "date": "2026-03-13",
+      "change": "Status audit: Google OAuth blocker corrected (credentials already in .env), Stage 6 progress 20→25% (Stripe tests verified), dashboard task moved to done",
+      "branch": "ai/claude-execution-agent"
+    },
     {
       "date": "2026-03-13",
       "change": "Webhook test coverage hardened: SMS inbound (11 tests) + voice-status (13 tests) covering idempotency, billing blocks, soft limits, invalid payloads, priority, tenant lookup failures",
@@ -207,7 +213,7 @@
 
   "next_owner_decision": [
     "Provide n8n credentials (postgres, openai, twilio) to unblock end-to-end testing",
-    "Provide Google OAuth client ID/secret for calendar integration",
+    "Verify Google Calendar OAuth flow end-to-end (credentials already in .env)",
     "Confirm priority: continue TEST sandbox work vs. unblock credential setup first"
   ]
 }
