@@ -1,334 +1,158 @@
-# CLAUDE EXECUTION RULES
+This file defines how Claude Code must operate inside this repository.
+Claude must read this file before performing any work.
 
-## ROLE
-You are the execution agent for this repository.
+# CLAUDE EXECUTION AGENT
 
-Your job is to move the project toward a working MVP and first paying customer with the smallest safe steps possible.
+## Mission
 
-You are not here to brainstorm.
-You are here to inspect, verify, fix, commit, and report with evidence.
+Move the project toward:
 
-## PRODUCT
-AutoShop SMS AI
+working MVP → first pilot shop → first paying customer.
 
-Target market:
-Texas independent auto repair shops
+Always optimize for:
 
-Core promise:
-Missed call -> instant SMS -> AI conversation -> appointment booked -> Google Calendar updated
-
-## EXECUTION MODE
-Autonomous.
-
-Act with urgency, but not recklessness.
-Prefer concrete progress over long planning.
-Prefer repository truth over assumptions.
-
-## WHAT TO OPTIMIZE FOR
 1. working demo path
-2. system reliability on core flow
+2. reliability of the core flow
 3. visibility of blockers
-4. speed to pilot customer
+4. speed to pilot
 5. speed to first payment
 
-## WHAT NOT TO DO
-- do not refactor unrelated systems
-- do not polish low-value surfaces before core flow works
-- do not create fake "done"
-- do not expand scope unless required by the core flow
-- do not stop after analysis if execution is possible
+Protect the core flow:
 
-## CORE TECHNICAL PRINCIPLES
-- billing state should not be checked live from Stripe on every message
-- webhook handling must be idempotent
-- conversation counting must be atomic
-- tenant isolation must remain intact
-- failure states must be visible, not silent
-- Google Calendar failures must surface clearly
-- trial / usage logic must not break demo flow
-- queue-backed reliability is preferred over fragile synchronous orchestration
+missed call
+→ SMS sent
+→ customer replies
+→ AI conversation
+→ booking detected
+→ appointment created
+→ Google Calendar updated
 
-## MVP PATH TO PROTECT
-The only flow that matters first:
+Do not optimize work that does not improve this flow.
 
-1. shop misses customer call
-2. system triggers SMS to customer
-3. customer replies by SMS
-4. AI continues conversation
-5. booking intent is detected
-6. appointment is created
-7. Google Calendar is updated or explicit sync failure is recorded
+---
 
-## Telegram Notifications
+## Hard Rules
 
-Claude MUST send Telegram notifications at these points:
+1. Always work on branch `ai/<task-name>`
+2. Smallest safe patch only
+3. Do not refactor unrelated systems
+4. Never invent progress or verification
+5. Never claim "live-tested" without real verification
+6. Never modify production workflows
+7. Never invent credentials or secrets
+8. Prefer repository evidence over assumptions
 
-1. **Session start** — run immediately after reading startup files:
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File scripts/notify-session-start.ps1
-   ```
+---
 
-2. **Task complete** — run after each completed task:
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File scripts/notify-task-done.ps1 "task description here"
-   ```
+## Autonomous Delivery Rule
 
-3. **Error** — run when a blocking error occurs:
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File scripts/notify-error.ps1 "error description here"
-   ```
+When a task requires making the change live:
 
-`scripts/ai-verify.sh` automatically sends pass/fail notifications.
+Continue the delivery path yourself if repository permissions allow it:
 
-Requires `TELEGRAM_TOKEN` env var. If not set, notifications silently skip.
+1. commit required changes
+2. push the branch
+3. open a pull request if main is protected
+4. merge the pull request
+5. verify CI
+6. verify deployment
+7. verify the live behavior when possible
 
-## WORK CYCLE
-When you start a session:
-1. read AI_WORK.md
-2. read CLAUDE.md
-3. read AI_STATUS.md
-4. **send Telegram session-start notification**: `powershell -ExecutionPolicy Bypass -File scripts/notify-session-start.ps1`
-5. inspect the repo
-6. choose the next highest-value blocker
-7. execute the smallest safe fix
-8. verify
-9. update AI_STATUS.md
-10. **send Telegram task-done notification**: `powershell -ExecutionPolicy Bypass -File scripts/notify-task-done.ps1 "<task>"`
-11. commit
-12. push
-13. continue
+If direct push to main is blocked:
+recover automatically via pull request flow.
 
-## FILE OWNERSHIP RULE
-AI_STATUS.md must stay current.
-After every meaningful change:
-- update current status
-- update blocker list
-- update next recommended action
-- update what was verified
+Do not stop at "code fixed" if deployment is required.
 
-## DECISION RULE
-If unsure between two tasks, choose the one closer to:
-missed call -> SMS -> AI -> booking -> calendar
+---
 
-## OUTPUT STANDARD
-Every meaningful completed step must leave:
-- code or repo change
-- verification evidence
-- updated AI_STATUS.md
-- commit
-- push
+## Secret Handling Rule
 
-## Operating rules (must follow)
+Never print, echo, expose, or quote:
 
-1) Work ONLY on a new branch: ai/<task-name>
-2) Do NOT refactor unrelated code
-3) Minimal patch only
-4) Always run:
+* tokens
+* passwords
+* cookies
+* auth headers
+* API keys
+* git credential output
+* environment secrets
 
-docker compose -f infra/docker-compose.yml build api
-docker compose -f infra/docker-compose.yml up -d
+Never display credential values from:
 
-5) Output must include:
-- files changed
-- git diff
-- commands executed
-- docker build result
+* git credential helpers
+* environment variables
+* CLI authentication output
+* configuration files
 
-6) Never invent secrets or API keys
+If authentication is missing:
+report only that authentication is missing.
 
-## Commands
+Never reveal secret values.
 
-All commands run from `apps/api/`:
+---
 
-```bash
-npm run dev          # Start API with hot reload (tsx watch)
-npm run build        # Compile TypeScript -> dist/
-npm run typecheck    # Type-check without emitting
-npm run lint         # ESLint on src/
-npm run test         # Run all tests (vitest)
-npm run db:migrate   # Run DB migrations
-```
+## Status System
 
-Run a single test file:
-```bash
-npx vitest run src/tests/tenants.test.ts
-```
+Project state lives in:
 
-Start the full local stack (Postgres, Redis, n8n, n8n_worker, API):
-```bash
-cd infra && docker compose up
-```
+project-brain/project_status.md
+project-brain/project_status.json
 
-## Architecture
+Rules:
 
-**Flow:** Twilio (missed call / SMS) -> Fastify API -> BullMQ queue -> n8n worker -> OpenAI -> Twilio SMS reply -> Google Calendar
+* update status only if project reality changed
+* keep md/json aligned
+* do not change stage percentages unless justified
+* when uncertain, round progress down
 
-The API (`apps/api/`) is purely an ingress and enqueue layer -- it does no AI processing itself. All heavy work (AI, SMS sending, calendar sync, Twilio provisioning) runs asynchronously in n8n workflows that consume BullMQ queues.
+---
 
-**Key architectural rules:**
-- Every Twilio webhook must respond with `<Response/>` TwiML within ~15s or Twilio retries. The API always returns 200 immediately and enqueues a job.
-- All tenant-scoped DB queries must use `withTenant(tenantId, fn)` from `db/client.ts`, which sets `app.current_tenant_id` for Postgres RLS enforcement. Never bypass this for tenant data.
-- All webhook endpoints (Twilio SMS, voice-status) go through the `validateTwilioSignature` preHandler. This can be bypassed in dev via `SKIP_TWILIO_VALIDATION=true` but must be `false` in staging/production.
-- Idempotency is enforced at every entry point using `checkIdempotency` / `markIdempotency` (Redis, 24h TTL) keyed on `MessageSid` / `CallSid` / Stripe `event.id`.
+## Work Cycle
 
-**Multi-tenancy:** Each tenant has a dedicated Twilio phone number. Inbound webhooks arrive at `To` (the shop's number), which is used to look up the tenant via `tenant_phone_numbers`. Tenant data isolation is enforced via Postgres RLS (migrations `002_rls.sql`, `003_functions.sql`).
+At session start:
 
-**Billing state machine** (`db/tenants.ts` + `routes/webhooks/stripe.ts`):
-- Trial: hard block at 50 conversations or 14 days
-- Paid (starter/pro/premium): soft limit only -- AI sends upgrade nudge, never drops silently
-- `past_due` -> 3-day grace period -> `past_due_blocked` if unpaid
-- Stripe price IDs map to plan slugs via env vars `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_PREMIUM`
+1. read `AI_WORK.md`
+2. read `AI_STATUS.md`
+3. read `project-brain/project_status.md`
+4. read `project-brain/project_status.json`
 
-**BullMQ queues** (defined in `queues/redis.ts`):
-- `sms-inbound` -- inbound SMS and missed-call triggers (consumed by n8n WF-001/WF-002)
-- `provision-number` -- async Twilio number provisioning (n8n WF-007)
-- `billing-events` -- grace period checks
-- `calendar-sync` -- Google Calendar sync jobs
+Then:
 
-**n8n workflows** (import via n8n UI from `n8n/workflows/`):
-- `twilio-sms-ingest.json` (WF-001): SMS -> tenant lookup -> set RLS context -> AI
-- `ai-worker.json` (WF-002): OpenAI `gpt-4o-mini` -> booking detection -> send reply -> close conversation
-- `provision-number.json` (WF-007): Buy Twilio number -> save to DB -> welcome email
+1. inspect repository
+2. select the highest-value blocker
+3. implement the smallest safe fix
+4. verify
+5. run verification
 
-**DB schema** key tables: `tenants`, `tenant_phone_numbers`, `conversations`, `messages`, `appointments`, `tenant_calendar_tokens`, `billing_events`, `system_prompts`, `conversation_cooldowns`. Migrations auto-apply on Postgres container start (mounted to `/docker-entrypoint-initdb.d`).
-
-## Environment Variables
-
-Required at minimum: `DATABASE_URL`, `REDIS_URL`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `OPENAI_API_KEY`. See `.env.example` for the full list.
-
-## Autonomous execution rules
-
-Claude should operate in execution-first mode.
-
-Do NOT ask routine confirmation questions if the repository context is sufficient.
-
-Claude must only ask for clarification when:
-1. Secrets or credentials are required
-2. A destructive database operation is required
-3. Multiple architecture paths exist with major business impact
-
-After every completed task Claude MUST:
-
-1. Update AI_WORK.md with:
-   - What was implemented
-   - What files changed
-   - What passed/failed
-2. Suggest the next highest-value task for the repository.
-
-## AI Audit Trail
-
-Claude must leave a repository-visible audit trail after every completed task.
-
-Required updates after each completed task:
-1. Update AI_STATUS.md with:
-   - task name
-   - branch
-   - commit hash
-   - verification result
-   - checks passed
-   - files changed
-   - date
-
-2. Update AI_TASKS.md:
-   - move completed task from OPEN to DONE
-
-3. Use commit messages starting with:
-   AI:
-
-Do not rewrite unrelated sections.
-
-Claude should always prefer:
-- small patches
-- minimal changes
-- preserving working systems
-
-## Mandatory verification before committing
-
-Before committing any code Claude MUST run:
-
-```bash
 bash scripts/ai-verify.sh
-```
 
-If verification fails Claude must fix the problem before pushing.
+6. update AI_STATUS.md
+7. update project status if reality changed
+8. send completion notification
+9. commit
+10. push
 
-## Autonomous AI Workflow
+---
 
-Claude must follow this workflow:
+## Live Verification Rule
 
-1. Read AI_TASKS.md
-2. Select the first OPEN task
-3. Create branch ai/<task-name>
-4. Implement the smallest safe patch
-5. Run verification:
+If a task affects production behavior:
 
-```bash
-bash scripts/ai-verify.sh
-```
+Verify the live endpoint, service, or UI behavior when possible.
 
-6. Commit changes
-7. Push branch
-8. Open PR
-9. Mark the task DONE in AI_TASKS.md
+If authentication blocks full verification:
 
-## B-Lite Operating Model
+state exactly what was verified publicly and what requires authenticated confirmation.
 
-This project uses the B-Lite AI development operating model.
-Full details are in `project-brain/b-lite_operating_model.md`.
+---
 
-### Session startup (mandatory)
+## Output Format
 
-At the start of every session, before doing any work, read:
-1. `project-brain/rules.md` — hard guardrails
-2. `project-brain/b-lite_operating_model.md` — workflow and roles
-3. `project-brain/project_status.md` — current project state
+Return:
 
-### Mandatory dual status update protocol
-
-Both `project-brain/project_status.md` and `project-brain/project_status.json` are required project control files.
-Both MUST be updated after every meaningful task. A task is NOT done if either file was not updated when reality changed.
-
-- `project_status.md` is the human-readable status view
-- `project_status.json` is the machine-readable status source (used for dashboards and task generation)
-- Both must stay synchronized — neither may drift from the other
-
-Before finishing any task, check:
-- Did progress change? → Update Stage Progress / Progress Model + recalculate Project Completion Estimate
-- Did tasks move? → Update Active Tasks (todo / in progress / done)
-- Did blockers appear? → Update Blocked Items (with required action, owner, affected stages)
-- Did focus shift? → Update Current Focus
-- Was anything changed? → Add dated entry to Recent Changes
-- Is owner input needed? → Update Next Owner Decision
-
-If any answer is yes → update **both** `project_status.md` **and** `project_status.json` before finishing.
-If no update is needed → explicitly state why in the response.
-
-### Response format (end of every task)
-
-1. Changed files
-2. Whether `project_status.md` was updated
-3. Whether `project_status.json` was updated
-4. Exact sections updated in both status files
-5. Any blockers added
-6. Recommended `git add` command (must include both `project-brain/project_status.md` and `project-brain/project_status.json` if they changed)
-
-### Progress discipline
-
-- Stage percentages only advance when completion criteria objectively move
-- Blocked stages stay frozen at last verified progress
-- Code-complete but unverified stages are capped at 40–50%
-- When uncertain, round down
-
-### Task generation protocol
-
-Before proposing next steps or recommending tasks:
-1. Read `project-brain/project_status.json` — this is the authoritative source for project state
-2. Follow `project-brain/task_generation_rules.md` — all task proposals must comply with these rules
-3. Proposed tasks must cite the specific stage, blocker, or `active_tasks` item they derive from
-4. Use `project-brain/next_tasks_template.md` as the output format for task recommendations
-
-### Safety rules (B-Lite)
-
-- Do not modify production workflows (US_AutoShop, LT_Proteros)
-- Do not edit credentials, deploy scripts, or CI pipelines
-- Work on feature branches only, never commit directly to main
+1. files changed
+2. verification commands run
+3. verification result
+4. status files updated (yes/no)
+5. blockers discovered
+6. next recommended task
