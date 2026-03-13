@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse Twilio-format SMS payload and build AI prompt.\n// NO $env access — secrets are read via expressions in HTTP Request nodes.\nconst from = ($json.body?.From || $json.From || '').toString();\nconst to = ($json.body?.To || $json.To || '').toString();\nconst text = ($json.body?.Body || $json.Body || '').toString().trim();\nconst messageSid = ($json.body?.MessageSid || $json.MessageSid || 'SMdemo').toString();\nconst profileName = ($json.body?.ProfileName || $json.ProfileName || '').toString();\n\nconst bookingIntent = /(book|appointment|schedule|tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|am|pm|oil|brake|tires?|diagnostic|repair|service)/i.test(text);\n\nlet serviceType = 'general service';\nif (/oil/i.test(text)) serviceType = 'oil change';\nelse if (/brake/i.test(text)) serviceType = 'brake service';\nelse if (/tire|tyre/i.test(text)) serviceType = 'tire service';\nelse if (/diagnostic/i.test(text)) serviceType = 'diagnostic';\nelse if (/battery/i.test(text)) serviceType = 'battery service';\nelse if (/engine/i.test(text)) serviceType = 'engine repair';\n\nconst currentDate = new Date().toISOString();\n\nconst systemPrompt = `You are AutoShop AI, an SMS booking assistant for an auto repair shop.\\nYour job:\\n1. Reply like a real service advisor by SMS.\\n2. Be concise, helpful, and natural.\\n3. If the customer wants to book, collect missing info.\\n4. Extract booking info when present.\\n5. Never use markdown.\\n6. Return STRICT JSON only.\\n\\nBusiness context:\\n- Shop name: AutoShop AI\\n- Channel: SMS\\n- Goal: convert inbound SMS into appointment booking\\n- Timezone: America/Chicago\\n- Current timestamp: ${currentDate}\\n\\nReturn JSON exactly in this shape:\\n{\\n  \\\"reply_text\\\": \\\"string\\\",\\n  \\\"booking_intent\\\": true,\\n  \\\"customer_name\\\": \\\"string\\\",\\n  \\\"service_type\\\": \\\"string\\\",\\n  \\\"requested_time_text\\\": \\\"ISO 8601 datetime string e.g. 2026-03-10T10:00:00-06:00 or empty string if unknown\\\",\\n  \\\"needs_more_info\\\": true,\\n  \\\"calendar_summary\\\": \\\"string\\\",\\n  \\\"calendar_description\\\": \\\"string\\\"\\n}\\n\\nRules:\\n- booking_intent = true if the person appears to want service or scheduling.\\n- If date/time is unclear, ask for it in reply_text and set needs_more_info = true.\\n- If service type is unclear, ask for it.\\n- requested_time_text MUST be a valid ISO 8601 string when a specific date and time is known. Use America/Chicago timezone offset (-06:00 CDT or -05:00 CST). Empty string if unknown.\\n- Set needs_more_info = false only when you have: service type AND specific date AND specific time.\\n- Keep reply_text short enough for SMS.\\n- calendar_summary should be short.\\n- calendar_description should include the original SMS.`;\n\nconst userPrompt = `Inbound customer SMS:\\nFrom: ${from}\\nProfile Name: ${profileName}\\nMessage: ${text}\\n\\nHeuristic booking intent: ${bookingIntent}\\nHeuristic service type: ${serviceType}`;\n\nreturn [{\n  json: {\n    from,\n    to,\n    body: text,\n    message_sid: messageSid,\n    profile_name: profileName,\n    booking_intent_heuristic: bookingIntent,\n    service_type_heuristic: serviceType,\n    openai_request_body: JSON.stringify({\n      model: 'gpt-4o-mini',\n      temperature: 0.2,\n      messages: [\n        { role: 'system', content: systemPrompt },\n        { role: 'user', content: userPrompt }\n      ]\n    })\n  }\n}];"
+        "jsCode": "// Parse Twilio-format SMS payload and build AI prompt.\n// ZERO $env usage — all credentials handled by n8n credential system.\nconst from = ($json.body?.From || $json.From || '').toString();\nconst to = ($json.body?.To || $json.To || '').toString();\nconst text = ($json.body?.Body || $json.Body || '').toString().trim();\nconst messageSid = ($json.body?.MessageSid || $json.MessageSid || 'SMdemo').toString();\nconst profileName = ($json.body?.ProfileName || $json.ProfileName || '').toString();\n\nconst bookingIntent = /(book|appointment|schedule|tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|am|pm|oil|brake|tires?|diagnostic|repair|service)/i.test(text);\n\nlet serviceType = 'general service';\nif (/oil/i.test(text)) serviceType = 'oil change';\nelse if (/brake/i.test(text)) serviceType = 'brake service';\nelse if (/tire|tyre/i.test(text)) serviceType = 'tire service';\nelse if (/diagnostic/i.test(text)) serviceType = 'diagnostic';\nelse if (/battery/i.test(text)) serviceType = 'battery service';\nelse if (/engine/i.test(text)) serviceType = 'engine repair';\n\nconst currentDate = new Date().toISOString();\n\nconst systemPrompt = `You are AutoShop AI, an SMS booking assistant for an auto repair shop.\\nYour job:\\n1. Reply like a real service advisor by SMS.\\n2. Be concise, helpful, and natural.\\n3. If the customer wants to book, collect missing info.\\n4. Extract booking info when present.\\n5. Never use markdown.\\n6. Return STRICT JSON only.\\n\\nBusiness context:\\n- Shop name: AutoShop AI\\n- Channel: SMS\\n- Goal: convert inbound SMS into appointment booking\\n- Timezone: America/Chicago\\n- Current timestamp: ${currentDate}\\n\\nReturn JSON exactly in this shape:\\n{\\n  \\\"reply_text\\\": \\\"string\\\",\\n  \\\"booking_intent\\\": true,\\n  \\\"customer_name\\\": \\\"string\\\",\\n  \\\"service_type\\\": \\\"string\\\",\\n  \\\"requested_time_text\\\": \\\"ISO 8601 datetime string e.g. 2026-03-10T10:00:00-06:00 or empty string if unknown\\\",\\n  \\\"needs_more_info\\\": true,\\n  \\\"calendar_summary\\\": \\\"string\\\",\\n  \\\"calendar_description\\\": \\\"string\\\"\\n}\\n\\nRules:\\n- booking_intent = true if the person appears to want service or scheduling.\\n- If date/time is unclear, ask for it in reply_text and set needs_more_info = true.\\n- If service type is unclear, ask for it.\\n- requested_time_text MUST be a valid ISO 8601 string when a specific date and time is known. Use America/Chicago timezone offset (-06:00 CDT or -05:00 CST). Empty string if unknown.\\n- Set needs_more_info = false only when you have: service type AND specific date AND specific time.\\n- Keep reply_text short enough for SMS.\\n- calendar_summary should be short.\\n- calendar_description should include the original SMS.`;\n\nconst userPrompt = `Inbound customer SMS:\\nFrom: ${from}\\nProfile Name: ${profileName}\\nMessage: ${text}\\n\\nHeuristic booking intent: ${bookingIntent}\\nHeuristic service type: ${serviceType}`;\n\nreturn [{\n  json: {\n    from,\n    to,\n    body: text,\n    message_sid: messageSid,\n    profile_name: profileName,\n    booking_intent_heuristic: bookingIntent,\n    service_type_heuristic: serviceType,\n    openai_request_body: JSON.stringify({\n      model: 'gpt-4o-mini',\n      temperature: 0.2,\n      messages: [\n        { role: 'system', content: systemPrompt },\n        { role: 'user', content: userPrompt }\n      ]\n    })\n  }\n}];"
       },
       "id": "d-prepare",
       "name": "Prepare AI Prompt",
@@ -30,10 +30,11 @@
       "parameters": {
         "method": "POST",
         "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "=Bearer {{ $env.OPENAI_API_KEY }}" },
             { "name": "Content-Type", "value": "application/json" }
           ]
         },
@@ -49,7 +50,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse OpenAI response — no $env needed\nconst raw = $json.choices?.[0]?.message?.content || '{}';\nlet parsed;\ntry {\n  parsed = JSON.parse(raw);\n} catch (e) {\n  parsed = {\n    reply_text: 'Thanks for contacting AutoShop AI. What service do you need and what day/time works for you?',\n    booking_intent: true,\n    customer_name: '',\n    service_type: 'general service',\n    requested_time_text: '',\n    needs_more_info: true,\n    calendar_summary: 'AutoShop appointment inquiry',\n    calendar_description: `Raw AI parse failed. Original response: ${raw}`\n  };\n}\n\nconst base = $('Prepare AI Prompt').first().json;\n\nreturn [{\n  json: {\n    ...base,\n    ai_raw: raw,\n    reply_text: parsed.reply_text || 'Thanks for contacting AutoShop AI. What service do you need?',\n    booking_intent: !!parsed.booking_intent,\n    customer_name: parsed.customer_name || '',\n    service_type: parsed.service_type || base.service_type_heuristic || 'general service',\n    requested_time_text: parsed.requested_time_text || '',\n    needs_more_info: parsed.needs_more_info !== undefined ? !!parsed.needs_more_info : true,\n    calendar_summary: parsed.calendar_summary || 'AutoShop appointment inquiry',\n    calendar_description: parsed.calendar_description || ''\n  }\n}];"
+        "jsCode": "// Parse OpenAI response — zero $env\nconst raw = $json.choices?.[0]?.message?.content || '{}';\nlet parsed;\ntry {\n  parsed = JSON.parse(raw);\n} catch (e) {\n  parsed = {\n    reply_text: 'Thanks for contacting AutoShop AI. What service do you need and what day/time works for you?',\n    booking_intent: true,\n    customer_name: '',\n    service_type: 'general service',\n    requested_time_text: '',\n    needs_more_info: true,\n    calendar_summary: 'AutoShop appointment inquiry',\n    calendar_description: `Raw AI parse failed. Original response: ${raw}`\n  };\n}\n\nconst base = $('Prepare AI Prompt').first().json;\n\nreturn [{\n  json: {\n    ...base,\n    ai_raw: raw,\n    reply_text: parsed.reply_text || 'Thanks for contacting AutoShop AI. What service do you need?',\n    booking_intent: !!parsed.booking_intent,\n    customer_name: parsed.customer_name || '',\n    service_type: parsed.service_type || base.service_type_heuristic || 'general service',\n    requested_time_text: parsed.requested_time_text || '',\n    needs_more_info: parsed.needs_more_info !== undefined ? !!parsed.needs_more_info : true,\n    calendar_summary: parsed.calendar_summary || 'AutoShop appointment inquiry',\n    calendar_description: parsed.calendar_description || ''\n  }\n}];"
       },
       "id": "d-parse",
       "name": "Parse AI JSON",
@@ -59,7 +60,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Calendar integration placeholder — no $env, no external calls.\n// Google Calendar will be connected via n8n credential UI once OAuth2 is configured.\n// For now, detect booking intent and prepare data for future calendar integration.\nconst ai = $json;\nconst canBook = ai.booking_intent && !ai.needs_more_info && ai.requested_time_text;\n\nlet calendarStatus = 'not_configured';\nlet googleEventId = null;\nlet googleEventLink = null;\n\nif (!canBook) {\n  calendarStatus = ai.booking_intent ? 'needs_more_info' : 'no_booking_intent';\n} else {\n  const start = new Date(ai.requested_time_text);\n  if (isNaN(start.getTime())) {\n    calendarStatus = 'invalid_time';\n  } else {\n    calendarStatus = 'booking_detected_calendar_pending';\n  }\n}\n\nreturn [{\n  json: {\n    ...ai,\n    google_event_id: googleEventId,\n    google_event_link: googleEventLink,\n    calendar_status: calendarStatus\n  }\n}];"
+        "jsCode": "// Calendar placeholder — zero $env, zero external calls.\n// Google Calendar will be connected via n8n credential UI when ready.\nconst ai = $json;\nconst canBook = ai.booking_intent && !ai.needs_more_info && ai.requested_time_text;\n\nlet calendarStatus = 'not_configured';\n\nif (!canBook) {\n  calendarStatus = ai.booking_intent ? 'needs_more_info' : 'no_booking_intent';\n} else {\n  const start = new Date(ai.requested_time_text);\n  if (isNaN(start.getTime())) {\n    calendarStatus = 'invalid_time';\n  } else {\n    calendarStatus = 'booking_detected_calendar_pending';\n  }\n}\n\nreturn [{\n  json: {\n    ...ai,\n    google_event_id: null,\n    google_event_link: null,\n    calendar_status: calendarStatus\n  }\n}];"
       },
       "id": "d-calendar",
       "name": "Calendar Status",
@@ -69,7 +70,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build final reply and Twilio config.\n// Non-secret configuration — edit these values directly in n8n UI:\nconst DEMO_RECIPIENT = '+37067577829';\n\nconst data = $input.first().json;\n\nreturn [{\n  json: {\n    ...data,\n    final_reply_text: data.reply_text,\n    demo_to: DEMO_RECIPIENT\n  }\n}];"
+        "jsCode": "// Build final reply and Twilio config.\n// ZERO $env — all config is hardcoded constants below.\n// ═══════════════════════════════════════════════════\n// CONFIGURATION: Edit these 3 values in the n8n UI:\nconst DEMO_RECIPIENT = '+37067577829';\nconst TWILIO_ACCOUNT_SID = 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';\nconst TWILIO_MESSAGING_SID = 'MGxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';\n// ═══════════════════════════════════════════════════\n\nconst data = $input.first().json;\n\nreturn [{\n  json: {\n    ...data,\n    final_reply_text: data.reply_text,\n    demo_to: DEMO_RECIPIENT,\n    twilio_url: `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`,\n    twilio_messaging_service_sid: TWILIO_MESSAGING_SID\n  }\n}];"
       },
       "id": "d-compose",
       "name": "Compose Demo Reply",
@@ -80,20 +81,16 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://api.twilio.com/2010-04-01/Accounts/{{ $env.TWILIO_ACCOUNT_SID }}/Messages.json",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "Authorization", "value": "=Basic {{ Buffer.from(($env.TWILIO_ACCOUNT_SID || '') + ':' + ($env.TWILIO_AUTH_TOKEN || '')).toString('base64') }}" }
-          ]
-        },
+        "url": "={{ $json.twilio_url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "twilioApi",
         "sendBody": true,
         "contentType": "form-urlencoded",
         "bodyParameters": {
           "parameters": [
             { "name": "To", "value": "={{ $json.demo_to }}" },
             { "name": "Body", "value": "={{ $json.final_reply_text }}" },
-            { "name": "MessagingServiceSid", "value": "={{ $env.TWILIO_MESSAGING_SERVICE_SID }}" }
+            { "name": "MessagingServiceSid", "value": "={{ $json.twilio_messaging_service_sid }}" }
           ]
         },
         "options": {}
@@ -107,7 +104,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Format clean demo response for webhook caller.\nconst tw = $json;\nconst data = $('Compose Demo Reply').first().json;\n\nreturn [{\n  json: {\n    demo: true,\n    inbound_message: data.body,\n    from: data.from,\n    ai_reply: data.reply_text,\n    booking_intent: data.booking_intent,\n    service_type: data.service_type,\n    requested_time_text: data.requested_time_text || '',\n    needs_more_info: data.needs_more_info,\n    calendar_summary: data.calendar_summary,\n    calendar_status: data.calendar_status || 'skipped',\n    google_event_id: data.google_event_id || null,\n    google_event_link: data.google_event_link || null,\n    twilio_to: data.demo_to,\n    twilio_message_sid: tw.sid || null,\n    twilio_status: tw.status || null,\n    twilio_error: tw.message || null,\n    model: 'gpt-4o-mini'\n  }\n}];"
+        "jsCode": "// Format clean demo response — zero $env.\nconst tw = $json;\nconst data = $('Compose Demo Reply').first().json;\n\nreturn [{\n  json: {\n    demo: true,\n    inbound_message: data.body,\n    from: data.from,\n    ai_reply: data.reply_text,\n    booking_intent: data.booking_intent,\n    service_type: data.service_type,\n    requested_time_text: data.requested_time_text || '',\n    needs_more_info: data.needs_more_info,\n    calendar_summary: data.calendar_summary,\n    calendar_status: data.calendar_status || 'skipped',\n    google_event_id: data.google_event_id || null,\n    google_event_link: data.google_event_link || null,\n    twilio_to: data.demo_to,\n    twilio_message_sid: tw.sid || null,\n    twilio_status: tw.status || null,\n    twilio_error: tw.message || null,\n    model: 'gpt-4o-mini'\n  }\n}];"
       },
       "id": "d-format",
       "name": "Format Demo Response",
@@ -142,5 +139,5 @@
   "active": true,
   "settings": { "executionOrder": "v1" },
   "pinData": {},
-  "versionId": "demo-sms-v5"
+  "versionId": "demo-sms-v6"
 }
