@@ -24,7 +24,7 @@ Lightweight AI-assisted development workflow for the AutoShop SMS AI project.
        ↓
 5. Builder runs verification (scripts/ai-verify.sh)
        ↓
-6. Builder updates project-brain/project_status.md
+6. Builder updates project-brain/project_status.md AND project_status.json
        ↓
 7. Builder opens PR
        ↓
@@ -45,45 +45,52 @@ Each gate must pass before proceeding to the next step.
 | **Scope check** | Only files relevant to the task are modified | Builder self-check |
 | **Production protection** | No changes to US_AutoShop, LT_Proteros, deploy scripts, CI | Builder + code review |
 | **Verification** | `bash scripts/ai-verify.sh` passes | Builder |
-| **Status update** | `project_status.md` reflects the change | Builder + PR review |
+| **Status update** | Both `project_status.md` and `project_status.json` reflect the change consistently | Builder + PR review |
 | **Code review** | PR approved by Owner before merge | GitHub branch protection |
 | **CI green** | GitHub Actions checks pass | GitHub Actions |
 
-## Mandatory Status Update Protocol
+## Mandatory Dual Status Update Protocol
 
-`project-brain/project_status.md` is a **required deliverable** for every task. This is non-negotiable.
+Both status files are **required deliverables** for every task. This is non-negotiable.
+
+- `project-brain/project_status.md` — human-readable status view (for Owner review and PR descriptions)
+- `project-brain/project_status.json` — machine-readable status source (for dashboards, task generation, and automation)
+
+Both files must stay synchronized. Neither may drift from the other.
 
 ### What the Builder must do before finishing any task
 
-1. Open `project-brain/project_status.md`
-2. Update all applicable sections:
+1. Open **both** `project-brain/project_status.md` **and** `project-brain/project_status.json`
+2. Update all applicable sections in both files:
    - **Project Completion Estimate** — recalculate if weighted progress changed
    - **Current Focus** — update if active priority shifted
    - **Stage Progress / Progress Model** — update if any stage advanced or regressed
    - **Active Tasks** — move items between todo / in progress / done as appropriate
    - **Blocked Items** — add new blockers with required action, owner, and affected stages
-   - **Recent Changes** — add a dated row for every meaningful change made
+   - **Recent Changes** — add a dated entry for every meaningful change made
    - **Next Owner Decision** — add if owner input is now required
-3. Include `project-brain/project_status.md` in the `git add` command
-4. In the final response, list exactly which sections were updated
-5. If genuinely no update is needed, state why explicitly
+3. Verify consistency: the `.md` and `.json` must reflect the same state
+4. Include both files in the `git add` command
+5. In the final response, list exactly which sections of both files were updated
+6. If genuinely no update is needed, state why explicitly
 
 ### Strict completion rule
 
-A task is **NOT done** unless both conditions are met:
+A task is **NOT done** unless all three conditions are met:
 - The implementation / documentation work is completed
 - `project-brain/project_status.md` has been updated to reflect reality
+- `project-brain/project_status.json` has been updated to reflect reality and is consistent with the `.md` file
 
 ### PR requirements
 
-- PR description must state which sections of `project_status.md` were updated
-- Reviewer (Owner) should verify that `project_status.md` accurately reflects the change
+- PR description must state which sections of both status files were updated
+- Reviewer (Owner) should verify that both files accurately reflect the change and are consistent with each other
 
 ### Owner responsibilities
 
-- Review `project_status.md` at the start of each session
-- Use it as the single entry point for understanding current project state
-- Flag any status entries that look overstated or stale
+- Review `project_status.md` at the start of each session for human-readable context
+- Use `project_status.json` as the machine-readable source for dashboards and task generation
+- Flag any entries where the two files are inconsistent or stale
 
 ## Definition of Done
 
@@ -91,15 +98,15 @@ A task is complete when ALL of the following are true:
 
 - [ ] Code change is implemented on a feature branch
 - [ ] `bash scripts/ai-verify.sh` passes (for code changes)
-- [ ] `project-brain/project_status.md` is updated (Active Tasks, Stage Progress, Recent Changes — at minimum)
-- [ ] Final response lists exactly which `project_status.md` sections were updated
+- [ ] Both `project-brain/project_status.md` and `project-brain/project_status.json` are updated and consistent
+- [ ] Final response lists exactly which sections of both status files were updated
 - [ ] PR is opened with clear description of changes
 - [ ] No production workflows, deploy scripts, or credentials were modified
 - [ ] PR is reviewed and merged by Owner
 
 ## Progress Update Discipline
 
-Stage progress in `project_status.md` must follow conservative rules:
+Stage progress in both `project_status.md` and `project_status.json` must follow conservative rules:
 
 - **Percentages only change when completion criteria objectively move.** Writing code is not the same as delivering a working feature.
 - **Blocked work does not count as progress.** If a stage is blocked on credentials or external action, its percentage stays frozen at the last verified state.

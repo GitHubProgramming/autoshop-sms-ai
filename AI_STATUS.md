@@ -9,6 +9,41 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: stripe-webhook-tests — 2026-03-13
+
+**Branch:** ai/lt-proteros-sms-test-flow
+**Status:** COMPLETE — 20 tests added for Stripe webhook endpoint
+
+### What Was Done
+Added comprehensive test coverage for `POST /webhooks/stripe` covering:
+- Signature validation (missing secret → 500, invalid sig → 400, valid → 200)
+- Idempotency (duplicate event skips processing, marks key on first)
+- Billing event logging (INSERT into billing_events for every event)
+- `customer.subscription.created` — sets active + plan + limits, provisions Twilio number
+- `customer.subscription.updated` — updates plan without provisioning
+- `invoice.payment_succeeded` — resets cycle counters
+- `invoice.payment_failed` — sets past_due + schedules 3-day grace check
+- `customer.subscription.deleted` — sets canceled
+- `charge.dispute.created` — pauses tenant
+- Plan mapping (starter/pro/premium price IDs + unknown defaults to starter)
+- Missing tenant_id in metadata (logs but does not route)
+- Area code extraction from owner phone (+ default 512)
+
+### Verification
+- 20/20 tests pass
+- All 53 tests pass across 4 test files (tenants, sms-inbound, voice-status, stripe-webhook)
+- No TypeScript errors in new file
+- Pre-existing issues unchanged (missing ESLint config, TS error in sms-inbound.test.ts:202)
+
+### Files Changed
+- `apps/api/src/tests/stripe-webhook.test.ts` — NEW (20 tests)
+- `project-brain/project_status.md` — Stage 6 progress 20→25%, overall 38→39%
+- `project-brain/project_status.json` — synchronized
+- `AI_TASKS.md` — task marked DONE
+- `AI_STATUS.md` — this entry
+
+---
+
 ## TASK: deploy-duplicate-safe — 2026-03-11
 
 **Branch:** ai/deploy-duplicate-safe

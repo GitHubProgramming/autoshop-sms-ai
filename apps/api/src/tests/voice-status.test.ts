@@ -192,4 +192,119 @@ describe("POST /webhooks/twilio/voice-status", () => {
     expect(mocks.add).not.toHaveBeenCalled();
     await app.close();
   });
+
+  it("enqueues a missed-call-trigger job for failed status", async () => {
+    const app = await buildApp();
+
+    await app.inject({
+      method: "POST",
+      url: "/webhooks/twilio/voice-status",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: voicePayload({ CallStatus: "failed" }),
+    });
+
+    expect(mocks.add).toHaveBeenCalledOnce();
+    expect(mocks.add.mock.calls[0][1]).toMatchObject({ triggerType: "missed_call" });
+    await app.close();
+  });
+
+  it("does NOT enqueue for ringing or in-progress calls", async () => {
+    const app = await buildApp();
+
+    for (const status of ["ringing", "in-progress", "queued"]) {
+      vi.clearAllMocks();
+      mocks.getTenantByPhoneNumber.mockResolvedValue(MOCK_TENANT);
+      mocks.checkIdempotency.mockResolvedValue(false);
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/webhooks/twilio/voice-status",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        payload: voicePayload({ CallStatus: status }),
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(mocks.add).not.toHaveBeenCalled();
+    }
+    await app.close();
+  });
+
+  it("writes idempotency key to Redis for missed calls", async () => {
+    const app = await buildApp();
+
+    await app.inject({
+      method: "POST",
+      url: "/webhooks/twilio/voice-status",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: voicePayload({ CallStatus: "no-answer" }),
+    });
+
+    expect(mocks.markIdempotency).toHaveBeenCalledWith(`voice:${TEST_CALL_SID}`);
+    await app.close();
+  });
+
+  it("does not write idempotency key on duplicate", async () => {
+    mocks.checkIdempotency.mockResolvedValueOnce(true);
+
+    const app = await buildApp();
+    await app.inject({
+      method: "POST",
+      url: "/webhooks/twilio/voice-status",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: voicePayload({ CallStatus: "no-answer" }),
+    });
+
+    expect(mocks.markIdempotency).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("enqueues with priority 1 for fast missed-call response", async () => {
+    const app = await buildApp();
+
+    await app.inject({
+      method: "POST",
+      url: "/webhooks/twilio/voice-status",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: voicePayload({ CallStatus: "no-answer" }),
+    });
+
+    expect(mocks.add).toHaveBeenCalledWith(
+      "missed-call-trigger",
+      expect.anything(),
+      expect.objectContaining({ priority: 1 })
+    );
+    await app.close();
+  });
+
+  it("returns 400 for invalid body (missing required fields)", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/webhooks/twilio/voice-status",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: new URLSearchParams({ CallSid: TEST_CALL_SID }).toString(),
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(mocks.add).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("includes callStatus in enqueued job payload", async () => {
+    const app = await buildApp();
+
+    await app.inject({
+      method: "POST",
+      url: "/webhooks/twilio/voice-status",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: voicePayload({ CallStatus: "busy" }),
+    });
+
+    expect(mocks.add).toHaveBeenCalledWith(
+      "missed-call-trigger",
+      expect.objectContaining({ callStatus: "busy" }),
+      expect.anything()
+    );
+    await app.close();
+  });
 });

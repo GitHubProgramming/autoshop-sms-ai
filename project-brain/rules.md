@@ -44,15 +44,18 @@ Before committing any code change:
 - Do not expand scope unless required by the core flow
 - Preserve existing working systems
 
-## Mandatory Status Update Protocol
+## Mandatory Dual Status Update Protocol
 
-`project-brain/project_status.md` is the single source of truth for project progress.
+Both `project-brain/project_status.md` and `project-brain/project_status.json` are authoritative status files.
 
-**This is a non-negotiable execution requirement.** Every task — code, documentation, or workflow — must include a `project_status.md` update as a required deliverable. A task without a status update is incomplete.
+- `project_status.md` — human-readable status view
+- `project_status.json` — machine-readable status source (used for dashboards and task generation)
+
+**This is a non-negotiable execution requirement.** Every task — code, documentation, or workflow — must include updates to **both** status files as a required deliverable. A task without synchronized status updates is incomplete.
 
 ### Required steps before finishing any task
 
-1. Update `project-brain/project_status.md`
+1. Update **both** `project-brain/project_status.md` **and** `project-brain/project_status.json`
 2. Reflect changes in all applicable sections:
    - **Project Completion Estimate** — if weighted progress changed
    - **Current Focus** — if the active priority shifted
@@ -61,15 +64,17 @@ Before committing any code change:
    - **Blocked Items** — add new blockers with required action, owner, and affected stages
    - **Recent Changes** — add a dated entry for every meaningful change
    - **Next Owner Decision** — if owner input is now needed
-3. In your final response, state exactly which sections of `project_status.md` were updated
-4. Include `project-brain/project_status.md` in the recommended `git add` command
-5. If no status update is needed, explicitly justify why — but the default assumption is that every meaningful task requires one
+3. Ensure both files reflect the same state — neither may drift from the other
+4. In your final response, state exactly which sections of both status files were updated
+5. Include both `project-brain/project_status.md` and `project-brain/project_status.json` in the recommended `git add` command
+6. If no status update is needed, explicitly justify why — but the default assumption is that every meaningful task requires one
 
 ### Strict completion rule
 
-A task is NOT done unless both are true:
+A task is NOT done unless all three are true:
 - The implementation / documentation work is completed
 - `project-brain/project_status.md` reflects reality
+- `project-brain/project_status.json` reflects reality and is consistent with the `.md` file
 
 ### Progress tracking must be conservative
 

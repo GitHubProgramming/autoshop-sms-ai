@@ -6,6 +6,8 @@ Strict rules for generating next-step tasks from `project_status.json`.
 
 Before proposing any new task, Claude **must** read `project-brain/project_status.json` and base all recommendations on its current contents. Ad-hoc reasoning without consulting the JSON is not allowed.
 
+**Stale JSON means invalid task generation.** If `project_status.json` has not been kept in sync with `project_status.md`, task generation output is unreliable. Before generating tasks, verify that the JSON reflects the latest known state. If drift is detected, the first task must be to synchronize both files.
+
 ## Task Derivation Sources
 
 New tasks must be derived exclusively from these fields in `project_status.json`:

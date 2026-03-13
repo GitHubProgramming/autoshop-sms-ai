@@ -26,8 +26,11 @@ export async function withTenant<T>(
   const client = await db.connect();
   try {
     // Set tenant context for RLS — this is the security boundary
+    // Uses set_config() instead of SET LOCAL to allow parameterized input.
+    // Third arg = true means "local to current transaction".
     await client.query(
-      `SET LOCAL app.current_tenant_id = '${tenantId}'`
+      `SELECT set_config('app.current_tenant_id', $1, true)`,
+      [tenantId]
     );
     const result = await fn(client);
     return result;

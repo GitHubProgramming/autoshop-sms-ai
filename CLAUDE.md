@@ -59,19 +59,44 @@ The only flow that matters first:
 6. appointment is created
 7. Google Calendar is updated or explicit sync failure is recorded
 
+## Telegram Notifications
+
+Claude MUST send Telegram notifications at these points:
+
+1. **Session start** — run immediately after reading startup files:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File scripts/notify-session-start.ps1
+   ```
+
+2. **Task complete** — run after each completed task:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File scripts/notify-task-done.ps1 "task description here"
+   ```
+
+3. **Error** — run when a blocking error occurs:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File scripts/notify-error.ps1 "error description here"
+   ```
+
+`scripts/ai-verify.sh` automatically sends pass/fail notifications.
+
+Requires `TELEGRAM_TOKEN` env var. If not set, notifications silently skip.
+
 ## WORK CYCLE
 When you start a session:
 1. read AI_WORK.md
 2. read CLAUDE.md
 3. read AI_STATUS.md
-4. inspect the repo
-5. choose the next highest-value blocker
-6. execute the smallest safe fix
-7. verify
-8. update AI_STATUS.md
-9. commit
-10. push
-11. continue
+4. **send Telegram session-start notification**: `powershell -ExecutionPolicy Bypass -File scripts/notify-session-start.ps1`
+5. inspect the repo
+6. choose the next highest-value blocker
+7. execute the smallest safe fix
+8. verify
+9. update AI_STATUS.md
+10. **send Telegram task-done notification**: `powershell -ExecutionPolicy Bypass -File scripts/notify-task-done.ps1 "<task>"`
+11. commit
+12. push
+13. continue
 
 ## FILE OWNERSHIP RULE
 AI_STATUS.md must stay current.
@@ -258,10 +283,14 @@ At the start of every session, before doing any work, read:
 2. `project-brain/b-lite_operating_model.md` — workflow and roles
 3. `project-brain/project_status.md` — current project state
 
-### Mandatory status update protocol
+### Mandatory dual status update protocol
 
-`project-brain/project_status.md` is the project control dashboard.
-It MUST be updated after every meaningful task. A task is NOT done if `project_status.md` was not updated when reality changed.
+Both `project-brain/project_status.md` and `project-brain/project_status.json` are required project control files.
+Both MUST be updated after every meaningful task. A task is NOT done if either file was not updated when reality changed.
+
+- `project_status.md` is the human-readable status view
+- `project_status.json` is the machine-readable status source (used for dashboards and task generation)
+- Both must stay synchronized — neither may drift from the other
 
 Before finishing any task, check:
 - Did progress change? → Update Stage Progress / Progress Model + recalculate Project Completion Estimate
@@ -271,16 +300,17 @@ Before finishing any task, check:
 - Was anything changed? → Add dated entry to Recent Changes
 - Is owner input needed? → Update Next Owner Decision
 
-If any answer is yes → update `project_status.md` before finishing.
+If any answer is yes → update **both** `project_status.md` **and** `project_status.json` before finishing.
 If no update is needed → explicitly state why in the response.
 
 ### Response format (end of every task)
 
 1. Changed files
 2. Whether `project_status.md` was updated
-3. Exact sections updated in `project_status.md`
-4. Any blockers added
-5. Recommended `git add` command (must include `project-brain/project_status.md` if it changed)
+3. Whether `project_status.json` was updated
+4. Exact sections updated in both status files
+5. Any blockers added
+6. Recommended `git add` command (must include both `project-brain/project_status.md` and `project-brain/project_status.json` if they changed)
 
 ### Progress discipline
 
