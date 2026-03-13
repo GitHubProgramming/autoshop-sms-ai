@@ -7,7 +7,7 @@
 
 ## Project Completion Estimate
 
-**~37%** (weighted)
+**~38%** (weighted)
 
 This percentage is calculated from weighted stage progress, not guesswork. Each stage has a defined weight reflecting its importance to the MVP. Only objectively verifiable progress counts. See [Progress Model](#progress-model) for the breakdown.
 
@@ -27,12 +27,12 @@ The project is divided into 7 weighted stages aligned to the MVP milestone path.
 |---|-------|--------|--------|----------|----------|---------------------|
 | 1 | Foundation & Operating Model | 10% | done | 100% | 10.0% | Repo structure, CI pipeline, B-Lite operating model, project brain, CLAUDE.md rules — all in place and enforced. |
 | 2 | TEST Sandbox Workflow Chain | 15% | in_progress | 40% | 6.0% | All TEST workflow JSONs (wf001–wf006) committed, importable into n8n, and executing successfully in sandbox environment with test credentials. |
-| 3 | Core Messaging & AI Flow | 25% | in_progress | 42% | 10.5% | Missed call triggers SMS, inbound SMS processed, AI generates reply, booking intent detected, appointment created. Verified end-to-end with real Twilio number. |
+| 3 | Core Messaging & AI Flow | 25% | in_progress | 44% | 11.0% | Missed call triggers SMS, inbound SMS processed, AI generates reply, booking intent detected, appointment created. Verified end-to-end with real Twilio number. |
 | 4 | Calendar & Booking Reliability | 15% | blocked | 30% | 4.5% | OAuth flow complete, appointment syncs to Google Calendar, confirmation SMS sent, sync failures surface clearly. Verified with real Google credentials. |
 | 5 | Admin Visibility & Control | 10% | in_progress | 40% | 4.0% | Admin dashboard shows project status, tenant health, conversation metrics, and blocker visibility. Dashboard JSON data source created. |
 | 6 | Production Readiness | 15% | in_progress | 20% | 3.0% | Billing (Stripe checkout, webhooks, trial limits, plan enforcement) live-tested. Idempotency verified. Error handling covers all failure modes. |
 | 7 | First Live Pilot | 10% | not_started | 0% | 0.0% | One real Texas auto shop receiving missed-call SMS, AI replies working, bookings appearing in Google Calendar. |
-| | **Total** | **100%** | | | **~37%** | |
+| | **Total** | **100%** | | | **~38%** | |
 
 **How to read this:** Code-complete stages are capped at 40-50% until verified with real services. "Blocked" stages remain at their last verified progress. A stage reaches 100% only when completion criteria are fully met in a real environment.
 
@@ -70,6 +70,7 @@ One real Texas auto repair shop fully onboarded: real phone number, real missed 
 - Google Calendar OAuth tenant onboarding
 
 ### Done (recent)
+- Webhook test coverage hardening (SMS inbound + voice-status: 33 tests passing)
 - Admin dashboard UI implementation (Project Ops page consuming `project_status.json`)
 - Project brain / B-Lite operating model setup
 - Deploy script made update-safe and duplicate-safe
@@ -91,6 +92,7 @@ One real Texas auto repair shop fully onboarded: real phone number, real missed 
 
 | Date | Change | Branch |
 |------|--------|--------|
+| 2026-03-13 | Webhook test coverage hardened: SMS inbound (11 tests) + voice-status (13 tests) covering idempotency, billing blocks, soft limits, invalid payloads, priority, tenant lookup failures | `ai/lt-proteros-sms-test-flow` |
 | 2026-03-13 | Project status runtime file moved to API-local deploy-safe location (`apps/api/project-status/`) | `ai/lt-proteros-sms-test-flow` |
 | 2026-03-12 | Project status API path resolution fixed for deployed environments | `ai/lt-proteros-sms-test-flow` |
 | 2026-03-12 | Project Ops admin dashboard implemented (reads project_status.json via GET /internal/admin/project-status) | `ai/lt-proteros-sms-test-flow` |
