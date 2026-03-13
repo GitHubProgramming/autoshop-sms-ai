@@ -1,5 +1,5 @@
 {
-  "overall_progress": 37,
+  "overall_progress": 38,
 
   "current_phase": "TEST environment stabilization and SMS flow validation",
 
@@ -22,7 +22,7 @@
       "name": "Core Messaging & AI Flow",
       "weight": 25,
       "status": "in_progress",
-      "progress": 42
+      "progress": 44
     },
     {
       "name": "Calendar & Booking Reliability",
@@ -60,6 +60,7 @@
       "Project milestone model + dashboard JSON status system"
     ],
     "done": [
+      "Webhook test coverage hardening (SMS inbound + voice-status: 33 tests)",
       "Admin dashboard UI (Project Ops page reading project_status.json)",
       "Project brain / B-Lite operating model setup",
       "Deploy script made update-safe and duplicate-safe",
@@ -100,6 +101,11 @@
   ],
 
   "recent_changes": [
+    {
+      "date": "2026-03-13",
+      "change": "Webhook test coverage hardened: SMS inbound (11 tests) + voice-status (13 tests) covering idempotency, billing blocks, soft limits, invalid payloads, priority, tenant lookup failures",
+      "branch": "ai/lt-proteros-sms-test-flow"
+    },
     {
       "date": "2026-03-13",
       "change": "Project status runtime file moved to API-local deploy-safe location (apps/api/project-status/)",
