@@ -27,6 +27,9 @@ jobs:
           cd apps/api
           npm ci
 
+      - name: Check project status drift
+        run: bash scripts/check-status-drift.sh
+
       - name: Lint
         run: |
           cd apps/api
