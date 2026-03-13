@@ -12,8 +12,8 @@ const API_LOCAL_FILE = join("project-status", "project_status.json");
  *
  * Priority:
  *   1. Env override (PROJECT_STATUS_JSON_PATH)
- *   2. API-local deploy-safe copy (apps/api/project-status/ — guaranteed in container)
- *   3. Legacy repo-root fallbacks (only useful in local dev)
+ *   2. Canonical repo-root project-brain/ (always current in dev and CI)
+ *   3. API-local deploy-safe copy (fallback inside container)
  */
 function getCandidatePaths(): string[] {
   const candidates: string[] = [];
@@ -23,16 +23,15 @@ function getCandidatePaths(): string[] {
     candidates.push(resolve(process.env.PROJECT_STATUS_JSON_PATH));
   }
 
-  // 2. API-local runtime copy — deploy-safe, lives inside apps/api/
-  //    In container: /app/project-status/project_status.json
-  candidates.push(resolve(process.cwd(), API_LOCAL_FILE));
-  //    Relative to compiled dist/routes/internal/ -> ../../.. -> /app/
-  candidates.push(resolve(__dirname, "..", "..", "..", API_LOCAL_FILE));
-
-  // 3. Legacy: repo-root project-brain/ (works in local dev from repo root)
+  // 2. Canonical repo-root project-brain/ (always up-to-date in dev and CI)
   candidates.push(resolve(process.cwd(), REPO_STATUS_FILE));
   candidates.push(resolve(__dirname, "..", "..", "..", "..", "..", REPO_STATUS_FILE));
   candidates.push(resolve(__dirname, "..", "..", "..", REPO_STATUS_FILE));
+
+  // 3. API-local deploy-safe copy (fallback inside container where repo root is absent)
+  //    In container: /app/project-status/project_status.json
+  candidates.push(resolve(process.cwd(), API_LOCAL_FILE));
+  candidates.push(resolve(__dirname, "..", "..", "..", API_LOCAL_FILE));
 
   return candidates;
 }

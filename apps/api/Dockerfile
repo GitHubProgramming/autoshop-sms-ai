@@ -16,6 +16,8 @@ CMD ["npm", "run", "dev"]
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY apps/api/ .
+# Copy canonical project status into the deploy-safe location (overrides any stale copy)
+COPY project-brain/project_status.json ./project-status/project_status.json
 # Copy migration SQL files so they land in the production image
 COPY db/migrations/ ./migrations/
 # Copy frontend static files so they are served by the API
