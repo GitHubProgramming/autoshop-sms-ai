@@ -1,0 +1,333 @@
+{
+  "id": "TEST-TELIA-MISSED-CALL-SMS",
+  "name": "TEST_TELIA_MISSED_CALL_SMS",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "telia-missed-call",
+        "responseMode": "lastNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "telia-mc-webhook",
+      "name": "Webhook: Telia Missed Call",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "telia-missed-call"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate incoming Telia missed-call payload\nconst body = $input.first().json.body || $input.first().json;\nconst event = (body.event || '').toLowerCase();\nconst callerPhone = (body.caller_phone || '').replace(/[^+\\d]/g, '');\nconst targetPhone = (body.target_phone || '').replace(/[^+\\d]/g, '');\nconst timestamp = body.timestamp || new Date().toISOString();\nconst source = body.source || 'unknown';\n\nconst errors = [];\nif (event !== 'missed_call') errors.push('event must be missed_call, got: ' + event);\nif (!callerPhone) errors.push('caller_phone is required');\nif (callerPhone && !/^\\+370\\d{7,8}$/.test(callerPhone)) errors.push('caller_phone must match +370 format, got: ' + callerPhone);\n\nif (errors.length > 0) {\n  return [{ json: { valid: false, errors, raw: body } }];\n}\n\nreturn [{ json: { valid: true, errors: [], raw: body } }];"
+      },
+      "id": "telia-mc-validate",
+      "name": "Validate Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-valid",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "telia-mc-if-valid",
+      "name": "Is Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normalize fields from validated payload\nconst body = $input.first().json.raw;\nconst callerPhone = (body.caller_phone || '').replace(/[^+\\d]/g, '');\nconst targetPhone = (body.target_phone || '').replace(/[^+\\d]/g, '');\nconst timestamp = body.timestamp || new Date().toISOString();\nconst eventSource = body.source || 'unknown';\n\nreturn [{\n  json: {\n    callerPhone,\n    timestamp,\n    targetPhone,\n    eventSource\n  }\n}];"
+      },
+      "id": "telia-mc-normalize",
+      "name": "Normalize Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 250]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "PROTEROS_LT_TEST_LOG_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Calls_Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "time": "={{ $json.timestamp }}",
+            "phone": "={{ $json.callerPhone }}",
+            "event": "=telia_missed_call",
+            "source": "={{ $json.eventSource }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "time", "displayName": "time", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "phone", "displayName": "phone", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "event", "displayName": "event", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "source", "displayName": "source", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      },
+      "id": "telia-mc-log-sheets",
+      "name": "Log: Calls_Log (Google Sheets)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [1250, 250],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Zadarma SMS API request with HMAC-SHA1 signature\nconst crypto = require('crypto');\n\nconst apiKey = $env.ZADARMA_API_KEY;\nconst apiSecret = $env.ZADARMA_API_SECRET;\n\nif (!apiKey || !apiSecret) {\n  throw new Error('ZADARMA_API_KEY and ZADARMA_API_SECRET env vars must be set in n8n');\n}\n\nconst to = $input.first().json.callerPhone;\nconst message = 'Matome kad skambinote Proteros Servisui. Jei norite registracijos parašykite: data laikas automobilis problema.';\n\n// Zadarma API params (sorted alphabetically for signature)\nconst params = {\n  caller_id: $input.first().json.targetPhone || '+37045512300',\n  message: message,\n  number: to\n};\n\n// Build query string sorted by key\nconst sortedKeys = Object.keys(params).sort();\nconst queryParts = sortedKeys.map(k => k + '=' + encodeURIComponent(params[k]));\nconst queryString = queryParts.join('&');\n\n// Zadarma signature: base64(hmac-sha1(apiSecret, apiPath + queryString + md5(queryString)))\nconst apiPath = '/v1/sms/send/';\nconst md5Hash = crypto.createHash('md5').update(queryString).digest('hex');\nconst signData = apiPath + queryString + md5Hash;\nconst signature = crypto.createHmac('sha1', apiSecret).update(signData).digest('base64');\nconst authHeader = apiKey + ':' + signature;\n\nreturn [{\n  json: {\n    url: 'https://api.zadarma.com/v1/sms/send/',\n    authHeader,\n    params,\n    to,\n    message,\n    callerPhone: $input.first().json.callerPhone,\n    targetPhone: $input.first().json.targetPhone,\n    timestamp: $input.first().json.timestamp,\n    eventSource: $input.first().json.eventSource\n  }\n}];"
+      },
+      "id": "telia-mc-build-sms",
+      "name": "Build Zadarma SMS Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 250]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.zadarma.com/v1/sms/send/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ $json.authHeader }}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "number", "value": "={{ $json.params.number }}" },
+            { "name": "message", "value": "={{ $json.params.message }}" },
+            { "name": "caller_id", "value": "={{ $json.params.caller_id }}" }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "telia-mc-send-sms",
+      "name": "Zadarma: Send SMS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1750, 250],
+      "continueOnFail": true,
+      "notes": "Sends SMS via Zadarma API. continueOnFail=true to log errors."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'ok', sms_sent: true }) }}",
+        "options": {}
+      },
+      "id": "telia-mc-respond-ok",
+      "name": "Respond: OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [2000, 250]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "PROTEROS_LT_TEST_LOG_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Errors",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "time": "={{ new Date().toISOString() }}",
+            "workflow": "=TEST_TELIA_MISSED_CALL_SMS",
+            "error": "={{ $json.errors ? $json.errors.join('; ') : 'validation_failed' }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "time", "displayName": "time", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "workflow", "displayName": "workflow", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "error", "displayName": "error", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      },
+      "id": "telia-mc-log-error",
+      "name": "Log: Error (Google Sheets)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [750, 500],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'error', sms_sent: false, errors: $('Validate Payload').item.json.errors }) }}",
+        "options": {}
+      },
+      "id": "telia-mc-respond-error",
+      "name": "Respond: Validation Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1000, 500]
+    }
+  ],
+  "connections": {
+    "Webhook: Telia Missed Call": {
+      "main": [
+        [
+          {
+            "node": "Validate Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Payload": {
+      "main": [
+        [
+          {
+            "node": "Is Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Valid?": {
+      "main": [
+        [
+          {
+            "node": "Normalize Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log: Error (Google Sheets)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Fields": {
+      "main": [
+        [
+          {
+            "node": "Log: Calls_Log (Google Sheets)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log: Calls_Log (Google Sheets)": {
+      "main": [
+        [
+          {
+            "node": "Build Zadarma SMS Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Zadarma SMS Request": {
+      "main": [
+        [
+          {
+            "node": "Zadarma: Send SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zadarma: Send SMS": {
+      "main": [
+        [
+          {
+            "node": "Respond: OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log: Error (Google Sheets)": {
+      "main": [
+        [
+          {
+            "node": "Respond: Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "active": false,
+  "tags": [
+    { "name": "LT_PROTEROS_TEST" },
+    { "name": "telia" },
+    { "name": "missed-call" },
+    { "name": "test" }
+  ]
+}

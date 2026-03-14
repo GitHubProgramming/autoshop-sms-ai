@@ -1,0 +1,332 @@
+{
+  "id": "LT-SANDBOX-WF004-booking",
+  "name": "LT_PROTEROS_SANDBOX: WF004 Booking",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lt-sandbox-booking",
+        "responseMode": "lastNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "sb-bk-webhook",
+      "name": "Webhook: Booking Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "lt-sandbox-booking"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate booking request\nconst body = $input.first().json.body || $input.first().json;\nconst phone = (body.customerPhone || '').replace(/[^+\\d]/g, '');\nconst booking = body.bookingData || body.extracted || body;\nconst extracted = body.extracted || {};\n\nconst date = extracted.date || booking.preferred_date || '';\nconst time = extracted.time || booking.preferred_time || '09:00';\nconst problem = extracted.problem || booking.problem || booking.service_type || 'Nenurodyta';\nconst carInfo = extracted.carInfo || booking.car_info || '';\nconst clientName = extracted.clientName || booking.client_name || 'Nežinomas';\n\nif (!phone) {\n  return [{ json: { valid: false, reason: 'Missing customer phone' } }];\n}\n\nif (!date) {\n  return [{ json: { valid: false, reason: 'Missing preferred date' } }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    customerPhone: phone,\n    preferredDate: date,\n    preferredTime: time,\n    problem,\n    carInfo,\n    clientName,\n    messageId: body.messageId || ''\n  }\n}];"
+      },
+      "id": "sb-bk-validate",
+      "name": "Validate Booking Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-valid",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "sb-bk-if-valid",
+      "name": "Is Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Google Calendar event\nconst data = $input.first().json;\nconst startISO = `${data.preferredDate}T${data.preferredTime}:00+02:00`;\n\n// End = start + 1 hour\nconst [h, m] = data.preferredTime.split(':').map(Number);\nconst endH = h + 1;\nconst endISO = `${data.preferredDate}T${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}:00+02:00`;\n\nreturn [{\n  json: {\n    summary: 'Autoservisas rezervacija',\n    description: `Klientas: ${data.clientName}\\nTelefonas: ${data.customerPhone}\\nAutomobilis: ${data.carInfo}\\nProblema: ${data.problem}\\n\\nSukurta automatiškai per SMS AI agent (LT Sandbox).`,\n    startDateTime: startISO,\n    endDateTime: endISO,\n    customerPhone: data.customerPhone,\n    clientName: data.clientName,\n    problem: data.problem,\n    carInfo: data.carInfo,\n    preferredDate: data.preferredDate,\n    preferredTime: data.preferredTime\n  }\n}];"
+      },
+      "id": "sb-bk-build-event",
+      "name": "Build Calendar Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 250]
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "PROTEROS_TEST_CALENDAR_ID",
+          "mode": "id"
+        },
+        "start": "={{ $json.startDateTime }}",
+        "end": "={{ $json.endDateTime }}",
+        "additionalFields": {
+          "summary": "={{ $json.summary }}",
+          "description": "={{ $json.description }}"
+        }
+      },
+      "id": "sb-bk-create-event",
+      "name": "Create Google Calendar Event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [1250, 250],
+      "retryOnFail": true,
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GOOGLE_CALENDAR_CREDENTIAL_ID",
+          "name": "Google Calendar account"
+        }
+      },
+      "notes": "Calendar: Proteros Test Calendar. Replace PROTEROS_TEST_CALENDAR_ID and credential ID."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "PROTEROS_LT_TEST_LOG_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Bookings",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "time": "={{ new Date().toISOString() }}",
+            "phone": "={{ $('Build Calendar Event').item.json.customerPhone }}",
+            "problem": "={{ $('Build Calendar Event').item.json.problem }}",
+            "date": "={{ $('Build Calendar Event').item.json.preferredDate + ' ' + $('Build Calendar Event').item.json.preferredTime }}",
+            "status": "=confirmed"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "time", "displayName": "time", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "phone", "displayName": "phone", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "problem", "displayName": "problem", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "date", "displayName": "date", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "status", "displayName": "status", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sb-bk-log-booking",
+      "name": "Log: Bookings (Google Sheets)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [1500, 250],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_URL || 'http://localhost:5678' }}/webhook/lt-sandbox-send-sms",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Build Calendar Event').item.json.customerPhone, message: 'Jūsų registracija patvirtinta!\\nData: ' + $('Build Calendar Event').item.json.preferredDate + '\\nLaikas: ' + $('Build Calendar Event').item.json.preferredTime + '\\nProteros Servisas, Panevėžys\\nIki pasimatymo!', source: 'booking_confirmation' }) }}",
+        "options": {}
+      },
+      "id": "sb-bk-send-confirm",
+      "name": "Send Confirmation SMS via WF002",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1750, 250],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"ok\", \"action\": \"booking_created\", \"customerPhone\": $('Build Calendar Event').item.json.customerPhone, \"calendarEventId\": $('Create Google Calendar Event').item.json.id || '' } }}",
+        "options": {}
+      },
+      "id": "sb-bk-respond-ok",
+      "name": "Respond: Booking Created",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [2000, 250]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "PROTEROS_LT_TEST_LOG_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Errors",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "time": "={{ new Date().toISOString() }}",
+            "workflow": "=WF004_LT_BOOKING",
+            "error": "={{ $json.reason || 'invalid booking data' }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "time", "displayName": "time", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "workflow", "displayName": "workflow", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "error", "displayName": "error", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sb-bk-log-error",
+      "name": "Log: Error (Google Sheets)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [750, 500],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"error\", \"reason\": $json.reason || 'invalid booking' } }}",
+        "options": {}
+      },
+      "id": "sb-bk-respond-error",
+      "name": "Respond: Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1000, 500]
+    }
+  ],
+  "connections": {
+    "Webhook: Booking Request": {
+      "main": [
+        [
+          {
+            "node": "Validate Booking Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Booking Data": {
+      "main": [
+        [
+          {
+            "node": "Is Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Valid?": {
+      "main": [
+        [
+          {
+            "node": "Build Calendar Event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log: Error (Google Sheets)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log: Error (Google Sheets)": {
+      "main": [
+        [
+          {
+            "node": "Respond: Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Calendar Event": {
+      "main": [
+        [
+          {
+            "node": "Create Google Calendar Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Google Calendar Event": {
+      "main": [
+        [
+          {
+            "node": "Log: Bookings (Google Sheets)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log: Bookings (Google Sheets)": {
+      "main": [
+        [
+          {
+            "node": "Send Confirmation SMS via WF002",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Confirmation SMS via WF002": {
+      "main": [
+        [
+          {
+            "node": "Respond: Booking Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "active": false,
+  "tags": [
+    { "name": "LT_PROTEROS_SANDBOX" },
+    { "name": "booking" },
+    { "name": "test" }
+  ]
+}

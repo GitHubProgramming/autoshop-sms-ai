@@ -1,0 +1,396 @@
+{
+  "id": "LT-SANDBOX-WF003-sms-ai-agent",
+  "name": "LT_PROTEROS_SANDBOX: WF003 SMS AI Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lt-sandbox-sms-inbound",
+        "responseMode": "lastNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "sb-ai-webhook",
+      "name": "Webhook: Inbound SMS",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 400],
+      "webhookId": "lt-sandbox-sms-inbound"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Zadarma inbound SMS or manual test payload\nconst body = $input.first().json.body || $input.first().json;\nconst from = (body.caller_id || body.from || body.sender || body.caller_number || body.number || '').replace(/[^+\\d]/g, '');\nconst message = (body.message || body.text || body.content || body.sms_text || body.sms_body || '').trim();\nconst messageId = body.message_id || body.sms_id || body.id || $execution.id;\n\nif (!from || !message) {\n  return [{ json: { valid: false, reason: 'Missing from or message' } }];\n}\n\nif (!/^\\+370\\d{7,8}$/.test(from)) {\n  return [{ json: { valid: false, reason: 'Invalid LT phone: ' + from } }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    customerPhone: from,\n    messageBody: message,\n    messageId,\n    receivedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "sb-ai-validate",
+      "name": "Validate Inbound SMS",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-valid",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "sb-ai-if-valid",
+      "name": "Is Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [750, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Load/init conversation from static data\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.conversations) staticData.conversations = {};\n\nconst phone = $input.first().json.customerPhone;\nconst now = new Date().toISOString();\n\nif (!staticData.conversations[phone]) {\n  staticData.conversations[phone] = {\n    messages: [],\n    startedAt: now,\n    bookingStatus: 'none'\n  };\n}\n\nconst conv = staticData.conversations[phone];\nconv.messages.push({\n  role: 'customer',\n  content: $input.first().json.messageBody,\n  timestamp: now\n});\n\n// Keep last 20\nif (conv.messages.length > 20) {\n  conv.messages = conv.messages.slice(-20);\n}\n\nreturn [{\n  json: {\n    customerPhone: phone,\n    messageBody: $input.first().json.messageBody,\n    messageId: $input.first().json.messageId,\n    conversationHistory: conv.messages,\n    bookingStatus: conv.bookingStatus,\n    isNewConversation: conv.messages.length === 1\n  }\n}];"
+      },
+      "id": "sb-ai-load-conv",
+      "name": "Load Conversation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 350]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normalize text: try quick booking intent extraction\n// Pattern: DATA LAIKAS AUTO PROBLEMA\nconst msg = $input.first().json.messageBody;\nconst phone = $input.first().json.customerPhone;\n\n// Try to extract structured booking from single message\n// Examples: \"2026-03-15 10:00 BMW 320d stabdžiai\" or \"kovo 15 10val audi a4 alyvos keitimas\"\nconst normalized = msg\n  .replace(/\\s+/g, ' ')\n  .trim();\n\nreturn [{\n  json: {\n    ...$input.first().json,\n    normalizedMessage: normalized\n  }\n}];"
+      },
+      "id": "sb-ai-normalize",
+      "name": "Normalize Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 350]
+    },
+    {
+      "parameters": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.OPENAI_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o-mini\",\n  \"temperature\": 0.7,\n  \"max_tokens\": 500,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Tu esi Proteros Servisas automatinis SMS asistentas. Servisas yra Panevėžyje, Lietuva.\\n\\nTelefono numeris: +37045512300\\n\\nTavo tikslas:\\n1. Suprasti kliento žinutę\\n2. Nustatyti ar klientas nori registracijos\\n3. Surinkti:\\n   - Pageidaujama data\\n   - Pageidaujamas laikas\\n   - Automobilis (markė/modelis)\\n   - Problema / paslauga\\n4. Patvirtinti registraciją\\n\\nAtsakyk TIK lietuviškai. Būk trumpas ir draugiškas.\\nKlausk tik vieno dalyko vienu metu.\\n\\nDarbo laikas: I-V 08:00-17:00, VI 09:00-14:00\\nAdresas: Proteros Servisas, Panevėžys\\n\\nŠiandienos data: {{ new Date().toISOString().split('T')[0] }}\\n\\nKai turi visą informaciją, atsakyk JSON formatu:\\n{\\\"booking_ready\\\": true, \\\"preferred_date\\\": \\\"YYYY-MM-DD\\\", \\\"preferred_time\\\": \\\"HH:MM\\\", \\\"car_info\\\": \\\"...\\\", \\\"problem\\\": \\\"...\\\", \\\"client_name\\\": \\\"...\\\"}\\n\\nJei registracija dar nebaigta, tiesiog rašyk žinutę klientui.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Kliento telefonas: {{ $json.customerPhone }}\\n\\nPokalbio istorija:\\n{{ $json.conversationHistory.map(m => m.role + ': ' + m.content).join('\\\\n') }}\\n\\nPaskutinė žinutė: {{ $json.normalizedMessage }}\"\n    }\n  ]\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "sb-ai-openai",
+      "name": "OpenAI: Chat Completion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1500, 350],
+      "notes": "Uses OPENAI_API_KEY env var. gpt-4o-mini for Lithuanian SMS."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI response, detect booking intent\nconst aiRaw = $input.first().json;\nlet aiText = '';\nif (aiRaw.choices && aiRaw.choices[0]) {\n  aiText = aiRaw.choices[0].message?.content || '';\n} else {\n  aiText = JSON.stringify(aiRaw);\n}\naiText = aiText.trim();\n\nlet bookingReady = false;\nlet bookingData = null;\n\ntry {\n  const jsonMatch = aiText.match(/\\{[\\s\\S]*\"booking_ready\"\\s*:\\s*true[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    bookingData = JSON.parse(jsonMatch[0]);\n    bookingReady = true;\n  }\n} catch (e) { /* not JSON, conversation reply */ }\n\n// Extract fields if booking ready\nconst extracted = bookingData ? {\n  date: bookingData.preferred_date || '',\n  time: bookingData.preferred_time || '',\n  carInfo: bookingData.car_info || '',\n  problem: bookingData.problem || bookingData.service_type || '',\n  clientName: bookingData.client_name || ''\n} : null;\n\nconst convData = $('Load Conversation').first().json;\n\n// Save AI reply to conversation\nconst staticData = $getWorkflowStaticData('global');\nif (staticData.conversations && staticData.conversations[convData.customerPhone]) {\n  staticData.conversations[convData.customerPhone].messages.push({\n    role: 'assistant',\n    content: bookingReady ? 'Registracija patvirtinta!' : aiText,\n    timestamp: new Date().toISOString()\n  });\n  if (bookingReady) {\n    staticData.conversations[convData.customerPhone].bookingStatus = 'booked';\n  }\n}\n\nreturn [{\n  json: {\n    bookingReady,\n    replyText: bookingReady ? null : aiText,\n    bookingData,\n    extracted,\n    customerPhone: convData.customerPhone,\n    messageId: convData.messageId\n  }\n}];"
+      },
+      "id": "sb-ai-parse",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1750, 350]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-booking",
+              "leftValue": "={{ $json.bookingReady }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "sb-ai-if-booking",
+      "name": "Booking Intent Detected?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2000, 350]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_URL || 'http://localhost:5678' }}/webhook/lt-sandbox-booking",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ customerPhone: $json.customerPhone, bookingData: $json.bookingData, extracted: $json.extracted, messageId: $json.messageId }) }}",
+        "options": {}
+      },
+      "id": "sb-ai-trigger-booking",
+      "name": "Trigger WF004: Create Booking",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2250, 200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_URL || 'http://localhost:5678' }}/webhook/lt-sandbox-send-sms",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $json.customerPhone, message: $json.replyText, source: 'ai_reply' }) }}",
+        "options": {}
+      },
+      "id": "sb-ai-send-reply",
+      "name": "Send AI Reply via WF002",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2250, 500],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "PROTEROS_LT_TEST_LOG_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "SMS_Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "time": "={{ new Date().toISOString() }}",
+            "phone": "={{ $('Parse AI Response').item.json.customerPhone }}",
+            "direction": "=inbound",
+            "message": "={{ $('Load Conversation').item.json.messageBody }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "time", "displayName": "time", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "phone", "displayName": "phone", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "direction", "displayName": "direction", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "message", "displayName": "message", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sb-ai-log-sms",
+      "name": "Log: SMS_Log (Google Sheets)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [2500, 350],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"ok\", \"bookingReady\": $('Parse AI Response').item.json.bookingReady, \"customerPhone\": $('Parse AI Response').item.json.customerPhone } }}",
+        "options": {}
+      },
+      "id": "sb-ai-respond-ok",
+      "name": "Respond: OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [2750, 350]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"error\", \"reason\": $json.reason || 'invalid SMS' } }}",
+        "options": {}
+      },
+      "id": "sb-ai-respond-invalid",
+      "name": "Respond: Invalid",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1000, 600]
+    }
+  ],
+  "connections": {
+    "Webhook: Inbound SMS": {
+      "main": [
+        [
+          {
+            "node": "Validate Inbound SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Inbound SMS": {
+      "main": [
+        [
+          {
+            "node": "Is Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Valid?": {
+      "main": [
+        [
+          {
+            "node": "Load Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: Invalid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Conversation": {
+      "main": [
+        [
+          {
+            "node": "Normalize Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Text": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: Chat Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: Chat Completion": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "Booking Intent Detected?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Booking Intent Detected?": {
+      "main": [
+        [
+          {
+            "node": "Trigger WF004: Create Booking",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send AI Reply via WF002",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger WF004: Create Booking": {
+      "main": [
+        [
+          {
+            "node": "Log: SMS_Log (Google Sheets)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send AI Reply via WF002": {
+      "main": [
+        [
+          {
+            "node": "Log: SMS_Log (Google Sheets)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log: SMS_Log (Google Sheets)": {
+      "main": [
+        [
+          {
+            "node": "Respond: OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "active": false,
+  "tags": [
+    { "name": "LT_PROTEROS_SANDBOX" },
+    { "name": "sms-ai" },
+    { "name": "test" }
+  ]
+}
