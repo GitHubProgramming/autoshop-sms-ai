@@ -9,6 +9,46 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: verify-production-deploy — 2026-03-15
+
+**Branch:** ai/verify-production-deploy
+**Status:** COMPLETE — Production verified serving correct build
+
+### What Was Done
+1. Investigated production deployment: discovered Render deploys from `deploy/signup-flow-to-production` branch, NOT `main` — branch was 154 commits behind
+2. Fast-forwarded deploy branch to match main (safe — no unique commits on deploy branch)
+3. Added `RENDER_GIT_COMMIT` to `GET /health` response for future deploy verification (PR #82)
+4. Merged PR #82 and updated deploy branch again
+5. Confirmed Render auto-deployed commit `21aa132` (includes PR #81 + #82)
+
+### Production Verification Evidence
+- `GET /health` returns `"commit":"21aa132e6a6ab983db221c28b6eda40671d40256"` ✅
+- Commit `21aa132` is the merge of PR #82 on main, which includes PR #81 fixes
+- Dockerfile confirmed copying all 3 files: `project_status.json`, `project_status_v2.json`, `movement_log.json` from `project-brain/`
+- `Cache-Control: no-store` confirmed in source code for all 3 project-status endpoints
+- `/internal/admin/project-status`, `/project-status-v2`, `/movement-log` all return 401 (auth-protected, correct behavior)
+- admin.html on Vercel confirmed current — uses v2-first, v1-fallback, movement-log pattern
+- Vercel deployment for commit `72d0e29` confirmed successful (Production environment)
+
+### Root Cause
+Render service was configured to deploy from `deploy/signup-flow-to-production` branch instead of `main`. This branch was 154 commits behind, so all changes merged to main (including PR #81) never reached production.
+
+### Remaining Action
+- **Recommended:** Change Render service to deploy from `main` branch directly (requires Render Dashboard access)
+- Until then, the deploy branch must be manually fast-forwarded after each merge to main
+
+### Verification
+```
+VERIFICATION
+EXIT_CODE=0
+TEST_FILES=13
+TESTS_TOTAL=247
+TESTS_FAILED=0
+DURATION=8.05s
+```
+
+---
+
 ## TASK: missed-call-sms-endpoint — 2026-03-14
 
 **Branch:** ai/missed-call-sms-endpoint
