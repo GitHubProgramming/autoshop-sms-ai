@@ -477,6 +477,206 @@ describe("processSms — error handling", () => {
   });
 });
 
+describe("processSms — history ordering (no duplicate messages)", () => {
+  it("does not duplicate current message in OpenAI context", async () => {
+    // History should NOT include the current inbound message because
+    // history is fetched BEFORE the inbound is logged to the DB.
+    let historyCallArgs: unknown[] | undefined;
+    mocks.query.mockImplementation(async (sql: string, params?: unknown[]) => {
+      if (sql.includes("get_or_create_conversation")) {
+        return [{ conversation_id: CONVERSATION_ID, is_new: false }];
+      }
+      // History fetch — capture what gets returned
+      if (sql.includes("SELECT direction, body FROM messages")) {
+        historyCallArgs = params;
+        return [
+          { direction: "outbound", body: "Hi! How can we help?" },
+        ];
+      }
+      if (sql.includes("system_prompts")) return [];
+      return [];
+    });
+    const fetchMock = mockFetchAll();
+
+    await processSms(validInput({ body: "I need an oil change" }), fetchMock);
+
+    // Verify OpenAI was called
+    const openaiCall = (fetchMock as ReturnType<typeof vi.fn>).mock.calls.find(
+      (call: unknown[]) => typeof call[0] === "string" && (call[0] as string).includes("openai.com")
+    );
+    expect(openaiCall).toBeDefined();
+    const body = JSON.parse((openaiCall![1] as { body: string }).body);
+
+    // Should be: system + 1 history message + 1 current message = 3
+    // NOT: system + 1 history + 1 duplicate current + 1 current = 4
+    expect(body.messages.length).toBe(3);
+    expect(body.messages[0].role).toBe("system");
+    expect(body.messages[1].role).toBe("assistant"); // history
+    expect(body.messages[2].role).toBe("user"); // current
+    expect(body.messages[2].content).toBe("I need an oil change");
+  });
+
+  it("history fetch occurs before inbound message insert", async () => {
+    const callOrder: string[] = [];
+    mocks.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("get_or_create_conversation")) {
+        callOrder.push("get_or_create");
+        return [{ conversation_id: CONVERSATION_ID, is_new: false }];
+      }
+      if (sql.includes("SELECT direction, body FROM messages")) {
+        callOrder.push("fetch_history");
+        return [];
+      }
+      if (sql.includes("INSERT INTO messages") && sql.includes("inbound")) {
+        callOrder.push("insert_inbound");
+        return [];
+      }
+      if (sql.includes("system_prompts")) return [];
+      return [];
+    });
+    const fetchMock = mockFetchAll();
+
+    await processSms(validInput(), fetchMock);
+
+    const histIdx = callOrder.indexOf("fetch_history");
+    const insertIdx = callOrder.indexOf("insert_inbound");
+    expect(histIdx).toBeGreaterThan(-1);
+    expect(insertIdx).toBeGreaterThan(-1);
+    expect(histIdx).toBeLessThan(insertIdx);
+  });
+});
+
+describe("processSms — additional edge cases", () => {
+  it("handles OpenAI returning malformed JSON (no choices)", async () => {
+    setupDbMocks();
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (typeof url === "string" && url.includes("openai.com")) {
+        return {
+          ok: true,
+          json: () => Promise.resolve({ id: "chatcmpl-xyz" }), // no choices
+        };
+      }
+      return { ok: true, json: () => Promise.resolve({ sid: TWILIO_SID }) };
+    }) as unknown as typeof fetch;
+
+    const result = await processSms(validInput(), fetchMock);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("empty response");
+  });
+
+  it("handles OpenAI returning empty choices array", async () => {
+    setupDbMocks();
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (typeof url === "string" && url.includes("openai.com")) {
+        return {
+          ok: true,
+          json: () => Promise.resolve({ choices: [] }),
+        };
+      }
+      return { ok: true, json: () => Promise.resolve({ sid: TWILIO_SID }) };
+    }) as unknown as typeof fetch;
+
+    const result = await processSms(validInput(), fetchMock);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("empty response");
+  });
+
+  it("handles appointment creation failure gracefully", async () => {
+    // Simulate DB error during appointment insert
+    mocks.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("get_or_create_conversation")) {
+        return [{ conversation_id: CONVERSATION_ID, is_new: false }];
+      }
+      if (sql.includes("system_prompts")) return [];
+      if (sql.includes("SELECT direction, body FROM messages")) return [];
+      if (sql.includes("SELECT id FROM tenants")) {
+        return [{ id: TENANT_ID }];
+      }
+      if (sql.includes("INSERT INTO appointments")) {
+        throw new Error("unique_violation: duplicate appointment");
+      }
+      return [];
+    });
+    const fetchMock = mockFetchAll({
+      aiResponse: "Your appointment is confirmed for Friday at 11 AM!",
+    });
+
+    const result = await processSms(validInput(), fetchMock);
+
+    // Should still succeed overall — booking was detected but appointment failed
+    expect(result.success).toBe(true);
+    expect(result.isBooked).toBe(true);
+    expect(result.appointmentId).toBeNull();
+  });
+
+  it("soft limit with Twilio failure still succeeds", async () => {
+    setupDbMocks();
+    const fetchMock = mockFetchAll({ twilioOk: false });
+
+    const result = await processSms(
+      validInput({ atSoftLimit: true }),
+      fetchMock
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.aiResponse).toContain("monthly messaging limit");
+    expect(result.smsSent).toBe(false);
+  });
+
+  it("handles OpenAI fetch throwing non-Error object", async () => {
+    setupDbMocks();
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (typeof url === "string" && url.includes("openai.com")) {
+        throw "network failure"; // non-Error throw
+      }
+      return { ok: true, json: () => Promise.resolve({ sid: TWILIO_SID }) };
+    }) as unknown as typeof fetch;
+
+    const result = await processSms(validInput(), fetchMock);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("OpenAI request failed");
+  });
+
+  it("booking detected but close_conversation fails is non-fatal", async () => {
+    mocks.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("get_or_create_conversation")) {
+        return [{ conversation_id: CONVERSATION_ID, is_new: false }];
+      }
+      if (sql.includes("system_prompts")) return [];
+      if (sql.includes("SELECT direction, body FROM messages")) return [];
+      if (sql.includes("SELECT id FROM tenants")) return [{ id: TENANT_ID }];
+      if (sql.includes("INSERT INTO appointments")) {
+        return [{
+          id: APPOINTMENT_ID, tenant_id: TENANT_ID, conversation_id: CONVERSATION_ID,
+          customer_phone: PHONE, customer_name: null, service_type: "oil change",
+          scheduled_at: new Date().toISOString(), duration_minutes: 60, notes: null,
+          google_event_id: null, calendar_synced: false, created_at: new Date().toISOString(), xmax: "0",
+        }];
+      }
+      if (sql.includes("SELECT google_event_id FROM appointments")) return [];
+      if (sql.includes("SELECT access_token")) return [];
+      if (sql.includes("close_conversation")) {
+        throw new Error("DB connection lost during close");
+      }
+      return [];
+    });
+    const fetchMock = mockFetchAll({
+      aiResponse: "Your appointment is confirmed for Monday at 2 PM!",
+    });
+
+    const result = await processSms(validInput(), fetchMock);
+
+    expect(result.success).toBe(true);
+    expect(result.isBooked).toBe(true);
+    expect(result.appointmentId).toBe(APPOINTMENT_ID);
+    // Conversation close failed, so conversationClosed should be false
+    expect(result.conversationClosed).toBe(false);
+  });
+});
+
 describe("processSms — message logging", () => {
   it("logs inbound message with twilio_sid", async () => {
     setupDbMocks();

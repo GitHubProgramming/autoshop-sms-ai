@@ -93,7 +93,32 @@ export async function processSms(
     return result;
   }
 
-  // ── 2. Log inbound message ───────────────────────────────────────────────
+  // ── 2. Fetch conversation history ────────────────────────────────────────
+  // IMPORTANT: Fetch history BEFORE logging the inbound message to avoid
+  // duplicating the current message in the OpenAI context. The current message
+  // is appended separately when building the messages array.
+  let history: Array<{ role: string; content: string }> = [];
+  try {
+    const rows = await query<{ direction: string; body: string }>(
+      `SELECT direction, body FROM messages
+       WHERE conversation_id = $1 AND tenant_id = $2
+       ORDER BY sent_at DESC LIMIT $3`,
+      [result.conversationId, input.tenantId, HISTORY_LIMIT]
+    );
+
+    // Reverse so oldest first, map to OpenAI format
+    history = rows
+      .reverse()
+      .filter((r) => r.body && r.body.trim())
+      .map((r) => ({
+        role: r.direction === "inbound" ? "user" : "assistant",
+        content: r.body,
+      }));
+  } catch {
+    // Continue with no history — AI will still respond
+  }
+
+  // ── 3. Log inbound message ───────────────────────────────────────────────
   try {
     await query(
       `INSERT INTO messages (tenant_id, conversation_id, direction, body, twilio_sid)
@@ -114,7 +139,7 @@ export async function processSms(
     // Non-fatal
   }
 
-  // ── 3. Soft limit check ──────────────────────────────────────────────────
+  // ── 4. Soft limit check ──────────────────────────────────────────────────
   if (input.atSoftLimit) {
     result.aiResponse = SOFT_LIMIT_RESPONSE;
     const smsResult = await sendTwilioSms(
@@ -139,7 +164,7 @@ export async function processSms(
     return result;
   }
 
-  // ── 4. Fetch system prompt ───────────────────────────────────────────────
+  // ── 5. Fetch system prompt ───────────────────────────────────────────────
   let systemPrompt = DEFAULT_SYSTEM_PROMPT;
   try {
     const rows = await query<{ prompt_text: string }>(
@@ -155,29 +180,7 @@ export async function processSms(
     // Use default prompt if lookup fails
   }
 
-  // ── 5. Fetch conversation history ────────────────────────────────────────
-  let history: Array<{ role: string; content: string }> = [];
-  try {
-    const rows = await query<{ direction: string; body: string }>(
-      `SELECT direction, body FROM messages
-       WHERE conversation_id = $1 AND tenant_id = $2
-       ORDER BY sent_at DESC LIMIT $3`,
-      [result.conversationId, input.tenantId, HISTORY_LIMIT]
-    );
-
-    // Reverse so oldest first, map to OpenAI format
-    history = rows
-      .reverse()
-      .filter((r) => r.body && r.body.trim())
-      .map((r) => ({
-        role: r.direction === "inbound" ? "user" : "assistant",
-        content: r.body,
-      }));
-  } catch {
-    // Continue with no history — AI will still respond
-  }
-
-  // ── 6. Call OpenAI ───────────────────────────────────────────────────────
+  // ── 6. Call OpenAI ──────────────────────────────────────────────────────
   const openaiKey = process.env.OPENAI_API_KEY;
   if (!openaiKey) {
     result.error = "OPENAI_API_KEY not configured";
