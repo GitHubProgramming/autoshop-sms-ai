@@ -46,6 +46,44 @@ Docs tasks:
 
 ---
 
+## Clean Repository Rule
+
+Before starting any task and before creating any pull request, Claude must run:
+
+```
+git status --short
+```
+
+If the repository is **not clean**, Claude must inspect and resolve **every** listed file by one of these actions:
+
+1. **Commit intentionally** — if the change is relevant and should be preserved
+2. **Ignore locally** — if the file should not be tracked (e.g., add to `.gitignore`)
+3. **Delete safely** — if the file is unnecessary and not needed
+
+Claude must **never**:
+- Start implementation on a dirty repository
+- Create a PR from a dirty repository
+
+Claude must **always**:
+- Finish on `main` with a clean working tree
+
+---
+
+## Merge Flow
+
+When merging pull requests via CLI, always use:
+
+```
+gh pr merge --auto --squash --delete-branch
+```
+
+This ensures:
+- Squash merge for clean history
+- Auto-merge when checks pass
+- Remote branch cleanup after merge
+
+---
+
 ## Status System
 
 Project state is tracked in:
