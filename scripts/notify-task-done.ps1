@@ -1,15 +1,21 @@
 # Call after completing a task. Pass task name as first argument.
 param(
-    [string]$Task = "unnamed task"
+    [string]$Task = "Claude task completed"
 )
 
 $RepoRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+$RepoName = Split-Path -Leaf $RepoRoot
 $Branch = git -C $RepoRoot rev-parse --abbrev-ref HEAD 2>$null
 if (-not $Branch) { $Branch = "unknown" }
+$Time = Get-Date -Format "yyyy-MM-dd HH:mm"
 
-if (-not $env:TELEGRAM_TOKEN) {
-    Write-Host "[notify] TELEGRAM_TOKEN not set - skipping"
-    exit 0
-}
+$Message = @"
+✅ Claude finished task
 
-& "$RepoRoot\telegram.ps1" "Task complete: $Task - branch: $Branch"
+Task: $Task
+Repo: $RepoName
+Branch: $Branch
+Time: $Time
+"@
+
+& "$RepoRoot\scripts\send-telegram.ps1" -Message $Message
