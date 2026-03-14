@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import { query } from "../../db/client";
 import { getTenantById } from "../../db/tenants";
 import { requireAuth } from "../../middleware/require-auth";
+import { checkIdempotency, markIdempotency } from "../../queues/redis";
 
 const PLAN_PRICE_MAP: Record<string, string | undefined> = {
   starter: process.env.STRIPE_PRICE_STARTER,
@@ -50,6 +51,16 @@ export async function billingCheckoutRoute(app: FastifyInstance) {
     if (!tenant) {
       return reply.status(404).send({ error: "Tenant not found" });
     }
+
+    // ── Idempotency lock — prevent duplicate Stripe customer creation ────
+    const idempotencyKey = `checkout:${tenantId}:${plan}`;
+    const alreadyInFlight = await checkIdempotency(idempotencyKey);
+    if (alreadyInFlight) {
+      return reply.status(409).send({
+        error: "Checkout already in progress for this tenant and plan",
+      });
+    }
+    await markIdempotency(idempotencyKey);
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
 
