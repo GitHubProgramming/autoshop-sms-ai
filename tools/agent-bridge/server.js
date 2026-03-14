@@ -34,7 +34,7 @@ app.post("/ask-openai", auth, async (req, res) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "gpt-5",
+        model: "gpt-4o",
         temperature: 0.2,
         messages: [
           {
@@ -52,6 +52,11 @@ app.post("/ask-openai", auth, async (req, res) => {
   )
 
   const data = await r.json()
+
+  if (!r.ok) {
+    console.error("OpenAI error:", JSON.stringify(data))
+    return res.status(502).json({ ok: false, error: data.error?.message || "OpenAI request failed" })
+  }
 
   res.json({
     ok: true,
