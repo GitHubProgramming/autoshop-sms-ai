@@ -1,0 +1,24 @@
+[
+  {
+    "id": "mv_001",
+    "date": "2026-03-14T14:20:00Z",
+    "type": "task_done",
+    "title": "Google Calendar event creation endpoint completed",
+    "impact": "Calendar booking infrastructure is now API-backed and test-covered",
+    "stage_id": "calendar_reliability",
+    "task_id": "calendar_event_creation_endpoint",
+    "branch": "ai/gcal-event-creation",
+    "actor": "claude"
+  },
+  {
+    "id": "mv_002",
+    "date": "2026-03-14T14:45:00Z",
+    "type": "blocker_identified",
+    "title": "OAuth still requires human live verification",
+    "impact": "Calendar demo path remains blocked until manual verification",
+    "stage_id": "calendar_reliability",
+    "task_id": "oauth_end_to_end_validation",
+    "branch": "ai/gcal-event-creation",
+    "actor": "claude"
+  }
+]

@@ -1,0 +1,380 @@
+{
+  "meta": {
+    "version": 2,
+    "last_updated": "2026-03-14T15:30:00Z",
+    "updated_by": "claude",
+    "repo_branch": "main"
+  },
+  "executive": {
+    "project_name": "AutoShop AI Agent SaaS",
+    "current_mission": "TEST SMS -> AI -> Booking pipeline validation",
+    "current_node_id": "calendar_reliability",
+    "overall_progress": 42,
+    "momentum": "blocked",
+    "ai_can_continue_now": true,
+    "human_action_required": true,
+    "demo_ready_path_complete": false,
+    "current_blocker_summary": "Human verification still needed for end-to-end Google Calendar OAuth validation"
+  },
+  "critical_path": {
+    "title": "Path to MVP Demo",
+    "completion_ratio": "4/7",
+    "nodes": [
+      {
+        "id": "twilio_number_ready",
+        "title": "Twilio number ready",
+        "status": "done",
+        "owner": "human",
+        "depends_on": []
+      },
+      {
+        "id": "sms_webhook_working",
+        "title": "Inbound SMS webhook works",
+        "status": "done",
+        "owner": "ai",
+        "depends_on": [
+          "twilio_number_ready"
+        ]
+      },
+      {
+        "id": "ai_reply_generation",
+        "title": "AI reply generation works",
+        "status": "done",
+        "owner": "ai",
+        "depends_on": [
+          "sms_webhook_working"
+        ]
+      },
+      {
+        "id": "booking_intent_parsing",
+        "title": "Booking intent parsing works",
+        "status": "done",
+        "owner": "ai",
+        "depends_on": [
+          "ai_reply_generation"
+        ]
+      },
+      {
+        "id": "calendar_booking_working",
+        "title": "Calendar booking works",
+        "status": "blocked",
+        "owner": "human",
+        "depends_on": [
+          "booking_intent_parsing"
+        ]
+      },
+      {
+        "id": "end_to_end_demo_run",
+        "title": "End-to-end demo run recorded",
+        "status": "todo",
+        "owner": "human",
+        "depends_on": [
+          "calendar_booking_working"
+        ]
+      },
+      {
+        "id": "first_pilot_ready",
+        "title": "First pilot tenant ready",
+        "status": "todo",
+        "owner": "human",
+        "depends_on": [
+          "end_to_end_demo_run"
+        ]
+      }
+    ]
+  },
+  "stages": [
+    {
+      "id": "foundation_operating_model",
+      "title": "Foundation & Operating Model",
+      "weight": 10,
+      "status": "done",
+      "progress": 100,
+      "owner": "ai",
+      "depends_on": [],
+      "children": [
+        {
+          "id": "project_brain_setup",
+          "title": "Project brain foundation created",
+          "status": "done",
+          "owner": "ai"
+        },
+        {
+          "id": "dashboard_runtime_status",
+          "title": "Project Ops dashboard reads runtime JSON",
+          "status": "done",
+          "owner": "ai"
+        }
+      ],
+      "next_task": null,
+      "last_change": "2026-03-13"
+    },
+    {
+      "id": "test_workflow_chain",
+      "title": "TEST Sandbox Workflow Chain",
+      "weight": 15,
+      "status": "in_progress",
+      "progress": 40,
+      "owner": "ai",
+      "depends_on": [
+        "foundation_operating_model"
+      ],
+      "children": [
+        {
+          "id": "lt_sandbox_sms_test_flow",
+          "title": "LT sandbox SMS test flow development",
+          "status": "in_progress",
+          "owner": "ai"
+        },
+        {
+          "id": "real_twilio_demo_run",
+          "title": "End-to-end demo run with real Twilio numbers",
+          "status": "todo",
+          "owner": "human"
+        }
+      ],
+      "next_task": "Complete live TEST workflow validation with real inbound/outbound messages",
+      "last_change": "2026-03-14"
+    },
+    {
+      "id": "core_messaging_ai",
+      "title": "Core Messaging & AI Flow",
+      "weight": 25,
+      "status": "in_progress",
+      "progress": 48,
+      "owner": "ai",
+      "depends_on": [
+        "test_workflow_chain"
+      ],
+      "children": [
+        {
+          "id": "twilio_signature_validation",
+          "title": "Twilio webhook signature validation",
+          "status": "done",
+          "owner": "ai"
+        },
+        {
+          "id": "booking_intent_endpoint",
+          "title": "Booking intent endpoint",
+          "status": "done",
+          "owner": "ai"
+        },
+        {
+          "id": "sms_logging_fix",
+          "title": "SMS conversation logging fix",
+          "status": "done",
+          "owner": "ai"
+        },
+        {
+          "id": "workflow_e2e_validation",
+          "title": "Workflow end-to-end validation",
+          "status": "in_progress",
+          "owner": "ai"
+        }
+      ],
+      "next_task": "Verify TEST missed-call -> SMS -> AI response chain against live workflow",
+      "last_change": "2026-03-14"
+    },
+    {
+      "id": "calendar_reliability",
+      "title": "Calendar & Booking Reliability",
+      "weight": 15,
+      "status": "blocked",
+      "progress": 45,
+      "owner": "human",
+      "depends_on": [
+        "core_messaging_ai"
+      ],
+      "children": [
+        {
+          "id": "calendar_tokens_endpoint",
+          "title": "Calendar tokens endpoint coverage",
+          "status": "done",
+          "owner": "ai"
+        },
+        {
+          "id": "calendar_event_creation_endpoint",
+          "title": "Calendar event creation endpoint",
+          "status": "done",
+          "owner": "ai"
+        },
+        {
+          "id": "oauth_end_to_end_validation",
+          "title": "Google Calendar OAuth end-to-end validation",
+          "status": "blocked",
+          "owner": "human"
+        }
+      ],
+      "next_task": "Human must verify OAuth flow end-to-end in real environment",
+      "last_change": "2026-03-14"
+    },
+    {
+      "id": "admin_visibility_control",
+      "title": "Admin Visibility & Control",
+      "weight": 10,
+      "status": "in_progress",
+      "progress": 40,
+      "owner": "ai",
+      "depends_on": [
+        "foundation_operating_model"
+      ],
+      "children": [
+        {
+          "id": "project_ops_page",
+          "title": "Project Ops admin page",
+          "status": "done",
+          "owner": "ai"
+        },
+        {
+          "id": "project_ops_v2_upgrade",
+          "title": "Project Ops v2 map dashboard",
+          "status": "todo",
+          "owner": "ai"
+        }
+      ],
+      "next_task": "Implement mission map, blocker lane, and movement timeline in admin dashboard",
+      "last_change": "2026-03-14"
+    },
+    {
+      "id": "production_readiness",
+      "title": "Production Readiness",
+      "weight": 15,
+      "status": "in_progress",
+      "progress": 28,
+      "owner": "ai",
+      "depends_on": [
+        "calendar_reliability",
+        "admin_visibility_control"
+      ],
+      "children": [
+        {
+          "id": "deploy_safety",
+          "title": "Deploy script update-safe and duplicate-safe",
+          "status": "done",
+          "owner": "ai"
+        },
+        {
+          "id": "workflow_settings_whitelist",
+          "title": "n8n workflow settings whitelist",
+          "status": "done",
+          "owner": "ai"
+        },
+        {
+          "id": "live_env_hardening",
+          "title": "Live environment hardening",
+          "status": "todo",
+          "owner": "ai"
+        }
+      ],
+      "next_task": "Finish production hardening once calendar flow is fully verified",
+      "last_change": "2026-03-13"
+    },
+    {
+      "id": "first_live_pilot",
+      "title": "First Live Pilot",
+      "weight": 10,
+      "status": "not_started",
+      "progress": 0,
+      "owner": "human",
+      "depends_on": [
+        "production_readiness"
+      ],
+      "children": [
+        {
+          "id": "pilot_tenant_confirmed",
+          "title": "Pilot tenant confirmed",
+          "status": "todo",
+          "owner": "human"
+        }
+      ],
+      "next_task": "Choose first real pilot tenant after demo readiness",
+      "last_change": null
+    }
+  ],
+  "human_decisions": [
+    {
+      "id": "verify_google_oauth",
+      "title": "Verify Google Calendar OAuth flow end-to-end",
+      "priority": "high",
+      "status": "waiting",
+      "blocks": [
+        "calendar_reliability",
+        "end_to_end_demo_run"
+      ],
+      "impact": "Unblocks calendar booking proof in live flow",
+      "required_action": "Run real OAuth flow with current credentials and confirm event creation works in target environment"
+    },
+    {
+      "id": "confirm_real_twilio_demo",
+      "title": "Run end-to-end demo with real Twilio numbers",
+      "priority": "high",
+      "status": "waiting",
+      "blocks": [
+        "test_workflow_chain",
+        "end_to_end_demo_run"
+      ],
+      "impact": "Validates live demo path for MVP",
+      "required_action": "Use real Twilio number and execute missed call -> SMS -> AI -> booking flow"
+    },
+    {
+      "id": "confirm_priority_lane",
+      "title": "Confirm highest-priority lane",
+      "priority": "medium",
+      "status": "waiting",
+      "blocks": [],
+      "impact": "Prevents AI from splitting focus",
+      "required_action": "Choose whether to keep pushing TEST demo path first or switch to another track"
+    }
+  ],
+  "active_backlog": [
+    {
+      "id": "project_ops_v2_ui",
+      "title": "Implement Project Ops v2 dashboard UI",
+      "status": "todo",
+      "owner": "ai",
+      "priority": "high",
+      "stage_id": "admin_visibility_control"
+    },
+    {
+      "id": "test_flow_live_validation",
+      "title": "Validate TEST workflow chain against real messages",
+      "status": "in_progress",
+      "owner": "ai",
+      "priority": "high",
+      "stage_id": "test_workflow_chain"
+    }
+  ],
+  "blocked_backlog": [
+    {
+      "id": "oauth_live_check",
+      "title": "End-to-end OAuth flow validation",
+      "status": "blocked",
+      "owner": "human",
+      "blocked_by": "manual verification required",
+      "stage_id": "calendar_reliability"
+    }
+  ],
+  "recent_movements": [
+    {
+      "date": "2026-03-14",
+      "type": "task_done",
+      "title": "Google Calendar event creation endpoint completed",
+      "impact": "Calendar infrastructure advanced toward live booking proof",
+      "branch": "ai/gcal-event-creation"
+    },
+    {
+      "date": "2026-03-14",
+      "type": "task_done",
+      "title": "Twilio signature validation coverage added",
+      "impact": "Reduced risk of invalid webhook acceptance",
+      "branch": "ai/gcal-event-creation"
+    },
+    {
+      "date": "2026-03-14",
+      "type": "task_done",
+      "title": "Booking intent detection service completed",
+      "impact": "AI booking extraction became test-backed",
+      "branch": "ai/gcal-event-creation"
+    }
+  ]
+}
