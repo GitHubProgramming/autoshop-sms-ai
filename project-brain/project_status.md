@@ -1,7 +1,7 @@
 # Project Status Dashboard
 
 > **Mandatory project control file.** Updated after every meaningful task.
-> Machine-readable mirror: `project_status.json` (same directory).
+> Source of truth: `project_status.json` (same directory). This markdown file is the human-readable mirror.
 
 ---
 
@@ -40,7 +40,7 @@ Phase: TEST environment stabilization and SMS flow validation.
 |---|-------|--------|--------|----------|----------|
 | 1 | Foundation & Operating Model | 10% | done | 100% | 10.0% |
 | 2 | TEST Sandbox Workflow Chain | 15% | in_progress | 40% | 6.0% |
-| 3 | Core Messaging & AI Flow | 25% | in_progress | 44% | 11.0% |
+| 3 | Core Messaging & AI Flow | 25% | in_progress | 48% | 12.0% |
 | 4 | Calendar & Booking Reliability | 15% | blocked | 38% | 5.7% |
 | 5 | Admin Visibility & Control | 10% | in_progress | 40% | 4.0% |
 | 6 | Production Readiness | 15% | in_progress | 25% | 3.75% |
@@ -58,6 +58,7 @@ Phase: TEST environment stabilization and SMS flow validation.
 
 ## Done (Recent)
 
+- Booking intent detection service + endpoint — 44 tests (branch: `ai/gcal-event-creation`)
 - Calendar-tokens endpoint test coverage — 11 tests (branch: `ai/gcal-event-creation`)
 - Google Calendar token auto-refresh + route registration fix (branch: `ai/gcal-event-creation`)
 - Project milestone model + dashboard JSON status system
@@ -76,6 +77,7 @@ Phase: TEST environment stabilization and SMS flow validation.
 
 | Date | Change | Branch |
 |------|--------|--------|
+| 2026-03-14 | Booking intent detection service: POST /internal/booking-intent (44 tests, confidence scoring, 26 service types, name/date extraction) | `ai/gcal-event-creation` |
 | 2026-03-14 | Calendar-tokens endpoint test coverage (11 tests: refresh happy/error paths, validation, decryption) | `ai/gcal-event-creation` |
 | 2026-03-13 | Calendar token auto-refresh + calendarTokensRoute registration fix (endpoint was dead) | `ai/gcal-event-creation` |
 | 2026-03-13 | Status audit: Google OAuth blocker corrected (credentials exist in .env, blocker is now e2e verification), Stage 6 progress 20→25% (Stripe tests verified), dashboard task moved to done | `ai/claude-execution-agent` |

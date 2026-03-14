@@ -7,42 +7,49 @@
 
   "stages": [
     {
+      "id": 1,
       "name": "Foundation & Operating Model",
       "weight": 10,
       "status": "done",
       "progress": 100
     },
     {
+      "id": 2,
       "name": "TEST Sandbox Workflow Chain",
       "weight": 15,
       "status": "in_progress",
       "progress": 40
     },
     {
+      "id": 3,
       "name": "Core Messaging & AI Flow",
       "weight": 25,
       "status": "in_progress",
-      "progress": 44
+      "progress": 48
     },
     {
+      "id": 4,
       "name": "Calendar & Booking Reliability",
       "weight": 15,
       "status": "blocked",
       "progress": 38
     },
     {
+      "id": 5,
       "name": "Admin Visibility & Control",
       "weight": 10,
       "status": "in_progress",
       "progress": 40
     },
     {
+      "id": 6,
       "name": "Production Readiness",
       "weight": 15,
       "status": "in_progress",
       "progress": 25
     },
     {
+      "id": 7,
       "name": "First Live Pilot",
       "weight": 10,
       "status": "not_started",
@@ -59,6 +66,7 @@
       "LT sandbox SMS test flow development"
     ],
     "done": [
+      "Booking intent detection service + endpoint (44 tests)",
       "Calendar-tokens endpoint test coverage (11 tests)",
       "Google Calendar token auto-refresh + route registration fix",
       "Project milestone model + dashboard JSON status system",
@@ -80,6 +88,7 @@
       "name": "n8n credentials (postgres, openai, twilio)",
       "required_action": "Manual setup in n8n UI",
       "owner": "Human",
+      "affects_stage_ids": [2, 3],
       "affects_stages": [
         "TEST Sandbox Workflow Chain",
         "Core Messaging & AI Flow"
@@ -89,6 +98,7 @@
       "name": "Google Calendar OAuth verification",
       "required_action": "End-to-end OAuth flow test with existing credentials",
       "owner": "Human",
+      "affects_stage_ids": [4],
       "affects_stages": [
         "Calendar & Booking Reliability"
       ]
@@ -97,6 +107,7 @@
       "name": "First pilot tenant",
       "required_action": "Requires working demo + real phone number",
       "owner": "Human",
+      "affects_stage_ids": [7],
       "affects_stages": [
         "First Live Pilot"
       ]
@@ -104,6 +115,11 @@
   ],
 
   "recent_changes": [
+    {
+      "date": "2026-03-14",
+      "change": "Booking intent detection service: POST /internal/booking-intent endpoint with 44 tests (confidence scoring, 26 service types, name extraction, date parsing)",
+      "branch": "ai/gcal-event-creation"
+    },
     {
       "date": "2026-03-14",
       "change": "Calendar-tokens endpoint test coverage (11 tests: refresh happy/error paths, validation, decryption failures)",

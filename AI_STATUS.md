@@ -9,6 +9,53 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: booking-intent-service — 2026-03-14
+
+**Branch:** ai/gcal-event-creation
+**Status:** COMPLETE — Booking intent detection service + endpoint + 44 tests
+
+### What Was Done
+Created a testable booking intent detection service (`POST /internal/booking-intent`) to replace fragile inline keyword matching in n8n WF-002.
+
+**Service features:**
+1. High/medium/none confidence scoring for booking confirmation
+2. 16 high-confidence + 10 medium-confidence booking patterns
+3. 26 service type patterns (vs. 7 in the old inline code) covering brakes, diagnostics, AC, battery, etc.
+4. Customer name extraction from AI responses ("confirmed, John" or "appointment for John Smith")
+5. ISO 8601 + natural language date extraction from AI/customer messages
+6. 16 close/cancel keyword patterns (vs. 6 in old code)
+7. Structured JSON response with `matchedPatterns` for debugging
+
+**44 tests covering:**
+- Booking confirmation (high/medium/none confidence, edge cases)
+- Service type extraction (12 service types, AI vs customer message, default)
+- User close detection (7 patterns + non-false-positive)
+- Date extraction (ISO, natural language, fallback, preference ordering)
+- Customer name extraction (4 patterns + null case)
+- Edge cases (empty strings, case insensitivity, non-booking questions)
+- HTTP endpoint (200/400 validation, all response fields)
+
+### Verification
+- TypeScript: compiles with zero errors
+- Tests: 108/108 pass (64 existing + 44 new, no regressions)
+- Docker: build + smoke test pass (`ai-verify.sh` PASSED)
+
+### Files Changed
+- `apps/api/src/services/booking-intent.ts` — pure function module (no DB dependency)
+- `apps/api/src/routes/internal/booking-intent.ts` — POST endpoint
+- `apps/api/src/index.ts` — route registration
+- `apps/api/src/tests/booking-intent.test.ts` — 44 tests
+- `AI_STATUS.md` — this entry
+
+### Blockers Discovered
+- None new. n8n WF-002 still uses inline keyword matching; migration to call this endpoint is a future task.
+
+### Next Recommended Task
+- Migrate n8n WF-002 "Detect Booking Intent" node to call `POST /internal/booking-intent` instead of inline keyword matching
+- Or: continue strengthening Stage 3 with AI conversation flow improvements
+
+---
+
 ## TASK: calendar-tokens-tests — 2026-03-14
 
 **Branch:** ai/gcal-event-creation
