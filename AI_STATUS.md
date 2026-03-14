@@ -9,6 +9,56 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: fix-admin-auth — 2026-03-15
+
+**Branch:** ai/fix-admin-auth
+**Status:** COMPLETE — Admin bootstrap endpoint added to enable admin login
+
+### Root Cause
+The admin tenant (mantas@autoshopsmsai.com) has no `password_hash` set in the production database. The `POST /auth/login` endpoint (login.ts:49-55) explicitly rejects accounts with null `password_hash`, returning 401. Without a successful login, no JWT is issued, so all admin endpoints (including `/internal/admin/project-status-v2`) return 401.
+
+### What Was Done
+1. Traced full auth flow: login.html → POST /auth/login → JWT stored in localStorage → apiFetch sends Bearer token → adminGuard verifies JWT + ADMIN_EMAILS
+2. Confirmed root cause: login endpoint rejects null password_hash → no token → all admin endpoints 401
+3. Added `POST /auth/admin-bootstrap` endpoint protected by `INTERNAL_API_KEY` (x-internal-key header)
+4. Endpoint validates email is in ADMIN_EMAILS, then either:
+   - Sets password_hash on existing tenant (if password_hash is null)
+   - Creates new admin tenant (if tenant doesn't exist)
+   - Returns 409 if password already set (prevents re-use)
+5. Registered route in index.ts
+6. Added 11 tests covering all security guards and happy paths
+
+### Files Changed
+- `apps/api/src/routes/auth/admin-bootstrap.ts` (new — bootstrap endpoint)
+- `apps/api/src/index.ts` (route registration)
+- `apps/api/src/tests/admin-bootstrap.test.ts` (new — 11 tests)
+
+### Production Deployment Steps Required
+After merging and deploying:
+1. Get INTERNAL_API_KEY value from Render Dashboard → Environment
+2. Run bootstrap:
+   ```
+   curl -X POST https://autoshopsmsai.com/auth/admin-bootstrap \
+     -H "Content-Type: application/json" \
+     -H "x-internal-key: <INTERNAL_API_KEY>" \
+     -d '{"email":"mantas@autoshopsmsai.com","password":"<chosen-password>"}'
+   ```
+3. Log in at https://autoshopsmsai.com/login.html
+4. Verify Project Ops loads at admin.html → Project Ops tab
+5. Verify `GET /internal/admin/project-status-v2` returns 200 with Bearer token
+
+### Verification
+```
+VERIFICATION
+EXIT_CODE=0
+TEST_FILES=14
+TESTS_TOTAL=258
+TESTS_FAILED=0
+DURATION=5.94s
+```
+
+---
+
 ## TASK: admin-stale-data-verify — 2026-03-15
 
 **Branch:** ai/admin-stale-data-verify

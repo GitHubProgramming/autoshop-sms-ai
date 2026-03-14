@@ -1,0 +1,139 @@
+import { FastifyInstance } from "fastify";
+import { z } from "zod";
+import * as bcrypt from "bcryptjs";
+import { query } from "../../db/client";
+
+const BootstrapBody = z.object({
+  email: z.string().email(),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+/**
+ * POST /auth/admin-bootstrap
+ *
+ * One-time endpoint to set a password on an admin tenant that has no
+ * password_hash (e.g. manually-created pilot accounts).
+ *
+ * Protected by INTERNAL_API_KEY header — only callable by the server operator.
+ *
+ * If the tenant exists with that email but has no password_hash, sets it.
+ * If the tenant doesn't exist, creates a minimal admin tenant.
+ *
+ * Returns 200 on success, 409 if the tenant already has a password set.
+ */
+export async function adminBootstrapRoute(app: FastifyInstance) {
+  app.post("/admin-bootstrap", async (request, reply) => {
+    // ── Verify INTERNAL_API_KEY ──────────────────────────────────────────────
+    const internalKey = process.env.INTERNAL_API_KEY;
+    if (!internalKey) {
+      return reply.status(503).send({
+        error: "INTERNAL_API_KEY not configured on the server",
+      });
+    }
+
+    const provided =
+      (request.headers["x-internal-key"] as string) ??
+      (request.headers["authorization"] as string)?.replace(/^Bearer\s+/i, "");
+
+    if (!provided || provided !== internalKey) {
+      return reply.status(401).send({ error: "Invalid or missing internal API key" });
+    }
+
+    // ── Validate body ────────────────────────────────────────────────────────
+    const parsed = BootstrapBody.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        error: "email and password (min 8 chars) are required",
+      });
+    }
+
+    const { email, password } = parsed.data;
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // ── Verify email is in ADMIN_EMAILS allowlist ────────────────────────────
+    const adminEmails = new Set(
+      (process.env.ADMIN_EMAILS ?? "")
+        .split(",")
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean),
+    );
+    if (adminEmails.size === 0) {
+      return reply.status(503).send({
+        error: "ADMIN_EMAILS env var not configured",
+      });
+    }
+    if (!adminEmails.has(normalizedEmail)) {
+      return reply.status(403).send({
+        error: "Email is not in the ADMIN_EMAILS allowlist",
+      });
+    }
+
+    // ── Hash password ────────────────────────────────────────────────────────
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    // ── Check if tenant exists ───────────────────────────────────────────────
+    const existing = await query<{
+      id: string;
+      shop_name: string;
+      password_hash: string | null;
+    }>(
+      "SELECT id, shop_name, password_hash FROM tenants WHERE owner_email = $1 LIMIT 1",
+      [normalizedEmail],
+    );
+
+    if (existing.length > 0) {
+      const tenant = existing[0];
+
+      if (tenant.password_hash) {
+        return reply.status(409).send({
+          error: "This tenant already has a password set. Use the login flow.",
+          tenantId: tenant.id,
+        });
+      }
+
+      // Set password on existing tenant
+      await query(
+        "UPDATE tenants SET password_hash = $1 WHERE id = $2",
+        [passwordHash, tenant.id],
+      );
+
+      request.log.info(
+        { tenantId: tenant.id, email: normalizedEmail },
+        "Admin bootstrap: password_hash set on existing tenant",
+      );
+
+      return reply.status(200).send({
+        ok: true,
+        action: "password_set",
+        tenantId: tenant.id,
+        shopName: tenant.shop_name,
+        message: "Password set. You can now log in at /login.html",
+      });
+    }
+
+    // ── Create minimal admin tenant ──────────────────────────────────────────
+    const rows = await query<{ id: string }>(
+      `INSERT INTO tenants
+         (shop_name, owner_email, password_hash, billing_status,
+          trial_started_at, trial_ends_at, trial_conv_limit,
+          conv_limit_this_cycle, conv_used_this_cycle)
+       VALUES ('Admin', $1, $2, 'trial',
+               NOW(), NOW() + INTERVAL '365 days', 9999,
+               9999, 0)
+       RETURNING id`,
+      [normalizedEmail, passwordHash],
+    );
+
+    request.log.info(
+      { tenantId: rows[0].id, email: normalizedEmail },
+      "Admin bootstrap: new admin tenant created",
+    );
+
+    return reply.status(201).send({
+      ok: true,
+      action: "tenant_created",
+      tenantId: rows[0].id,
+      message: "Admin tenant created with password. You can now log in at /login.html",
+    });
+  });
+}
