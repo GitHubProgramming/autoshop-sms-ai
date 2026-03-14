@@ -38,7 +38,8 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
       ),
       // Google Calendar integration
       query(
-        `SELECT calendar_id, connected_at, last_refreshed, token_expiry
+        `SELECT calendar_id, connected_at, last_refreshed, token_expiry,
+                google_account_email, integration_status, last_error
          FROM tenant_calendar_tokens WHERE tenant_id = $1`,
         [tenantId]
       ),
@@ -120,14 +121,19 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
     const calendar = (calendarRows as any[])[0] || null;
     const phone = (phoneRows as any[])[0] || null;
 
-    // Determine calendar integration status
+    // Determine calendar integration status — prefer explicit DB status, fall back to token expiry
     let calendarStatus: string = "not_connected";
     if (calendar) {
-      const expiry = new Date(calendar.token_expiry);
-      if (expiry < new Date()) {
-        calendarStatus = "token_expired";
+      const dbStatus = calendar.integration_status;
+      if (dbStatus === "revoked" || dbStatus === "refresh_failed") {
+        calendarStatus = "reconnect_required";
       } else {
-        calendarStatus = "connected";
+        const expiry = new Date(calendar.token_expiry);
+        if (expiry < new Date()) {
+          calendarStatus = "token_expired";
+        } else {
+          calendarStatus = "connected";
+        }
       }
     }
 
@@ -151,6 +157,8 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
           calendar_id: calendar?.calendar_id ?? null,
           connected_at: calendar?.connected_at ?? null,
           token_expiry: calendar?.token_expiry ?? null,
+          google_account_email: calendar?.google_account_email ?? null,
+          last_error: calendar?.last_error ?? null,
         },
         twilio: {
           phone_number: phone?.phone_number ?? null,

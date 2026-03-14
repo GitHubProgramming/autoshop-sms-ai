@@ -124,15 +124,34 @@ export async function createCalendarEvent(
   try {
     tokens = await getCalendarTokens(input.tenantId);
   } catch (err) {
+    const errorMsg = `Token retrieval failed: ${(err as Error).message}`;
+
+    // Persist sync failure on the appointment
+    await query(
+      `UPDATE appointments
+       SET sync_status = 'failed', sync_error = $1, sync_attempted_at = NOW()
+       WHERE id = $2 AND tenant_id = $3`,
+      [errorMsg, input.appointmentId, input.tenantId]
+    ).catch(() => {}); // best-effort
+
     return {
       success: false,
       googleEventId: null,
-      error: `Token retrieval failed: ${(err as Error).message}`,
+      error: errorMsg,
       calendarSynced: false,
     };
   }
 
   if (!tokens) {
+    // Persist sync failure on the appointment
+    await query(
+      `UPDATE appointments
+       SET sync_status = 'failed', sync_error = 'No calendar tokens found for tenant',
+           sync_attempted_at = NOW()
+       WHERE id = $1 AND tenant_id = $2`,
+      [input.appointmentId, input.tenantId]
+    ).catch(() => {}); // best-effort
+
     return {
       success: false,
       googleEventId: null,
@@ -159,10 +178,20 @@ export async function createCalendarEvent(
 
     if (!res.ok) {
       const body = await res.text().catch(() => "");
+      const errorMsg = `Google Calendar API error ${res.status}: ${body}`.slice(0, 500);
+
+      // Persist sync failure on the appointment
+      await query(
+        `UPDATE appointments
+         SET sync_status = 'failed', sync_error = $1, sync_attempted_at = NOW()
+         WHERE id = $2 AND tenant_id = $3`,
+        [errorMsg, input.appointmentId, input.tenantId]
+      ).catch(() => {}); // best-effort
+
       return {
         success: false,
         googleEventId: null,
-        error: `Google Calendar API error ${res.status}: ${body}`,
+        error: errorMsg,
         calendarSynced: false,
       };
     }
@@ -170,10 +199,20 @@ export async function createCalendarEvent(
     const data = (await res.json()) as { id: string };
     googleEventId = data.id;
   } catch (err) {
+    const errorMsg = `Google Calendar API request failed: ${(err as Error).message}`;
+
+    // Persist sync failure on the appointment
+    await query(
+      `UPDATE appointments
+       SET sync_status = 'failed', sync_error = $1, sync_attempted_at = NOW()
+       WHERE id = $2 AND tenant_id = $3`,
+      [errorMsg, input.appointmentId, input.tenantId]
+    ).catch(() => {}); // best-effort
+
     return {
       success: false,
       googleEventId: null,
-      error: `Google Calendar API request failed: ${(err as Error).message}`,
+      error: errorMsg,
       calendarSynced: false,
     };
   }
@@ -182,7 +221,8 @@ export async function createCalendarEvent(
   try {
     await query(
       `UPDATE appointments
-       SET google_event_id = $1, calendar_synced = TRUE
+       SET google_event_id = $1, calendar_synced = TRUE,
+           sync_status = 'synced', sync_error = NULL, sync_attempted_at = NOW()
        WHERE id = $2 AND tenant_id = $3`,
       [googleEventId, input.appointmentId, input.tenantId]
     );

@@ -46,7 +46,8 @@ async function upsertCalendarTokens(
   accessToken: string,
   refreshToken: string,
   expiresIn: number,
-  calendarId = "primary"
+  calendarId = "primary",
+  googleAccountEmail: string | null = null
 ): Promise<void> {
   const tokenExpiry = new Date(Date.now() + expiresIn * 1000);
   const encAccess = encryptToken(accessToken);
@@ -54,15 +55,20 @@ async function upsertCalendarTokens(
 
   await query(
     `INSERT INTO tenant_calendar_tokens
-       (tenant_id, access_token, refresh_token, token_expiry, calendar_id, connected_at)
-     VALUES ($1, $2, $3, $4, $5, NOW())
+       (tenant_id, access_token, refresh_token, token_expiry, calendar_id,
+        google_account_email, integration_status, last_error, connected_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, 'active', NULL, NOW(), NOW())
      ON CONFLICT (tenant_id) DO UPDATE SET
-       access_token   = EXCLUDED.access_token,
-       refresh_token  = EXCLUDED.refresh_token,
-       token_expiry   = EXCLUDED.token_expiry,
-       calendar_id    = EXCLUDED.calendar_id,
-       last_refreshed = NOW()`,
-    [tenantId, encAccess, encRefresh, tokenExpiry.toISOString(), calendarId]
+       access_token         = EXCLUDED.access_token,
+       refresh_token        = EXCLUDED.refresh_token,
+       token_expiry         = EXCLUDED.token_expiry,
+       calendar_id          = EXCLUDED.calendar_id,
+       google_account_email = COALESCE(EXCLUDED.google_account_email, tenant_calendar_tokens.google_account_email),
+       integration_status   = 'active',
+       last_error           = NULL,
+       last_refreshed       = NOW(),
+       updated_at           = NOW()`,
+    [tenantId, encAccess, encRefresh, tokenExpiry.toISOString(), calendarId, googleAccountEmail]
   );
 }
 
@@ -178,14 +184,31 @@ export async function googleAuthRoute(app: FastifyInstance) {
       return reply.status(502).send({ error: "Incomplete tokens from Google" });
     }
 
+    // Fetch Google account email for display/audit purposes
+    let googleEmail: string | null = null;
+    try {
+      const userinfoRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+        headers: { Authorization: `Bearer ${tokens.access_token}` },
+      });
+      if (userinfoRes.ok) {
+        const userinfo = (await userinfoRes.json()) as { email?: string };
+        googleEmail = userinfo.email ?? null;
+      }
+    } catch {
+      // Non-fatal — email is nice-to-have, not required for calendar operation
+      request.log.warn({ tenantId }, "Failed to fetch Google account email");
+    }
+
     await upsertCalendarTokens(
       tenantId,
       tokens.access_token,
       tokens.refresh_token,
-      tokens.expires_in ?? 3600
+      tokens.expires_in ?? 3600,
+      "primary",
+      googleEmail
     );
 
-    request.log.info({ tenantId }, "Google Calendar connected for tenant");
+    request.log.info({ tenantId, googleEmail }, "Google Calendar connected for tenant");
 
     // Redirect back to the app dashboard with a success flag
     return reply.redirect(`${publicOrigin}/app.html?calendar=connected`);

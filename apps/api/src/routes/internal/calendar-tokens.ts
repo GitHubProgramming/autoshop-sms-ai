@@ -46,6 +46,17 @@ async function refreshAccessToken(
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     log.error({ tenantId, status: res.status, body }, "Google token refresh failed");
+
+    // Persist failure status so dashboard can surface "reconnect required"
+    const errorMsg = `Token refresh failed (HTTP ${res.status}): ${body}`.slice(0, 500);
+    const failureStatus = res.status === 401 || res.status === 400 ? "revoked" : "refresh_failed";
+    await query(
+      `UPDATE tenant_calendar_tokens
+       SET integration_status = $1, last_error = $2, updated_at = NOW()
+       WHERE tenant_id = $3`,
+      [failureStatus, errorMsg, tenantId]
+    ).catch((err: Error) => log.error({ tenantId, err }, "Failed to persist integration failure status"));
+
     return null;
   }
 
@@ -59,7 +70,8 @@ async function refreshAccessToken(
 
   await query(
     `UPDATE tenant_calendar_tokens
-     SET access_token = $1, token_expiry = $2, last_refreshed = NOW()
+     SET access_token = $1, token_expiry = $2, last_refreshed = NOW(),
+         integration_status = 'active', last_error = NULL, updated_at = NOW()
      WHERE tenant_id = $3`,
     [encAccess, tokenExpiry.toISOString(), tenantId]
   );

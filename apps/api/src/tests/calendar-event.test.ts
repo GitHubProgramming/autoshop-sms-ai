@@ -256,8 +256,8 @@ describe("createCalendarEvent", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("Google Calendar API error 401");
     expect(result.calendarSynced).toBe(false);
-    // Should NOT update DB (2 calls: idempotency check + token fetch)
-    expect(mocks.query).toHaveBeenCalledTimes(2);
+    // 3 calls: idempotency check + token fetch + sync failure update
+    expect(mocks.query).toHaveBeenCalledTimes(3);
   });
 
   it("returns error when Google Calendar API returns 403", async () => {

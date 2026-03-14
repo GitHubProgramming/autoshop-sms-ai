@@ -9,6 +9,46 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: multi-tenant-calendar-oauth — 2026-03-14
+
+**Branch:** ai/multi-tenant-calendar-oauth
+**Status:** COMPLETE — Per-tenant Google Calendar OAuth architecture hardened
+
+### What Was Done
+1. Migration 010: added `google_account_email`, `integration_status`, `last_error`, `updated_at` to `tenant_calendar_tokens`; added `sync_status`, `sync_error`, `sync_attempted_at` to `appointments`; backfill existing data
+2. OAuth callback: now fetches Google userinfo to capture `google_account_email` on connect
+3. Token refresh failure: persists `integration_status = 'revoked'|'refresh_failed'` and `last_error` to DB (previously only logged, not surfaced)
+4. Calendar event creation: persists `sync_status = 'failed'` and `sync_error` on appointment record for all failure paths (no tokens, API error, network failure)
+5. Calendar event success: sets `sync_status = 'synced'` and `sync_attempted_at`
+6. Dashboard: uses explicit `integration_status` for reconnect_required detection; surfaces `google_account_email` and `last_error`
+7. Admin integrations endpoint: includes new `google_account_email`, `calendar_integration_status`, `calendar_last_error` fields
+8. New test file: `tenant-calendar-isolation.test.ts` (12 tests proving tenant isolation, sync failure persistence, cross-tenant protection)
+9. Updated `calendar-event.test.ts` assertion for new sync failure update call count
+
+### Architecture Verified
+- **No shared/global calendar**: every path routes through `tenant_id` UNIQUE constraint
+- **Tenant A ≠ Tenant B**: tokens resolve per-tenant via `WHERE tenant_id = $1`
+- **Failure is surfaced**: failed refresh → DB `integration_status`/`last_error`; failed sync → appointment `sync_status`/`sync_error`
+- **No silent success**: all failure paths return explicit error, persist to DB
+
+### Verification
+- tenant-calendar-isolation.test.ts: 12/12 pass (new)
+- calendar-event.test.ts: 26/26 pass (1 assertion updated)
+- calendar-tokens.test.ts: 11/11 pass (unchanged, confirms refresh behavior)
+- Full suite: 11 files, 176/176 pass, 4.68s, EXIT_CODE=0
+
+### Files Changed
+- `db/migrations/010_calendar_integration_status.sql` — new migration
+- `apps/api/src/routes/auth/google.ts` — userinfo fetch, upsert with new columns
+- `apps/api/src/routes/internal/calendar-tokens.ts` — persist integration_status on refresh failure/success
+- `apps/api/src/services/google-calendar.ts` — persist sync_status/sync_error on all failure paths
+- `apps/api/src/routes/tenant/dashboard.ts` — surface integration_status, google_account_email, last_error
+- `apps/api/src/routes/internal/admin.ts` — include new columns in integrations endpoint
+- `apps/api/src/tests/calendar-event.test.ts` — updated assertion
+- `apps/api/src/tests/tenant-calendar-isolation.test.ts` — new test file (12 tests)
+
+---
+
 ## TASK: idempotency-guards — 2026-03-14
 
 **Branch:** ai/idempotency-guards
