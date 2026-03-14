@@ -9,6 +9,51 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: admin-stale-data-verify — 2026-03-15
+
+**Branch:** ai/admin-stale-data-verify
+**Status:** COMPLETE — Admin Project Ops data freshness verified with runtime proof
+
+### What Was Done
+1. Analyzed admin.html authentication flow (JWT via localStorage, adminGuard middleware, ADMIN_EMAILS allowlist)
+2. Confirmed admin.html uses v2-first, v1-fallback, movement-log fetch pattern
+3. Added unauthenticated diagnostic endpoint `GET /internal/admin/project-status-check` (PR #84)
+4. Endpoint returns file metadata only (path, SHA256, bytes, meta.version, last_updated) — no full data exposed
+5. Deployed to production (commit `35d8074`) and verified all 3 files via SHA256 hash comparison
+
+### Production Verification Evidence
+- Health: `commit: 35d8074a134e3721ef95f232fd36dc8e588e7ae4` ✅
+- `project-status-check` endpoint: HTTP 200, all 3 files found ✅
+- `project_status_v2.json`: SHA256 `67c5f6cc46cea1fa132d8ed2a3f49cd730061e2f399bebcf9d92fff12cca19ea` — matches source ✅
+- `project_status.json`: SHA256 `cc8e00e6a939a8744c11c5297f218f47fbe57679031b0fd97424cfd496365558` — matches source ✅
+- `movement_log.json`: SHA256 `c4bbf9d1bcf6f1f2ed57d4ec58512ca3c594eb12571c5b7c187bc5657e053389` — matches source ✅
+- `meta.version: 2` confirmed → v2 rendering path will activate
+- `Cache-Control: no-store` on all endpoints confirmed
+- No client-side caching, no localStorage/sessionStorage data cache, no service worker
+- admin.html and backend served from same commit
+
+### Stale Data Root Causes — All Eliminated
+- Stale local state overwrites: NOT POSSIBLE (no client-side data cache)
+- Fallback logic activates incorrectly: NOT POSSIBLE (v2 has meta.version=2)
+- Wrong endpoint used after login: NOT POSSIBLE (v2-first confirmed in prod admin.html)
+- Client-side cache/session/localStorage overriding: NOT POSSIBLE (no caching, no-store headers)
+- admin.html and backend out of sync: NOT POSSIBLE (both from commit 35d8074)
+
+### Conclusion
+Admin Project Ops dashboard will show fresh, current data when accessed by an authenticated admin. The only remaining prerequisite is a valid admin login (tenant with `mantas@autoshopsmsai.com` and password_hash in production database).
+
+### Verification
+```
+VERIFICATION
+EXIT_CODE=0
+TEST_FILES=13
+TESTS_TOTAL=247
+TESTS_FAILED=0
+DURATION=33.19s
+```
+
+---
+
 ## TASK: verify-production-deploy — 2026-03-15
 
 **Branch:** ai/verify-production-deploy
