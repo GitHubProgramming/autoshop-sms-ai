@@ -66,6 +66,7 @@
       "LT sandbox SMS test flow development"
     ],
     "done": [
+      "WF-002 unified with API endpoints (booking-intent + appointments)",
       "Appointment creation endpoint + service (24 tests)",
       "Idempotency guards: calendar-event + checkout (10 tests)",
       "Checkout endpoint test coverage (8 tests)",
@@ -122,6 +123,11 @@
   ],
 
   "recent_changes": [
+    {
+      "date": "2026-03-14",
+      "change": "WF-002 unified with API: inline booking detection replaced with POST /internal/booking-intent (44-pattern service), raw SQL appointment insert replaced with POST /internal/appointments (adds customer_name, tenant validation). Eliminates code duplication between n8n and TypeScript.",
+      "branch": "ai/wf002-use-api-endpoints"
+    },
     {
       "date": "2026-03-14",
       "change": "Appointment creation endpoint: POST /internal/appointments with service layer, tenant validation, conversation-based upsert, 24 tests. Full suite 188/188.",

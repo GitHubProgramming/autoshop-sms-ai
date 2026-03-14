@@ -58,6 +58,7 @@ Phase: TEST environment stabilization and SMS flow validation.
 
 ## Done (Recent)
 
+- WF-002 unified with API endpoints (booking-intent + appointments) (branch: `ai/wf002-use-api-endpoints`)
 - Appointment creation endpoint + service — 24 tests (branch: `ai/appointment-creation-endpoint`)
 - Idempotency guards: calendar-event + checkout — 10 new tests (branch: `ai/idempotency-guards`)
 - Checkout endpoint test coverage — 8 tests (branch: `ai/idempotency-guards`)
@@ -84,6 +85,7 @@ Phase: TEST environment stabilization and SMS flow validation.
 
 | Date | Change | Branch |
 |------|--------|--------|
+| 2026-03-14 | WF-002 unified with API: inline booking detection → POST /internal/booking-intent, raw SQL appointment insert → POST /internal/appointments (adds customer_name, tenant validation, eliminates code duplication) | `ai/wf002-use-api-endpoints` |
 | 2026-03-14 | Appointment creation endpoint: POST /internal/appointments with service layer, tenant validation, conversation-based upsert (24 tests, suite 188/188) | `ai/appointment-creation-endpoint` |
 | 2026-03-14 | Idempotency guards: calendar-event DB dedup + checkout Redis lock (10 new tests, suite 164/164) | `ai/idempotency-guards` |
 | 2026-03-14 | Project Ops v2 polish: stage_id→title mapping, auto-expand current stage subtasks, Admin stage 45→65%, backlog item removed | `ai/project-ops-v2-polish` |
