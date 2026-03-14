@@ -1535,6 +1535,10 @@ async function loadProjectOps() {
     const activeBacklog = d.active_backlog || [];
     const blockedBacklog = d.blocked_backlog || [];
 
+    // Build stage_id → human-friendly title lookup
+    const stageTitleMap = {};
+    stages.forEach(s => { stageTitleMap[s.id] = s.title; });
+
     const progressPct = exec.overall_progress ?? Math.floor(stages.reduce(
       (sum, s) => sum + (s.weight || 0) * (s.progress || 0) / 100, 0));
     const progressColor = progressPct >= 80 ? 'green' : progressPct >= 40 ? 'rust' : 'amber';
@@ -1585,7 +1589,7 @@ async function loadProjectOps() {
       const barColor = opsStatusColor(s.status);
       const barCssMap = { green: 'green', rust: 'amber', red: 'red', steel: 'amber', amber: 'amber' };
       const childrenHtml = (s.children || []).length > 0
-        ? `<div id="stage-children-${s.id}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+        ? `<div id="stage-children-${s.id}" style="display:${isCurrent ? '' : 'none'};margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
             ${s.children.map(c => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;">
               <span style="width:8px;height:8px;border-radius:50%;background:var(--${opsStatusColor(c.status)});flex-shrink:0;"></span>
               <span style="color:var(--white);flex:1;">${escHtml(c.title)}</span>
@@ -1594,7 +1598,7 @@ async function loadProjectOps() {
           </div>`
         : '';
       const expandBtn = (s.children || []).length > 0
-        ? `<span style="color:var(--rust);cursor:pointer;font-size:11px;font-weight:600;" onclick="var el=document.getElementById('stage-children-${s.id}');el.style.display=el.style.display==='none'?'':'none';this.textContent=el.style.display==='none'?'Show subtasks':'Hide subtasks';">Show subtasks</span>`
+        ? `<span style="color:var(--rust);cursor:pointer;font-size:11px;font-weight:600;" onclick="var el=document.getElementById('stage-children-${s.id}');el.style.display=el.style.display==='none'?'':'none';this.textContent=el.style.display==='none'?'Show subtasks':'Hide subtasks';">${isCurrent ? 'Hide subtasks' : 'Show subtasks'}</span>`
         : '';
       return `<div style="border:2px solid ${borderColor};border-radius:10px;padding:14px 16px;background:var(--bg-panel);${shadowStyle}position:relative;">
         ${isCurrent ? '<div style="position:absolute;top:-9px;right:12px;background:var(--rust);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;letter-spacing:.04em;">CURRENT</div>' : ''}
@@ -1709,7 +1713,7 @@ async function loadProjectOps() {
       <td>${opsStatusBadge(b.status)}</td>
       <td>${opsOwnerBadge(b.owner)}</td>
       <td>${prioCell}</td>
-      <td class="mono dim" style="font-size:12px;">${escHtml(b.stage_id || '—')}</td>
+      <td style="font-size:12px;color:var(--steel);">${escHtml(stageTitleMap[b.stage_id] || b.stage_id || '—')}</td>
       ${isBlocked ? `<td style="font-size:12px;color:var(--red);">${escHtml(b.blocked_by || '—')}</td>` : ''}
     </tr>`;
     }).join('');
@@ -1751,7 +1755,7 @@ async function loadProjectOps() {
           <td><span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${typeColor};color:#fff;font-size:12px;font-weight:700;">${icon}</span></td>
           <td style="font-weight:600;">${escHtml(m.title)}</td>
           <td style="font-size:13px;color:var(--steel);">${escHtml(m.impact || '')}</td>
-          <td class="mono dim" style="font-size:12px;">${escHtml(m.stage_id || m.stage || '')}</td>
+          <td style="font-size:12px;color:var(--steel);">${escHtml(stageTitleMap[m.stage_id] || stageTitleMap[m.stage] || m.stage_id || m.stage || '')}</td>
           <td>${branchBadge}</td>
         </tr>`;
       }).join('');

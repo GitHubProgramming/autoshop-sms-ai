@@ -1,5 +1,5 @@
 {
-  "overall_progress": 43,
+  "overall_progress": 45,
 
   "current_phase": "TEST environment stabilization and SMS flow validation",
 
@@ -39,7 +39,7 @@
       "name": "Admin Visibility & Control",
       "weight": 10,
       "status": "in_progress",
-      "progress": 45
+      "progress": 65
     },
     {
       "id": 6,
@@ -75,6 +75,7 @@
       "Project milestone model + dashboard JSON status system",
       "Stripe webhook test coverage (20 tests)",
       "Webhook test coverage hardening (SMS inbound + voice-status: 33 tests)",
+      "Project Ops v2 dashboard (mission map, critical path, movement timeline)",
       "Admin dashboard UI (Project Ops page reading project_status.json)",
       "Project brain / B-Lite operating model setup",
       "Deploy script made update-safe and duplicate-safe",
@@ -118,6 +119,11 @@
   ],
 
   "recent_changes": [
+    {
+      "date": "2026-03-14",
+      "change": "Project Ops v2 polish: stage_id→title mapping in backlog/timeline, auto-expand current stage subtasks, Admin stage progress updated to 65%",
+      "branch": "ai/project-ops-v2-polish"
+    },
     {
       "date": "2026-03-14",
       "change": "Conversation health metrics: GET /internal/admin/metrics/conversation-health endpoint with 14 tests (completion rate, booking conversion, close reason breakdown, daily volume, period/tenant filtering, edge cases)",
