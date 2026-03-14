@@ -46,7 +46,7 @@
       "name": "Production Readiness",
       "weight": 15,
       "status": "in_progress",
-      "progress": 25
+      "progress": 28
     },
     {
       "id": 7,
@@ -66,6 +66,7 @@
       "LT sandbox SMS test flow development"
     ],
     "done": [
+      "Twilio webhook signature validation test coverage (8 tests)",
       "Booking intent detection service + endpoint (44 tests)",
       "Calendar-tokens endpoint test coverage (11 tests)",
       "Google Calendar token auto-refresh + route registration fix",
@@ -115,6 +116,11 @@
   ],
 
   "recent_changes": [
+    {
+      "date": "2026-03-14",
+      "change": "Twilio webhook signature validation test coverage (8 tests: valid/invalid/missing signature, tampered body, wrong token, missing auth token, skip bypass, regression)",
+      "branch": "ai/gcal-event-creation"
+    },
     {
       "date": "2026-03-14",
       "change": "Booking intent detection service: POST /internal/booking-intent endpoint with 44 tests (confidence scoring, 26 service types, name extraction, date parsing)",

@@ -9,6 +9,43 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: twilio-signature-validation-tests — 2026-03-14
+
+**Branch:** ai/gcal-event-creation
+**Status:** COMPLETE — Twilio webhook signature validation test coverage (8 tests)
+
+### What Was Done
+The middleware `validateTwilioSignature` (in `middleware/twilio-validate.ts`) already existed and was wired to the SMS inbound route. However, it had zero test coverage — all existing tests bypassed it with `SKIP_TWILIO_VALIDATION=true`.
+
+Added 8 tests using the official `twilio.getExpectedTwilioSignature()` to generate real HMAC signatures:
+1. Valid signature accepted — request reaches handler and enqueues job
+2. Missing `x-twilio-signature` header → 403, handler not reached
+3. Invalid signature value → 403
+4. Signature from wrong auth token → 403
+5. Tampered body after signing → 403
+6. Missing `TWILIO_AUTH_TOKEN` env var → 500
+7. `SKIP_TWILIO_VALIDATION=true` bypass works correctly
+8. Regression: valid signature still triggers full handler flow (idempotency, tenant lookup, enqueue)
+
+### Verification
+- TypeScript: zero errors
+- Tests: 116/116 pass (108 existing + 8 new, no regressions)
+- Docker: build + smoke test pass (`ai-verify.sh`)
+
+### Files Changed
+- `apps/api/src/tests/twilio-validate.test.ts` — new test file (8 tests)
+- `project-brain/project_status.json` — Stage 6 progress 25→28%
+- `project-brain/project_status.md` — mirrored
+- `AI_STATUS.md` — this entry
+
+### Blockers Discovered
+- None
+
+### Next Recommended Task
+- Add Twilio signature validation tests for voice-status webhook route (same middleware, same pattern)
+
+---
+
 ## TASK: booking-intent-service — 2026-03-14
 
 **Branch:** ai/gcal-event-creation
