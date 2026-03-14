@@ -9,6 +9,37 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: wf002-use-api-endpoints — 2026-03-14
+
+**Branch:** ai/wf002-use-api-endpoints
+**Status:** COMPLETE — n8n WF-002 now calls TypeScript API endpoints instead of inline code
+
+### What Was Done
+1. Replaced inline booking detection Code node (10 keyword patterns) with HTTP call to `POST http://api:3000/internal/booking-intent` (44 patterns, confidence levels, customer name extraction, natural language date parsing)
+2. Replaced direct Postgres INSERT node with HTTP call to `POST http://api:3000/internal/appointments` (adds tenant validation, customer_name persistence, proper error handling)
+3. Updated "Call WF-004: Calendar Sync" to pass `customerName` from API response (was previously always NULL)
+4. Preserved all downstream node references by keeping "Detect Booking Intent" as the merge node name
+
+### Why This Matters
+- **Eliminates code duplication**: Booking detection logic now lives in one place (TypeScript service with 44 tests), not two (TypeScript + n8n inline)
+- **customer_name now persisted**: The API endpoint includes customer_name in the INSERT; the old n8n SQL omitted it
+- **Calendar events get customer names**: WF-004 now receives customerName, so Google Calendar events show "oil change — John Smith — +15551234567" instead of just phone number
+- **Tenant validation**: API validates tenant exists before creating appointment; old SQL did not
+
+### Verification
+- Workflow JSON is valid and structurally correct
+- All downstream `$('Detect Booking Intent')` references preserved (merge node retains the name)
+- API endpoints verified: booking-intent (44 tests), appointments (24 tests), full suite 188/188
+- Cannot live-test without n8n credentials (existing blocker)
+
+### Files Changed
+- `n8n/workflows/US_AutoShop/ai-booking-worker.json` — workflow rewrite
+- `project-brain/project_status.json` — task added to done
+- `project-brain/project_status.md` — mirrored
+- `AI_STATUS.md` — this entry
+
+---
+
 ## TASK: appointment-creation-endpoint — 2026-03-14
 
 **Branch:** ai/appointment-creation-endpoint

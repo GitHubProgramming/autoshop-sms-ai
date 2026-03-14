@@ -65,14 +65,56 @@
     },
     {
       "parameters": {
-        "jsCode": "// Detect booking intent from AI response\nconst aiResponse = $('OpenAI: Chat Completion').first().json.choices?.[0]?.message?.content || '';\nconst lowerResponse = aiResponse.toLowerCase();\nconst bookingKeywords = [\n  'appointment is confirmed',\n  'is confirmed',\n  'appointment confirmed',\n  'booked for',\n  'scheduled for',\n  'see you on',\n  'appointment set',\n  'confirmed for',\n  'confirmed, john',\n  'confirmed,',\n];\nconst isBooked = bookingKeywords.some(k => lowerResponse.includes(k));\nconst closeKeywords = ['stop','cancel','nevermind','never mind','no thanks','not interested'];\nconst rawMessage = $('Build OpenAI Messages').first().json.rawMessage || '';\nconst userWantsClose = closeKeywords.some(k => rawMessage.toLowerCase().includes(k));\n// Extract ISO 8601 date from user message; fallback to +24h\nconst isoDateMatch = rawMessage.match(/\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}[+-]\\d{2}:\\d{2}/i);\nconst scheduledAt = isoDateMatch ? isoDateMatch[0] : new Date(Date.now() + 86400000).toISOString();\nconst scheduledAtExtracted = !!isoDateMatch;\n// Extract service type from user message\nconst serviceKeywords = ['oil change','tire rotation','brake','inspection','tune up','alignment','transmission'];\nconst serviceType = serviceKeywords.find(k => rawMessage.toLowerCase().includes(k)) || 'general service';\nreturn [{ json: {\n  tenantId: $('Build OpenAI Messages').first().json.tenantId,\n  conversationId: $('Build OpenAI Messages').first().json.conversationId,\n  customerPhone: $('Build OpenAI Messages').first().json.customerPhone,\n  ourPhone: $('Build OpenAI Messages').first().json.ourPhone,\n  aiResponse, isBooked, userWantsClose, scheduledAt, scheduledAtExtracted, serviceType,\n  tokensUsed: $('OpenAI: Chat Completion').first().json.usage?.total_tokens ?? 0\n} }];"
+        "jsCode": "// Extract AI response and context for the booking intent API call\nconst aiResponse = $('OpenAI: Chat Completion').first().json.choices?.[0]?.message?.content || '';\nconst context = $('Build OpenAI Messages').first().json;\nreturn [{ json: {\n  aiResponse,\n  customerMessage: context.rawMessage || '',\n  tenantId: context.tenantId,\n  conversationId: context.conversationId,\n  customerPhone: context.customerPhone,\n  ourPhone: context.ourPhone,\n  tokensUsed: $('OpenAI: Chat Completion').first().json.usage?.total_tokens ?? 0\n} }];"
+      },
+      "id": "extract-ai-response",
+      "name": "Extract AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        950,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:3000/internal/booking-intent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ aiResponse: $json.aiResponse, customerMessage: $json.customerMessage }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "api-booking-intent",
+      "name": "API: Booking Intent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1150,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge booking intent API result with conversation context.\n// Output shape matches the old inline detection so downstream nodes work unchanged.\nconst api = $('API: Booking Intent').first().json;\nconst context = $('Extract AI Response').first().json;\nreturn [{ json: {\n  tenantId: context.tenantId,\n  conversationId: context.conversationId,\n  customerPhone: context.customerPhone,\n  ourPhone: context.ourPhone,\n  aiResponse: context.aiResponse,\n  isBooked: api.isBooked,\n  confidence: api.confidence || 'none',\n  userWantsClose: api.userWantsClose,\n  scheduledAt: api.scheduledAt,\n  scheduledAtExtracted: api.scheduledAtExtracted,\n  serviceType: api.serviceType,\n  customerName: api.customerName || null,\n  matchedPatterns: api.matchedPatterns || [],\n  tokensUsed: context.tokensUsed\n} }];"
       },
       "id": "detect-booking-intent",
       "name": "Detect Booking Intent",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1000,
+        1350,
         300
       ]
     },
@@ -87,7 +129,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.3,
       "position": [
-        1250,
+        1550,
         300
       ],
       "credentials": {
@@ -124,7 +166,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        1500,
+        1800,
         300
       ],
       "onError": "continueRegularOutput"
@@ -138,7 +180,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1625,
+        1925,
         300
       ]
     },
@@ -162,30 +204,38 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1750,
+        2100,
         300
       ]
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SET LOCAL app.current_tenant_id = '{{ $('Detect Booking Intent').first().json.tenantId }}';\nINSERT INTO appointments (tenant_id, conversation_id, customer_phone, service_type, scheduled_at)\nVALUES (\n  '{{ $('Detect Booking Intent').first().json.tenantId }}'::uuid,\n  '{{ $('Detect Booking Intent').first().json.conversationId }}'::uuid,\n  '{{ $('Detect Booking Intent').first().json.customerPhone }}',\n  '{{ $('Detect Booking Intent').first().json.serviceType }}',\n  '{{ $('Detect Booking Intent').first().json.scheduledAt }}'::timestamptz\n)\nON CONFLICT (conversation_id) DO UPDATE\n  SET service_type = EXCLUDED.service_type,\n      scheduled_at = EXCLUDED.scheduled_at\nRETURNING id, tenant_id, conversation_id, customer_phone, service_type, scheduled_at;",
-        "options": {}
-      },
-      "id": "db-save-appointment",
-      "name": "DB: Save Appointment",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.3,
-      "position": [
-        2000,
-        200
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-creds",
-          "name": "AutoShop Postgres"
+        "method": "POST",
+        "url": "http://api:3000/internal/appointments",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: $('Detect Booking Intent').first().json.tenantId, conversationId: $('Detect Booking Intent').first().json.conversationId, customerPhone: $('Detect Booking Intent').first().json.customerPhone, customerName: $('Detect Booking Intent').first().json.customerName, serviceType: $('Detect Booking Intent').first().json.serviceType, scheduledAt: $('Detect Booking Intent').first().json.scheduledAt }) }}",
+        "options": {
+          "timeout": 10000
         }
-      }
+      },
+      "id": "api-create-appointment",
+      "name": "API: Create Appointment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2350,
+        200
+      ]
     },
     {
       "parameters": {
@@ -193,7 +243,7 @@
         "url": "http://n8n:5678/webhook/calendar-sync",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ appointmentId: $json.id, tenantId: $json.tenant_id, conversationId: $json.conversation_id, customerPhone: $json.customer_phone, serviceType: $json.service_type, scheduledAt: $json.scheduled_at }) }}",
+        "jsonBody": "={{ JSON.stringify({ appointmentId: $json.appointment.id, tenantId: $json.appointment.tenantId, conversationId: $json.appointment.conversationId, customerPhone: $json.appointment.customerPhone, customerName: $json.appointment.customerName, serviceType: $json.appointment.serviceType, scheduledAt: $json.appointment.scheduledAt }) }}",
         "options": {
           "timeout": 30000
         }
@@ -203,7 +253,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        2250,
+        2600,
         200
       ]
     },
@@ -238,7 +288,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        2500,
+        2850,
         200
       ]
     },
@@ -262,7 +312,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        2000,
+        2350,
         400
       ]
     },
@@ -297,7 +347,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        2250,
+        2600,
         400
       ]
     }
@@ -326,6 +376,28 @@
       ]
     },
     "OpenAI: Chat Completion": {
+      "main": [
+        [
+          {
+            "node": "Extract AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract AI Response": {
+      "main": [
+        [
+          {
+            "node": "API: Booking Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API: Booking Intent": {
       "main": [
         [
           {
@@ -384,7 +456,7 @@
       "main": [
         [
           {
-            "node": "DB: Save Appointment",
+            "node": "API: Create Appointment",
             "type": "main",
             "index": 0
           }
@@ -398,7 +470,7 @@
         ]
       ]
     },
-    "DB: Save Appointment": {
+    "API: Create Appointment": {
       "main": [
         [
           {
