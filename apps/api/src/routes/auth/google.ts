@@ -1,6 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypto";
 import { query } from "../../db/client";
 import { requireAuth } from "../../middleware/require-auth";
 
@@ -14,7 +14,6 @@ function getEncryptionKey(): Buffer {
   const secret = process.env.ENCRYPTION_KEY ?? process.env.JWT_SECRET ?? "";
   if (!secret) throw new Error("ENCRYPTION_KEY or JWT_SECRET is required");
   // Derive a 32-byte key by hashing the secret
-  const { createHash } = require("crypto");
   return createHash("sha256").update(secret).digest();
 }
 

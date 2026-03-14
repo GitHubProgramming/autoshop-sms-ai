@@ -14,7 +14,7 @@ async function refreshAccessToken(
   tenantId: string,
   encryptedRefreshToken: string,
   calendarId: string,
-  log: { info: Function; error: Function }
+  log: { info: (...args: unknown[]) => void; error: (...args: unknown[]) => void }
 ): Promise<{ access_token: string; token_expiry: string } | null> {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;

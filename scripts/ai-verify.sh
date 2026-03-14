@@ -17,13 +17,13 @@ echo "Install deps"
 npm ci
 
 echo "Lint"
-npm run lint --if-present || true
+npm run lint
 
 echo "Build"
 npm run build
 
 echo "Tests"
-npm test --if-present || true
+npm test
 
 cd "$REPO_ROOT"
 
