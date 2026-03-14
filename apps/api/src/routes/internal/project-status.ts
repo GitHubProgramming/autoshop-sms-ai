@@ -70,6 +70,7 @@ async function readFirstAccessible(candidates: string[]): Promise<unknown | null
 export async function projectStatusRoute(app: FastifyInstance) {
   // ── v1 (legacy) ──────────────────────────────────────────────────────────
   app.get("/admin/project-status", { preHandler: [adminGuard] }, async (_req, reply) => {
+    reply.header("Cache-Control", "no-store");
     const candidates = getCandidatePaths(
       REPO_STATUS_FILE,
       API_LOCAL_FILE,
@@ -93,6 +94,7 @@ export async function projectStatusRoute(app: FastifyInstance) {
 
   // ── v2 ────────────────────────────────────────────────────────────────────
   app.get("/admin/project-status-v2", { preHandler: [adminGuard] }, async (_req, reply) => {
+    reply.header("Cache-Control", "no-store");
     const candidates = getCandidatePaths(
       REPO_STATUS_V2_FILE,
       API_LOCAL_V2_FILE,
@@ -116,6 +118,7 @@ export async function projectStatusRoute(app: FastifyInstance) {
 
   // ── movement log ──────────────────────────────────────────────────────────
   app.get("/admin/movement-log", { preHandler: [adminGuard] }, async (_req, reply) => {
+    reply.header("Cache-Control", "no-store");
     const candidates = getCandidatePaths(
       REPO_MOVEMENT_LOG,
       API_LOCAL_MOVEMENT_LOG,
