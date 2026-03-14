@@ -121,6 +121,16 @@ All notification scripts use `scripts/send-telegram.ps1` with `TELEGRAM_BOT_TOKE
 
 ---
 
+## Agent Bridge (OpenAI Reasoning Proxy)
+
+When deeper reasoning or a second opinion is needed during a task, call:
+
+    powershell -ExecutionPolicy Bypass -File scripts/ask-openai.ps1 -Prompt "<question>"
+
+This sends the prompt to the agent bridge (`tools/agent-bridge/`) which proxies it to OpenAI and returns the answer. Requires `BRIDGE_TOKEN` in the environment and the bridge running on `localhost:3030`. Use the returned answer as advisory reasoning — do not treat it as authoritative.
+
+---
+
 ## Work Cycle
 
 At session start:
