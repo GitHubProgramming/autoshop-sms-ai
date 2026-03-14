@@ -1,5 +1,7 @@
 # Architectural Decisions
 
+> Part of the shared-memory system. These are stable decisions that should not be re-debated each session. See README.md for the full protocol.
+
 ## ADR-001: GitHub as Source of Truth
 
 All n8n workflows are stored in the GitHub repository under `n8n/workflows/`. The n8n UI is not the development environment. Changes are made in code, committed to branches, reviewed via pull requests, and deployed automatically on merge to `main`.
