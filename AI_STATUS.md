@@ -9,6 +9,27 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: project-ops-v2-polish — 2026-03-14
+
+**Branch:** ai/project-ops-v2-polish
+**Status:** COMPLETE — Accuracy/UX patch for Project Ops v2 dashboard
+
+### What Was Done
+1. Removed completed "Implement Project Ops v2 dashboard UI" from active_backlog
+2. Updated Admin Visibility & Control stage: progress 45→65%, marked v2 child as done, next_task updated to tenant health monitoring
+3. Backlog and movement timeline tables now show human-friendly stage titles instead of raw stage_id values (e.g., "TEST Sandbox Workflow Chain" instead of "test_workflow_chain")
+4. Subtasks for the CURRENT stage auto-expand by default (other stages stay collapsed)
+5. Overall progress recalculated: 43→45% (weighted)
+
+### Files Changed
+- `apps/web/admin.html` — stage_id→title lookup, auto-expand current stage subtasks
+- `apps/api/project-status/project_status_v2.json` — backlog cleanup, stage progress, movement entry
+- `project-brain/project_status.json` — Stage 5 progress 45→65%, overall 43→45%
+- `project-brain/project_status.md` — mirrored
+- `AI_STATUS.md` — this entry
+
+---
+
 ## TASK: conversation-health-metrics — 2026-03-14
 
 **Branch:** ai/gcal-event-creation

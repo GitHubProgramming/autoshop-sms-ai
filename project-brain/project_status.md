@@ -7,7 +7,7 @@
 
 ## Project Completion Estimate
 
-**~43%** (weighted)
+**~45%** (weighted)
 
 Calculated from weighted stage progress below. Only objectively verifiable progress counts. Code-complete but unverified stages are capped at 40-50%.
 
@@ -42,10 +42,10 @@ Phase: TEST environment stabilization and SMS flow validation.
 | 2 | TEST Sandbox Workflow Chain | 15% | in_progress | 40% | 6.0% |
 | 3 | Core Messaging & AI Flow | 25% | in_progress | 48% | 12.0% |
 | 4 | Calendar & Booking Reliability | 15% | blocked | 45% | 6.75% |
-| 5 | Admin Visibility & Control | 10% | in_progress | 45% | 4.5% |
+| 5 | Admin Visibility & Control | 10% | in_progress | 65% | 6.5% |
 | 6 | Production Readiness | 15% | in_progress | 28% | 4.2% |
 | 7 | First Live Pilot | 10% | not_started | 0% | 0.0% |
-| | **Total** | **100%** | | | **~43%** |
+| | **Total** | **100%** | | | **~45%** |
 
 ## Active Tasks
 
@@ -67,6 +67,7 @@ Phase: TEST environment stabilization and SMS flow validation.
 - Project milestone model + dashboard JSON status system
 - Stripe webhook test coverage (20 tests passing)
 - Webhook test coverage hardening (SMS inbound + voice-status: 33 tests passing)
+- Project Ops v2 dashboard (mission map, critical path, blocker lane, movement timeline)
 - Admin dashboard UI implementation (Project Ops page consuming `project_status.json`)
 - Project brain / B-Lite operating model setup
 - Deploy script made update-safe and duplicate-safe
@@ -80,6 +81,7 @@ Phase: TEST environment stabilization and SMS flow validation.
 
 | Date | Change | Branch |
 |------|--------|--------|
+| 2026-03-14 | Project Ops v2 polish: stage_id→title mapping, auto-expand current stage subtasks, Admin stage 45→65%, backlog item removed | `ai/project-ops-v2-polish` |
 | 2026-03-14 | Conversation health metrics: GET /internal/admin/metrics/conversation-health (14 tests: completion rate, booking conversion, close reason breakdown, daily volume, filtering) | `ai/gcal-event-creation` |
 | 2026-03-14 | Google Calendar event creation service: POST /internal/calendar-event (24 tests: event creation, token retrieval, Google API errors, network failures, partial success, validation, URL encoding) | `ai/gcal-event-creation` |
 | 2026-03-14 | Twilio webhook signature validation test coverage (8 tests: valid/invalid/missing/tampered/wrong-token/missing-env/skip/regression) | `ai/gcal-event-creation` |
