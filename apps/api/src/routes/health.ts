@@ -29,6 +29,7 @@ export async function healthRoute(app: FastifyInstance) {
       checks,
       version: process.env.npm_package_version ?? "0.1.0",
       env: process.env.NODE_ENV,
+      commit: process.env.RENDER_GIT_COMMIT ?? "unknown",
     });
   });
 }
