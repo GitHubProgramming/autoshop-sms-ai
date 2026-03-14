@@ -46,10 +46,10 @@ Before committing any code change:
 
 ## Mandatory Dual Status Update Protocol
 
-Both `project-brain/project_status.md` and `project-brain/project_status.json` are authoritative status files.
+`project-brain/project_status.json` is the **single source of truth** for project state. `project-brain/project_status.md` is a **human-readable mirror** derived from the JSON.
 
-- `project_status.md` — human-readable status view
-- `project_status.json` — machine-readable status source (used for dashboards and task generation)
+- `project_status.json` — canonical source (used for dashboards, task generation, and automation)
+- `project_status.md` — human-readable mirror (for Owner review and PR descriptions)
 
 **This is a non-negotiable execution requirement.** Every task — code, documentation, or workflow — must include updates to **both** status files as a required deliverable. A task without synchronized status updates is incomplete.
 
@@ -73,8 +73,8 @@ Both `project-brain/project_status.md` and `project-brain/project_status.json` a
 
 A task is NOT done unless all three are true:
 - The implementation / documentation work is completed
-- `project-brain/project_status.md` reflects reality
-- `project-brain/project_status.json` reflects reality and is consistent with the `.md` file
+- `project-brain/project_status.json` reflects reality (canonical source)
+- `project-brain/project_status.md` mirrors the JSON accurately
 
 ### Progress tracking must be conservative
 
@@ -82,6 +82,20 @@ A task is NOT done unless all three are true:
 - Blocked stages stay frozen at last verified progress
 - Code-complete but unverified stages are capped at 40–50%
 - When uncertain, round down
+
+### Milestone calculation rule
+
+`overall_progress` in `project_status.json` is a **stored value** that must be recalculated on every stage progress change using this exact formula:
+
+```
+overall_progress = floor( sum( stage.weight × stage.progress / 100 ) )
+```
+
+- Weights are integers that sum to 100
+- Progress is an integer 0–100
+- The result is floored (rounded down), never rounded up
+- The `~XX%` in `project_status.md` must match the stored JSON value
+- If any stage progress changes, `overall_progress` **must** be recalculated before commit
 
 ## Escalation
 

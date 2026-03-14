@@ -57,9 +57,17 @@ All data is served from a single endpoint that reads `project_status.json`.
 
 | Field | Source | UI Component | Priority |
 |-------|--------|-------------|----------|
-| `overall_progress` | Root field (integer 0–100) | Circular progress gauge or horizontal progress bar | **P0** |
+| `overall_progress` | **Derived from `stages[]`** (see formula below) | Circular progress gauge or horizontal progress bar | **P0** |
 
-**Purpose:** Single-number summary of MVP completion. The number shown is the weighted sum from stage progress, not a guess.
+**Purpose:** Single-number summary of MVP completion.
+
+**Derivation rule:** Do NOT trust `overall_progress` from the JSON directly. Compute it client-side:
+
+```javascript
+Math.floor(stages.reduce((sum, s) => sum + s.weight * s.progress / 100, 0))
+```
+
+This eliminates drift risk from stale or incorrectly-rounded stored values. The `overall_progress` field in the JSON is maintained for backward compatibility but is not authoritative — the `stages[]` array is.
 
 ---
 
