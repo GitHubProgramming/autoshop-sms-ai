@@ -93,6 +93,16 @@ export async function googleAuthRoute(app: FastifyInstance) {
 
     const { tenantId } = request.user as { tenantId: string };
 
+    // Verify tenant exists before generating OAuth URL
+    const [tenant] = await query<{ id: string }>(
+      `SELECT id FROM tenants WHERE id = $1`,
+      [tenantId]
+    );
+    if (!tenant) {
+      request.log.error({ tenantId }, "OAuth URL requested for non-existent tenant");
+      return reply.status(400).send({ error: "Tenant not found — cannot initiate OAuth" });
+    }
+
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri,
@@ -126,6 +136,16 @@ export async function googleAuthRoute(app: FastifyInstance) {
 
     if (!clientId || !clientSecret || !redirectUri) {
       return reply.status(503).send({ error: "Google OAuth not configured" });
+    }
+
+    // Verify tenant exists before exchanging tokens (prevents FK violation)
+    const [tenant] = await query<{ id: string }>(
+      `SELECT id FROM tenants WHERE id = $1`,
+      [tenantId]
+    );
+    if (!tenant) {
+      request.log.error({ tenantId }, "OAuth callback for non-existent tenant");
+      return reply.status(400).send({ error: "Invalid tenant in OAuth state" });
     }
 
     // Exchange authorization code for tokens
