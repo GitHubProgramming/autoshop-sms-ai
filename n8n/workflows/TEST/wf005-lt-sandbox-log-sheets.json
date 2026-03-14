@@ -1,0 +1,540 @@
+{
+  "id": "LT-SANDBOX-WF005-log-sheets",
+  "name": "LT_PROTEROS_SANDBOX: WF005 Log to Google Sheets",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lt-sandbox-log",
+        "responseMode": "lastNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "sb-log-webhook",
+      "name": "Webhook: Log Event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "lt-sandbox-log"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generic logging endpoint for all sandbox workflows\n// Accepts: { sheet: 'Calls_Log'|'SMS_Log'|'Bookings'|'Errors'|'KPI', data: {...} }\nconst body = $input.first().json.body || $input.first().json;\nconst sheet = body.sheet || 'Errors';\nconst data = body.data || {};\n\nconst validSheets = ['Calls_Log', 'SMS_Log', 'Bookings', 'Errors', 'KPI'];\nif (!validSheets.includes(sheet)) {\n  return [{ json: { valid: false, reason: 'Invalid sheet: ' + sheet, validSheets } }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    sheet,\n    data,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "sb-log-validate",
+      "name": "Validate Log Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-valid",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "sb-log-if-valid",
+      "name": "Is Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.sheet }}",
+                    "rightValue": "Calls_Log",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Calls_Log"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.sheet }}",
+                    "rightValue": "SMS_Log",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "SMS_Log"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.sheet }}",
+                    "rightValue": "Bookings",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Bookings"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.sheet }}",
+                    "rightValue": "Errors",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Errors"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.sheet }}",
+                    "rightValue": "KPI",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "KPI"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sb-log-switch",
+      "name": "Route to Sheet",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "PROTEROS_LT_TEST_LOG_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Calls_Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "time": "={{ $json.data.time || $json.timestamp }}",
+            "phone": "={{ $json.data.phone || '' }}",
+            "duration": "={{ $json.data.duration || '' }}",
+            "event": "={{ $json.data.event || '' }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "time", "displayName": "time", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "phone", "displayName": "phone", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "duration", "displayName": "duration", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "event", "displayName": "event", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sb-log-calls",
+      "name": "Append: Calls_Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [1300, 50],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "PROTEROS_LT_TEST_LOG_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "SMS_Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "time": "={{ $json.data.time || $json.timestamp }}",
+            "phone": "={{ $json.data.phone || '' }}",
+            "direction": "={{ $json.data.direction || '' }}",
+            "message": "={{ $json.data.message || '' }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "time", "displayName": "time", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "phone", "displayName": "phone", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "direction", "displayName": "direction", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "message", "displayName": "message", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sb-log-sms",
+      "name": "Append: SMS_Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [1300, 175],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "PROTEROS_LT_TEST_LOG_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Bookings",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "time": "={{ $json.data.time || $json.timestamp }}",
+            "phone": "={{ $json.data.phone || '' }}",
+            "problem": "={{ $json.data.problem || '' }}",
+            "date": "={{ $json.data.date || '' }}",
+            "status": "={{ $json.data.status || '' }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "time", "displayName": "time", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "phone", "displayName": "phone", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "problem", "displayName": "problem", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "date", "displayName": "date", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "status", "displayName": "status", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sb-log-bookings",
+      "name": "Append: Bookings",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [1300, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "PROTEROS_LT_TEST_LOG_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Errors",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "time": "={{ $json.data.time || $json.timestamp }}",
+            "workflow": "={{ $json.data.workflow || '' }}",
+            "error": "={{ $json.data.error || '' }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "time", "displayName": "time", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "workflow", "displayName": "workflow", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "error", "displayName": "error", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sb-log-errors",
+      "name": "Append: Errors",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [1300, 425],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "PROTEROS_LT_TEST_LOG_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "KPI",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "today_calls": "={{ $json.data.today_calls || '' }}",
+            "today_sms": "={{ $json.data.today_sms || '' }}",
+            "booking_requests": "={{ $json.data.booking_requests || '' }}",
+            "confirmed_bookings": "={{ $json.data.confirmed_bookings || '' }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "today_calls", "displayName": "today_calls", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "today_sms", "displayName": "today_sms", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "booking_requests", "displayName": "booking_requests", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "confirmed_bookings", "displayName": "confirmed_bookings", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sb-log-kpi",
+      "name": "Append: KPI",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [1300, 550],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"ok\", \"sheet\": $('Validate Log Request').item.json.sheet, \"logged\": true } }}",
+        "options": {}
+      },
+      "id": "sb-log-respond-ok",
+      "name": "Respond: Logged",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1600, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"error\", \"reason\": $json.reason || 'invalid log request' } }}",
+        "options": {}
+      },
+      "id": "sb-log-respond-error",
+      "name": "Respond: Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1000, 500]
+    }
+  ],
+  "connections": {
+    "Webhook: Log Event": {
+      "main": [
+        [
+          {
+            "node": "Validate Log Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Log Request": {
+      "main": [
+        [
+          {
+            "node": "Is Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Valid?": {
+      "main": [
+        [
+          {
+            "node": "Route to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route to Sheet": {
+      "main": [
+        [
+          {
+            "node": "Append: Calls_Log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append: SMS_Log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append: Bookings",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append: Errors",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append: KPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append: Calls_Log": {
+      "main": [
+        [
+          {
+            "node": "Respond: Logged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append: SMS_Log": {
+      "main": [
+        [
+          {
+            "node": "Respond: Logged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append: Bookings": {
+      "main": [
+        [
+          {
+            "node": "Respond: Logged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append: Errors": {
+      "main": [
+        [
+          {
+            "node": "Respond: Logged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append: KPI": {
+      "main": [
+        [
+          {
+            "node": "Respond: Logged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "active": false,
+  "tags": [
+    { "name": "LT_PROTEROS_SANDBOX" },
+    { "name": "logging" },
+    { "name": "test" }
+  ]
+}

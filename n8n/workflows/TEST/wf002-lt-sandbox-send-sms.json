@@ -1,0 +1,332 @@
+{
+  "id": "LT-SANDBOX-WF002-send-sms",
+  "name": "LT_PROTEROS_SANDBOX: WF002 Send SMS",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lt-sandbox-send-sms",
+        "responseMode": "lastNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "sb-sms-webhook",
+      "name": "Webhook: Send SMS Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "lt-sandbox-send-sms"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst to = (body.to || '').replace(/[^+\\d]/g, '');\nconst message = body.message || '';\nconst source = body.source || 'manual';\nconst callId = body.callId || '';\n\nif (!to || !message) {\n  return [{ json: { valid: false, reason: 'Missing to or message' } }];\n}\n\nif (!/^\\+370\\d{7,8}$/.test(to)) {\n  return [{ json: { valid: false, reason: 'Invalid LT phone: ' + to } }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    to,\n    message,\n    from: '+37045512300',\n    source,\n    callId,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "sb-sms-validate",
+      "name": "Validate SMS Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-valid",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "sb-sms-if-valid",
+      "name": "Is Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Zadarma SMS API request\n// Zadarma SMS API: POST https://api.zadarma.com/v1/sms/send/\n// Auth: HMAC-SHA1 signature\nconst crypto = require('crypto');\n\nconst apiKey = $env.ZADARMA_API_KEY;\nconst apiSecret = $env.ZADARMA_API_SECRET;\n\nif (!apiKey || !apiSecret) {\n  throw new Error('ZADARMA_API_KEY and ZADARMA_API_SECRET env vars must be set in n8n');\n}\n\nconst to = $input.first().json.to;\nconst message = $input.first().json.message;\nconst from = $input.first().json.from;\n\n// Zadarma API params (sorted alphabetically for signature)\nconst params = {\n  caller_id: from,\n  message: message,\n  number: to\n};\n\n// Build query string sorted by key\nconst sortedKeys = Object.keys(params).sort();\nconst queryParts = sortedKeys.map(k => k + '=' + encodeURIComponent(params[k]));\nconst queryString = queryParts.join('&');\n\n// Zadarma signature: base64(hmac-sha1(apiSecret, apiPath + queryString + md5(queryString)))\nconst apiPath = '/v1/sms/send/';\nconst md5Hash = crypto.createHash('md5').update(queryString).digest('hex');\nconst signData = apiPath + queryString + md5Hash;\nconst signature = crypto.createHmac('sha1', apiSecret).update(signData).digest('base64');\nconst authHeader = apiKey + ':' + signature;\n\nreturn [{\n  json: {\n    url: 'https://api.zadarma.com/v1/sms/send/',\n    authHeader,\n    params,\n    to,\n    message,\n    from,\n    source: $input.first().json.source,\n    callId: $input.first().json.callId,\n    timestamp: $input.first().json.timestamp\n  }\n}];"
+      },
+      "id": "sb-sms-build-zadarma",
+      "name": "Build Zadarma SMS Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 250]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.zadarma.com/v1/sms/send/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ $json.authHeader }}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "number", "value": "={{ $json.params.number }}" },
+            { "name": "message", "value": "={{ $json.params.message }}" },
+            { "name": "caller_id", "value": "={{ $json.params.caller_id }}" }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "sb-sms-send",
+      "name": "Zadarma: Send SMS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 250],
+      "continueOnFail": true,
+      "notes": "Sends SMS via Zadarma API. continueOnFail=true to log errors."
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst prevData = $('Build Zadarma SMS Request').first().json;\nconst success = response.status === 'success' || response.result === 'success';\n\nreturn [{\n  json: {\n    success,\n    to: prevData.to,\n    message: prevData.message,\n    from: prevData.from,\n    source: prevData.source,\n    callId: prevData.callId,\n    timestamp: prevData.timestamp,\n    apiResponse: response\n  }\n}];"
+      },
+      "id": "sb-sms-check-result",
+      "name": "Check SMS Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 250]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "PROTEROS_LT_TEST_LOG_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "SMS_Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "time": "={{ $json.timestamp }}",
+            "phone": "={{ $json.to }}",
+            "direction": "=outbound",
+            "message": "={{ $json.message }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "time", "displayName": "time", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "phone", "displayName": "phone", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "direction", "displayName": "direction", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "message", "displayName": "message", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sb-sms-log",
+      "name": "Log: SMS_Log (Google Sheets)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [1750, 250],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": $json.success ? 'sent' : 'failed', \"to\": $json.to, \"source\": $json.source } }}",
+        "options": {}
+      },
+      "id": "sb-sms-respond-ok",
+      "name": "Respond: SMS Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [2000, 250]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "PROTEROS_LT_TEST_LOG_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Errors",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "time": "={{ new Date().toISOString() }}",
+            "workflow": "=WF002_LT_SEND_SMS",
+            "error": "={{ $json.reason || 'invalid SMS request' }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "time", "displayName": "time", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "workflow", "displayName": "workflow", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "error", "displayName": "error", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sb-sms-log-error",
+      "name": "Log: Error (Google Sheets)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [750, 500],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"error\", \"reason\": $json.reason || 'invalid request' } }}",
+        "options": {}
+      },
+      "id": "sb-sms-respond-error",
+      "name": "Respond: Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1000, 500]
+    }
+  ],
+  "connections": {
+    "Webhook: Send SMS Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validate SMS Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate SMS Request": {
+      "main": [
+        [
+          {
+            "node": "Is Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Valid?": {
+      "main": [
+        [
+          {
+            "node": "Build Zadarma SMS Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log: Error (Google Sheets)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log: Error (Google Sheets)": {
+      "main": [
+        [
+          {
+            "node": "Respond: Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Zadarma SMS Request": {
+      "main": [
+        [
+          {
+            "node": "Zadarma: Send SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zadarma: Send SMS": {
+      "main": [
+        [
+          {
+            "node": "Check SMS Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check SMS Result": {
+      "main": [
+        [
+          {
+            "node": "Log: SMS_Log (Google Sheets)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log: SMS_Log (Google Sheets)": {
+      "main": [
+        [
+          {
+            "node": "Respond: SMS Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "active": false,
+  "tags": [
+    { "name": "LT_PROTEROS_SANDBOX" },
+    { "name": "sms" },
+    { "name": "test" }
+  ]
+}

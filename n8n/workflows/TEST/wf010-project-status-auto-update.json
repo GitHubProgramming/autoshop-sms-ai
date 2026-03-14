@@ -1,0 +1,378 @@
+{
+  "id": "TEST-PROJECT-STATUS-AUTO-UPDATE",
+  "name": "TEST_PROJECT_STATUS_AUTO_UPDATE",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "project-status-update",
+        "responseMode": "onReceived",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "psa-webhook",
+      "name": "Webhook: GitHub Push",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "project-status-update"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse GitHub push webhook payload\nconst body = $input.first().json.body || $input.first().json;\n\n// Extract commit data\nconst headCommit = body.head_commit || {};\nconst commitMessage = headCommit.message || '';\nconst branch = (body.ref || '').replace('refs/heads/', '');\nconst commits = body.commits || [];\n\n// Collect all changed files across commits\nconst allAdded = [];\nconst allModified = [];\nconst allRemoved = [];\n\nfor (const c of commits) {\n  if (c.added) allAdded.push(...c.added);\n  if (c.modified) allModified.push(...c.modified);\n  if (c.removed) allRemoved.push(...c.removed);\n}\n\nconst changedFiles = [...new Set([...allAdded, ...allModified, ...allRemoved])];\n\n// Check for auto-status loop prevention\nconst isAutoStatus = commitMessage.includes('auto-status:');\n\nreturn [{\n  json: {\n    commitMessage,\n    branch,\n    changedFiles,\n    changedFilesList: changedFiles.join('\\n'),\n    isAutoStatus,\n    pusher: body.pusher ? body.pusher.name : 'unknown',\n    repository: body.repository ? body.repository.full_name : 'unknown',\n    timestamp: headCommit.timestamp || new Date().toISOString()\n  }\n}];"
+      },
+      "id": "psa-parse-commit",
+      "name": "Parse Commit Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-not-auto-status",
+              "leftValue": "={{ $json.isAutoStatus }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "psa-loop-guard",
+      "name": "Not Auto-Status?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.github.com/repos/{{ $env.GITHUB_OWNER }}/{{ $env.GITHUB_REPO }}/contents/project-brain/project_status.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github.v3+json"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "ref",
+              "value": "={{ $('Parse Commit Data').item.json.branch }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "psa-fetch-json",
+      "name": "Fetch project_status.json",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.github.com/repos/{{ $env.GITHUB_OWNER }}/{{ $env.GITHUB_REPO }}/contents/project-brain/project_status.md",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github.v3+json"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "ref",
+              "value": "={{ $('Parse Commit Data').item.json.branch }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "psa-fetch-md",
+      "name": "Fetch project_status.md",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Decode base64 content from GitHub API responses\nconst jsonItem = $('Fetch project_status.json').first().json;\nconst mdItem = $('Fetch project_status.md').first().json;\n\nconst jsonContent = Buffer.from(jsonItem.content, 'base64').toString('utf-8');\nconst mdContent = Buffer.from(mdItem.content, 'base64').toString('utf-8');\n\nconst commitData = $('Parse Commit Data').first().json;\n\nreturn [{\n  json: {\n    currentStatusJson: jsonContent,\n    currentStatusMd: mdContent,\n    jsonSha: jsonItem.sha,\n    mdSha: mdItem.sha,\n    commitMessage: commitData.commitMessage,\n    changedFiles: commitData.changedFilesList,\n    branch: commitData.branch,\n    pusher: commitData.pusher,\n    timestamp: commitData.timestamp\n  }\n}];"
+      },
+      "id": "psa-merge-data",
+      "name": "Merge & Decode",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1350, 300]
+    },
+    {
+      "parameters": {
+        "model": "={{ $env.OPENAI_STATUS_MODEL || 'gpt-4o-mini' }}",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a project status updater for the AutoShop SMS AI project. You analyze git commits and update the project status JSON conservatively.\n\nRules:\n- Never change stage weights\n- Never remove stages\n- Only increase stage progress if the commit clearly indicates real, verified progress\n- Update recent_changes with a dated entry describing what changed\n- Keep progress conservative — when uncertain, do not increase\n- Never exceed 100% on any stage\n- Output ONLY valid JSON — no markdown fences, no commentary\n- Preserve all existing structure and fields\n- Only modify: stage progress percentages (if warranted), recent_changes, and active_tasks if clearly applicable"
+            },
+            {
+              "role": "user",
+              "content": "=Here is the current project_status.json:\n\n{{ $json.currentStatusJson }}\n\n---\n\nA new commit was pushed:\n\nBranch: {{ $json.branch }}\nPusher: {{ $json.pusher }}\nTimestamp: {{ $json.timestamp }}\n\nCommit message:\n{{ $json.commitMessage }}\n\nFiles changed:\n{{ $json.changedFiles }}\n\n---\n\nInstructions:\n\nUpdate the project_status.json conservatively based on this commit.\n\nRules:\n- Never change stage weights\n- Never remove stages\n- Only increase stage progress if the commit indicates real progress\n- Add a dated entry to recent_changes describing what was done\n- Keep progress conservative\n- Never exceed 100%\n\nReturn ONLY the complete updated JSON. No markdown fences. No explanation."
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.2,
+          "maxTokens": 4000
+        }
+      },
+      "id": "psa-ai-analysis",
+      "name": "AI: Update Status JSON",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI output and generate markdown from updated JSON\nconst aiOutput = $('AI: Update Status JSON').first().json;\nconst rawText = aiOutput.text || aiOutput.message || JSON.stringify(aiOutput);\n\n// Clean up potential markdown fences\nlet cleanJson = rawText.trim();\nif (cleanJson.startsWith('```')) {\n  cleanJson = cleanJson.replace(/^```(?:json)?\\n?/, '').replace(/\\n?```$/, '');\n}\n\nlet statusObj;\ntry {\n  statusObj = JSON.parse(cleanJson);\n} catch (e) {\n  throw new Error('AI returned invalid JSON: ' + e.message + '\\n\\nRaw output: ' + rawText.substring(0, 500));\n}\n\nconst updatedJson = JSON.stringify(statusObj, null, 2);\n\n// Generate markdown from the JSON\nconst lines = [];\nlines.push('# Project Status — AutoShop SMS AI');\nlines.push('');\nlines.push(`> Last updated: ${statusObj.last_updated || new Date().toISOString().split('T')[0]}`);\nlines.push(`> Updated by: auto-status workflow`);\nlines.push('');\n\n// Project completion\nif (statusObj.project_completion_estimate) {\n  lines.push(`## Project Completion Estimate: ${statusObj.project_completion_estimate}%`);\n  lines.push('');\n}\n\n// Stage progress table\nif (statusObj.stages) {\n  lines.push('## Stage Progress');\n  lines.push('');\n  lines.push('| Stage | Weight | Progress | Weighted |');\n  lines.push('|-------|--------|----------|----------|');\n  for (const stage of statusObj.stages) {\n    const weighted = ((stage.weight * stage.progress) / 100).toFixed(1);\n    lines.push(`| ${stage.name} | ${stage.weight}% | ${stage.progress}% | ${weighted}% |`);\n  }\n  lines.push('');\n}\n\n// Current focus\nif (statusObj.current_focus) {\n  lines.push('## Current Focus');\n  lines.push('');\n  lines.push(statusObj.current_focus);\n  lines.push('');\n}\n\n// Active tasks\nif (statusObj.active_tasks) {\n  lines.push('## Active Tasks');\n  lines.push('');\n  if (statusObj.active_tasks.in_progress && statusObj.active_tasks.in_progress.length > 0) {\n    lines.push('### In Progress');\n    for (const t of statusObj.active_tasks.in_progress) {\n      lines.push(`- ${t}`);\n    }\n    lines.push('');\n  }\n  if (statusObj.active_tasks.todo && statusObj.active_tasks.todo.length > 0) {\n    lines.push('### Todo');\n    for (const t of statusObj.active_tasks.todo) {\n      lines.push(`- ${t}`);\n    }\n    lines.push('');\n  }\n  if (statusObj.active_tasks.done && statusObj.active_tasks.done.length > 0) {\n    lines.push('### Done');\n    for (const t of statusObj.active_tasks.done) {\n      lines.push(`- ${t}`);\n    }\n    lines.push('');\n  }\n}\n\n// Blocked items\nif (statusObj.blocked_items && statusObj.blocked_items.length > 0) {\n  lines.push('## Blocked Items');\n  lines.push('');\n  for (const b of statusObj.blocked_items) {\n    lines.push(`- **${b.item || b}**: ${b.reason || ''} (owner: ${b.owner || 'unassigned'})`);\n  }\n  lines.push('');\n}\n\n// Recent changes\nif (statusObj.recent_changes && statusObj.recent_changes.length > 0) {\n  lines.push('## Recent Changes');\n  lines.push('');\n  for (const c of statusObj.recent_changes) {\n    if (typeof c === 'string') {\n      lines.push(`- ${c}`);\n    } else {\n      lines.push(`- **${c.date || 'undated'}**: ${c.description || c.change || JSON.stringify(c)}`);\n    }\n  }\n  lines.push('');\n}\n\n// Next owner decision\nif (statusObj.next_owner_decision) {\n  lines.push('## Next Owner Decision');\n  lines.push('');\n  lines.push(statusObj.next_owner_decision);\n  lines.push('');\n}\n\nconst updatedMd = lines.join('\\n');\n\nconst mergeData = $('Merge & Decode').first().json;\n\nreturn [{\n  json: {\n    updatedJson,\n    updatedMd,\n    jsonSha: mergeData.jsonSha,\n    mdSha: mergeData.mdSha,\n    branch: mergeData.branch\n  }\n}];"
+      },
+      "id": "psa-render-md",
+      "name": "Render Markdown",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1950, 300]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://api.github.com/repos/{{ $env.GITHUB_OWNER }}/{{ $env.GITHUB_REPO }}/contents/project-brain/project_status.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github.v3+json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "message",
+              "value": "auto-status: update project status after commit"
+            },
+            {
+              "name": "content",
+              "value": "={{ Buffer.from($json.updatedJson).toString('base64') }}"
+            },
+            {
+              "name": "sha",
+              "value": "={{ $json.jsonSha }}"
+            },
+            {
+              "name": "branch",
+              "value": "={{ $json.branch }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "psa-commit-json",
+      "name": "Commit project_status.json",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2250, 200]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://api.github.com/repos/{{ $env.GITHUB_OWNER }}/{{ $env.GITHUB_REPO }}/contents/project-brain/project_status.md",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github.v3+json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "message",
+              "value": "auto-status: update project status markdown"
+            },
+            {
+              "name": "content",
+              "value": "={{ Buffer.from($json.updatedMd).toString('base64') }}"
+            },
+            {
+              "name": "sha",
+              "value": "={{ $json.mdSha }}"
+            },
+            {
+              "name": "branch",
+              "value": "={{ $json.branch }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "psa-commit-md",
+      "name": "Commit project_status.md",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2250, 400]
+    }
+  ],
+  "connections": {
+    "Webhook: GitHub Push": {
+      "main": [
+        [
+          {
+            "node": "Parse Commit Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Commit Data": {
+      "main": [
+        [
+          {
+            "node": "Not Auto-Status?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Not Auto-Status?": {
+      "main": [
+        [
+          {
+            "node": "Fetch project_status.json",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch project_status.md",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Fetch project_status.json": {
+      "main": [
+        [
+          {
+            "node": "Merge & Decode",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch project_status.md": {
+      "main": [
+        [
+          {
+            "node": "Merge & Decode",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge & Decode": {
+      "main": [
+        [
+          {
+            "node": "AI: Update Status JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: Update Status JSON": {
+      "main": [
+        [
+          {
+            "node": "Render Markdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render Markdown": {
+      "main": [
+        [
+          {
+            "node": "Commit project_status.json",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Commit project_status.md",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [
+    {
+      "name": "TEST"
+    },
+    {
+      "name": "automation"
+    }
+  ],
+  "meta": {
+    "description": "Receives GitHub push webhooks, analyzes commits with AI, and auto-updates project-brain/project_status.json and project_status.md. Loop-safe via auto-status: prefix detection.",
+    "templateCredsSetupCompleted": false
+  }
+}

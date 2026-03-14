@@ -1,0 +1,359 @@
+{
+  "id": "LT-SANDBOX-WF001-missed-call",
+  "name": "LT_PROTEROS_SANDBOX: WF001 Missed Call Event",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lt-sandbox-missed-call",
+        "responseMode": "lastNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "sb-mc-webhook",
+      "name": "Webhook: Zadarma Call Event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "lt-sandbox-missed-call"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Zadarma PBX call event\n// Zadarma sends: caller_id, called_did, call_start, duration, disposition, pbx_call_id\nconst body = $input.first().json.body || $input.first().json;\nconst callerPhone = (body.caller_id || body.caller_phone || body.from || body.caller_number || body.number || '').replace(/[^+\\d]/g, '');\nconst calledDid = body.called_did || body.called_number || body.to || '+37045512300';\nconst duration = parseInt(body.duration || body.seconds || '0', 10);\nconst disposition = (body.disposition || body.status || body.result || '').toLowerCase();\nconst callId = body.pbx_call_id || body.call_id || body.call_id_with_rec || $execution.id;\nconst callStart = body.call_start || body.timestamp || body.callstart || new Date().toISOString();\nconst eventType = (body.event || body.type || '').toUpperCase();\n\n// Skip NOTIFY_START events - only process end/unknown events\nif (eventType === 'NOTIFY_START' || eventType === 'NOTIFY_OUT_START') {\n  return [{ json: { isMissed: false, phoneValid: false, callerPhone, calledDid, duration, disposition, callId, callStart, eventType, reason: 'call_start_event_ignored', raw: body } }];\n}\n\n// Missed call = duration < 10 seconds OR disposition contains 'no-answer'/'missed'/'busy'\nconst isMissed = duration < 10 || ['no-answer', 'missed', 'busy', 'noanswer', 'cancel'].includes(disposition);\n\n// Validate Lithuanian phone\nconst phoneValid = /^\\+370\\d{7,8}$/.test(callerPhone);\n\nreturn [{\n  json: {\n    isMissed,\n    phoneValid,\n    callerPhone,\n    calledDid,\n    duration,\n    disposition,\n    callId,\n    callStart,\n    eventType,\n    raw: body\n  }\n}];"
+      },
+      "id": "sb-mc-parse",
+      "name": "Parse Zadarma Call Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-missed",
+              "leftValue": "={{ $json.isMissed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            },
+            {
+              "id": "cond-phone-valid",
+              "leftValue": "={{ $json.phoneValid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "sb-mc-if-missed",
+      "name": "Is Missed Call (<10s) + Valid Phone?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Dedup: skip if same caller within 30 minutes\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.recentCalls) staticData.recentCalls = {};\n\nconst phone = $input.first().json.callerPhone;\nconst now = Date.now();\n\n// Purge entries older than 30 min\nfor (const key of Object.keys(staticData.recentCalls)) {\n  if (now - staticData.recentCalls[key] > 30 * 60 * 1000) {\n    delete staticData.recentCalls[key];\n  }\n}\n\nif (staticData.recentCalls[phone]) {\n  return [{ json: { duplicate: true, callerPhone: phone, reason: 'Already processed within 30min' } }];\n}\n\nstaticData.recentCalls[phone] = now;\nreturn [{ json: { duplicate: false, ...$input.first().json } }];"
+      },
+      "id": "sb-mc-dedup",
+      "name": "Deduplicate (30min)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 250]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-not-dup",
+              "leftValue": "={{ $json.duplicate }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "sb-mc-if-new",
+      "name": "Is New?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1250, 250]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_URL || 'http://localhost:5678' }}/webhook/lt-sandbox-send-sms",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $json.callerPhone, message: 'Matome kad skambinote Proteros Servisui.\\nJei norite registracijos parašykite:\\nDATA LAIKAS AUTO PROBLEMA', callId: $json.callId, source: 'missed_call' }) }}",
+        "options": {}
+      },
+      "id": "sb-mc-trigger-sms",
+      "name": "Trigger WF002: Send SMS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1500, 200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "PROTEROS_LT_TEST_LOG_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Calls_Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "time": "={{ $('Parse Zadarma Call Event').item.json.callStart }}",
+            "phone": "={{ $('Parse Zadarma Call Event').item.json.callerPhone }}",
+            "duration": "={{ $('Parse Zadarma Call Event').item.json.duration }}",
+            "event": "=missed_call_sms_triggered"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "time", "displayName": "time", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "phone", "displayName": "phone", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "duration", "displayName": "duration", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "event", "displayName": "event", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sb-mc-log",
+      "name": "Log: Calls_Log (Google Sheets)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [1750, 200],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"ok\", \"action\": \"sms_triggered\", \"callerPhone\": $('Parse Zadarma Call Event').item.json.callerPhone, \"callId\": $('Parse Zadarma Call Event').item.json.callId } }}",
+        "options": {}
+      },
+      "id": "sb-mc-respond-ok",
+      "name": "Respond: OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [2000, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"skipped\", \"reason\": \"not_missed_or_invalid_phone\" } }}",
+        "options": {}
+      },
+      "id": "sb-mc-respond-skip",
+      "name": "Respond: Skipped",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1000, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"skipped\", \"reason\": \"duplicate_within_30min\" } }}",
+        "options": {}
+      },
+      "id": "sb-mc-respond-dup",
+      "name": "Respond: Duplicate",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1500, 400]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "PROTEROS_LT_TEST_LOG_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Errors",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "time": "={{ new Date().toISOString() }}",
+            "workflow": "=WF001_LT_MISSED_CALL_EVENT",
+            "error": "={{ $json.reason || 'skipped: not missed or invalid phone' }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "time", "displayName": "time", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "workflow", "displayName": "workflow", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "error", "displayName": "error", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sb-mc-log-error",
+      "name": "Log: Error (Google Sheets)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [750, 500],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: Zadarma Call Event": {
+      "main": [
+        [
+          {
+            "node": "Parse Zadarma Call Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Zadarma Call Event": {
+      "main": [
+        [
+          {
+            "node": "Is Missed Call (<10s) + Valid Phone?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Missed Call (<10s) + Valid Phone?": {
+      "main": [
+        [
+          {
+            "node": "Deduplicate (30min)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log: Error (Google Sheets)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log: Error (Google Sheets)": {
+      "main": [
+        [
+          {
+            "node": "Respond: Skipped",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deduplicate (30min)": {
+      "main": [
+        [
+          {
+            "node": "Is New?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is New?": {
+      "main": [
+        [
+          {
+            "node": "Trigger WF002: Send SMS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger WF002: Send SMS": {
+      "main": [
+        [
+          {
+            "node": "Log: Calls_Log (Google Sheets)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log: Calls_Log (Google Sheets)": {
+      "main": [
+        [
+          {
+            "node": "Respond: OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "active": false,
+  "tags": [
+    { "name": "LT_PROTEROS_SANDBOX" },
+    { "name": "missed-call" },
+    { "name": "test" }
+  ]
+}
