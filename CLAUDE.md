@@ -153,6 +153,33 @@ powershell -ExecutionPolicy Bypass -File scripts/notify-task-done.ps1 "<task>"
 
 ---
 
+## OpenAI Bridge (Second Opinion)
+
+Claude may call the agent-bridge for a second opinion during implementation.
+
+```
+powershell -ExecutionPolicy Bypass -File scripts/ask-openai.ps1 -Prompt "<question>"
+```
+
+Requires `BRIDGE_TOKEN` in the environment. The bridge runs on `localhost:3030`.
+
+**When to use:**
+
+1. **Bug analysis** — root cause is unclear after reading code and logs
+2. **Architecture tradeoffs** — weighing two viable approaches with non-obvious consequences
+3. **Prompt generation** — drafting or refining LLM prompts for the SMS AI conversation flow
+4. **Blocked reasoning** — stuck for >5 minutes with no clear next step
+
+**Rules:**
+
+- Do not use for tasks Claude can resolve directly (lookups, simple fixes, test failures with clear output)
+- Do not use more than 3 times per task
+- Never send secrets, credentials, or customer data in the prompt
+- Treat the response as advisory — Claude owns the final decision and must verify independently
+- Log that the bridge was consulted in the commit message if it influenced the approach
+
+---
+
 ## Output Format
 
 Return:
