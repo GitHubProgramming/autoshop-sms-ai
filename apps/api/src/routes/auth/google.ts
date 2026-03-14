@@ -6,7 +6,7 @@ import { requireAuth } from "../../middleware/require-auth";
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
-const SCOPES = "https://www.googleapis.com/auth/calendar";
+const SCOPES = "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email";
 
 // ── Token encryption (AES-256-GCM) ───────────────────────────────────────────
 
