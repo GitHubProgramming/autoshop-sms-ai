@@ -7,7 +7,7 @@
 
 ## Project Completion Estimate
 
-**~47%** (weighted)
+**~48%** (weighted)
 
 Calculated from weighted stage progress below. Only objectively verifiable progress counts. Code-complete but unverified stages are capped at 40-50%.
 
@@ -45,7 +45,7 @@ Phase: TEST environment stabilization and SMS flow validation.
 | 5 | Admin Visibility & Control | 10% | in_progress | 65% | 6.5% |
 | 6 | Production Readiness | 15% | in_progress | 32% | 4.8% |
 | 7 | First Live Pilot | 10% | not_started | 0% | 0.0% |
-| | **Total** | **100%** | | | **~47%** |
+| | **Total** | **100%** | | | **~48%** |
 
 ## Active Tasks
 
@@ -58,6 +58,7 @@ Phase: TEST environment stabilization and SMS flow validation.
 
 ## Done (Recent)
 
+- Missed call SMS endpoint + worker routing — 26 tests (branch: `ai/missed-call-sms-endpoint`)
 - WF-002 unified with API endpoints (booking-intent + appointments) (branch: `ai/wf002-use-api-endpoints`)
 - Appointment creation endpoint + service — 24 tests (branch: `ai/appointment-creation-endpoint`)
 - Idempotency guards: calendar-event + checkout — 10 new tests (branch: `ai/idempotency-guards`)
@@ -85,6 +86,7 @@ Phase: TEST environment stabilization and SMS flow validation.
 
 | Date | Change | Branch |
 |------|--------|--------|
+| 2026-03-14 | Missed call SMS: POST /internal/missed-call-sms (tenant validation, conversation creation, initial outbound SMS via Twilio, message logging). Worker routes missed-call jobs to API. 26 tests, suite 214/214 | `ai/missed-call-sms-endpoint` |
 | 2026-03-14 | WF-002 unified with API: inline booking detection → POST /internal/booking-intent, raw SQL appointment insert → POST /internal/appointments (adds customer_name, tenant validation, eliminates code duplication) | `ai/wf002-use-api-endpoints` |
 | 2026-03-14 | Appointment creation endpoint: POST /internal/appointments with service layer, tenant validation, conversation-based upsert (24 tests, suite 188/188) | `ai/appointment-creation-endpoint` |
 | 2026-03-14 | Idempotency guards: calendar-event DB dedup + checkout Redis lock (10 new tests, suite 164/164) | `ai/idempotency-guards` |

@@ -24,6 +24,7 @@ import { calendarTokensRoute } from "./routes/internal/calendar-tokens";
 import { bookingIntentRoute } from "./routes/internal/booking-intent";
 import { calendarEventRoute } from "./routes/internal/calendar-event";
 import { appointmentsRoute } from "./routes/internal/appointments";
+import { missedCallSmsRoute } from "./routes/internal/missed-call-sms";
 import { db } from "./db/client";
 import { redis } from "./queues/redis";
 import { startSmsInboundWorker } from "./workers/sms-inbound.worker";
@@ -77,6 +78,7 @@ async function bootstrap() {
   await app.register(bookingIntentRoute, { prefix: "/internal" });
   await app.register(calendarEventRoute, { prefix: "/internal" });
   await app.register(appointmentsRoute, { prefix: "/internal" });
+  await app.register(missedCallSmsRoute, { prefix: "/internal" });
   await app.register(googleAuthRoute, { prefix: "/auth/google" });
   await app.register(loginRoute, { prefix: "/auth" });
   await app.register(signupRoute, { prefix: "/auth" });

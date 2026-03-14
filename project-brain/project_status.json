@@ -1,5 +1,5 @@
 {
-  "overall_progress": 47,
+  "overall_progress": 48,
 
   "current_phase": "TEST environment stabilization and SMS flow validation",
 
@@ -66,6 +66,7 @@
       "LT sandbox SMS test flow development"
     ],
     "done": [
+      "Missed call SMS endpoint + worker routing (26 tests)",
       "WF-002 unified with API endpoints (booking-intent + appointments)",
       "Appointment creation endpoint + service (24 tests)",
       "Idempotency guards: calendar-event + checkout (10 tests)",
@@ -123,6 +124,11 @@
   ],
 
   "recent_changes": [
+    {
+      "date": "2026-03-14",
+      "change": "Missed call SMS endpoint: POST /internal/missed-call-sms handles full missed call flow (tenant validation, conversation creation, initial outbound SMS via Twilio, message logging). Worker routes missed-call jobs to API instead of n8n. 26 tests, full suite 214/214.",
+      "branch": "ai/missed-call-sms-endpoint"
+    },
     {
       "date": "2026-03-14",
       "change": "WF-002 unified with API: inline booking detection replaced with POST /internal/booking-intent (44-pattern service), raw SQL appointment insert replaced with POST /internal/appointments (adds customer_name, tenant validation). Eliminates code duplication between n8n and TypeScript.",
