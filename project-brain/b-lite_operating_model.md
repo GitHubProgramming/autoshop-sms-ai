@@ -53,10 +53,10 @@ Each gate must pass before proceeding to the next step.
 
 Both status files are **required deliverables** for every task. This is non-negotiable.
 
-- `project-brain/project_status.md` — human-readable status view (for Owner review and PR descriptions)
-- `project-brain/project_status.json` — machine-readable status source (for dashboards, task generation, and automation)
+- `project-brain/project_status.json` — **single source of truth** (for dashboards, task generation, and automation)
+- `project-brain/project_status.md` — **human-readable mirror** (for Owner review and PR descriptions)
 
-Both files must stay synchronized. Neither may drift from the other.
+Update order: **JSON first, then MD to match.** On conflict, JSON wins.
 
 ### What the Builder must do before finishing any task
 
@@ -78,8 +78,8 @@ Both files must stay synchronized. Neither may drift from the other.
 
 A task is **NOT done** unless all three conditions are met:
 - The implementation / documentation work is completed
-- `project-brain/project_status.md` has been updated to reflect reality
-- `project-brain/project_status.json` has been updated to reflect reality and is consistent with the `.md` file
+- `project-brain/project_status.json` has been updated to reflect reality (canonical source)
+- `project-brain/project_status.md` mirrors the JSON accurately
 
 ### PR requirements
 

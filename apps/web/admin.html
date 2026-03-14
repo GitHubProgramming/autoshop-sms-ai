@@ -1440,7 +1440,8 @@ async function loadProjectOps() {
     </div>`;
 
     // 1. Overall Progress + Current Phase
-    const progressPct = d.overall_progress || 0;
+    const progressPct = Math.floor((d.stages || []).reduce(
+      (sum, s) => sum + (s.weight || 0) * (s.progress || 0) / 100, 0));
     const progressColor = progressPct >= 80 ? 'green' : progressPct >= 40 ? 'rust' : 'amber';
     const topSection = `
       <div class="stat-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:24px;">

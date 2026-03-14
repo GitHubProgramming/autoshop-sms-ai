@@ -9,6 +9,45 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: google-calendar-event-creation-service — 2026-03-14
+
+**Branch:** ai/gcal-event-creation
+**Status:** COMPLETE — Google Calendar event creation service + endpoint (24 tests)
+
+### What Was Done
+Built the missing API-side Google Calendar event creation service. Previously, event creation only existed in the n8n workflow (WF-004 calendar-sync.json). Now the API has a testable, reusable service.
+
+Created:
+1. `services/google-calendar.ts` — `createCalendarEvent()` service with `buildEventBody()` and `getCalendarTokens()` helpers
+2. `routes/internal/calendar-event.ts` — `POST /internal/calendar-event` endpoint with Zod validation
+3. Route registered in `index.ts`
+4. 24 tests covering:
+   - Event body construction (defaults, custom duration/timezone, customer name)
+   - Token retrieval (found, not found, decryption failure)
+   - Google Calendar API success (event created, DB updated)
+   - Google Calendar API errors (401, 403, 500)
+   - Network failures (ECONNREFUSED)
+   - Partial success (event created but DB update failed)
+   - Calendar ID URL encoding
+   - Route validation (missing fields, invalid UUIDs, empty strings)
+   - Route integration (200 success, 502 errors, optional fields)
+
+### Verification
+- calendar-event.test.ts: 24/24 pass (confirmed at commit time)
+- Full suite rerun (post-commit): 8 files, 140/140 pass, 2.10s, clean exit — no regressions
+- Stage 4 (Calendar & Booking Reliability): 38% → 45%
+
+### Files Changed
+- `apps/api/src/services/google-calendar.ts` — new service
+- `apps/api/src/routes/internal/calendar-event.ts` — new endpoint
+- `apps/api/src/tests/calendar-event.test.ts` — new tests (24)
+- `apps/api/src/index.ts` — route registration
+- `project-brain/project_status.json` — Stage 4 progress 38→45%, overall 41→42%
+- `project-brain/project_status.md` — mirrored
+- `AI_STATUS.md` — this entry
+
+---
+
 ## TASK: twilio-signature-validation-tests — 2026-03-14
 
 **Branch:** ai/gcal-event-creation
