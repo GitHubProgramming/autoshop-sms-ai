@@ -33,7 +33,8 @@ Created:
    - Route integration (200 success, 502 errors, optional fields)
 
 ### Verification
-- Tests: 140/140 pass (116 existing + 24 new, no regressions)
+- calendar-event.test.ts: 24/24 pass (confirmed at commit time)
+- Full suite rerun (post-commit): 8 files, 140/140 pass, 2.10s, clean exit — no regressions
 - Stage 4 (Calendar & Booking Reliability): 38% → 45%
 
 ### Files Changed
