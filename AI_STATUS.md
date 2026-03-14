@@ -9,6 +9,156 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: twilio-signature-validation-tests — 2026-03-14
+
+**Branch:** ai/gcal-event-creation
+**Status:** COMPLETE — Twilio webhook signature validation test coverage (8 tests)
+
+### What Was Done
+The middleware `validateTwilioSignature` (in `middleware/twilio-validate.ts`) already existed and was wired to the SMS inbound route. However, it had zero test coverage — all existing tests bypassed it with `SKIP_TWILIO_VALIDATION=true`.
+
+Added 8 tests using the official `twilio.getExpectedTwilioSignature()` to generate real HMAC signatures:
+1. Valid signature accepted — request reaches handler and enqueues job
+2. Missing `x-twilio-signature` header → 403, handler not reached
+3. Invalid signature value → 403
+4. Signature from wrong auth token → 403
+5. Tampered body after signing → 403
+6. Missing `TWILIO_AUTH_TOKEN` env var → 500
+7. `SKIP_TWILIO_VALIDATION=true` bypass works correctly
+8. Regression: valid signature still triggers full handler flow (idempotency, tenant lookup, enqueue)
+
+### Verification
+- TypeScript: zero errors
+- Tests: 116/116 pass (108 existing + 8 new, no regressions)
+- Docker: build + smoke test pass (`ai-verify.sh`)
+
+### Files Changed
+- `apps/api/src/tests/twilio-validate.test.ts` — new test file (8 tests)
+- `project-brain/project_status.json` — Stage 6 progress 25→28%
+- `project-brain/project_status.md` — mirrored
+- `AI_STATUS.md` — this entry
+
+### Blockers Discovered
+- None
+
+### Next Recommended Task
+- Add Twilio signature validation tests for voice-status webhook route (same middleware, same pattern)
+
+---
+
+## TASK: booking-intent-service — 2026-03-14
+
+**Branch:** ai/gcal-event-creation
+**Status:** COMPLETE — Booking intent detection service + endpoint + 44 tests
+
+### What Was Done
+Created a testable booking intent detection service (`POST /internal/booking-intent`) to replace fragile inline keyword matching in n8n WF-002.
+
+**Service features:**
+1. High/medium/none confidence scoring for booking confirmation
+2. 16 high-confidence + 10 medium-confidence booking patterns
+3. 26 service type patterns (vs. 7 in the old inline code) covering brakes, diagnostics, AC, battery, etc.
+4. Customer name extraction from AI responses ("confirmed, John" or "appointment for John Smith")
+5. ISO 8601 + natural language date extraction from AI/customer messages
+6. 16 close/cancel keyword patterns (vs. 6 in old code)
+7. Structured JSON response with `matchedPatterns` for debugging
+
+**44 tests covering:**
+- Booking confirmation (high/medium/none confidence, edge cases)
+- Service type extraction (12 service types, AI vs customer message, default)
+- User close detection (7 patterns + non-false-positive)
+- Date extraction (ISO, natural language, fallback, preference ordering)
+- Customer name extraction (4 patterns + null case)
+- Edge cases (empty strings, case insensitivity, non-booking questions)
+- HTTP endpoint (200/400 validation, all response fields)
+
+### Verification
+- TypeScript: compiles with zero errors
+- Tests: 108/108 pass (64 existing + 44 new, no regressions)
+- Docker: build + smoke test pass (`ai-verify.sh` PASSED)
+
+### Files Changed
+- `apps/api/src/services/booking-intent.ts` — pure function module (no DB dependency)
+- `apps/api/src/routes/internal/booking-intent.ts` — POST endpoint
+- `apps/api/src/index.ts` — route registration
+- `apps/api/src/tests/booking-intent.test.ts` — 44 tests
+- `AI_STATUS.md` — this entry
+
+### Blockers Discovered
+- None new. n8n WF-002 still uses inline keyword matching; migration to call this endpoint is a future task.
+
+### Next Recommended Task
+- Migrate n8n WF-002 "Detect Booking Intent" node to call `POST /internal/booking-intent` instead of inline keyword matching
+- Or: continue strengthening Stage 3 with AI conversation flow improvements
+
+---
+
+## TASK: calendar-tokens-tests — 2026-03-14
+
+**Branch:** ai/gcal-event-creation
+**Status:** COMPLETE — Calendar-tokens endpoint test coverage
+
+### What Was Done
+Added 11 tests for `GET /internal/calendar-tokens/:tenantId` covering:
+1. Input validation (invalid UUID → 400)
+2. Tenant not found (no tokens → 404)
+3. Happy path: non-expired token returns decrypted values
+4. Token refresh happy path: expired token triggers Google refresh, returns new token
+5. 5-minute buffer: token within buffer also triggers refresh
+6. Refresh failure (HTTP error): returns stale token gracefully
+7. Missing GOOGLE_CLIENT_ID: returns stale token
+8. Missing GOOGLE_CLIENT_SECRET: returns stale token
+9. Token decryption failure → 500
+10. Corrupted refresh_token (fails in both refresh and stale paths) → 500
+11. Correct tenantId passed to DB query
+
+### Verification
+- TypeScript: compiles with zero errors
+- Tests: 64/64 pass (53 existing + 11 new, no regressions)
+- Docker: build + smoke test pass (`ai-verify.sh` PASSED)
+
+### Files Changed
+- `apps/api/src/tests/calendar-tokens.test.ts` — new test file (11 tests)
+- `AI_STATUS.md` — this entry
+
+### Blockers Discovered
+- None new. Existing blockers (n8n credentials, Google OAuth e2e verification) remain human-dependent.
+
+### Next Recommended Task
+- Strengthen booking intent detection logic (Stage 3 — Core Messaging & AI Flow)
+
+---
+
+## TASK: gcal-token-refresh — 2026-03-13
+
+**Branch:** ai/gcal-event-creation
+**Status:** COMPLETE — Calendar token auto-refresh + route registration fix
+
+### What Was Done
+1. **Critical bug fix:** `calendarTokensRoute` was never registered in `index.ts` — the `GET /internal/calendar-tokens/:tenantId` endpoint was completely dead. n8n could not retrieve Google Calendar tokens at all.
+2. **Token auto-refresh:** When the calendar-tokens endpoint is called and the access_token is expired (or within 5 minutes of expiry), it automatically uses the stored refresh_token to obtain a fresh access_token from Google, updates the DB, and returns the new token.
+3. Graceful fallback: if refresh fails, returns stale token so n8n can surface the 401 error clearly.
+
+### Verification
+- TypeScript: compiles with zero errors
+- Tests: 53/53 pass (no regressions)
+- Code review: uses existing `encryptToken`/`decryptToken` from `auth/google.ts`
+
+### Files Changed
+- `apps/api/src/routes/internal/calendar-tokens.ts` — added auto-refresh logic
+- `apps/api/src/index.ts` — registered `calendarTokensRoute` at `/internal` prefix
+- `project-brain/project_status.md` — Stage 4 progress 30→35%, overall 39→40%
+- `project-brain/project_status.json` — synchronized
+- `AI_STATUS.md` — this entry
+
+### Blockers Discovered
+- None new. Existing blocker (Google OAuth e2e verification) remains human-dependent.
+
+### Next Recommended Task
+- Add test coverage for the calendar-tokens endpoint (token refresh happy path + error cases)
+
+---
+
 ## TASK: stripe-webhook-tests — 2026-03-13
 
 **Branch:** ai/lt-proteros-sms-test-flow

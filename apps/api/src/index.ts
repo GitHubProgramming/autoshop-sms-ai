@@ -20,6 +20,8 @@ import { signupRoute } from "./routes/auth/signup";
 import { billingCheckoutRoute } from "./routes/billing/checkout";
 import { billingPortalRoute } from "./routes/billing/portal";
 import { tenantDashboardRoute } from "./routes/tenant/dashboard";
+import { calendarTokensRoute } from "./routes/internal/calendar-tokens";
+import { bookingIntentRoute } from "./routes/internal/booking-intent";
 import { db } from "./db/client";
 import { redis } from "./queues/redis";
 import { startSmsInboundWorker } from "./workers/sms-inbound.worker";
@@ -69,6 +71,8 @@ async function bootstrap() {
   await app.register(provisionNumberRoute, { prefix: "/internal" });
   await app.register(adminRoute, { prefix: "/internal" });
   await app.register(projectStatusRoute, { prefix: "/internal" });
+  await app.register(calendarTokensRoute, { prefix: "/internal" });
+  await app.register(bookingIntentRoute, { prefix: "/internal" });
   await app.register(googleAuthRoute, { prefix: "/auth/google" });
   await app.register(loginRoute, { prefix: "/auth" });
   await app.register(signupRoute, { prefix: "/auth" });

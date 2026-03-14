@@ -1,5 +1,5 @@
 {
-  "overall_progress": 38,
+  "overall_progress": 41,
 
   "current_phase": "TEST environment stabilization and SMS flow validation",
 
@@ -7,42 +7,49 @@
 
   "stages": [
     {
+      "id": 1,
       "name": "Foundation & Operating Model",
       "weight": 10,
       "status": "done",
       "progress": 100
     },
     {
+      "id": 2,
       "name": "TEST Sandbox Workflow Chain",
       "weight": 15,
       "status": "in_progress",
       "progress": 40
     },
     {
+      "id": 3,
       "name": "Core Messaging & AI Flow",
       "weight": 25,
       "status": "in_progress",
-      "progress": 44
+      "progress": 48
     },
     {
+      "id": 4,
       "name": "Calendar & Booking Reliability",
       "weight": 15,
       "status": "blocked",
-      "progress": 30
+      "progress": 38
     },
     {
+      "id": 5,
       "name": "Admin Visibility & Control",
       "weight": 10,
       "status": "in_progress",
       "progress": 40
     },
     {
+      "id": 6,
       "name": "Production Readiness",
       "weight": 15,
       "status": "in_progress",
-      "progress": 20
+      "progress": 28
     },
     {
+      "id": 7,
       "name": "First Live Pilot",
       "weight": 10,
       "status": "not_started",
@@ -56,10 +63,15 @@
       "Google Calendar OAuth tenant onboarding"
     ],
     "in_progress": [
-      "LT sandbox SMS test flow development",
-      "Project milestone model + dashboard JSON status system"
+      "LT sandbox SMS test flow development"
     ],
     "done": [
+      "Twilio webhook signature validation test coverage (8 tests)",
+      "Booking intent detection service + endpoint (44 tests)",
+      "Calendar-tokens endpoint test coverage (11 tests)",
+      "Google Calendar token auto-refresh + route registration fix",
+      "Project milestone model + dashboard JSON status system",
+      "Stripe webhook test coverage (20 tests)",
       "Webhook test coverage hardening (SMS inbound + voice-status: 33 tests)",
       "Admin dashboard UI (Project Ops page reading project_status.json)",
       "Project brain / B-Lite operating model setup",
@@ -77,15 +89,17 @@
       "name": "n8n credentials (postgres, openai, twilio)",
       "required_action": "Manual setup in n8n UI",
       "owner": "Human",
+      "affects_stage_ids": [2, 3],
       "affects_stages": [
         "TEST Sandbox Workflow Chain",
         "Core Messaging & AI Flow"
       ]
     },
     {
-      "name": "Google OAuth credentials",
-      "required_action": "Add GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET to .env",
+      "name": "Google Calendar OAuth verification",
+      "required_action": "End-to-end OAuth flow test with existing credentials",
       "owner": "Human",
+      "affects_stage_ids": [4],
       "affects_stages": [
         "Calendar & Booking Reliability"
       ]
@@ -94,6 +108,7 @@
       "name": "First pilot tenant",
       "required_action": "Requires working demo + real phone number",
       "owner": "Human",
+      "affects_stage_ids": [7],
       "affects_stages": [
         "First Live Pilot"
       ]
@@ -101,6 +116,31 @@
   ],
 
   "recent_changes": [
+    {
+      "date": "2026-03-14",
+      "change": "Twilio webhook signature validation test coverage (8 tests: valid/invalid/missing signature, tampered body, wrong token, missing auth token, skip bypass, regression)",
+      "branch": "ai/gcal-event-creation"
+    },
+    {
+      "date": "2026-03-14",
+      "change": "Booking intent detection service: POST /internal/booking-intent endpoint with 44 tests (confidence scoring, 26 service types, name extraction, date parsing)",
+      "branch": "ai/gcal-event-creation"
+    },
+    {
+      "date": "2026-03-14",
+      "change": "Calendar-tokens endpoint test coverage (11 tests: refresh happy/error paths, validation, decryption failures)",
+      "branch": "ai/gcal-event-creation"
+    },
+    {
+      "date": "2026-03-13",
+      "change": "Calendar token auto-refresh + calendarTokensRoute registration fix (endpoint was dead, tokens never refreshed)",
+      "branch": "ai/gcal-event-creation"
+    },
+    {
+      "date": "2026-03-13",
+      "change": "Status audit: Google OAuth blocker corrected (credentials already in .env), Stage 6 progress 20→25% (Stripe tests verified), dashboard task moved to done",
+      "branch": "ai/claude-execution-agent"
+    },
     {
       "date": "2026-03-13",
       "change": "Webhook test coverage hardened: SMS inbound (11 tests) + voice-status (13 tests) covering idempotency, billing blocks, soft limits, invalid payloads, priority, tenant lookup failures",
@@ -207,7 +247,7 @@
 
   "next_owner_decision": [
     "Provide n8n credentials (postgres, openai, twilio) to unblock end-to-end testing",
-    "Provide Google OAuth client ID/secret for calendar integration",
+    "Verify Google Calendar OAuth flow end-to-end (credentials already in .env)",
     "Confirm priority: continue TEST sandbox work vs. unblock credential setup first"
   ]
 }
