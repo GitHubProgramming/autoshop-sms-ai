@@ -11,7 +11,7 @@ trap 'bash "$NOTIFY" "❌ AI Verify FAILED on branch: $BRANCH"' ERR
 
 echo "Running AI verification..."
 
-cd apps/api
+cd "$REPO_ROOT/apps/api"
 
 echo "Install deps"
 npm ci
@@ -25,16 +25,16 @@ npm run build
 echo "Tests"
 npm test --if-present || true
 
-cd ../..
+cd "$REPO_ROOT"
 
 echo "Docker smoke test"
-docker compose -f infra/docker-compose.yml build
-docker compose -f infra/docker-compose.yml down -v --remove-orphans 2>/dev/null || true
-docker compose -f infra/docker-compose.yml up -d
+docker compose -f "$REPO_ROOT/infra/docker-compose.yml" build
+docker compose -f "$REPO_ROOT/infra/docker-compose.yml" down -v --remove-orphans 2>/dev/null || true
+docker compose -f "$REPO_ROOT/infra/docker-compose.yml" up -d
 
 sleep 30
 
-curl -f http://localhost:3000/health || exit 1
+curl -sf http://localhost:3000/health || exit 1
 
 echo "AI VERIFY PASSED"
 bash "$NOTIFY" "✅ AI Verify PASSED on branch: $BRANCH"
