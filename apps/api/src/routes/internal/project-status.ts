@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { readFile, access } from "fs/promises";
 import { join, resolve } from "path";
+import { createHash } from "crypto";
 import { adminGuard } from "../../middleware/admin-guard";
 
 const REPO_STATUS_FILE = join("project-brain", "project_status.json");
@@ -55,6 +56,22 @@ async function readFirstAccessible(candidates: string[]): Promise<unknown | null
       return JSON.parse(raw);
     } catch {
       // This candidate didn't work — try next
+    }
+  }
+  return null;
+}
+
+/** Try each candidate; return the resolved path, raw content, and parsed JSON. */
+async function readFirstAccessibleWithMeta(
+  candidates: string[],
+): Promise<{ path: string; raw: string; data: unknown } | null> {
+  for (const filePath of candidates) {
+    try {
+      await access(filePath);
+      const raw = await readFile(filePath, "utf-8");
+      return { path: filePath, raw, data: JSON.parse(raw) };
+    } catch {
+      // try next
     }
   }
   return null;
@@ -132,5 +149,41 @@ export async function projectStatusRoute(app: FastifyInstance) {
 
     // Movement log is optional — return empty array instead of 500
     return reply.status(200).send([]);
+  });
+
+  // ── diagnostic (no auth) ─────────────────────────────────────────────────
+  // Returns file metadata (resolved path, sha256, key fields) but NOT full data.
+  // Used for deploy verification without requiring admin credentials.
+  app.get("/admin/project-status-check", async (_req, reply) => {
+    reply.header("Cache-Control", "no-store");
+
+    const check = async (label: string, repo: string, local: string, envKey?: string) => {
+      const candidates = getCandidatePaths(repo, local, envKey);
+      const result = await readFirstAccessibleWithMeta(candidates);
+      if (!result) {
+        return { label, found: false, candidatesChecked: candidates.length };
+      }
+      const sha256 = createHash("sha256").update(result.raw).digest("hex");
+      const meta = (result.data as Record<string, unknown>)?.meta as
+        | Record<string, unknown>
+        | undefined;
+      return {
+        label,
+        found: true,
+        resolvedPath: result.path,
+        sha256,
+        bytes: result.raw.length,
+        metaVersion: meta?.version ?? null,
+        lastUpdated: meta?.last_updated ?? null,
+      };
+    };
+
+    const [v1, v2, ml] = await Promise.all([
+      check("project_status.json", REPO_STATUS_FILE, API_LOCAL_FILE, process.env.PROJECT_STATUS_JSON_PATH),
+      check("project_status_v2.json", REPO_STATUS_V2_FILE, API_LOCAL_V2_FILE, process.env.PROJECT_STATUS_V2_JSON_PATH),
+      check("movement_log.json", REPO_MOVEMENT_LOG, API_LOCAL_MOVEMENT_LOG, process.env.MOVEMENT_LOG_JSON_PATH),
+    ]);
+
+    return reply.status(200).send({ cwd: process.cwd(), files: [v1, v2, ml] });
   });
 }
