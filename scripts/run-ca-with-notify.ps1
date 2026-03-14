@@ -5,6 +5,11 @@
 $RepoRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Set-Location $RepoRoot
 
+# Sync to latest main before starting
+git fetch origin
+git checkout main
+git reset --hard origin/main
+
 # Run Claude — pass through any extra arguments
 claude --dangerously-skip-permissions @args
 $exitCode = $LASTEXITCODE
