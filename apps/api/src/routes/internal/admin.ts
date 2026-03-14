@@ -22,6 +22,7 @@ import { adminGuard } from "../../middleware/admin-guard";
  *   GET /internal/admin/errors
  *   GET /internal/admin/signup-attempts
  *   GET /internal/admin/audit
+ *   GET /internal/admin/metrics/conversation-health
  */
 export async function adminRoute(app: FastifyInstance) {
   // ── GET /internal/admin/metrics/signups ───────────────────────────────────
@@ -551,5 +552,131 @@ export async function adminRoute(app: FastifyInstance) {
     );
 
     return reply.status(200).send({ count: (events as any[]).length, events });
+  });
+
+  // ── GET /internal/admin/metrics/conversation-health ────────────────────────
+  app.get("/admin/metrics/conversation-health", { preHandler: [adminGuard] }, async (request, reply) => {
+    const q = request.query as { days?: string; tenant_id?: string };
+    const parsed = parseInt(q.days ?? "30", 10);
+    const days = Math.min(Math.max(Number.isNaN(parsed) ? 30 : parsed, 1), 365);
+    const tenantFilter = q.tenant_id ?? null;
+
+    const [
+      summaryRows,
+      closeReasonRows,
+      dailyRows,
+      bookingConversionRows,
+    ] = await Promise.all([
+      // Overall metrics for the period
+      query(
+        `SELECT
+           COUNT(*)::int AS total,
+           COUNT(*) FILTER (WHERE status IN ('closed','booked','expired'))::int AS completed,
+           COUNT(*) FILTER (WHERE status = 'open')::int AS still_open,
+           ROUND(AVG(turn_count)::numeric, 1)::float AS avg_turns,
+           ROUND(AVG(CASE WHEN closed_at IS NOT NULL
+             THEN EXTRACT(EPOCH FROM (closed_at - opened_at)) / 60
+             ELSE NULL END)::numeric, 1)::float AS avg_duration_minutes
+         FROM conversations
+         WHERE opened_at >= NOW() - ($1 || ' days')::interval
+           AND ($2::uuid IS NULL OR tenant_id = $2)`,
+        [days.toString(), tenantFilter]
+      ),
+
+      // Close reason breakdown
+      query(
+        `SELECT
+           COALESCE(close_reason, 'still_open') AS reason,
+           COUNT(*)::int AS count
+         FROM conversations
+         WHERE opened_at >= NOW() - ($1 || ' days')::interval
+           AND ($2::uuid IS NULL OR tenant_id = $2)
+         GROUP BY COALESCE(close_reason, 'still_open')
+         ORDER BY count DESC`,
+        [days.toString(), tenantFilter]
+      ),
+
+      // Daily conversation volume + booking rate
+      query(
+        `SELECT
+           d::date AS day,
+           COALESCE(c.opened, 0)::int AS opened,
+           COALESCE(c.closed, 0)::int AS closed,
+           COALESCE(c.booked, 0)::int AS booked
+         FROM generate_series(
+           CURRENT_DATE - ($1 || ' days')::interval,
+           CURRENT_DATE,
+           '1 day'
+         ) d
+         LEFT JOIN (
+           SELECT
+             opened_at::date AS day,
+             COUNT(*)::int AS opened,
+             COUNT(*) FILTER (WHERE status IN ('closed','booked','expired'))::int AS closed,
+             COUNT(*) FILTER (WHERE status = 'booked')::int AS booked
+           FROM conversations
+           WHERE opened_at >= CURRENT_DATE - ($1 || ' days')::interval
+             AND ($2::uuid IS NULL OR tenant_id = $2)
+           GROUP BY opened_at::date
+         ) c ON c.day = d::date
+         ORDER BY d`,
+        [days.toString(), tenantFilter]
+      ),
+
+      // Booking conversion: conversations that resulted in an appointment
+      query(
+        `SELECT
+           COUNT(DISTINCT c.id)::int AS conversations_with_booking,
+           COUNT(DISTINCT c.id) FILTER (WHERE a.calendar_synced)::int AS synced_to_calendar
+         FROM conversations c
+         JOIN appointments a ON a.conversation_id = c.id
+         WHERE c.opened_at >= NOW() - ($1 || ' days')::interval
+           AND ($2::uuid IS NULL OR c.tenant_id = $2)`,
+        [days.toString(), tenantFilter]
+      ),
+    ]);
+
+    const summary = (summaryRows as any[])[0] ?? {
+      total: 0, completed: 0, still_open: 0, avg_turns: 0, avg_duration_minutes: null,
+    };
+    const conversion = (bookingConversionRows as any[])[0] ?? {
+      conversations_with_booking: 0, synced_to_calendar: 0,
+    };
+
+    const completionRate = summary.total > 0
+      ? Math.round((summary.completed / summary.total) * 1000) / 10
+      : 0;
+    const bookingRate = summary.total > 0
+      ? Math.round((conversion.conversations_with_booking / summary.total) * 1000) / 10
+      : 0;
+
+    // Build close_reason_breakdown as an object
+    const closeReasonBreakdown: Record<string, number> = {};
+    for (const row of closeReasonRows as { reason: string; count: number }[]) {
+      closeReasonBreakdown[row.reason] = row.count;
+    }
+
+    return reply.status(200).send({
+      period_days: days,
+      tenant_id: tenantFilter,
+      summary: {
+        total_conversations: summary.total,
+        completed: summary.completed,
+        still_open: summary.still_open,
+        completion_rate_pct: completionRate,
+        avg_turns: summary.avg_turns ?? 0,
+        avg_duration_minutes: summary.avg_duration_minutes,
+        booking_rate_pct: bookingRate,
+        conversations_with_booking: conversion.conversations_with_booking,
+        bookings_synced_to_calendar: conversion.synced_to_calendar,
+      },
+      close_reason_breakdown: closeReasonBreakdown,
+      daily: (dailyRows as any[]).map((r: any) => ({
+        day: r.day instanceof Date ? r.day.toISOString().slice(0, 10) : r.day,
+        opened: r.opened,
+        closed: r.closed,
+        booked: r.booked,
+      })),
+    });
   });
 }

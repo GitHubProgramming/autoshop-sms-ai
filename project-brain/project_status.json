@@ -1,5 +1,5 @@
 {
-  "overall_progress": 42,
+  "overall_progress": 43,
 
   "current_phase": "TEST environment stabilization and SMS flow validation",
 
@@ -39,7 +39,7 @@
       "name": "Admin Visibility & Control",
       "weight": 10,
       "status": "in_progress",
-      "progress": 40
+      "progress": 45
     },
     {
       "id": 6,
@@ -66,6 +66,7 @@
       "LT sandbox SMS test flow development"
     ],
     "done": [
+      "Conversation health metrics endpoint (14 tests)",
       "Google Calendar event creation service + endpoint (24 tests)",
       "Twilio webhook signature validation test coverage (8 tests)",
       "Booking intent detection service + endpoint (44 tests)",
@@ -117,6 +118,11 @@
   ],
 
   "recent_changes": [
+    {
+      "date": "2026-03-14",
+      "change": "Conversation health metrics: GET /internal/admin/metrics/conversation-health endpoint with 14 tests (completion rate, booking conversion, close reason breakdown, daily volume, period/tenant filtering, edge cases)",
+      "branch": "ai/gcal-event-creation"
+    },
     {
       "date": "2026-03-14",
       "change": "Google Calendar event creation service: POST /internal/calendar-event endpoint with 24 tests (event creation, token retrieval, Google API errors, network failures, partial success, validation, URL encoding)",

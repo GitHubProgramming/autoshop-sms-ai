@@ -7,7 +7,7 @@
 
 ## Project Completion Estimate
 
-**~42%** (weighted)
+**~43%** (weighted)
 
 Calculated from weighted stage progress below. Only objectively verifiable progress counts. Code-complete but unverified stages are capped at 40-50%.
 
@@ -42,10 +42,10 @@ Phase: TEST environment stabilization and SMS flow validation.
 | 2 | TEST Sandbox Workflow Chain | 15% | in_progress | 40% | 6.0% |
 | 3 | Core Messaging & AI Flow | 25% | in_progress | 48% | 12.0% |
 | 4 | Calendar & Booking Reliability | 15% | blocked | 45% | 6.75% |
-| 5 | Admin Visibility & Control | 10% | in_progress | 40% | 4.0% |
+| 5 | Admin Visibility & Control | 10% | in_progress | 45% | 4.5% |
 | 6 | Production Readiness | 15% | in_progress | 28% | 4.2% |
 | 7 | First Live Pilot | 10% | not_started | 0% | 0.0% |
-| | **Total** | **100%** | | | **~42%** |
+| | **Total** | **100%** | | | **~43%** |
 
 ## Active Tasks
 
@@ -58,6 +58,7 @@ Phase: TEST environment stabilization and SMS flow validation.
 
 ## Done (Recent)
 
+- Conversation health metrics endpoint — 14 tests (branch: `ai/gcal-event-creation`)
 - Google Calendar event creation service + endpoint — 24 tests (branch: `ai/gcal-event-creation`)
 - Twilio webhook signature validation test coverage — 8 tests (branch: `ai/gcal-event-creation`)
 - Booking intent detection service + endpoint — 44 tests (branch: `ai/gcal-event-creation`)
@@ -79,6 +80,7 @@ Phase: TEST environment stabilization and SMS flow validation.
 
 | Date | Change | Branch |
 |------|--------|--------|
+| 2026-03-14 | Conversation health metrics: GET /internal/admin/metrics/conversation-health (14 tests: completion rate, booking conversion, close reason breakdown, daily volume, filtering) | `ai/gcal-event-creation` |
 | 2026-03-14 | Google Calendar event creation service: POST /internal/calendar-event (24 tests: event creation, token retrieval, Google API errors, network failures, partial success, validation, URL encoding) | `ai/gcal-event-creation` |
 | 2026-03-14 | Twilio webhook signature validation test coverage (8 tests: valid/invalid/missing/tampered/wrong-token/missing-env/skip/regression) | `ai/gcal-event-creation` |
 | 2026-03-14 | Booking intent detection service: POST /internal/booking-intent (44 tests, confidence scoring, 26 service types, name/date extraction) | `ai/gcal-event-creation` |

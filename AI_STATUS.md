@@ -9,6 +9,47 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: conversation-health-metrics — 2026-03-14
+
+**Branch:** ai/gcal-event-creation
+**Status:** COMPLETE — Conversation health metrics endpoint (14 tests)
+
+### What Was Done
+Added `GET /internal/admin/metrics/conversation-health` to the admin API. This provides conversation quality visibility that was missing from Stage 5 (Admin Visibility & Control): completion rates, average turns, close reason breakdown, booking conversion rates, and daily volume trends.
+
+Created:
+1. New endpoint in `routes/internal/admin.ts` — `GET /admin/metrics/conversation-health`
+   - Accepts `?days=N` (1-365, default 30) and `?tenant_id=UUID` filters
+   - Returns: summary (total, completed, still_open, completion_rate_pct, avg_turns, avg_duration_minutes, booking_rate_pct), close_reason_breakdown, daily volume array
+2. 14 tests in `tests/conversation-health.test.ts` covering:
+   - Full metrics for default 30-day period
+   - Custom days parameter
+   - Tenant ID filtering
+   - Zero conversations edge case
+   - Completion rate calculation with rounding
+   - Booking rate calculation
+   - Days parameter clamping (min 1, max 365)
+   - Invalid days parameter fallback
+   - All close_reason types in breakdown
+   - Daily array shape verification
+   - Empty summary row handling
+   - Combined days + tenant_id filters
+   - 100% completion rate edge case
+
+### Verification
+- conversation-health.test.ts: 14/14 pass
+- Full source suite: 9 files, 154/154 pass, 2.31s, EXIT_CODE=0
+- Stage 5 (Admin Visibility & Control): 40% → 45%, overall 42% → 43%
+
+### Files Changed
+- `apps/api/src/routes/internal/admin.ts` — new metrics endpoint
+- `apps/api/src/tests/conversation-health.test.ts` — new tests (14)
+- `project-brain/project_status.json` — Stage 5 progress 40→45%, overall 42→43%
+- `project-brain/project_status.md` — mirrored
+- `AI_STATUS.md` — this entry
+
+---
+
 ## TASK: google-calendar-event-creation-service — 2026-03-14
 
 **Branch:** ai/gcal-event-creation
