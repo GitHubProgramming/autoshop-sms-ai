@@ -11,7 +11,7 @@ missed call → SMS → AI → booking → calendar
 
 ### Ready (can be done now)
 
-1. **Continue TEST workflow refinement** — Improve workflow JSONs for sandbox testing while waiting for credentials
+1. **Strengthen pipeline reliability** — Harden the API endpoints that form the core flow (missed-call-sms, process-sms, booking-intent, appointments, calendar-event) for real-world conditions
 2. **API error handling audit** — Verify all /internal/ endpoints surface clear errors for n8n consumption
 3. **Process-sms endpoint hardening** — POST /internal/process-sms is the newest endpoint; verify edge cases
 

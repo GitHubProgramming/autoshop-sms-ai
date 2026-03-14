@@ -2,6 +2,8 @@
 
 This directory is **working memory for Claude sessions**, not documentation for humans or customers.
 
+`project-brain/` is the canonical shared-memory directory for this repository. All session-persistent context, status tracking, and architectural decisions live here.
+
 ## Purpose
 
 Enable execution continuity across Claude sessions. Every session starts faster and makes better decisions because the previous session left structured context behind.
