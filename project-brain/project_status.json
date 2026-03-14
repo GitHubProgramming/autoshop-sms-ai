@@ -1,5 +1,5 @@
 {
-  "overall_progress": 40,
+  "overall_progress": 41,
 
   "current_phase": "TEST environment stabilization and SMS flow validation",
 
@@ -28,7 +28,7 @@
       "name": "Calendar & Booking Reliability",
       "weight": 15,
       "status": "blocked",
-      "progress": 35
+      "progress": 38
     },
     {
       "name": "Admin Visibility & Control",
@@ -59,6 +59,7 @@
       "LT sandbox SMS test flow development"
     ],
     "done": [
+      "Calendar-tokens endpoint test coverage (11 tests)",
       "Google Calendar token auto-refresh + route registration fix",
       "Project milestone model + dashboard JSON status system",
       "Stripe webhook test coverage (20 tests)",
@@ -103,6 +104,11 @@
   ],
 
   "recent_changes": [
+    {
+      "date": "2026-03-14",
+      "change": "Calendar-tokens endpoint test coverage (11 tests: refresh happy/error paths, validation, decryption failures)",
+      "branch": "ai/gcal-event-creation"
+    },
     {
       "date": "2026-03-13",
       "change": "Calendar token auto-refresh + calendarTokensRoute registration fix (endpoint was dead, tokens never refreshed)",

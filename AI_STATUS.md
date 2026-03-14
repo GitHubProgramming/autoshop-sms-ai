@@ -9,6 +9,42 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: calendar-tokens-tests — 2026-03-14
+
+**Branch:** ai/gcal-event-creation
+**Status:** COMPLETE — Calendar-tokens endpoint test coverage
+
+### What Was Done
+Added 11 tests for `GET /internal/calendar-tokens/:tenantId` covering:
+1. Input validation (invalid UUID → 400)
+2. Tenant not found (no tokens → 404)
+3. Happy path: non-expired token returns decrypted values
+4. Token refresh happy path: expired token triggers Google refresh, returns new token
+5. 5-minute buffer: token within buffer also triggers refresh
+6. Refresh failure (HTTP error): returns stale token gracefully
+7. Missing GOOGLE_CLIENT_ID: returns stale token
+8. Missing GOOGLE_CLIENT_SECRET: returns stale token
+9. Token decryption failure → 500
+10. Corrupted refresh_token (fails in both refresh and stale paths) → 500
+11. Correct tenantId passed to DB query
+
+### Verification
+- TypeScript: compiles with zero errors
+- Tests: 64/64 pass (53 existing + 11 new, no regressions)
+- Docker: build + smoke test pass (`ai-verify.sh` PASSED)
+
+### Files Changed
+- `apps/api/src/tests/calendar-tokens.test.ts` — new test file (11 tests)
+- `AI_STATUS.md` — this entry
+
+### Blockers Discovered
+- None new. Existing blockers (n8n credentials, Google OAuth e2e verification) remain human-dependent.
+
+### Next Recommended Task
+- Strengthen booking intent detection logic (Stage 3 — Core Messaging & AI Flow)
+
+---
+
 ## TASK: gcal-token-refresh — 2026-03-13
 
 **Branch:** ai/gcal-event-creation
