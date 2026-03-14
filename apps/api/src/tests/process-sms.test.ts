@@ -455,7 +455,7 @@ describe("processSms — error handling", () => {
   });
 
   it("continues with empty history when history query fails", async () => {
-    let callCount = 0;
+    const callCount = 0;
     mocks.query.mockImplementation(async (sql: string) => {
       if (sql.includes("get_or_create_conversation")) {
         return [{ conversation_id: CONVERSATION_ID, is_new: false }];
