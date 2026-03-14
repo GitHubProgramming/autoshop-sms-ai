@@ -87,6 +87,7 @@ export function buildEventBody(input: CalendarEventInput) {
  * Creates a Google Calendar event and updates the appointment record.
  *
  * Flow:
+ * 0. Check if appointment already has a google_event_id (idempotency)
  * 1. Fetch calendar tokens for tenant
  * 2. Build event body
  * 3. POST to Google Calendar API
@@ -98,6 +99,26 @@ export async function createCalendarEvent(
   input: CalendarEventInput,
   fetchFn: typeof fetch = fetch
 ): Promise<CalendarEventResult> {
+  // 0. Idempotency — skip if appointment already synced
+  try {
+    const existing = await query<{ google_event_id: string }>(
+      `SELECT google_event_id FROM appointments
+       WHERE id = $1 AND tenant_id = $2 AND google_event_id IS NOT NULL`,
+      [input.appointmentId, input.tenantId]
+    );
+    if (existing.length > 0) {
+      return {
+        success: true,
+        googleEventId: existing[0].google_event_id,
+        error: null,
+        calendarSynced: true,
+      };
+    }
+  } catch {
+    // If idempotency check fails, proceed anyway — worst case is a duplicate
+    // which is better than blocking event creation entirely
+  }
+
   // 1. Get tokens
   let tokens: { accessToken: string; calendarId: string } | null;
   try {

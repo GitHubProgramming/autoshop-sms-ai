@@ -9,6 +9,33 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: idempotency-guards — 2026-03-14
+
+**Branch:** ai/idempotency-guards
+**Status:** COMPLETE — Idempotency guards on calendar-event and checkout endpoints
+
+### What Was Done
+1. Calendar event creation: added DB-level idempotency check — if appointment already has `google_event_id`, returns existing event ID without calling Google API (prevents duplicate calendar events on n8n retries)
+2. Checkout endpoint: added Redis-based idempotency lock — prevents duplicate Stripe customer creation from concurrent requests (keyed by `tenant:plan`)
+3. New test file: `checkout.test.ts` (8 tests covering happy path, idempotency, validation, error paths)
+4. Updated `calendar-event.test.ts` with 2 new idempotency tests (existing event return, graceful fallback on check failure)
+
+### Verification
+- calendar-event.test.ts: 26/26 pass (2 new idempotency tests)
+- checkout.test.ts: 8/8 pass (new file)
+- Full suite: 10 files, 164/164 pass, 2.64s, EXIT_CODE=0
+
+### Files Changed
+- `apps/api/src/services/google-calendar.ts` — idempotency check before event creation
+- `apps/api/src/routes/billing/checkout.ts` — Redis idempotency lock
+- `apps/api/src/tests/calendar-event.test.ts` — 2 new tests + mock updates
+- `apps/api/src/tests/checkout.test.ts` — new test file (8 tests)
+- `project-brain/project_status.json` — Stage 6 progress 28→32%
+- `project-brain/project_status.md` — mirrored
+- `AI_STATUS.md` — this entry
+
+---
+
 ## TASK: project-ops-v2-polish — 2026-03-14
 
 **Branch:** ai/project-ops-v2-polish

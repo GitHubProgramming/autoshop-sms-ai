@@ -1,5 +1,5 @@
 {
-  "overall_progress": 45,
+  "overall_progress": 46,
 
   "current_phase": "TEST environment stabilization and SMS flow validation",
 
@@ -46,7 +46,7 @@
       "name": "Production Readiness",
       "weight": 15,
       "status": "in_progress",
-      "progress": 28
+      "progress": 32
     },
     {
       "id": 7,
@@ -66,6 +66,8 @@
       "LT sandbox SMS test flow development"
     ],
     "done": [
+      "Idempotency guards: calendar-event + checkout (10 tests)",
+      "Checkout endpoint test coverage (8 tests)",
       "Conversation health metrics endpoint (14 tests)",
       "Google Calendar event creation service + endpoint (24 tests)",
       "Twilio webhook signature validation test coverage (8 tests)",
@@ -119,6 +121,11 @@
   ],
 
   "recent_changes": [
+    {
+      "date": "2026-03-14",
+      "change": "Idempotency guards: calendar-event DB-level dedup (prevents duplicate Google Calendar events on retry), checkout Redis lock (prevents duplicate Stripe customers). 10 new tests, full suite 164/164.",
+      "branch": "ai/idempotency-guards"
+    },
     {
       "date": "2026-03-14",
       "change": "Project Ops v2 polish: stage_id→title mapping in backlog/timeline, auto-expand current stage subtasks, Admin stage progress updated to 65%",

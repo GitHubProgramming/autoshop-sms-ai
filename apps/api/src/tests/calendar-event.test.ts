@@ -150,9 +150,43 @@ describe("createCalendarEvent", () => {
     );
   }
 
+  // ── Idempotency ────────────────────────────────────────────────────────
+
+  it("returns existing event ID when appointment already synced", async () => {
+    const existingEventId = "existing-google-event-123";
+    mocks.query.mockResolvedValueOnce([{ google_event_id: existingEventId }]); // idempotency check
+
+    const fetchFn = vi.fn();
+    const result = await createCalendarEvent(validBody(), fetchFn);
+
+    expect(result.success).toBe(true);
+    expect(result.googleEventId).toBe(existingEventId);
+    expect(result.calendarSynced).toBe(true);
+    expect(result.error).toBeNull();
+    // Should NOT call Google API
+    expect(fetchFn).not.toHaveBeenCalled();
+    // Only the idempotency check query
+    expect(mocks.query).toHaveBeenCalledTimes(1);
+  });
+
+  it("proceeds when idempotency check fails (DB error)", async () => {
+    mocks.query.mockRejectedValueOnce(new Error("connection reset")); // idempotency check fails
+    mocks.query.mockResolvedValueOnce([tokenRow()]); // getCalendarTokens
+    mocks.query.mockResolvedValueOnce([]); // UPDATE appointment
+
+    const fetchFn = mockFetch(200, { id: GOOGLE_EVENT_ID });
+    const result = await createCalendarEvent(validBody(), fetchFn);
+
+    expect(result.success).toBe(true);
+    expect(result.googleEventId).toBe(GOOGLE_EVENT_ID);
+    // Google API was still called
+    expect(fetchFn).toHaveBeenCalledOnce();
+  });
+
   // ── Happy path ──────────────────────────────────────────────────────────
 
   it("creates event and updates appointment on success", async () => {
+    mocks.query.mockResolvedValueOnce([]); // idempotency check — no existing event
     mocks.query.mockResolvedValueOnce([tokenRow()]); // getCalendarTokens
     mocks.query.mockResolvedValueOnce([]); // UPDATE appointment
 
@@ -171,9 +205,9 @@ describe("createCalendarEvent", () => {
     expect(opts.method).toBe("POST");
     expect(opts.headers.Authorization).toBe(`Bearer ${ACCESS_TOKEN}`);
 
-    // Verify DB update
-    expect(mocks.query).toHaveBeenCalledTimes(2);
-    const updateCall = mocks.query.mock.calls[1];
+    // Verify DB update (3 calls: idempotency check + token fetch + update)
+    expect(mocks.query).toHaveBeenCalledTimes(3);
+    const updateCall = mocks.query.mock.calls[2];
     expect(updateCall[0]).toContain("UPDATE appointments");
     expect(updateCall[1]).toEqual([GOOGLE_EVENT_ID, APPT_ID, TENANT_ID]);
   });
@@ -181,6 +215,7 @@ describe("createCalendarEvent", () => {
   // ── No tokens ───────────────────────────────────────────────────────────
 
   it("returns error when no calendar tokens exist for tenant", async () => {
+    mocks.query.mockResolvedValueOnce([]); // idempotency check — no existing event
     mocks.query.mockResolvedValueOnce([]); // no tokens
 
     const fetchFn = vi.fn();
@@ -195,6 +230,7 @@ describe("createCalendarEvent", () => {
   // ── Token decryption failure ────────────────────────────────────────────
 
   it("returns error when token decryption fails", async () => {
+    mocks.query.mockResolvedValueOnce([]); // idempotency check
     mocks.query.mockResolvedValueOnce([tokenRow()]);
     mocks.decryptToken.mockImplementation(() => {
       throw new Error("decryption failed");
@@ -211,6 +247,7 @@ describe("createCalendarEvent", () => {
   // ── Google API error ────────────────────────────────────────────────────
 
   it("returns error when Google Calendar API returns 401", async () => {
+    mocks.query.mockResolvedValueOnce([]); // idempotency check
     mocks.query.mockResolvedValueOnce([tokenRow()]);
 
     const fetchFn = mockFetch(401, { error: "invalid_token" });
@@ -219,11 +256,12 @@ describe("createCalendarEvent", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("Google Calendar API error 401");
     expect(result.calendarSynced).toBe(false);
-    // Should NOT update DB
-    expect(mocks.query).toHaveBeenCalledTimes(1); // only token fetch
+    // Should NOT update DB (2 calls: idempotency check + token fetch)
+    expect(mocks.query).toHaveBeenCalledTimes(2);
   });
 
   it("returns error when Google Calendar API returns 403", async () => {
+    mocks.query.mockResolvedValueOnce([]); // idempotency check
     mocks.query.mockResolvedValueOnce([tokenRow()]);
 
     const fetchFn = mockFetch(403, { error: "forbidden" });
@@ -234,6 +272,7 @@ describe("createCalendarEvent", () => {
   });
 
   it("returns error when Google Calendar API returns 500", async () => {
+    mocks.query.mockResolvedValueOnce([]); // idempotency check
     mocks.query.mockResolvedValueOnce([tokenRow()]);
 
     const fetchFn = mockFetch(500, { error: "internal" });
@@ -246,6 +285,7 @@ describe("createCalendarEvent", () => {
   // ── Network failure ─────────────────────────────────────────────────────
 
   it("returns error when fetch throws (network failure)", async () => {
+    mocks.query.mockResolvedValueOnce([]); // idempotency check
     mocks.query.mockResolvedValueOnce([tokenRow()]);
 
     const fetchFn = vi.fn().mockRejectedValue(new Error("ECONNREFUSED"));
@@ -259,6 +299,7 @@ describe("createCalendarEvent", () => {
   // ── DB update failure (partial success) ─────────────────────────────────
 
   it("returns partial success when event created but DB update fails", async () => {
+    mocks.query.mockResolvedValueOnce([]); // idempotency check
     mocks.query.mockResolvedValueOnce([tokenRow()]); // token fetch
     mocks.query.mockRejectedValueOnce(new Error("connection lost")); // DB update fails
 
@@ -274,6 +315,7 @@ describe("createCalendarEvent", () => {
   // ── Calendar ID encoding ────────────────────────────────────────────────
 
   it("encodes calendar ID in URL", async () => {
+    mocks.query.mockResolvedValueOnce([]); // idempotency check
     mocks.query.mockResolvedValueOnce([
       { ...tokenRow(), calendar_id: "user@example.com" },
     ]);
@@ -289,6 +331,7 @@ describe("createCalendarEvent", () => {
   // ── Customer name included ──────────────────────────────────────────────
 
   it("includes customer name in event when provided", async () => {
+    mocks.query.mockResolvedValueOnce([]); // idempotency check
     mocks.query.mockResolvedValueOnce([tokenRow()]);
     mocks.query.mockResolvedValueOnce([]);
 
@@ -376,6 +419,7 @@ describe("POST /internal/calendar-event", () => {
   // ── Happy path via route ────────────────────────────────────────────────
 
   it("returns 200 with event ID on success", async () => {
+    mocks.query.mockResolvedValueOnce([]); // idempotency check
     mocks.query.mockResolvedValueOnce([tokenRow()]); // tokens
     mocks.query.mockResolvedValueOnce([]); // DB update
 
@@ -408,6 +452,7 @@ describe("POST /internal/calendar-event", () => {
   // ── Error path via route ────────────────────────────────────────────────
 
   it("returns 502 when no calendar tokens exist", async () => {
+    mocks.query.mockResolvedValueOnce([]); // idempotency check
     mocks.query.mockResolvedValueOnce([]); // no tokens
 
     const app = await buildApp();
@@ -426,6 +471,7 @@ describe("POST /internal/calendar-event", () => {
   });
 
   it("returns 502 when Google API fails", async () => {
+    mocks.query.mockResolvedValueOnce([]); // idempotency check
     mocks.query.mockResolvedValueOnce([tokenRow()]);
 
     const fetchSpy = vi
@@ -451,6 +497,7 @@ describe("POST /internal/calendar-event", () => {
   // ── Optional fields ─────────────────────────────────────────────────────
 
   it("accepts optional durationMinutes and timeZone", async () => {
+    mocks.query.mockResolvedValueOnce([]); // idempotency check
     mocks.query.mockResolvedValueOnce([tokenRow()]);
     mocks.query.mockResolvedValueOnce([]);
 

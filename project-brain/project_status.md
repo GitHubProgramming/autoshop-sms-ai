@@ -7,7 +7,7 @@
 
 ## Project Completion Estimate
 
-**~45%** (weighted)
+**~46%** (weighted)
 
 Calculated from weighted stage progress below. Only objectively verifiable progress counts. Code-complete but unverified stages are capped at 40-50%.
 
@@ -43,9 +43,9 @@ Phase: TEST environment stabilization and SMS flow validation.
 | 3 | Core Messaging & AI Flow | 25% | in_progress | 48% | 12.0% |
 | 4 | Calendar & Booking Reliability | 15% | blocked | 45% | 6.75% |
 | 5 | Admin Visibility & Control | 10% | in_progress | 65% | 6.5% |
-| 6 | Production Readiness | 15% | in_progress | 28% | 4.2% |
+| 6 | Production Readiness | 15% | in_progress | 32% | 4.8% |
 | 7 | First Live Pilot | 10% | not_started | 0% | 0.0% |
-| | **Total** | **100%** | | | **~45%** |
+| | **Total** | **100%** | | | **~46%** |
 
 ## Active Tasks
 
@@ -58,6 +58,8 @@ Phase: TEST environment stabilization and SMS flow validation.
 
 ## Done (Recent)
 
+- Idempotency guards: calendar-event + checkout — 10 new tests (branch: `ai/idempotency-guards`)
+- Checkout endpoint test coverage — 8 tests (branch: `ai/idempotency-guards`)
 - Conversation health metrics endpoint — 14 tests (branch: `ai/gcal-event-creation`)
 - Google Calendar event creation service + endpoint — 24 tests (branch: `ai/gcal-event-creation`)
 - Twilio webhook signature validation test coverage — 8 tests (branch: `ai/gcal-event-creation`)
@@ -81,6 +83,7 @@ Phase: TEST environment stabilization and SMS flow validation.
 
 | Date | Change | Branch |
 |------|--------|--------|
+| 2026-03-14 | Idempotency guards: calendar-event DB dedup + checkout Redis lock (10 new tests, suite 164/164) | `ai/idempotency-guards` |
 | 2026-03-14 | Project Ops v2 polish: stage_id→title mapping, auto-expand current stage subtasks, Admin stage 45→65%, backlog item removed | `ai/project-ops-v2-polish` |
 | 2026-03-14 | Conversation health metrics: GET /internal/admin/metrics/conversation-health (14 tests: completion rate, booking conversion, close reason breakdown, daily volume, filtering) | `ai/gcal-event-creation` |
 | 2026-03-14 | Google Calendar event creation service: POST /internal/calendar-event (24 tests: event creation, token retrieval, Google API errors, network failures, partial success, validation, URL encoding) | `ai/gcal-event-creation` |
