@@ -154,7 +154,7 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/0
       REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret}
       N8N_INTERNAL_URL: http://n8n:5678
-      JWT_SECRET: ${JWT_SECRET:-change_me_jwt_secret}
+      # JWT_SECRET provided by env_file (../.env)
     env_file:
       - path: ../.env
         required: false
