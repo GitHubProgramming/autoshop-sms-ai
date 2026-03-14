@@ -9,6 +9,28 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: missed-call-sms-endpoint — 2026-03-14
+
+**Branch:** ai/missed-call-sms-endpoint
+**Status:** COMPLETE — Missed call → initial SMS flow now implemented end-to-end
+
+### What Was Done
+1. Created `POST /internal/missed-call-sms` endpoint — handles the full missed call flow
+2. Created `apps/api/src/services/missed-call-sms.ts` — service with tenant validation, billing check, conversation creation, Twilio SMS sending, message logging
+3. Updated `apps/api/src/workers/sms-inbound.worker.ts` — routes `missed-call-trigger` jobs to API instead of n8n (no AI needed for initial SMS)
+4. Created 26 tests (unit + integration)
+
+### Why This Matters
+This completes the entry point of the entire core pipeline. Previously, missed calls were enqueued but sent to n8n's SMS inbound webhook with no message body — the AI worker would receive an empty message. Now:
+- Missed call → worker routes to API → tenant validated → conversation created → initial SMS sent → customer can reply → AI conversation begins
+- The initial SMS is a template ("Hi! We noticed you called...") — no AI needed, so it's faster and more reliable
+
+### Verification
+- missed-call-sms.test.ts: 26/26 pass
+- Full suite: 12 files, 214/214 pass, 5.85s, EXIT_CODE=0
+
+---
+
 ## TASK: wf002-use-api-endpoints — 2026-03-14
 
 **Branch:** ai/wf002-use-api-endpoints

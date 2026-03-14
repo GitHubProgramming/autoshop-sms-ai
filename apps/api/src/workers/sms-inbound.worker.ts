@@ -2,31 +2,41 @@ import { Worker, Job } from "bullmq";
 import { bullmqConnection as connection } from "../queues/redis";
 
 const N8N_INTERNAL_URL = process.env.N8N_INTERNAL_URL ?? "http://n8n:5678";
+const API_INTERNAL_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
 const N8N_SMS_WEBHOOK = `${N8N_INTERNAL_URL}/webhook/sms-inbound`;
-console.info(`[sms-worker] posting to ${N8N_SMS_WEBHOOK}`);
+const MISSED_CALL_ENDPOINT = `${API_INTERNAL_URL}/internal/missed-call-sms`;
+console.info(`[sms-worker] SMS replies → ${N8N_SMS_WEBHOOK}`);
+console.info(`[sms-worker] Missed calls → ${MISSED_CALL_ENDPOINT}`);
 
 /**
- * BullMQ worker: consumes jobs from "sms-inbound" queue and forwards
- * each job's payload to the n8n WF-001 webhook trigger.
+ * BullMQ worker: consumes jobs from "sms-inbound" queue and routes them:
  *
- * Both job types land here:
- *   - "process-sms"         (inbound SMS from Twilio)
- *   - "missed-call-trigger" (missed call → initiate outbound SMS flow)
+ *   - "process-sms"         → n8n WF-001 (AI conversation flow)
+ *   - "missed-call-trigger" → API /internal/missed-call-sms (initial outbound SMS)
+ *
+ * Missed calls are handled by the API directly because:
+ * 1. No AI needed for the first message (it's a template)
+ * 2. The API has Twilio credentials and DB access
+ * 3. Faster response (no n8n round-trip)
  */
 export function startSmsInboundWorker(): Worker {
   const worker = new Worker(
     "sms-inbound",
     async (job: Job) => {
-      const res = await fetch(N8N_SMS_WEBHOOK, {
+      const isMissedCall = job.name === "missed-call-trigger";
+      const targetUrl = isMissedCall ? MISSED_CALL_ENDPOINT : N8N_SMS_WEBHOOK;
+
+      const res = await fetch(targetUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(job.data),
-        signal: AbortSignal.timeout(30_000), // n8n must accept within 30s
+        signal: AbortSignal.timeout(30_000),
       });
 
       if (!res.ok) {
         const body = await res.text().catch(() => "");
-        throw new Error(`n8n webhook returned ${res.status}: ${body}`);
+        const target = isMissedCall ? "API missed-call-sms" : "n8n webhook";
+        throw new Error(`${target} returned ${res.status}: ${body}`);
       }
     },
     {
@@ -36,7 +46,10 @@ export function startSmsInboundWorker(): Worker {
   );
 
   worker.on("completed", (job) => {
-    console.info(`[sms-worker] job ${job.id} (${job.name}) delivered to n8n`);
+    const target = job.name === "missed-call-trigger" ? "API" : "n8n";
+    console.info(
+      `[sms-worker] job ${job.id} (${job.name}) delivered to ${target}`
+    );
   });
 
   worker.on("failed", (job, err) => {
