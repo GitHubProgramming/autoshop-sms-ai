@@ -9,6 +9,40 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: appointment-creation-endpoint — 2026-03-14
+
+**Branch:** ai/appointment-creation-endpoint
+**Status:** COMPLETE — Appointment creation endpoint bridging booking-intent to calendar-event
+
+### What Was Done
+1. Created `POST /internal/appointments` endpoint — accepts booking data, creates/upserts appointment record in DB
+2. Created `apps/api/src/services/appointments.ts` — service layer with tenant validation, conversation-based upsert (ON CONFLICT), proper error handling
+3. Created `apps/api/src/routes/internal/appointments.ts` — Zod-validated route with 201/200/404/500 status codes
+4. Created `apps/api/src/tests/appointments.test.ts` — 24 tests (10 service + 14 route)
+5. Registered route in `apps/api/src/index.ts`
+
+### Why This Matters
+Previously, appointments could only be created via raw SQL in n8n WF-002. This endpoint:
+- Enables n8n WF-002 to call the API instead of inline SQL (proper separation of concerns)
+- Includes tenant validation (WF-002 SQL didn't check tenant exists)
+- Includes `customer_name` in the insert (WF-002 SQL omitted it)
+- Bridges the booking-intent → appointment → calendar-event pipeline in the TypeScript API
+
+### Verification
+- appointments.test.ts: 24/24 pass
+- Full suite: 11 files, 188/188 pass, 6.36s, EXIT_CODE=0
+
+### Files Changed
+- `apps/api/src/services/appointments.ts` — new service
+- `apps/api/src/routes/internal/appointments.ts` — new route
+- `apps/api/src/tests/appointments.test.ts` — new test file (24 tests)
+- `apps/api/src/index.ts` — route registration
+- `project-brain/project_status.json` — Stage 3 progress 48→50%
+- `project-brain/project_status.md` — mirrored
+- `AI_STATUS.md` — this entry
+
+---
+
 ## TASK: idempotency-guards — 2026-03-14
 
 **Branch:** ai/idempotency-guards
