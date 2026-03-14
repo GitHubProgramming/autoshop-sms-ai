@@ -1,5 +1,5 @@
 {
-  "overall_progress": 41,
+  "overall_progress": 42,
 
   "current_phase": "TEST environment stabilization and SMS flow validation",
 
@@ -32,7 +32,7 @@
       "name": "Calendar & Booking Reliability",
       "weight": 15,
       "status": "blocked",
-      "progress": 38
+      "progress": 45
     },
     {
       "id": 5,
@@ -66,6 +66,7 @@
       "LT sandbox SMS test flow development"
     ],
     "done": [
+      "Google Calendar event creation service + endpoint (24 tests)",
       "Twilio webhook signature validation test coverage (8 tests)",
       "Booking intent detection service + endpoint (44 tests)",
       "Calendar-tokens endpoint test coverage (11 tests)",
@@ -116,6 +117,11 @@
   ],
 
   "recent_changes": [
+    {
+      "date": "2026-03-14",
+      "change": "Google Calendar event creation service: POST /internal/calendar-event endpoint with 24 tests (event creation, token retrieval, Google API errors, network failures, partial success, validation, URL encoding)",
+      "branch": "ai/gcal-event-creation"
+    },
     {
       "date": "2026-03-14",
       "change": "Twilio webhook signature validation test coverage (8 tests: valid/invalid/missing signature, tampered body, wrong token, missing auth token, skip bypass, regression)",
