@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": 2,
-    "last_updated": "2026-03-14T15:30:00Z",
+    "last_updated": "2026-03-15T12:00:00Z",
     "updated_by": "claude",
     "repo_branch": "main"
   },
@@ -9,12 +9,12 @@
     "project_name": "AutoShop AI Agent SaaS",
     "current_mission": "TEST SMS -> AI -> Booking pipeline validation",
     "current_node_id": "calendar_reliability",
-    "overall_progress": 45,
-    "momentum": "blocked",
+    "overall_progress": 48,
+    "momentum": "progressing",
     "ai_can_continue_now": true,
     "human_action_required": true,
     "demo_ready_path_complete": false,
-    "current_blocker_summary": "Human verification still needed for end-to-end Google Calendar OAuth validation"
+    "current_blocker_summary": "Production auth fully working. Google Calendar OAuth code fixed — human e2e verification still needed."
   },
   "critical_path": {
     "title": "Path to MVP Demo",
@@ -57,7 +57,7 @@
       {
         "id": "calendar_booking_working",
         "title": "Calendar booking works",
-        "status": "blocked",
+        "status": "in_progress",
         "owner": "human",
         "depends_on": [
           "booking_intent_parsing"
@@ -179,8 +179,8 @@
       "id": "calendar_reliability",
       "title": "Calendar & Booking Reliability",
       "weight": 15,
-      "status": "blocked",
-      "progress": 45,
+      "status": "in_progress",
+      "progress": 50,
       "owner": "human",
       "depends_on": [
         "core_messaging_ai"
@@ -199,21 +199,27 @@
           "owner": "ai"
         },
         {
+          "id": "oauth_callback_code_fix",
+          "title": "Google OAuth callback Zod + env vars fixed",
+          "status": "done",
+          "owner": "ai"
+        },
+        {
           "id": "oauth_end_to_end_validation",
-          "title": "Google Calendar OAuth end-to-end validation",
-          "status": "blocked",
+          "title": "Google Calendar OAuth end-to-end human verification",
+          "status": "todo",
           "owner": "human"
         }
       ],
-      "next_task": "Human must verify OAuth flow end-to-end in real environment",
-      "last_change": "2026-03-14"
+      "next_task": "Human must complete OAuth consent flow in browser to verify end-to-end",
+      "last_change": "2026-03-15"
     },
     {
       "id": "admin_visibility_control",
       "title": "Admin Visibility & Control",
       "weight": 10,
       "status": "in_progress",
-      "progress": 65,
+      "progress": 70,
       "owner": "ai",
       "depends_on": [
         "foundation_operating_model"
@@ -232,6 +238,12 @@
           "owner": "ai"
         },
         {
+          "id": "production_admin_auth",
+          "title": "Production admin login + Google OAuth working",
+          "status": "done",
+          "owner": "ai"
+        },
+        {
           "id": "tenant_health_monitoring",
           "title": "Tenant health monitoring",
           "status": "todo",
@@ -239,14 +251,14 @@
         }
       ],
       "next_task": "Add tenant health monitoring and conversation metrics panels",
-      "last_change": "2026-03-14"
+      "last_change": "2026-03-15"
     },
     {
       "id": "production_readiness",
       "title": "Production Readiness",
       "weight": 15,
       "status": "in_progress",
-      "progress": 28,
+      "progress": 35,
       "owner": "ai",
       "depends_on": [
         "calendar_reliability",
@@ -266,6 +278,12 @@
           "owner": "ai"
         },
         {
+          "id": "production_auth_hardening",
+          "title": "Production auth: email normalization, OAuth env config, bootstrap fixes",
+          "status": "done",
+          "owner": "ai"
+        },
+        {
           "id": "live_env_hardening",
           "title": "Live environment hardening",
           "status": "todo",
@@ -273,7 +291,7 @@
         }
       ],
       "next_task": "Finish production hardening once calendar flow is fully verified",
-      "last_change": "2026-03-13"
+      "last_change": "2026-03-15"
     },
     {
       "id": "first_live_pilot",
@@ -300,7 +318,7 @@
   "human_decisions": [
     {
       "id": "verify_google_oauth",
-      "title": "Verify Google Calendar OAuth flow end-to-end",
+      "title": "Complete Google Calendar OAuth consent in browser",
       "priority": "high",
       "status": "waiting",
       "blocks": [
@@ -308,7 +326,7 @@
         "end_to_end_demo_run"
       ],
       "impact": "Unblocks calendar booking proof in live flow",
-      "required_action": "Run real OAuth flow with current credentials and confirm event creation works in target environment"
+      "required_action": "OAuth callback code and env vars are fixed (PR #94). Open /auth/google/url in browser, complete consent, confirm calendar event creation works."
     },
     {
       "id": "confirm_real_twilio_demo",
@@ -345,14 +363,35 @@
   "blocked_backlog": [
     {
       "id": "oauth_live_check",
-      "title": "End-to-end OAuth flow validation",
-      "status": "blocked",
+      "title": "Google OAuth browser consent (code fixed, needs human click-through)",
+      "status": "todo",
       "owner": "human",
-      "blocked_by": "manual verification required",
+      "blocked_by": "requires human browser interaction",
       "stage_id": "calendar_reliability"
     }
   ],
   "recent_movements": [
+    {
+      "date": "2026-03-15",
+      "type": "task_done",
+      "title": "Production admin auth fully fixed",
+      "impact": "Email login, Google OAuth callback, admin bootstrap all working in production. Admin dashboard accessible.",
+      "branch": "ai/fix-production-auth"
+    },
+    {
+      "date": "2026-03-15",
+      "type": "blocker_resolved",
+      "title": "Google OAuth callback validation fixed",
+      "impact": "Zod schema now accepts Google's extra query params. OAuth env vars configured in render.yaml.",
+      "branch": "ai/fix-production-auth"
+    },
+    {
+      "date": "2026-03-15",
+      "type": "task_done",
+      "title": "Production admin access verified end-to-end",
+      "impact": "POST /auth/login returns JWT, GET /auth/me confirms identity, project-status-v2 returns data via Vercel proxy.",
+      "branch": "ai/admin-access-fix"
+    },
     {
       "date": "2026-03-14",
       "type": "task_done",
@@ -365,13 +404,6 @@
       "type": "task_done",
       "title": "Google Calendar event creation endpoint completed",
       "impact": "Calendar infrastructure advanced toward live booking proof",
-      "branch": "ai/gcal-event-creation"
-    },
-    {
-      "date": "2026-03-14",
-      "type": "task_done",
-      "title": "Twilio signature validation coverage added",
-      "impact": "Reduced risk of invalid webhook acceptance",
       "branch": "ai/gcal-event-creation"
     },
     {

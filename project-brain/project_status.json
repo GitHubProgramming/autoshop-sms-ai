@@ -1,9 +1,9 @@
 {
   "overall_progress": 48,
 
-  "current_phase": "TEST environment stabilization and SMS flow validation",
+  "current_phase": "Production auth verified, TEST SMS flow validation continuing",
 
-  "current_focus": "LT Proteros sandbox SMS test flows — building and validating TEST workflows for the missed call -> SMS -> AI -> booking pipeline",
+  "current_focus": "Production admin and OAuth fully working. Continuing TEST workflow validation for missed call -> SMS -> AI -> booking pipeline.",
 
   "stages": [
     {
@@ -31,22 +31,22 @@
       "id": 4,
       "name": "Calendar & Booking Reliability",
       "weight": 15,
-      "status": "blocked",
-      "progress": 45
+      "status": "in_progress",
+      "progress": 50
     },
     {
       "id": 5,
       "name": "Admin Visibility & Control",
       "weight": 10,
       "status": "in_progress",
-      "progress": 65
+      "progress": 70
     },
     {
       "id": 6,
       "name": "Production Readiness",
       "weight": 15,
       "status": "in_progress",
-      "progress": 32
+      "progress": 35
     },
     {
       "id": 7,
@@ -66,6 +66,8 @@
       "LT sandbox SMS test flow development"
     ],
     "done": [
+      "Production admin auth fixed: email normalization, Google OAuth callback, bootstrap (PR #94)",
+      "Production admin access verified end-to-end (login, JWT, project-status-v2, Vercel proxy)",
       "Missed call SMS endpoint + worker routing (26 tests)",
       "WF-002 unified with API endpoints (booking-intent + appointments)",
       "Appointment creation endpoint + service (24 tests)",
@@ -104,8 +106,8 @@
       ]
     },
     {
-      "name": "Google Calendar OAuth verification",
-      "required_action": "End-to-end OAuth flow test with existing credentials",
+      "name": "Google Calendar OAuth browser consent",
+      "required_action": "OAuth code and env vars fixed (PR #94). Complete Google consent in browser to verify calendar event creation.",
       "owner": "Human",
       "affects_stage_ids": [4],
       "affects_stages": [
@@ -124,6 +126,16 @@
   ],
 
   "recent_changes": [
+    {
+      "date": "2026-03-15",
+      "change": "Production auth fully fixed: email normalization in login, Google OAuth callback Zod .passthrough(), OAuth env vars in render.yaml, admin bootstrap owner_name fix. 258 tests passing.",
+      "branch": "ai/fix-production-auth"
+    },
+    {
+      "date": "2026-03-15",
+      "change": "Production admin access verified: POST /auth/login returns JWT, GET /auth/me confirms identity, project-status-v2 endpoint returns data, Vercel proxy working.",
+      "branch": "ai/admin-access-fix"
+    },
     {
       "date": "2026-03-14",
       "change": "Missed call SMS endpoint: POST /internal/missed-call-sms handles full missed call flow (tenant validation, conversation creation, initial outbound SMS via Twilio, message logging). Worker routes missed-call jobs to API instead of n8n. 26 tests, full suite 214/214.",

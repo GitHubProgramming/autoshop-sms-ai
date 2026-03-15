@@ -13,16 +13,16 @@ Calculated from weighted stage progress below. Only objectively verifiable progr
 
 ## Current Focus
 
-**LT Proteros sandbox SMS test flows** — building and validating TEST workflows for the missed call -> SMS -> AI -> booking pipeline.
+**Production auth verified, TEST SMS flow validation continuing** — production admin login and Google OAuth callback fully fixed. Continuing TEST workflow validation for the missed call -> SMS -> AI -> booking pipeline.
 
-Phase: TEST environment stabilization and SMS flow validation.
+Phase: Production auth verified, TEST SMS flow validation.
 
 ## Current Blockers
 
 | Blocker | Required Action | Owner | Stages Affected |
 |---------|----------------|-------|-----------------|
 | n8n credentials (postgres, openai, twilio) | Manual setup in n8n UI | Human | 2, 3 |
-| Google Calendar OAuth verification | End-to-end OAuth flow test with existing credentials | Human | 4 |
+| Google Calendar OAuth browser consent | OAuth code + env vars fixed (PR #94). Complete Google consent in browser. | Human | 4 |
 | First pilot tenant | Requires working demo + real phone number | Human | 7 |
 
 ## Next Milestones
@@ -41,11 +41,13 @@ Phase: TEST environment stabilization and SMS flow validation.
 | 1 | Foundation & Operating Model | 10% | done | 100% | 10.0% |
 | 2 | TEST Sandbox Workflow Chain | 15% | in_progress | 40% | 6.0% |
 | 3 | Core Messaging & AI Flow | 25% | in_progress | 50% | 12.5% |
-| 4 | Calendar & Booking Reliability | 15% | blocked | 45% | 6.75% |
-| 5 | Admin Visibility & Control | 10% | in_progress | 65% | 6.5% |
-| 6 | Production Readiness | 15% | in_progress | 32% | 4.8% |
+| 4 | Calendar & Booking Reliability | 15% | in_progress | 50% | 7.5% |
+| 5 | Admin Visibility & Control | 10% | in_progress | 70% | 7.0% |
+| 6 | Production Readiness | 15% | in_progress | 35% | 5.25% |
 | 7 | First Live Pilot | 10% | not_started | 0% | 0.0% |
 | | **Total** | **100%** | | | **~48%** |
+
+> Progress recalculated 2026-03-15: 10 + 6 + 12.5 + 7.5 + 7 + 5.25 + 0 = 48.25 → 48%
 
 ## Active Tasks
 
@@ -58,6 +60,8 @@ Phase: TEST environment stabilization and SMS flow validation.
 
 ## Done (Recent)
 
+- Production admin auth fixed: email normalization, Google OAuth callback Zod, OAuth env vars, bootstrap fix — 258 tests (PR #94)
+- Production admin access verified: login, JWT, project-status-v2, Vercel proxy (PRs #88–#92)
 - Missed call SMS endpoint + worker routing — 26 tests (branch: `ai/missed-call-sms-endpoint`)
 - WF-002 unified with API endpoints (booking-intent + appointments) (branch: `ai/wf002-use-api-endpoints`)
 - Appointment creation endpoint + service — 24 tests (branch: `ai/appointment-creation-endpoint`)
@@ -86,6 +90,8 @@ Phase: TEST environment stabilization and SMS flow validation.
 
 | Date | Change | Branch |
 |------|--------|--------|
+| 2026-03-15 | Production auth fully fixed: email normalization in login, Google OAuth callback Zod .passthrough(), OAuth env vars in render.yaml, admin bootstrap owner_name fix. 258 tests. | `ai/fix-production-auth` |
+| 2026-03-15 | Production admin access verified: POST /auth/login → JWT, GET /auth/me → identity, project-status-v2 → data, Vercel proxy → working | `ai/admin-access-fix` |
 | 2026-03-14 | Missed call SMS: POST /internal/missed-call-sms (tenant validation, conversation creation, initial outbound SMS via Twilio, message logging). Worker routes missed-call jobs to API. 26 tests, suite 214/214 | `ai/missed-call-sms-endpoint` |
 | 2026-03-14 | WF-002 unified with API: inline booking detection → POST /internal/booking-intent, raw SQL appointment insert → POST /internal/appointments (adds customer_name, tenant validation, eliminates code duplication) | `ai/wf002-use-api-endpoints` |
 | 2026-03-14 | Appointment creation endpoint: POST /internal/appointments with service layer, tenant validation, conversation-based upsert (24 tests, suite 188/188) | `ai/appointment-creation-endpoint` |
