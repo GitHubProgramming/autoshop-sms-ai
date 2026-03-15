@@ -30,6 +30,7 @@ export async function loginRoute(app: FastifyInstance) {
     }
 
     const { email, password } = parsed.data;
+    const normalizedEmail = email.toLowerCase().trim();
 
     const rows = await query<{
       id: string;
@@ -38,7 +39,7 @@ export async function loginRoute(app: FastifyInstance) {
       password_hash: string | null;
     }>(
       "SELECT id, shop_name, owner_email, password_hash FROM tenants WHERE owner_email = $1 LIMIT 1",
-      [email]
+      [normalizedEmail]
     );
     const tenant = rows[0];
 

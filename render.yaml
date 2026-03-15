@@ -62,6 +62,20 @@ services:
       - key: CORS_ORIGINS
         value: "https://autoshopsmsai.com"
 
+      # ── Google OAuth (set in Render Dashboard) ──────────────────────────
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        value: "https://autoshopsmsai.com/auth/google/callback"
+      - key: PUBLIC_ORIGIN
+        value: "https://autoshopsmsai.com"
+
+      # ── Admin bootstrap key (set in Render Dashboard) ───────────────────
+      - key: ADMIN_BOOTSTRAP_KEY
+        sync: false
+
   # ── Redis ───────────────────────────────────────────────────────────────────
   - type: redis
     name: autoshop-redis

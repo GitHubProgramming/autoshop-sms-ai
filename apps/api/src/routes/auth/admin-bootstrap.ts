@@ -120,10 +120,10 @@ export async function adminBootstrapRoute(app: FastifyInstance) {
     // ── Create minimal admin tenant ──────────────────────────────────────────
     const rows = await query<{ id: string }>(
       `INSERT INTO tenants
-         (shop_name, owner_email, password_hash, billing_status,
+         (shop_name, owner_name, owner_email, password_hash, billing_status,
           trial_started_at, trial_ends_at, trial_conv_limit,
           conv_limit_this_cycle, conv_used_this_cycle)
-       VALUES ('Admin', $1, $2, 'trial',
+       VALUES ('Admin', 'Admin', $1, $2, 'trial',
                NOW(), NOW() + INTERVAL '365 days', 9999,
                9999, 0)
        RETURNING id`,
