@@ -9,6 +9,46 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: twilio-voice-webhook — 2026-03-15
+
+**Branch:** ai/twilio-voice-webhook
+**Status:** COMPLETE — Twilio voice webhook for call forwarding and missed-call detection
+
+### Selected Task
+Implement the missing Twilio voice webhook — the entry point that makes the entire missed-call pipeline work.
+
+### Why This Is BUILD Work
+Without the `/webhooks/twilio/voice` endpoint, incoming calls to the Twilio number have no TwiML instructions. Twilio doesn't know to forward the call to the shop's real phone, so:
+- Calls go nowhere
+- The voice-status callback never fires
+- The missed-call SMS trigger never happens
+- The entire pipeline is dead at step 1
+
+This is the single highest-leverage gap in the live path.
+
+### Changes
+- `apps/api/src/routes/webhooks/twilio-voice.ts` — New voice webhook: looks up shop's forwarding number, returns TwiML `<Dial>` with 20s timeout, sets voice-status as action callback, passes customer callerId
+- `apps/api/src/routes/webhooks/twilio-voice-status.ts` — Fixed to accept `DialCallStatus` (from `<Dial action>` callbacks) in addition to `CallStatus` (from status callbacks). DialCallStatus takes priority.
+- `apps/api/src/index.ts` — Register voice webhook route
+- `db/migrations/016_forward_to_phone.sql` — Add `forward_to` column on `tenant_phone_numbers` for shop's real phone number
+- `apps/api/src/tests/twilio-voice.test.ts` — 8 new tests (forwarding, action URL, callerId, no-forward fallback, no-tenant, invalid body, DB errors, query params)
+- `apps/api/src/tests/voice-status.test.ts` — 3 new tests (DialCallStatus triggers missed-call, priority over CallStatus, completed ignored)
+
+### Verification
+```
+VERIFICATION
+EXIT_CODE=0
+TEST_FILES=18
+TESTS_TOTAL=289
+TESTS_FAILED=0
+DURATION=6.03s
+```
+- TypeScript: clean
+- Docker: image builds, containers start
+- Lint: 0 errors
+
+---
+
 ## TASK: pilot-shop-config — 2026-03-15
 
 **Branch:** ai/pilot-shop-config

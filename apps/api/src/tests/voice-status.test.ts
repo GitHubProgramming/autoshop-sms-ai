@@ -290,6 +290,80 @@ describe("POST /webhooks/twilio/voice-status", () => {
     await app.close();
   });
 
+  it("triggers missed-call flow when DialCallStatus is no-answer (from Dial action)", async () => {
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/webhooks/twilio/voice-status",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: new URLSearchParams({
+        CallSid: TEST_CALL_SID,
+        DialCallStatus: "no-answer",
+        To: TEST_TO,
+        From: TEST_FROM,
+      }).toString(),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(mocks.add).toHaveBeenCalledOnce();
+    expect(mocks.add).toHaveBeenCalledWith(
+      "missed-call-trigger",
+      expect.objectContaining({
+        callStatus: "no-answer",
+        triggerType: "missed_call",
+      }),
+      expect.anything()
+    );
+    await app.close();
+  });
+
+  it("DialCallStatus takes priority over CallStatus", async () => {
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/webhooks/twilio/voice-status",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: new URLSearchParams({
+        CallSid: TEST_CALL_SID,
+        CallStatus: "completed",
+        DialCallStatus: "no-answer",
+        To: TEST_TO,
+        From: TEST_FROM,
+      }).toString(),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(mocks.add).toHaveBeenCalledOnce();
+    expect(mocks.add).toHaveBeenCalledWith(
+      "missed-call-trigger",
+      expect.objectContaining({ callStatus: "no-answer" }),
+      expect.anything()
+    );
+    await app.close();
+  });
+
+  it("ignores DialCallStatus=completed (call was answered)", async () => {
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/webhooks/twilio/voice-status",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: new URLSearchParams({
+        CallSid: TEST_CALL_SID,
+        DialCallStatus: "completed",
+        To: TEST_TO,
+        From: TEST_FROM,
+      }).toString(),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(mocks.add).not.toHaveBeenCalled();
+    await app.close();
+  });
+
   it("includes callStatus in enqueued job payload", async () => {
     const app = await buildApp();
 
