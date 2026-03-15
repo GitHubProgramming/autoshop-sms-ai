@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import twilio from "twilio";
+import { getConfig } from "../db/app-config";
 
 /**
  * Validates Twilio webhook signature.
@@ -12,7 +13,7 @@ export async function validateTwilioSignature(
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> {
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const authToken = await getConfig("TWILIO_AUTH_TOKEN");
 
   if (!authToken) {
     request.log.error("TWILIO_AUTH_TOKEN not set — rejecting webhook");

@@ -15,6 +15,7 @@
  */
 
 import { query } from "../db/client";
+import { getConfig } from "../db/app-config";
 
 export interface MissedCallInput {
   tenantId: string;
@@ -53,9 +54,9 @@ export async function sendTwilioSms(
   body: string,
   fetchFn: typeof fetch = fetch
 ): Promise<{ sid: string | null; error: string | null }> {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
+  const accountSid = await getConfig("TWILIO_ACCOUNT_SID");
+  const authToken = await getConfig("TWILIO_AUTH_TOKEN");
+  const messagingServiceSid = await getConfig("TWILIO_MESSAGING_SERVICE_SID");
 
   if (!accountSid || !authToken || !messagingServiceSid) {
     return { sid: null, error: "Twilio credentials not configured" };
