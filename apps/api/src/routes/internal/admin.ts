@@ -821,14 +821,15 @@ export async function adminRoute(app: FastifyInstance) {
   app.get("/admin/tenants/:id/settings", { preHandler: [adminGuard] }, async (request, reply) => {
     const { id } = request.params as { id: string };
 
-    const [tenantRows, promptRows] = await Promise.all([
+    const [tenantRows, promptRows, phoneRows] = await Promise.all([
       query<{
         shop_name: string | null;
+        owner_phone: string | null;
         missed_call_sms_template: string | null;
         business_hours: string | null;
         services_description: string | null;
       }>(
-        `SELECT shop_name, missed_call_sms_template, business_hours, services_description
+        `SELECT shop_name, owner_phone, missed_call_sms_template, business_hours, services_description
          FROM tenants WHERE id = $1`,
         [id]
       ),
@@ -838,6 +839,12 @@ export async function adminRoute(app: FastifyInstance) {
          ORDER BY version DESC LIMIT 1`,
         [id]
       ),
+      query<{ phone_number: string; forward_to: string | null; status: string }>(
+        `SELECT phone_number, forward_to, status FROM tenant_phone_numbers
+         WHERE tenant_id = $1 AND status = 'active'
+         ORDER BY provisioned_at DESC LIMIT 1`,
+        [id]
+      ),
     ]);
 
     if ((tenantRows as any[]).length === 0) {
@@ -845,8 +852,12 @@ export async function adminRoute(app: FastifyInstance) {
     }
 
     const tenant = (tenantRows as any[])[0];
+    const phone = (phoneRows as any[])[0] ?? null;
     return reply.status(200).send({
       shop_name: tenant.shop_name,
+      owner_phone: tenant.owner_phone,
+      twilio_number: phone?.phone_number ?? null,
+      forward_to: phone?.forward_to ?? null,
       missed_call_sms_template: tenant.missed_call_sms_template,
       ai_system_prompt: (promptRows as any[])[0]?.prompt_text ?? null,
       business_hours: tenant.business_hours,
@@ -855,8 +866,11 @@ export async function adminRoute(app: FastifyInstance) {
   });
 
   // ── PUT /internal/admin/tenants/:id/settings ────────────────────────────
+  const E164_REGEX = /^\+[1-9]\d{1,14}$/;
   const SettingsSchema = z.object({
     shop_name: z.string().min(1).max(200).optional(),
+    owner_phone: z.string().regex(E164_REGEX, "Must be E.164 format (e.g. +15125551234)").nullable().optional(),
+    forward_to: z.string().regex(E164_REGEX, "Must be E.164 format (e.g. +15125551234)").nullable().optional(),
     missed_call_sms_template: z.string().max(500).nullable().optional(),
     ai_system_prompt: z.string().max(2000).nullable().optional(),
     business_hours: z.string().max(500).nullable().optional(),
@@ -891,6 +905,10 @@ export async function adminRoute(app: FastifyInstance) {
       tenantUpdates.push(`shop_name = $${paramIdx++}`);
       tenantValues.push(data.shop_name);
     }
+    if (data.owner_phone !== undefined) {
+      tenantUpdates.push(`owner_phone = $${paramIdx++}`);
+      tenantValues.push(data.owner_phone);
+    }
     if (data.missed_call_sms_template !== undefined) {
       tenantUpdates.push(`missed_call_sms_template = $${paramIdx++}`);
       tenantValues.push(data.missed_call_sms_template);
@@ -909,6 +927,15 @@ export async function adminRoute(app: FastifyInstance) {
       await query(
         `UPDATE tenants SET ${tenantUpdates.join(", ")} WHERE id = $${paramIdx}`,
         [...tenantValues, id]
+      );
+    }
+
+    // Update forward_to in tenant_phone_numbers table
+    if (data.forward_to !== undefined) {
+      await query(
+        `UPDATE tenant_phone_numbers SET forward_to = $1
+         WHERE tenant_id = $2 AND status = 'active'`,
+        [data.forward_to, id]
       );
     }
 

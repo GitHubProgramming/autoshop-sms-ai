@@ -79,15 +79,17 @@ describe("buildMissedCallSms with template", () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe("GET /internal/admin/tenants/:id/settings", () => {
-  it("returns tenant settings with system prompt", async () => {
+  it("returns tenant settings with system prompt and phone wiring", async () => {
     mocks.query
       .mockResolvedValueOnce([{
         shop_name: "Joe's Auto",
+        owner_phone: "+15125551234",
         missed_call_sms_template: "Hey {shop_name} missed you!",
         business_hours: "Mon-Fri 8-6",
         services_description: "Oil changes, brakes",
       }])
-      .mockResolvedValueOnce([{ prompt_text: "You are Joe's assistant." }]);
+      .mockResolvedValueOnce([{ prompt_text: "You are Joe's assistant." }])
+      .mockResolvedValueOnce([{ phone_number: "+13257523890", forward_to: "+15125559999", status: "active" }]);
 
     const app = await buildApp();
     const res = await app.inject({
@@ -98,20 +100,25 @@ describe("GET /internal/admin/tenants/:id/settings", () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.payload);
     expect(body.shop_name).toBe("Joe's Auto");
+    expect(body.owner_phone).toBe("+15125551234");
+    expect(body.twilio_number).toBe("+13257523890");
+    expect(body.forward_to).toBe("+15125559999");
     expect(body.missed_call_sms_template).toBe("Hey {shop_name} missed you!");
     expect(body.ai_system_prompt).toBe("You are Joe's assistant.");
     expect(body.business_hours).toBe("Mon-Fri 8-6");
     expect(body.services_description).toBe("Oil changes, brakes");
   });
 
-  it("returns nulls when no settings configured", async () => {
+  it("returns nulls when no settings or phone configured", async () => {
     mocks.query
       .mockResolvedValueOnce([{
         shop_name: "Default Shop",
+        owner_phone: null,
         missed_call_sms_template: null,
         business_hours: null,
         services_description: null,
       }])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 
     const app = await buildApp();
@@ -122,6 +129,9 @@ describe("GET /internal/admin/tenants/:id/settings", () => {
 
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.payload);
+    expect(body.owner_phone).toBeNull();
+    expect(body.twilio_number).toBeNull();
+    expect(body.forward_to).toBeNull();
     expect(body.missed_call_sms_template).toBeNull();
     expect(body.ai_system_prompt).toBeNull();
     expect(body.business_hours).toBeNull();
@@ -130,6 +140,7 @@ describe("GET /internal/admin/tenants/:id/settings", () => {
 
   it("returns 404 for unknown tenant", async () => {
     mocks.query
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 
@@ -263,5 +274,106 @@ describe("PUT /internal/admin/tenants/:id/settings", () => {
     const updateCall = mocks.query.mock.calls[1];
     expect(updateCall[0]).toContain("missed_call_sms_template");
     expect(updateCall[1]).toContain(null);
+  });
+
+  it("updates forward_to in tenant_phone_numbers", async () => {
+    mocks.query.mockResolvedValueOnce([{ id: TENANT_ID }]); // exists check
+    mocks.query.mockResolvedValueOnce([]); // forward_to UPDATE
+
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "PUT",
+      url: `/internal/admin/tenants/${TENANT_ID}/settings`,
+      payload: { forward_to: "+15125559999" },
+    });
+
+    expect(res.statusCode).toBe(200);
+    // forward_to update should target tenant_phone_numbers
+    const fwdCall = mocks.query.mock.calls[1];
+    expect(fwdCall[0]).toContain("tenant_phone_numbers");
+    expect(fwdCall[0]).toContain("forward_to");
+    expect(fwdCall[1]).toContain("+15125559999");
+  });
+
+  it("updates owner_phone in tenants table", async () => {
+    mocks.query.mockResolvedValueOnce([{ id: TENANT_ID }]); // exists check
+    mocks.query.mockResolvedValueOnce([]); // tenant UPDATE
+
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "PUT",
+      url: `/internal/admin/tenants/${TENANT_ID}/settings`,
+      payload: { owner_phone: "+15125551234" },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const updateCall = mocks.query.mock.calls[1];
+    expect(updateCall[0]).toContain("owner_phone");
+    expect(updateCall[1]).toContain("+15125551234");
+  });
+
+  it("updates forward_to and owner_phone together with other fields", async () => {
+    mocks.query.mockResolvedValueOnce([{ id: TENANT_ID }]); // exists check
+    mocks.query.mockResolvedValueOnce([]); // tenant UPDATE (shop_name + owner_phone)
+    mocks.query.mockResolvedValueOnce([]); // forward_to UPDATE
+
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "PUT",
+      url: `/internal/admin/tenants/${TENANT_ID}/settings`,
+      payload: {
+        shop_name: "New Shop",
+        owner_phone: "+15125551234",
+        forward_to: "+15125559999",
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    // tenant update should include shop_name and owner_phone
+    const tenantCall = mocks.query.mock.calls[1];
+    expect(tenantCall[0]).toContain("shop_name");
+    expect(tenantCall[0]).toContain("owner_phone");
+    // forward_to update should be separate (tenant_phone_numbers)
+    const fwdCall = mocks.query.mock.calls[2];
+    expect(fwdCall[0]).toContain("tenant_phone_numbers");
+  });
+
+  it("rejects invalid E.164 forward_to", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "PUT",
+      url: `/internal/admin/tenants/${TENANT_ID}/settings`,
+      payload: { forward_to: "5125551234" },
+    });
+
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("rejects invalid E.164 owner_phone", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "PUT",
+      url: `/internal/admin/tenants/${TENANT_ID}/settings`,
+      payload: { owner_phone: "notaphone" },
+    });
+
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("allows clearing forward_to with null", async () => {
+    mocks.query.mockResolvedValueOnce([{ id: TENANT_ID }]); // exists check
+    mocks.query.mockResolvedValueOnce([]); // forward_to UPDATE
+
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "PUT",
+      url: `/internal/admin/tenants/${TENANT_ID}/settings`,
+      payload: { forward_to: null },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const fwdCall = mocks.query.mock.calls[1];
+    expect(fwdCall[0]).toContain("tenant_phone_numbers");
+    expect(fwdCall[1][0]).toBeNull();
   });
 });
