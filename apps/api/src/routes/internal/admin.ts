@@ -42,6 +42,7 @@ export async function adminRoute(app: FastifyInstance) {
          SELECT created_at::date AS day, COUNT(*)::int AS cnt
          FROM tenants
          WHERE created_at >= CURRENT_DATE - INTERVAL '29 days'
+           AND is_test = FALSE
          GROUP BY created_at::date
        ) c ON c.day = d::date
        ORDER BY d`
@@ -59,8 +60,9 @@ export async function adminRoute(app: FastifyInstance) {
        FROM generate_series(CURRENT_DATE - INTERVAL '29 days', CURRENT_DATE, '1 day') d
        LEFT JOIN (
          SELECT opened_at::date AS day, COUNT(*)::int AS cnt
-         FROM conversations
-         WHERE opened_at >= CURRENT_DATE - INTERVAL '29 days'
+         FROM conversations c
+         JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE
+         WHERE c.opened_at >= CURRENT_DATE - INTERVAL '29 days'
          GROUP BY opened_at::date
        ) c ON c.day = d::date
        ORDER BY d`
@@ -77,10 +79,11 @@ export async function adminRoute(app: FastifyInstance) {
       `SELECT d::date AS day, COALESCE(c.cnt, 0)::int AS count
        FROM generate_series(CURRENT_DATE - INTERVAL '29 days', CURRENT_DATE, '1 day') d
        LEFT JOIN (
-         SELECT created_at::date AS day, COUNT(*)::int AS cnt
-         FROM appointments
-         WHERE created_at >= CURRENT_DATE - INTERVAL '29 days'
-         GROUP BY created_at::date
+         SELECT a.created_at::date AS day, COUNT(*)::int AS cnt
+         FROM appointments a
+         JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE
+         WHERE a.created_at >= CURRENT_DATE - INTERVAL '29 days'
+         GROUP BY a.created_at::date
        ) c ON c.day = d::date
        ORDER BY d`
     );
@@ -108,31 +111,34 @@ export async function adminRoute(app: FastifyInstance) {
       recentBillingEventsRows,
       recentConversationsRows,
     ] = await Promise.all([
-      query(`SELECT billing_status, COUNT(*) as count FROM tenants GROUP BY billing_status`),
-      query(`SELECT COUNT(*)::int FROM tenants WHERE created_at > NOW() - INTERVAL '7 days'`),
+      query(`SELECT billing_status, COUNT(*) as count FROM tenants WHERE is_test = FALSE GROUP BY billing_status`),
+      query(`SELECT COUNT(*)::int FROM tenants WHERE created_at > NOW() - INTERVAL '7 days' AND is_test = FALSE`),
       query(`SELECT status, COUNT(*)::int as count FROM signup_attempts WHERE created_at > NOW() - INTERVAL '7 days' GROUP BY status`),
-      query(`SELECT COUNT(*)::int FROM conversations WHERE opened_at >= CURRENT_DATE`),
-      query(`SELECT COUNT(*)::int FROM appointments WHERE created_at >= CURRENT_DATE`),
-      query(`SELECT COUNT(*)::int FROM appointments WHERE calendar_synced = false AND created_at < NOW() - INTERVAL '1 hour'`),
-      query(`SELECT COUNT(*)::int FROM tenants t WHERE NOT EXISTS (SELECT 1 FROM tenant_phone_numbers tpn WHERE tpn.tenant_id = t.id AND tpn.status = 'active')`),
-      query(`SELECT COUNT(*)::int FROM tenants t WHERE NOT EXISTS (SELECT 1 FROM tenant_calendar_tokens tct WHERE tct.tenant_id = t.id)`),
-      query(`SELECT COUNT(*)::int FROM tenants WHERE billing_status = 'trial' AND trial_ends_at > NOW() AND trial_ends_at <= NOW() + INTERVAL '3 days'`),
-      query(`SELECT COUNT(*)::int FROM tenants WHERE conv_limit_this_cycle > 0 AND conv_used_this_cycle::float / conv_limit_this_cycle >= 0.8`),
-      query(`SELECT id, shop_name, owner_email, billing_status, plan_id, created_at FROM tenants ORDER BY created_at DESC LIMIT 10`),
+      query(`SELECT COUNT(*)::int FROM conversations c JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE WHERE c.opened_at >= CURRENT_DATE`),
+      query(`SELECT COUNT(*)::int FROM appointments a JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE WHERE a.created_at >= CURRENT_DATE`),
+      query(`SELECT COUNT(*)::int FROM appointments a JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE WHERE a.calendar_synced = false AND a.created_at < NOW() - INTERVAL '1 hour'`),
+      query(`SELECT COUNT(*)::int FROM tenants t WHERE t.is_test = FALSE AND NOT EXISTS (SELECT 1 FROM tenant_phone_numbers tpn WHERE tpn.tenant_id = t.id AND tpn.status = 'active')`),
+      query(`SELECT COUNT(*)::int FROM tenants t WHERE t.is_test = FALSE AND NOT EXISTS (SELECT 1 FROM tenant_calendar_tokens tct WHERE tct.tenant_id = t.id)`),
+      query(`SELECT COUNT(*)::int FROM tenants WHERE is_test = FALSE AND billing_status = 'trial' AND trial_ends_at > NOW() AND trial_ends_at <= NOW() + INTERVAL '3 days'`),
+      query(`SELECT COUNT(*)::int FROM tenants WHERE is_test = FALSE AND conv_limit_this_cycle > 0 AND conv_used_this_cycle::float / conv_limit_this_cycle >= 0.8`),
+      query(`SELECT id, shop_name, owner_email, billing_status, plan_id, created_at FROM tenants WHERE is_test = FALSE ORDER BY created_at DESC LIMIT 10`),
       query(`SELECT t.id, t.shop_name, t.owner_email, t.billing_status, t.trial_ends_at,
            t.conv_used_this_cycle, t.conv_limit_this_cycle,
            EXISTS(SELECT 1 FROM tenant_phone_numbers tpn WHERE tpn.tenant_id=t.id AND tpn.status='active') as has_phone,
            EXISTS(SELECT 1 FROM tenant_calendar_tokens tct WHERE tct.tenant_id=t.id) as has_calendar
          FROM tenants t
-         WHERE t.billing_status IN ('trial','past_due','past_due_blocked')
+         WHERE t.is_test = FALSE
+           AND (t.billing_status IN ('trial','past_due','past_due_blocked')
             OR (t.billing_status = 'trial' AND t.trial_ends_at <= NOW() + INTERVAL '3 days')
-            OR (t.conv_limit_this_cycle > 0 AND t.conv_used_this_cycle::float / t.conv_limit_this_cycle >= 0.8)
+            OR (t.conv_limit_this_cycle > 0 AND t.conv_used_this_cycle::float / t.conv_limit_this_cycle >= 0.8))
          ORDER BY t.created_at DESC LIMIT 20`),
       query(`SELECT be.id, be.tenant_id, t.shop_name, be.event_type, be.processed_at
          FROM billing_events be LEFT JOIN tenants t ON t.id = be.tenant_id
+         WHERE t.is_test = FALSE OR t.id IS NULL
          ORDER BY be.processed_at DESC LIMIT 5`),
       query(`SELECT c.id, c.tenant_id, t.shop_name, c.customer_phone, c.status, c.opened_at, c.turn_count
          FROM conversations c JOIN tenants t ON t.id = c.tenant_id
+         WHERE t.is_test = FALSE
          ORDER BY c.opened_at DESC LIMIT 5`),
     ]);
 
@@ -201,7 +207,8 @@ export async function adminRoute(app: FastifyInstance) {
          (SELECT COUNT(*)::int FROM appointments a WHERE a.tenant_id = t.id) AS total_bookings,
          (SELECT COUNT(*)::int FROM appointments a WHERE a.tenant_id = t.id AND a.calendar_synced = false AND a.created_at < NOW() - INTERVAL '1 hour') AS failed_calendar_syncs
        FROM tenants t
-       WHERE ($1::text IS NULL OR t.billing_status = $1)
+       WHERE t.is_test = FALSE
+         AND ($1::text IS NULL OR t.billing_status = $1)
          AND ($2::text IS NULL OR t.shop_name ILIKE '%' || $2 || '%' OR t.owner_email ILIKE '%' || $2 || '%')
          AND (NOT $3 OR (
            (t.billing_status = 'trial' AND t.trial_ends_at <= NOW() + INTERVAL '3 days')
@@ -289,7 +296,8 @@ export async function adminRoute(app: FastifyInstance) {
          (SELECT COUNT(*)::int FROM messages m WHERE m.conversation_id = c.id) as message_count
        FROM conversations c
        JOIN tenants t ON t.id = c.tenant_id
-       WHERE ($1::text IS NULL OR c.status = $1)
+       WHERE t.is_test = FALSE
+         AND ($1::text IS NULL OR c.status = $1)
          AND ($2::uuid IS NULL OR c.tenant_id = $2)
        ORDER BY c.opened_at DESC
        LIMIT 100 OFFSET $3`,
@@ -335,7 +343,8 @@ export async function adminRoute(app: FastifyInstance) {
               ELSE 'synced' END as sync_status
        FROM appointments a
        JOIN tenants t ON t.id = a.tenant_id
-       WHERE ($1::text IS NULL OR
+       WHERE t.is_test = FALSE
+         AND ($1::text IS NULL OR
          CASE WHEN $1 = 'failed'    THEN NOT a.calendar_synced AND a.created_at < NOW() - INTERVAL '1 hour'
               WHEN $1 = 'pending'   THEN NOT a.calendar_synced AND a.created_at >= NOW() - INTERVAL '1 hour'
               WHEN $1 = 'synced'    THEN a.calendar_synced
@@ -373,6 +382,7 @@ export async function adminRoute(app: FastifyInstance) {
          t.stripe_subscription_id,
          t.created_at
        FROM tenants t
+       WHERE t.is_test = FALSE
        ORDER BY
          CASE t.billing_status
            WHEN 'past_due_blocked' THEN 1
@@ -407,6 +417,7 @@ export async function adminRoute(app: FastifyInstance) {
        FROM tenants t
        LEFT JOIN tenant_phone_numbers tpn ON tpn.tenant_id = t.id AND tpn.status = 'active'
        LEFT JOIN tenant_calendar_tokens tct ON tct.tenant_id = t.id
+       WHERE t.is_test = FALSE
        ORDER BY t.created_at DESC`
     );
 
@@ -427,7 +438,7 @@ export async function adminRoute(app: FastifyInstance) {
            a.id as reference_id
          FROM appointments a
          JOIN tenants t ON t.id = a.tenant_id
-         WHERE NOT a.calendar_synced AND a.created_at < NOW() - INTERVAL '1 hour'
+         WHERE t.is_test = FALSE AND NOT a.calendar_synced AND a.created_at < NOW() - INTERVAL '1 hour'
 
          UNION ALL
 
@@ -441,7 +452,8 @@ export async function adminRoute(app: FastifyInstance) {
            be.id as reference_id
          FROM billing_events be
          LEFT JOIN tenants t ON t.id = be.tenant_id
-         WHERE be.event_type ILIKE '%fail%' OR be.event_type ILIKE '%past_due%' OR be.event_type ILIKE '%delinquent%'
+         WHERE (t.is_test = FALSE OR t.id IS NULL)
+           AND (be.event_type ILIKE '%fail%' OR be.event_type ILIKE '%past_due%' OR be.event_type ILIKE '%delinquent%')
 
          UNION ALL
 
@@ -454,7 +466,7 @@ export async function adminRoute(app: FastifyInstance) {
            'Trial expired: ' || t.shop_name || ' (' || t.owner_email || ')' as summary,
            t.id as reference_id
          FROM tenants t
-         WHERE t.billing_status = 'trial_expired'
+         WHERE t.is_test = FALSE AND t.billing_status = 'trial_expired'
 
          UNION ALL
 
@@ -491,10 +503,11 @@ export async function adminRoute(app: FastifyInstance) {
            THEN ROUND(EXTRACT(EPOCH FROM (completed_at - created_at)))
            ELSE NULL
          END AS duration_seconds
-       FROM signup_attempts
-       WHERE ($1::text IS NULL OR status   = $1)
-         AND ($2::text IS NULL OR provider = $2)
-       ORDER BY created_at DESC
+       FROM signup_attempts sa
+       WHERE ($1::text IS NULL OR sa.status   = $1)
+         AND ($2::text IS NULL OR sa.provider = $2)
+         AND (sa.tenant_id IS NULL OR NOT EXISTS (SELECT 1 FROM tenants t WHERE t.id = sa.tenant_id AND t.is_test = TRUE))
+       ORDER BY sa.created_at DESC
        LIMIT 500`,
       [statusFilter, providerFilter]
     );
@@ -521,7 +534,8 @@ export async function adminRoute(app: FastifyInstance) {
            NULL::text as summary
          FROM billing_events be
          LEFT JOIN tenants t ON t.id = be.tenant_id
-         WHERE ($1::uuid IS NULL OR be.tenant_id = $1)
+         WHERE (t.is_test = FALSE OR t.id IS NULL)
+           AND ($1::uuid IS NULL OR be.tenant_id = $1)
 
          UNION ALL
 
@@ -536,7 +550,8 @@ export async function adminRoute(app: FastifyInstance) {
            COALESCE(sa.email, 'unknown') as summary
          FROM signup_attempts sa
          LEFT JOIN tenants t ON t.id = sa.tenant_id
-         WHERE ($1::uuid IS NULL OR sa.tenant_id = $1)
+         WHERE (t.is_test = FALSE OR t.id IS NULL)
+           AND ($1::uuid IS NULL OR sa.tenant_id = $1)
 
          UNION ALL
 
@@ -551,7 +566,8 @@ export async function adminRoute(app: FastifyInstance) {
            al.metadata::text as summary
          FROM audit_log al
          LEFT JOIN tenants t ON t.id = al.tenant_id
-         WHERE ($1::uuid IS NULL OR al.tenant_id = $1)
+         WHERE (t.is_test = FALSE OR t.id IS NULL)
+           AND ($1::uuid IS NULL OR al.tenant_id = $1)
        ) feed
        WHERE ($2::text IS NULL OR source = $2)
        ORDER BY created_at DESC
@@ -585,21 +601,23 @@ export async function adminRoute(app: FastifyInstance) {
            ROUND(AVG(CASE WHEN closed_at IS NOT NULL
              THEN EXTRACT(EPOCH FROM (closed_at - opened_at)) / 60
              ELSE NULL END)::numeric, 1)::float AS avg_duration_minutes
-         FROM conversations
-         WHERE opened_at >= NOW() - ($1 || ' days')::interval
-           AND ($2::uuid IS NULL OR tenant_id = $2)`,
+         FROM conversations cv
+         JOIN tenants t ON t.id = cv.tenant_id AND t.is_test = FALSE
+         WHERE cv.opened_at >= NOW() - ($1 || ' days')::interval
+           AND ($2::uuid IS NULL OR cv.tenant_id = $2)`,
         [days.toString(), tenantFilter]
       ),
 
       // Close reason breakdown
       query(
         `SELECT
-           COALESCE(close_reason, 'still_open') AS reason,
+           COALESCE(cv.close_reason, 'still_open') AS reason,
            COUNT(*)::int AS count
-         FROM conversations
-         WHERE opened_at >= NOW() - ($1 || ' days')::interval
-           AND ($2::uuid IS NULL OR tenant_id = $2)
-         GROUP BY COALESCE(close_reason, 'still_open')
+         FROM conversations cv
+         JOIN tenants t ON t.id = cv.tenant_id AND t.is_test = FALSE
+         WHERE cv.opened_at >= NOW() - ($1 || ' days')::interval
+           AND ($2::uuid IS NULL OR cv.tenant_id = $2)
+         GROUP BY COALESCE(cv.close_reason, 'still_open')
          ORDER BY count DESC`,
         [days.toString(), tenantFilter]
       ),
@@ -618,14 +636,15 @@ export async function adminRoute(app: FastifyInstance) {
          ) d
          LEFT JOIN (
            SELECT
-             opened_at::date AS day,
+             cv.opened_at::date AS day,
              COUNT(*)::int AS opened,
-             COUNT(*) FILTER (WHERE status IN ('closed','booked','expired'))::int AS closed,
-             COUNT(*) FILTER (WHERE status = 'booked')::int AS booked
-           FROM conversations
-           WHERE opened_at >= CURRENT_DATE - ($1 || ' days')::interval
-             AND ($2::uuid IS NULL OR tenant_id = $2)
-           GROUP BY opened_at::date
+             COUNT(*) FILTER (WHERE cv.status IN ('closed','booked','expired'))::int AS closed,
+             COUNT(*) FILTER (WHERE cv.status = 'booked')::int AS booked
+           FROM conversations cv
+           JOIN tenants t ON t.id = cv.tenant_id AND t.is_test = FALSE
+           WHERE cv.opened_at >= CURRENT_DATE - ($1 || ' days')::interval
+             AND ($2::uuid IS NULL OR cv.tenant_id = $2)
+           GROUP BY cv.opened_at::date
          ) c ON c.day = d::date
          ORDER BY d`,
         [days.toString(), tenantFilter]
@@ -637,6 +656,7 @@ export async function adminRoute(app: FastifyInstance) {
            COUNT(DISTINCT c.id)::int AS conversations_with_booking,
            COUNT(DISTINCT c.id) FILTER (WHERE a.calendar_synced)::int AS synced_to_calendar
          FROM conversations c
+         JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE
          JOIN appointments a ON a.conversation_id = c.id
          WHERE c.opened_at >= NOW() - ($1 || ' days')::interval
            AND ($2::uuid IS NULL OR c.tenant_id = $2)`,
