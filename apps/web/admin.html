@@ -968,6 +968,7 @@ function renderAccountDetail(d) {
             <div class="panel-body">
               ${ph ? `<div class="kv-grid">
                 <div class="kv-item"><div class="kv-label">Phone Number</div><div class="kv-val mono">${escHtml(ph.phone_number)}</div></div>
+                <div class="kv-item"><div class="kv-label">Forwards To</div><div class="kv-val mono">${escHtml(ph.forward_to || '— not set')}</div></div>
                 <div class="kv-item"><div class="kv-label">Status</div><div class="kv-val">${statusBadge(ph.status)}</div></div>
                 <div class="kv-item"><div class="kv-label">Twilio SID</div><div class="kv-val mono dim" style="font-size:11px">${escHtml(ph.twilio_sid || '—')}</div></div>
                 <div class="kv-item"><div class="kv-label">Provisioned</div><div class="kv-val mono dim">${fmtDate(ph.provisioned_at)}</div></div>
@@ -1064,6 +1065,27 @@ async function loadTenantSettings(tenantId) {
     const s = await apiFetch(`/internal/admin/tenants/${tenantId}/settings`);
     body.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:20px;max-width:640px">
+        <div style="border:1px solid var(--border);border-radius:10px;padding:16px;background:rgba(255,255,255,0.02)">
+          <div style="font-weight:700;font-size:14px;margin-bottom:12px">Phone Wiring</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label style="font-weight:600;font-size:13px;display:block;margin-bottom:6px">Twilio Number</label>
+              <input type="text" value="${escHtml(s.twilio_number || 'Not assigned')}" disabled
+                style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:var(--mono);font-size:13px;background:rgba(255,255,255,0.03);color:var(--steel)" />
+            </div>
+            <div>
+              <label style="font-weight:600;font-size:13px;display:block;margin-bottom:6px">Forward Calls To</label>
+              <input type="tel" id="set_forward_to" value="${escHtml(s.forward_to || '')}" placeholder="+15125551234"
+                style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:var(--mono);font-size:13px;background:var(--bg);color:var(--white)" />
+            </div>
+            <div>
+              <label style="font-weight:600;font-size:13px;display:block;margin-bottom:6px">Owner Phone (alerts)</label>
+              <input type="tel" id="set_owner_phone" value="${escHtml(s.owner_phone || '')}" placeholder="+15125551234"
+                style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:var(--mono);font-size:13px;background:var(--bg);color:var(--white)" />
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--steel);margin-top:8px">Forward Calls To: where unanswered calls ring before triggering missed-call SMS. Owner Phone: receives alert SMS on calendar sync failures.</div>
+        </div>
         <div>
           <label style="font-weight:600;font-size:13px;display:block;margin-bottom:6px">Shop Name</label>
           <input type="text" id="set_shop_name" value="${escHtml(s.shop_name || '')}"
@@ -1106,8 +1128,12 @@ async function saveTenantSettings(tenantId) {
   const status = document.getElementById('settingsSaveStatus');
   if (status) status.textContent = 'Saving...';
   try {
+    const fwdVal = document.getElementById('set_forward_to').value.trim();
+    const ownerVal = document.getElementById('set_owner_phone').value.trim();
     const payload = {
       shop_name: document.getElementById('set_shop_name').value || undefined,
+      forward_to: fwdVal || null,
+      owner_phone: ownerVal || null,
       missed_call_sms_template: document.getElementById('set_missed_call_sms').value || null,
       ai_system_prompt: document.getElementById('set_ai_prompt').value || null,
       business_hours: document.getElementById('set_business_hours').value || null,
