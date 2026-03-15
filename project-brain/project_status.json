@@ -1,5 +1,5 @@
 {
-  "overall_progress": 66,
+  "overall_progress": 67,
 
   "current_phase": "Full SMS pipeline live in production — demo-ready",
 
@@ -39,7 +39,7 @@
       "name": "Admin Visibility & Control",
       "weight": 10,
       "status": "in_progress",
-      "progress": 70
+      "progress": 80
     },
     {
       "id": 6,
@@ -65,6 +65,7 @@
     ],
     "in_progress": [],
     "done": [
+      "Pilot-shop configurable messaging: per-tenant SMS template, AI system prompt, business hours, services (PR #107)",
       "Twilio production wiring: webhook URLs, phone registration, credential injection. Full SMS pipeline verified (PR #100)",
       "Booking pipeline fixed: date parsing, name extraction, error propagation. Calendar event verified in production (PR #98)",
       "Production admin auth fixed: email normalization, Google OAuth callback, bootstrap (PR #94)",
@@ -128,6 +129,11 @@
   ],
 
   "recent_changes": [
+    {
+      "date": "2026-03-15",
+      "change": "Pilot-shop configurable messaging: per-tenant missed_call_sms_template with {shop_name} placeholder, AI system prompt via system_prompts table, business_hours and services_description injected into AI context. Admin UI Settings tab. Migration 014. 15 new tests (278 total).",
+      "branch": "ai/pilot-shop-config"
+    },
     {
       "date": "2026-03-15",
       "change": "Twilio production wiring complete: Messaging Service + phone number webhook URLs pointed to production API, phone number registered in tenant_phone_numbers (migration 012), app_config DB fallback for Twilio credentials (migration 013), sendTwilioSms + signature validation use getConfig(). Full pipeline verified: webhook → AI → booking → appointment → Google Calendar → SMS reply. 258 tests.",
