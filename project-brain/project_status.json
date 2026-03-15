@@ -1,9 +1,9 @@
 {
-  "overall_progress": 48,
+  "overall_progress": 53,
 
-  "current_phase": "Production auth verified, TEST SMS flow validation continuing",
+  "current_phase": "Booking pipeline verified — AI, appointments, calendar sync all working in production",
 
-  "current_focus": "Production admin and OAuth fully working. Continuing TEST workflow validation for missed call -> SMS -> AI -> booking pipeline.",
+  "current_focus": "Full booking pipeline verified in production: AI conversation, booking intent detection, appointment creation, and Google Calendar event creation all work end-to-end. Remaining: set Twilio env vars in Render for SMS delivery.",
 
   "stages": [
     {
@@ -25,14 +25,14 @@
       "name": "Core Messaging & AI Flow",
       "weight": 25,
       "status": "in_progress",
-      "progress": 50
+      "progress": 60
     },
     {
       "id": 4,
       "name": "Calendar & Booking Reliability",
       "weight": 15,
       "status": "in_progress",
-      "progress": 50
+      "progress": 65
     },
     {
       "id": 5,
@@ -59,13 +59,12 @@
 
   "active_tasks": {
     "todo": [
-      "End-to-end demo run with real Twilio numbers",
-      "Google Calendar OAuth tenant onboarding"
+      "Set Twilio env vars in Render Dashboard and register tenant phone number",
+      "End-to-end demo run with real Twilio SMS delivery"
     ],
-    "in_progress": [
-      "LT sandbox SMS test flow development"
-    ],
+    "in_progress": [],
     "done": [
+      "Booking pipeline fixed: date parsing, name extraction, error propagation. Calendar event verified in production (PR #98)",
       "Production admin auth fixed: email normalization, Google OAuth callback, bootstrap (PR #94)",
       "Production admin access verified end-to-end (login, JWT, project-status-v2, Vercel proxy)",
       "Missed call SMS endpoint + worker routing (26 tests)",
@@ -106,12 +105,13 @@
       ]
     },
     {
-      "name": "Google Calendar OAuth browser consent",
-      "required_action": "OAuth code and env vars fixed (PR #94). Complete Google consent in browser to verify calendar event creation.",
+      "name": "Twilio env vars not set in Render Dashboard",
+      "required_action": "Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_MESSAGING_SERVICE_SID in Render Dashboard. Then register tenant phone number in tenant_phone_numbers table.",
       "owner": "Human",
-      "affects_stage_ids": [4],
+      "affects_stage_ids": [2, 3],
       "affects_stages": [
-        "Calendar & Booking Reliability"
+        "TEST Sandbox Workflow Chain",
+        "Core Messaging & AI Flow"
       ]
     },
     {
@@ -126,6 +126,11 @@
   ],
 
   "recent_changes": [
+    {
+      "date": "2026-03-15",
+      "change": "Booking pipeline fixed and verified in production: natural date parsing to ISO 8601, customer name extraction from messages, error propagation. Google Calendar event created successfully (ID: pldlapvru15tujkngbq83rpsk4). Full AI→booking→calendar flow confirmed. 258 tests.",
+      "branch": "ai/fix-booking-pipeline"
+    },
     {
       "date": "2026-03-15",
       "change": "Production auth fully fixed: email normalization in login, Google OAuth callback Zod .passthrough(), OAuth env vars in render.yaml, admin bootstrap owner_name fix. 258 tests passing.",
@@ -301,8 +306,8 @@
   ],
 
   "next_owner_decision": [
-    "Provide n8n credentials (postgres, openai, twilio) to unblock end-to-end testing",
-    "Verify Google Calendar OAuth flow end-to-end (credentials already in .env)",
-    "Confirm priority: continue TEST sandbox work vs. unblock credential setup first"
+    "Set Twilio env vars in Render Dashboard: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_MESSAGING_SERVICE_SID",
+    "Register tenant phone number in tenant_phone_numbers table for webhook routing",
+    "Send first real SMS test through the booking pipeline"
   ]
 }

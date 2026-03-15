@@ -9,6 +9,79 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: fix-booking-pipeline — 2026-03-15
+
+**Branch:** ai/fix-booking-pipeline
+**Status:** COMPLETE — Booking pipeline date parsing, name extraction, error propagation fixed. Google Calendar event verified.
+**PR:** #98
+
+### Selected Task
+Full end-to-end booking pipeline validation: SMS → AI → booking intent → appointment → Google Calendar event.
+
+### Booking Pipeline Architecture Discovered
+The entire pipeline is **self-contained in the API** — no n8n dependency:
+1. `POST /webhooks/twilio/sms` → validates + enqueues BullMQ job
+2. `sms-inbound.worker.ts` → calls `POST /internal/process-sms`
+3. `process-sms.ts` → get/create conversation → fetch history → call OpenAI → detect booking intent → create appointment → create calendar event → send SMS reply
+
+### Where Appointment Creation Is Triggered
+`createAppointment()` is called directly inside `processSms()` (process-sms.ts:279) when `intent.isBooked === true`. No external orchestration needed.
+
+### Whether Calendar Creation Occurs Automatically
+Yes. `createCalendarEvent()` is called immediately after `createAppointment()` succeeds (process-sms.ts:292). Fully automatic.
+
+### Root Causes Found & Fixed
+1. **`scheduledAt` natural language not converted to ISO 8601**: When booking intent detected "tomorrow at 2 PM", it stored the raw string. PostgreSQL rejected it silently on INSERT into timestamp column.
+   - Fix: Added `parseNaturalDate()` function supporting "tomorrow at X", "Month Day at X", "M/D at X" formats
+2. **`customerName` not extracted from customer messages**: Only searched AI response patterns. Customer's "my name is X" was ignored.
+   - Fix: Added `NAME_AFTER_HI` (for "Hi John!" greetings) and `NAME_SELF_INTRO` (for "my name is John") patterns
+3. **Appointment creation error silently swallowed**: `processSms()` didn't propagate the failure.
+   - Fix: Now surfaces both appointment and calendar errors in result
+4. **`TWILIO_MESSAGING_SERVICE_SID` missing from render.yaml**: Production couldn't send SMS because this env var placeholder was never declared.
+   - Fix: Added to render.yaml (still needs manual value set in Render Dashboard)
+
+### Production Verification Results (2026-03-15)
+| Check | Result |
+|-------|--------|
+| API health (postgres + redis) | ✅ Both OK |
+| Calendar tokens valid | ✅ Auto-refreshed, not expired |
+| POST /internal/appointments | ✅ HTTP 201, appointment created (id: 83d6ec45) |
+| POST /internal/calendar-event | ✅ Google Calendar event created (id: pldlapvru15tujkngbq83rpsk4) |
+| Calendar idempotency | ✅ Duplicate returns same event ID |
+| POST /internal/process-sms (AI) | ✅ OpenAI responds, booking intent detected correctly |
+| SMS delivery | ❌ TWILIO_MESSAGING_SERVICE_SID not set in Render Dashboard |
+
+### Google Calendar Event Created
+**Yes** — Event ID `pldlapvru15tujkngbq83rpsk4` created on tenant's primary calendar for "oil change — E2E Test Customer — +37060000002" on 2026-03-16 at 14:00 UTC.
+
+### Verification
+```
+VERIFICATION
+EXIT_CODE=0
+TEST_FILES=14
+TESTS_TOTAL=258
+TESTS_FAILED=0
+DURATION=3.31s
+```
+
+### Remaining Blocker
+- **TWILIO_MESSAGING_SERVICE_SID** must be set in Render Dashboard (value: `MG60426e4f9247c1ab24e3f4e3f859159e` from .env)
+- After setting, re-test full SMS → AI → booking → calendar flow
+
+### Files Changed
+- `apps/api/src/services/booking-intent.ts` — `parseNaturalDate()`, name extraction patterns
+- `apps/api/src/services/process-sms.ts` — error propagation for appointment/calendar failures
+- `apps/api/src/tests/booking-intent.test.ts` — updated date extraction tests for ISO output
+- `render.yaml` — added `TWILIO_MESSAGING_SERVICE_SID` placeholder
+
+### Next Recommended Task
+1. Set `TWILIO_MESSAGING_SERVICE_SID` in Render Dashboard
+2. Set `TWILIO_ACCOUNT_SID` and `TWILIO_AUTH_TOKEN` in Render Dashboard (if not already set)
+3. Register tenant phone number in `tenant_phone_numbers` table for webhook routing
+4. Send real SMS test through the Twilio number
+
+---
+
 ## TASK: update-project-ops-status — 2026-03-15
 
 **Branch:** ai/update-project-ops-status

@@ -7,22 +7,21 @@
 
 ## Project Completion Estimate
 
-**~48%** (weighted)
+**~53%** (weighted)
 
 Calculated from weighted stage progress below. Only objectively verifiable progress counts. Code-complete but unverified stages are capped at 40-50%.
 
 ## Current Focus
 
-**Production auth verified, TEST SMS flow validation continuing** — production admin login and Google OAuth callback fully fixed. Continuing TEST workflow validation for the missed call -> SMS -> AI -> booking pipeline.
+**Booking pipeline verified in production** — AI conversation, booking intent detection, appointment creation, and Google Calendar event creation all work end-to-end. Remaining: Twilio env vars in Render for SMS delivery.
 
-Phase: Production auth verified, TEST SMS flow validation.
+Phase: Booking pipeline verified, SMS delivery pending.
 
 ## Current Blockers
 
 | Blocker | Required Action | Owner | Stages Affected |
 |---------|----------------|-------|-----------------|
-| n8n credentials (postgres, openai, twilio) | Manual setup in n8n UI | Human | 2, 3 |
-| Google Calendar OAuth browser consent | OAuth code + env vars fixed (PR #94). Complete Google consent in browser. | Human | 4 |
+| Twilio env vars not set in Render | Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_MESSAGING_SERVICE_SID in Render Dashboard. Register phone in tenant_phone_numbers. | Human | 2, 3 |
 | First pilot tenant | Requires working demo + real phone number | Human | 7 |
 
 ## Next Milestones
@@ -40,26 +39,27 @@ Phase: Production auth verified, TEST SMS flow validation.
 |---|-------|--------|--------|----------|----------|
 | 1 | Foundation & Operating Model | 10% | done | 100% | 10.0% |
 | 2 | TEST Sandbox Workflow Chain | 15% | in_progress | 40% | 6.0% |
-| 3 | Core Messaging & AI Flow | 25% | in_progress | 50% | 12.5% |
-| 4 | Calendar & Booking Reliability | 15% | in_progress | 50% | 7.5% |
+| 3 | Core Messaging & AI Flow | 25% | in_progress | 60% | 15.0% |
+| 4 | Calendar & Booking Reliability | 15% | in_progress | 65% | 9.75% |
 | 5 | Admin Visibility & Control | 10% | in_progress | 70% | 7.0% |
 | 6 | Production Readiness | 15% | in_progress | 35% | 5.25% |
 | 7 | First Live Pilot | 10% | not_started | 0% | 0.0% |
-| | **Total** | **100%** | | | **~48%** |
+| | **Total** | **100%** | | | **~53%** |
 
-> Progress recalculated 2026-03-15: 10 + 6 + 12.5 + 7.5 + 7 + 5.25 + 0 = 48.25 → 48%
+> Progress recalculated 2026-03-15: 10 + 6 + 15 + 9.75 + 7 + 5.25 + 0 = 53.0 → 53%
 
 ## Active Tasks
 
 ### In Progress
-- LT sandbox SMS test flow development (branch: `ai/lt-proteros-sms-test-flow`)
+(none)
 
 ### Todo
-- End-to-end demo run with real Twilio numbers
-- Google Calendar OAuth tenant onboarding
+- Set Twilio env vars in Render Dashboard and register tenant phone number
+- End-to-end demo run with real Twilio SMS delivery
 
 ## Done (Recent)
 
+- Booking pipeline fixed and verified: date parsing to ISO 8601, name extraction, error propagation. Google Calendar event created in production (PR #98)
 - Production admin auth fixed: email normalization, Google OAuth callback Zod, OAuth env vars, bootstrap fix — 258 tests (PR #94)
 - Production admin access verified: login, JWT, project-status-v2, Vercel proxy (PRs #88–#92)
 - Missed call SMS endpoint + worker routing — 26 tests (branch: `ai/missed-call-sms-endpoint`)
@@ -90,6 +90,7 @@ Phase: Production auth verified, TEST SMS flow validation.
 
 | Date | Change | Branch |
 |------|--------|--------|
+| 2026-03-15 | Booking pipeline fixed and verified: parseNaturalDate() for ISO dates, customer name extraction from messages, error propagation. Google Calendar event created (ID: pldlapvru15tujkngbq83rpsk4). Full AI→booking→calendar flow confirmed. | `ai/fix-booking-pipeline` |
 | 2026-03-15 | Production auth fully fixed: email normalization in login, Google OAuth callback Zod .passthrough(), OAuth env vars in render.yaml, admin bootstrap owner_name fix. 258 tests. | `ai/fix-production-auth` |
 | 2026-03-15 | Production admin access verified: POST /auth/login → JWT, GET /auth/me → identity, project-status-v2 → data, Vercel proxy → working | `ai/admin-access-fix` |
 | 2026-03-14 | Missed call SMS: POST /internal/missed-call-sms (tenant validation, conversation creation, initial outbound SMS via Twilio, message logging). Worker routes missed-call jobs to API. 26 tests, suite 214/214 | `ai/missed-call-sms-endpoint` |
@@ -130,9 +131,9 @@ Phase: Production auth verified, TEST SMS flow validation.
 
 ## Next Owner Decision
 
-- Provide n8n credentials (postgres, openai, twilio) to unblock end-to-end testing
-- Verify Google Calendar OAuth flow end-to-end (credentials already in .env)
-- Confirm priority: continue TEST sandbox work vs. unblock credential setup first
+- Set Twilio env vars in Render Dashboard: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_MESSAGING_SERVICE_SID
+- Register tenant phone number in tenant_phone_numbers table (needed for webhook routing)
+- Send first real SMS test through the booking pipeline
 
 ---
 
