@@ -176,6 +176,9 @@ export async function projectStatusRoute(app: FastifyInstance) {
         configured: internalKeyConfigured,
         length: internalKeyLength,
       },
+      bootstrapKey: {
+        configured: Boolean(process.env.ADMIN_BOOTSTRAP_KEY),
+      },
       jwtSecret: {
         configured: Boolean(process.env.JWT_SECRET),
       },
