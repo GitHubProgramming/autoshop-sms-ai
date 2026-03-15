@@ -13,7 +13,7 @@
 
 import { query } from "../db/client";
 import { detectBookingIntent } from "./booking-intent";
-import { createAppointment } from "./appointments";
+import { createAppointment, type BookingState } from "./appointments";
 import { createCalendarEvent } from "./google-calendar";
 import { sendTwilioSms } from "./missed-call-sms";
 
@@ -36,6 +36,7 @@ export interface ProcessSmsResult {
   isBooked: boolean;
   appointmentId: string | null;
   calendarSynced: boolean;
+  bookingState: BookingState | null;
   conversationClosed: boolean;
   error: string | null;
 }
@@ -71,6 +72,7 @@ export async function processSms(
     isBooked: false,
     appointmentId: null,
     calendarSynced: false,
+    bookingState: null,
     conversationClosed: false,
     error: null,
   };
@@ -265,47 +267,18 @@ export async function processSms(
     return result;
   }
 
-  result.aiResponse = aiResponse;
-
   // ── 7. Detect booking intent ─────────────────────────────────────────────
   const intent = detectBookingIntent(aiResponse, input.body);
 
-  // ── 8. Log outbound AI message ───────────────────────────────────────────
-  try {
-    await query(
-      `INSERT INTO messages (tenant_id, conversation_id, direction, body, tokens_used, model_version)
-       VALUES ($1, $2, 'outbound', $3, $4, $5)`,
-      [input.tenantId, result.conversationId, aiResponse, tokensUsed, OPENAI_MODEL]
-    );
-  } catch {
-    // Non-fatal
-  }
+  // ── 8. If booking detected, attempt calendar sync BEFORE sending SMS ────
+  // This prevents false confirmations: the customer must not receive
+  // "appointment confirmed" unless the calendar write actually succeeded.
+  let smsBody = aiResponse; // default: send AI response as-is
 
-  // ── 9. Send SMS reply ────────────────────────────────────────────────────
-  const smsResult = await sendTwilioSms(input.customerPhone, aiResponse, fetchFn);
-  result.smsSent = !!smsResult.sid;
-
-  if (!smsResult.sid) {
-    // AI response was generated but SMS delivery failed
-    result.error = `SMS send failed: ${smsResult.error}`;
-    // Don't return — still process booking intent
-  }
-
-  // Touch conversation again after outbound
-  try {
-    await query(`SELECT touch_conversation($1, $2)`, [
-      result.conversationId,
-      input.tenantId,
-    ]);
-  } catch {
-    // Non-fatal
-  }
-
-  // ── 10. Handle booking ───────────────────────────────────────────────────
   if (intent.isBooked) {
     result.isBooked = true;
 
-    // Create appointment
+    // Create appointment (initially as PENDING until calendar confirms)
     const apptResult = await createAppointment({
       tenantId: input.tenantId,
       conversationId: result.conversationId,
@@ -313,12 +286,13 @@ export async function processSms(
       customerName: intent.customerName,
       serviceType: intent.serviceType,
       scheduledAt: intent.scheduledAt,
+      bookingState: "PENDING_MANUAL_CONFIRMATION",
     });
 
     if (apptResult.success && apptResult.appointment) {
       result.appointmentId = apptResult.appointment.id;
 
-      // Create calendar event
+      // Attempt calendar sync
       const calResult = await createCalendarEvent(
         {
           tenantId: input.tenantId,
@@ -332,33 +306,96 @@ export async function processSms(
       );
 
       result.calendarSynced = calResult.calendarSynced;
-      if (!calResult.calendarSynced && calResult.error) {
-        result.error = result.error
-          ? `${result.error}; Calendar: ${calResult.error}`
-          : `Calendar sync failed: ${calResult.error}`;
 
-        // ── Operator alert: notify shop owner about failed calendar sync ──
-        // Only alert when tokens existed but API failed (not when OAuth is unconfigured)
-        if (ownerPhone && !calResult.error.includes("No calendar tokens")) {
-          const alertBody =
-            `AutoShop AI Alert: New booking from ${input.customerPhone}` +
-            ` for ${intent.serviceType}` +
-            (intent.scheduledAt ? ` on ${intent.scheduledAt}` : "") +
-            ` could NOT be synced to Google Calendar. Please add it manually.`;
-          try {
-            await sendTwilioSms(ownerPhone, alertBody, fetchFn);
-          } catch {
-            // Non-fatal: best-effort alert
+      if (calResult.calendarSynced) {
+        // Calendar write succeeded — upgrade booking state to CONFIRMED
+        result.bookingState = "CONFIRMED_CALENDAR";
+        try {
+          await query(
+            `UPDATE appointments SET booking_state = $1 WHERE id = $2 AND tenant_id = $3`,
+            ["CONFIRMED_CALENDAR", apptResult.appointment.id, input.tenantId]
+          );
+        } catch {
+          // Non-fatal: appointment exists, state is best-effort update
+        }
+        // smsBody stays as AI response (contains confirmation language)
+      } else {
+        // Calendar sync failed — do NOT confirm to customer
+        result.bookingState = "PENDING_MANUAL_CONFIRMATION";
+        const shopLabel = shopName ?? "the shop";
+        const timeLabel = intent.scheduledAt
+          ? ` for ${new Date(intent.scheduledAt).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
+          : "";
+        smsBody =
+          `Thanks — we've received your booking request${timeLabel}. ` +
+          `${shopLabel} will confirm shortly.`;
+
+        if (calResult.error) {
+          result.error = `Calendar sync failed: ${calResult.error}`;
+
+          // Operator alert (existing mechanism)
+          if (ownerPhone && !calResult.error.includes("No calendar tokens")) {
+            const alertBody =
+              `AutoShop AI Alert: New booking from ${input.customerPhone}` +
+              ` for ${intent.serviceType}` +
+              (intent.scheduledAt ? ` on ${intent.scheduledAt}` : "") +
+              ` could NOT be synced to Google Calendar. Please add it manually.`;
+            try {
+              await sendTwilioSms(ownerPhone, alertBody, fetchFn);
+            } catch {
+              // Non-fatal: best-effort alert
+            }
           }
         }
       }
     } else {
-      result.error = result.error
-        ? `${result.error}; Appointment: ${apptResult.error}`
-        : `Appointment creation failed: ${apptResult.error}`;
+      // Appointment creation itself failed
+      result.bookingState = "FAILED";
+      result.error = `Appointment creation failed: ${apptResult.error}`;
+      // Replace confirmation with a safe fallback
+      const shopLabel = shopName ?? "the shop";
+      smsBody =
+        `Thanks for your interest! Something went wrong on our end. ` +
+        `Please call ${shopLabel} directly to confirm your appointment.`;
     }
+  }
 
-    // Close conversation as booked
+  // ── 9. Log outbound message ────────────────────────────────────────────
+  // Log the actual message being sent (may differ from AI response if
+  // calendar sync failed and we replaced the confirmation)
+  try {
+    await query(
+      `INSERT INTO messages (tenant_id, conversation_id, direction, body, tokens_used, model_version)
+       VALUES ($1, $2, 'outbound', $3, $4, $5)`,
+      [input.tenantId, result.conversationId, smsBody, tokensUsed, OPENAI_MODEL]
+    );
+  } catch {
+    // Non-fatal
+  }
+
+  // ── 10. Send SMS reply ─────────────────────────────────────────────────
+  const smsResult = await sendTwilioSms(input.customerPhone, smsBody, fetchFn);
+  result.smsSent = !!smsResult.sid;
+  result.aiResponse = smsBody;
+
+  if (!smsResult.sid) {
+    result.error = result.error
+      ? `${result.error}; SMS send failed: ${smsResult.error}`
+      : `SMS send failed: ${smsResult.error}`;
+  }
+
+  // Touch conversation again after outbound
+  try {
+    await query(`SELECT touch_conversation($1, $2)`, [
+      result.conversationId,
+      input.tenantId,
+    ]);
+  } catch {
+    // Non-fatal
+  }
+
+  // ── 11. Close conversation if booked ───────────────────────────────────
+  if (intent.isBooked) {
     try {
       await query(`SELECT close_conversation($1, $2, $3, $4)`, [
         result.conversationId,
@@ -372,7 +409,7 @@ export async function processSms(
     }
   }
 
-  // ── 11. Handle user close request ────────────────────────────────────────
+  // ── 12. Handle user close request ────────────────────────────────────────
   if (!intent.isBooked && intent.userWantsClose) {
     try {
       await query(`SELECT close_conversation($1, $2, $3, $4)`, [

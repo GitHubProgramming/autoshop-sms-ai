@@ -171,9 +171,15 @@ function setupDbMocks(options: {
         notes: null,
         google_event_id: null,
         calendar_synced: false,
+        booking_state: "PENDING_MANUAL_CONFIRMATION",
         created_at: new Date().toISOString(),
         xmax: "0",
       }];
+    }
+
+    // Update booking_state after calendar sync
+    if (sql.includes("UPDATE appointments SET booking_state")) {
+      return [];
     }
 
     // Calendar token lookup (idempotency check)
@@ -285,7 +291,7 @@ describe("processSms — booking flow", () => {
     expect(result.conversationClosed).toBe(true);
   });
 
-  it("syncs to Google Calendar when tokens available", async () => {
+  it("calendar success → CONFIRMED_CALENDAR state and confirmation message sent", async () => {
     setupDbMocks({ hasCalendarTokens: true });
     const fetchMock = mockFetchAll({
       aiResponse: "Your appointment is confirmed for Tuesday at 10 AM.",
@@ -296,9 +302,12 @@ describe("processSms — booking flow", () => {
 
     expect(result.isBooked).toBe(true);
     expect(result.calendarSynced).toBe(true);
+    expect(result.bookingState).toBe("CONFIRMED_CALENDAR");
+    // Customer receives the original AI confirmation
+    expect(result.aiResponse).toContain("appointment is confirmed");
   });
 
-  it("creates appointment even when calendar sync fails", async () => {
+  it("calendar failure → PENDING_MANUAL_CONFIRMATION state and NO confirmation message", async () => {
     setupDbMocks({ hasCalendarTokens: true });
     const fetchMock = mockFetchAll({
       aiResponse: "Your appointment is confirmed for Wednesday at 3 PM.",
@@ -310,6 +319,11 @@ describe("processSms — booking flow", () => {
     expect(result.isBooked).toBe(true);
     expect(result.appointmentId).toBe(APPOINTMENT_ID);
     expect(result.calendarSynced).toBe(false);
+    expect(result.bookingState).toBe("PENDING_MANUAL_CONFIRMATION");
+    // Customer must NOT receive "confirmed" — gets pending message instead
+    expect(result.aiResponse).not.toContain("confirmed");
+    expect(result.aiResponse).toContain("booking request");
+    expect(result.aiResponse).toContain("confirm shortly");
   });
 
   it("sends operator alert SMS when calendar sync fails and owner_phone exists", async () => {
@@ -323,16 +337,20 @@ describe("processSms — booking flow", () => {
 
     expect(result.isBooked).toBe(true);
     expect(result.calendarSynced).toBe(false);
-    // Should have sent 3 Twilio calls: AI reply SMS + operator alert SMS
+    // Should have sent 2 Twilio calls: operator alert SMS (during booking) + customer pending SMS (after)
     const twilioCalls = (fetchMock as ReturnType<typeof vi.fn>).mock.calls.filter(
       (call: unknown[]) => typeof call[0] === "string" && (call[0] as string).includes("twilio.com")
     );
     expect(twilioCalls.length).toBe(2);
-    // Second Twilio call should be the operator alert
-    const alertBody = decodeURIComponent(twilioCalls[1][1].body);
+    // First Twilio call is the operator alert (sent during booking processing)
+    const alertBody = decodeURIComponent(twilioCalls[0][1].body);
     expect(alertBody).toContain("AutoShop AI Alert");
     expect(alertBody).toContain("could NOT be synced");
     expect(alertBody).toContain(PHONE); // customer phone
+    // Second Twilio call is the customer pending message (NOT a confirmation)
+    const customerBody = decodeURIComponent(twilioCalls[1][1].body);
+    expect(customerBody).toContain("booking request");
+    expect(customerBody).not.toContain("appointment is confirmed");
   });
 
   it("does not send operator alert when no owner_phone", async () => {
@@ -346,7 +364,7 @@ describe("processSms — booking flow", () => {
 
     expect(result.isBooked).toBe(true);
     expect(result.calendarSynced).toBe(false);
-    // Should have only 1 Twilio call: AI reply SMS (no operator alert)
+    // Should have only 1 Twilio call: customer pending SMS (no operator alert)
     const twilioCalls = (fetchMock as ReturnType<typeof vi.fn>).mock.calls.filter(
       (call: unknown[]) => typeof call[0] === "string" && (call[0] as string).includes("twilio.com")
     );
@@ -363,14 +381,14 @@ describe("processSms — booking flow", () => {
 
     expect(result.isBooked).toBe(true);
     expect(result.calendarSynced).toBe(false);
-    // Should have only 1 Twilio call: AI reply SMS (no alert for unconfigured OAuth)
+    // Should have only 1 Twilio call: customer pending SMS (no alert for unconfigured OAuth)
     const twilioCalls = (fetchMock as ReturnType<typeof vi.fn>).mock.calls.filter(
       (call: unknown[]) => typeof call[0] === "string" && (call[0] as string).includes("twilio.com")
     );
     expect(twilioCalls.length).toBe(1);
   });
 
-  it("skips calendar when no tokens for tenant", async () => {
+  it("no calendar tokens → PENDING_MANUAL_CONFIRMATION and pending message", async () => {
     setupDbMocks({ hasCalendarTokens: false });
     const fetchMock = mockFetchAll({
       aiResponse: "Booking confirmed for Thursday at 9 AM.",
@@ -380,6 +398,37 @@ describe("processSms — booking flow", () => {
 
     expect(result.isBooked).toBe(true);
     expect(result.calendarSynced).toBe(false);
+    expect(result.bookingState).toBe("PENDING_MANUAL_CONFIRMATION");
+    // Customer must NOT receive confirmation language
+    expect(result.aiResponse).toContain("booking request");
+  });
+
+  it("booking_state persisted in appointment record", async () => {
+    setupDbMocks({ hasCalendarTokens: true });
+    const fetchMock = mockFetchAll({
+      aiResponse: "Your appointment is confirmed for Friday at 11 AM.",
+      googleOk: true,
+    });
+
+    await processSms(validInput(), fetchMock);
+
+    // Verify appointment was created with booking_state
+    const apptInsert = mocks.query.mock.calls.find(
+      (call: unknown[]) =>
+        typeof call[0] === "string" && (call[0] as string).includes("INSERT INTO appointments")
+    );
+    expect(apptInsert).toBeDefined();
+    // booking_state should be passed as parameter (PENDING initially, then upgraded)
+    expect(apptInsert![1]).toContain("PENDING_MANUAL_CONFIRMATION");
+
+    // Verify upgrade to CONFIRMED_CALENDAR after calendar success
+    const stateUpdate = mocks.query.mock.calls.find(
+      (call: unknown[]) =>
+        typeof call[0] === "string" &&
+        (call[0] as string).includes("UPDATE appointments SET booking_state")
+    );
+    expect(stateUpdate).toBeDefined();
+    expect(stateUpdate![1]).toContain("CONFIRMED_CALENDAR");
   });
 });
 
@@ -660,6 +709,9 @@ describe("processSms — additional edge cases", () => {
       }
       if (sql.includes("system_prompts")) return [];
       if (sql.includes("SELECT direction, body FROM messages")) return [];
+      if (sql.includes("SELECT shop_name, business_hours")) {
+        return [{ shop_name: "Joe's Auto", business_hours: null, services_description: null, owner_phone: null }];
+      }
       if (sql.includes("SELECT id FROM tenants")) {
         return [{ id: TENANT_ID }];
       }
@@ -678,6 +730,10 @@ describe("processSms — additional edge cases", () => {
     expect(result.success).toBe(true);
     expect(result.isBooked).toBe(true);
     expect(result.appointmentId).toBeNull();
+    expect(result.bookingState).toBe("FAILED");
+    // Customer should NOT receive confirmation — gets fallback message
+    expect(result.aiResponse).not.toContain("appointment is confirmed");
+    expect(result.aiResponse).toContain("call");
   });
 
   it("soft limit with Twilio failure still succeeds", async () => {
@@ -716,17 +772,22 @@ describe("processSms — additional edge cases", () => {
       }
       if (sql.includes("system_prompts")) return [];
       if (sql.includes("SELECT direction, body FROM messages")) return [];
+      if (sql.includes("SELECT shop_name, business_hours")) {
+        return [{ shop_name: "Joe's Auto", business_hours: null, services_description: null, owner_phone: null }];
+      }
       if (sql.includes("SELECT id FROM tenants")) return [{ id: TENANT_ID }];
       if (sql.includes("INSERT INTO appointments")) {
         return [{
           id: APPOINTMENT_ID, tenant_id: TENANT_ID, conversation_id: CONVERSATION_ID,
           customer_phone: PHONE, customer_name: null, service_type: "oil change",
           scheduled_at: new Date().toISOString(), duration_minutes: 60, notes: null,
-          google_event_id: null, calendar_synced: false, created_at: new Date().toISOString(), xmax: "0",
+          google_event_id: null, calendar_synced: false, booking_state: "PENDING_MANUAL_CONFIRMATION",
+          created_at: new Date().toISOString(), xmax: "0",
         }];
       }
       if (sql.includes("SELECT google_event_id FROM appointments")) return [];
       if (sql.includes("SELECT access_token")) return [];
+      if (sql.includes("UPDATE appointments SET booking_state")) return [];
       if (sql.includes("close_conversation")) {
         throw new Error("DB connection lost during close");
       }
