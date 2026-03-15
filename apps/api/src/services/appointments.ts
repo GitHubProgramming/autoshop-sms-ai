@@ -9,6 +9,8 @@
 
 import { query } from "../db/client";
 
+export type BookingState = "CONFIRMED_CALENDAR" | "PENDING_MANUAL_CONFIRMATION" | "FAILED";
+
 export interface CreateAppointmentInput {
   tenantId: string;
   conversationId?: string | null;
@@ -18,6 +20,7 @@ export interface CreateAppointmentInput {
   scheduledAt: string; // ISO 8601
   durationMinutes?: number;
   notes?: string | null;
+  bookingState?: BookingState;
 }
 
 export interface AppointmentRecord {
@@ -32,6 +35,7 @@ export interface AppointmentRecord {
   notes: string | null;
   googleEventId: string | null;
   calendarSynced: boolean;
+  bookingState: BookingState;
   createdAt: string;
 }
 
@@ -81,6 +85,7 @@ export async function createAppointment(
 
   // 2. Insert or upsert appointment
   const duration = input.durationMinutes ?? 60;
+  const bookingState = input.bookingState ?? "CONFIRMED_CALENDAR";
 
   try {
     let rows: Array<{
@@ -95,6 +100,7 @@ export async function createAppointment(
       notes: string | null;
       google_event_id: string | null;
       calendar_synced: boolean;
+      booking_state: string;
       created_at: string;
       xmax: string;
     }>;
@@ -104,15 +110,16 @@ export async function createAppointment(
       rows = await query(
         `INSERT INTO appointments
            (tenant_id, conversation_id, customer_phone, customer_name,
-            service_type, scheduled_at, duration_minutes, notes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            service_type, scheduled_at, duration_minutes, notes, booking_state)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          ON CONFLICT (conversation_id) DO UPDATE SET
            customer_phone = EXCLUDED.customer_phone,
            customer_name = EXCLUDED.customer_name,
            service_type = EXCLUDED.service_type,
            scheduled_at = EXCLUDED.scheduled_at,
            duration_minutes = EXCLUDED.duration_minutes,
-           notes = EXCLUDED.notes
+           notes = EXCLUDED.notes,
+           booking_state = EXCLUDED.booking_state
          RETURNING *, xmax`,
         [
           input.tenantId,
@@ -123,6 +130,7 @@ export async function createAppointment(
           input.scheduledAt,
           duration,
           input.notes ?? null,
+          bookingState,
         ]
       );
     } else {
@@ -130,8 +138,8 @@ export async function createAppointment(
       rows = await query(
         `INSERT INTO appointments
            (tenant_id, customer_phone, customer_name,
-            service_type, scheduled_at, duration_minutes, notes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+            service_type, scheduled_at, duration_minutes, notes, booking_state)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *, 0::text AS xmax`,
         [
           input.tenantId,
@@ -141,6 +149,7 @@ export async function createAppointment(
           input.scheduledAt,
           duration,
           input.notes ?? null,
+          bookingState,
         ]
       );
     }
@@ -172,6 +181,7 @@ export async function createAppointment(
         notes: row.notes,
         googleEventId: row.google_event_id,
         calendarSynced: row.calendar_synced,
+        bookingState: row.booking_state as BookingState,
         createdAt: row.created_at,
       },
       upserted,
