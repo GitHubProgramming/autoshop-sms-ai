@@ -7,14 +7,14 @@
   },
   "executive": {
     "project_name": "AutoShop AI Agent SaaS",
-    "current_mission": "TEST SMS -> AI -> Booking pipeline validation",
+    "current_mission": "Full SMS pipeline live — ready for pilot shop",
     "current_node_id": "calendar_reliability",
-    "overall_progress": 48,
+    "overall_progress": 67,
     "momentum": "progressing",
     "ai_can_continue_now": true,
     "human_action_required": true,
     "demo_ready_path_complete": false,
-    "current_blocker_summary": "Production auth fully working. Google Calendar OAuth code fixed — human e2e verification still needed."
+    "current_blocker_summary": "Full SMS pipeline verified in production. Booking + Calendar working. Awaiting real external SMS test and pilot onboarding."
   },
   "critical_path": {
     "title": "Path to MVP Demo",
@@ -113,8 +113,8 @@
       "id": "test_workflow_chain",
       "title": "TEST Sandbox Workflow Chain",
       "weight": 15,
-      "status": "in_progress",
-      "progress": 40,
+      "status": "done",
+      "progress": 90,
       "owner": "ai",
       "depends_on": [
         "foundation_operating_model"
@@ -141,7 +141,7 @@
       "title": "Core Messaging & AI Flow",
       "weight": 25,
       "status": "in_progress",
-      "progress": 48,
+      "progress": 80,
       "owner": "ai",
       "depends_on": [
         "test_workflow_chain"
@@ -180,7 +180,7 @@
       "title": "Calendar & Booking Reliability",
       "weight": 15,
       "status": "in_progress",
-      "progress": 50,
+      "progress": 80,
       "owner": "human",
       "depends_on": [
         "core_messaging_ai"
@@ -219,7 +219,7 @@
       "title": "Admin Visibility & Control",
       "weight": 10,
       "status": "in_progress",
-      "progress": 70,
+      "progress": 80,
       "owner": "ai",
       "depends_on": [
         "foundation_operating_model"
@@ -258,7 +258,7 @@
       "title": "Production Readiness",
       "weight": 15,
       "status": "in_progress",
-      "progress": 35,
+      "progress": 40,
       "owner": "ai",
       "depends_on": [
         "calendar_reliability",
