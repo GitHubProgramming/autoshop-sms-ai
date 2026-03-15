@@ -3,6 +3,8 @@ import * as bcrypt from "bcryptjs";
 import { z } from "zod";
 import { query } from "../../db/client";
 import { adminGuard } from "../../middleware/admin-guard";
+import { fetchTwilioNumberConfig, verifyWebhookUrls } from "../../services/twilio-verify";
+import { getConfig } from "../../db/app-config";
 
 /**
  * Internal Admin API
@@ -884,8 +886,8 @@ export async function adminRoute(app: FastifyInstance) {
          FROM tenants WHERE id = $1`,
         [id]
       ),
-      query<{ phone_number: string; forward_to: string | null; status: string }>(
-        `SELECT phone_number, forward_to, status FROM tenant_phone_numbers
+      query<{ phone_number: string; forward_to: string | null; status: string; twilio_sid: string }>(
+        `SELECT phone_number, forward_to, status, twilio_sid FROM tenant_phone_numbers
          WHERE tenant_id = $1 AND status = 'active'
          ORDER BY provisioned_at DESC LIMIT 1`,
         [id]
@@ -916,14 +918,64 @@ export async function adminRoute(app: FastifyInstance) {
     const blockedBillingStatuses = ["trial_expired", "canceled", "past_due_blocked"];
     const billingOk = !blockedBillingStatuses.includes(tenant.billing_status);
 
+    // ── Twilio webhook verification (live API check) ──────────────────────
+    // If we have a phone with a twilio_sid, verify Twilio's actual webhook config
+    let twilioWebhookResult: {
+      sms: { pass: boolean; expected: string; actual: string | null } | null;
+      voice: { pass: boolean; expected: string; actual: string | null } | null;
+      error: string | null;
+    } = { sms: null, voice: null, error: null };
+
+    if (phone?.twilio_sid) {
+      const expectedOrigin = process.env.PUBLIC_ORIGIN || process.env.API_BASE_URL || null;
+      if (!expectedOrigin) {
+        twilioWebhookResult.error = "PUBLIC_ORIGIN not configured — cannot verify webhook URLs";
+      } else {
+        const twilioResult = await fetchTwilioNumberConfig(phone.twilio_sid);
+        if (twilioResult.success && twilioResult.config) {
+          const verification = verifyWebhookUrls(twilioResult.config, expectedOrigin);
+          twilioWebhookResult.sms = verification.sms_webhook;
+          twilioWebhookResult.voice = verification.voice_webhook;
+        } else {
+          twilioWebhookResult.error = twilioResult.error || "Failed to fetch Twilio config";
+        }
+      }
+    }
+
     // Build readiness checks — ordered by the live path:
-    // Twilio number → voice/sms webhook → forward_to → missed-call trigger → AI reply → calendar
+    // Twilio number → webhooks configured → forward_to → missed-call trigger → AI reply → calendar
     const checks = [
       {
         id: "twilio_number",
         label: "Twilio number assigned",
         pass: !!phone,
         detail: phone ? phone.phone_number : "No active phone number provisioned",
+        critical: true,
+      },
+      {
+        id: "twilio_sms_webhook",
+        label: "Twilio SMS webhook URL correct",
+        pass: twilioWebhookResult.sms?.pass ?? false,
+        detail: !phone
+          ? "No phone number — skipped"
+          : twilioWebhookResult.error
+            ? `Cannot verify: ${twilioWebhookResult.error}`
+            : twilioWebhookResult.sms?.pass
+              ? `Configured: ${twilioWebhookResult.sms.actual}`
+              : `MISMATCH — Expected: ${twilioWebhookResult.sms?.expected} | Actual: ${twilioWebhookResult.sms?.actual || "(empty)"}. Fix in Twilio Console > Phone Numbers > ${phone.phone_number} > Messaging > A MESSAGE COMES IN`,
+        critical: true,
+      },
+      {
+        id: "twilio_voice_webhook",
+        label: "Twilio Voice webhook URL correct",
+        pass: twilioWebhookResult.voice?.pass ?? false,
+        detail: !phone
+          ? "No phone number — skipped"
+          : twilioWebhookResult.error
+            ? `Cannot verify: ${twilioWebhookResult.error}`
+            : twilioWebhookResult.voice?.pass
+              ? `Configured: ${twilioWebhookResult.voice.actual}`
+              : `MISMATCH — Expected: ${twilioWebhookResult.voice?.expected} | Actual: ${twilioWebhookResult.voice?.actual || "(empty)"}. Fix in Twilio Console > Phone Numbers > ${phone.phone_number} > Voice > A CALL COMES IN`,
         critical: true,
       },
       {
