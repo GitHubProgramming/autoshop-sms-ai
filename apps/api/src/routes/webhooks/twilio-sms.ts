@@ -65,25 +65,34 @@ export async function twilioSmsRoute(app: FastifyInstance) {
         tenant.conv_used_this_cycle >= tenant.conv_limit_this_cycle;
 
       // ── 5. Enqueue for async processing — respond to Twilio immediately ────
-      await smsInboundQueue.add(
-        "process-sms",
-        {
-          tenantId: tenant.id,
-          customerPhone: From,
-          ourPhone: To,
-          body: Body,
-          messageSid: MessageSid,
-          atSoftLimit,
-        },
-        {
-          jobId: `sms-${MessageSid}`, // BullMQ dedup key
-        }
-      );
+      // Wrapped in try/catch: always return 200 to Twilio to prevent retry storms,
+      // even if Redis/BullMQ is temporarily unavailable.
+      try {
+        await smsInboundQueue.add(
+          "process-sms",
+          {
+            tenantId: tenant.id,
+            customerPhone: From,
+            ourPhone: To,
+            body: Body,
+            messageSid: MessageSid,
+            atSoftLimit,
+          },
+          {
+            jobId: `sms-${MessageSid}`, // BullMQ dedup key
+          }
+        );
 
-      request.log.info(
-        { tenantId: tenant.id, from: From, messageSid: MessageSid },
-        "SMS job enqueued"
-      );
+        request.log.info(
+          { tenantId: tenant.id, from: From, messageSid: MessageSid },
+          "SMS job enqueued"
+        );
+      } catch (err) {
+        request.log.error(
+          { err, tenantId: tenant.id, messageSid: MessageSid },
+          "Failed to enqueue SMS job — Redis may be down"
+        );
+      }
 
       // Must respond with TwiML — empty = no immediate reply (worker sends reply)
       return reply.status(200).type("text/xml").send("<Response/>");

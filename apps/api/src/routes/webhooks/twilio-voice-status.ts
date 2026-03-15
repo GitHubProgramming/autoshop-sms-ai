@@ -57,26 +57,34 @@ export async function twilioVoiceStatusRoute(app: FastifyInstance) {
 
       // Enqueue missed-call SMS trigger
       // This must fire within 5–20 seconds — worker sends the first SMS
-      await smsInboundQueue.add(
-        "missed-call-trigger",
-        {
-          tenantId: tenant.id,
-          customerPhone: From,
-          ourPhone: To,
-          callSid: CallSid,
-          callStatus: CallStatus,
-          triggerType: "missed_call",
-        },
-        {
-          jobId: `missed-call-${CallSid}`,
-          priority: 1, // High priority — speed matters for first SMS
-        }
-      );
+      // Wrapped in try/catch: always return 200 to Twilio even if Redis is down.
+      try {
+        await smsInboundQueue.add(
+          "missed-call-trigger",
+          {
+            tenantId: tenant.id,
+            customerPhone: From,
+            ourPhone: To,
+            callSid: CallSid,
+            callStatus: CallStatus,
+            triggerType: "missed_call",
+          },
+          {
+            jobId: `missed-call-${CallSid}`,
+            priority: 1, // High priority — speed matters for first SMS
+          }
+        );
 
-      request.log.info(
-        { tenantId: tenant.id, callSid: CallSid, callStatus: CallStatus },
-        "Missed call job enqueued"
-      );
+        request.log.info(
+          { tenantId: tenant.id, callSid: CallSid, callStatus: CallStatus },
+          "Missed call job enqueued"
+        );
+      } catch (err) {
+        request.log.error(
+          { err, tenantId: tenant.id, callSid: CallSid },
+          "Failed to enqueue missed-call job — Redis may be down"
+        );
+      }
 
       return reply.status(200).type("text/xml").send("<Response/>");
     }
