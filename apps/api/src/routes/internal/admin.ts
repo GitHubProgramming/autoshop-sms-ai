@@ -25,6 +25,13 @@ import { adminGuard } from "../../middleware/admin-guard";
  *   GET /internal/admin/metrics/conversation-health
  */
 export async function adminRoute(app: FastifyInstance) {
+  // ── No-cache headers for all admin responses ──────────────────────────────
+  app.addHook("onSend", async (_request, reply) => {
+    reply.header("Cache-Control", "no-store, no-cache, must-revalidate");
+    reply.header("Pragma", "no-cache");
+    reply.header("Expires", "0");
+  });
+
   // ── GET /internal/admin/metrics/signups ───────────────────────────────────
   app.get("/admin/metrics/signups", { preHandler: [adminGuard] }, async (_req, reply) => {
     const rows = await query(
