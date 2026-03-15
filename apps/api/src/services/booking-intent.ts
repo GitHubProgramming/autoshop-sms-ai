@@ -126,6 +126,88 @@ const NAME_AFTER_COMMA = /(?:[Cc]onfirmed|[Tt]hank [Yy]ou|[Tt]hanks|[Ss]ee [Yy]o
 // Match "for John" or "for John Smith"
 const NAME_AFTER_FOR =
   /(?:[Aa]ppointment|[Bb]ooking|[Ss]cheduled)\s+(?:is\s+)?(?:confirmed\s+)?for\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/;
+// Match "Hi John" or "Hi John Smith" at start of AI response
+const NAME_AFTER_HI =
+  /^(?:Hi|Hello|Hey|Dear)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)[!,.]/;
+// Match customer saying "my name is John" or "I'm John Smith" or "this is John"
+const NAME_SELF_INTRO =
+  /(?:my name is|i'm|i am|this is|call me)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i;
+
+// ── Natural date parsing ────────────────────────────────────────────────────
+
+const MONTH_MAP: Record<string, number> = {
+  january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
+  july: 6, august: 7, september: 8, october: 9, november: 10, december: 11,
+};
+
+const DAY_OFFSETS: Record<string, number> = {
+  monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6, sunday: 0,
+};
+
+/**
+ * Converts natural language date strings to ISO 8601.
+ * Returns null if parsing fails (caller should fall back to default).
+ */
+export function parseNaturalDate(dateStr: string): string | null {
+  const lower = dateStr.toLowerCase().trim();
+
+  // "tomorrow at 2pm" / "tomorrow at 2:00 PM"
+  const tomorrowMatch = lower.match(
+    /tomorrow\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i
+  );
+  if (tomorrowMatch) {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    let hours = parseInt(tomorrowMatch[1], 10);
+    const minutes = parseInt(tomorrowMatch[2] || "0", 10);
+    const ampm = tomorrowMatch[3].toLowerCase();
+    if (ampm === "pm" && hours < 12) hours += 12;
+    if (ampm === "am" && hours === 12) hours = 0;
+    tomorrow.setHours(hours, minutes, 0, 0);
+    return tomorrow.toISOString();
+  }
+
+  // "March 15 at 2:00 PM" or "Monday, March 15 at 2pm"
+  const monthDayMatch = lower.match(
+    /(?:(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday),?\s+)?(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})(?:st|nd|rd|th)?\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i
+  );
+  if (monthDayMatch) {
+    const month = MONTH_MAP[monthDayMatch[1].toLowerCase()];
+    const day = parseInt(monthDayMatch[2], 10);
+    let hours = parseInt(monthDayMatch[3], 10);
+    const minutes = parseInt(monthDayMatch[4] || "0", 10);
+    const ampm = monthDayMatch[5].toLowerCase();
+    if (ampm === "pm" && hours < 12) hours += 12;
+    if (ampm === "am" && hours === 12) hours = 0;
+    const now = new Date();
+    const year = now.getFullYear();
+    const result = new Date(year, month, day, hours, minutes, 0, 0);
+    // If the date is in the past, assume next year
+    if (result < now) result.setFullYear(year + 1);
+    return result.toISOString();
+  }
+
+  // "3/15 at 2:00 PM" or "03/15/2026 at 2pm"
+  const slashMatch = lower.match(
+    /(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i
+  );
+  if (slashMatch) {
+    const month = parseInt(slashMatch[1], 10) - 1;
+    const day = parseInt(slashMatch[2], 10);
+    let year = slashMatch[3]
+      ? parseInt(slashMatch[3], 10)
+      : new Date().getFullYear();
+    if (year < 100) year += 2000;
+    let hours = parseInt(slashMatch[4], 10);
+    const minutes = parseInt(slashMatch[5] || "0", 10);
+    const ampm = slashMatch[6].toLowerCase();
+    if (ampm === "pm" && hours < 12) hours += 12;
+    if (ampm === "am" && hours === 12) hours = 0;
+    return new Date(year, month, day, hours, minutes, 0, 0).toISOString();
+  }
+
+  return null;
+}
 
 // ── Core detection function ─────────────────────────────────────────────────
 
@@ -182,19 +264,28 @@ export function detectBookingIntent(
     scheduledAt = isoMatch[0];
     scheduledAtExtracted = true;
   } else {
-    // Try natural language date from AI response
-    for (const regex of NATURAL_DATE_PATTERNS) {
-      const match = aiResponse.match(regex);
-      if (match) {
-        scheduledAt = match[0];
-        scheduledAtExtracted = true;
-        break;
+    // Try natural language date from AI response or customer message
+    const textToSearch = [aiResponse, customerMessage];
+    for (const text of textToSearch) {
+      let found = false;
+      for (const regex of NATURAL_DATE_PATTERNS) {
+        const match = text.match(regex);
+        if (match) {
+          const parsed = parseNaturalDate(match[0]);
+          if (parsed) {
+            scheduledAt = parsed;
+            scheduledAtExtracted = true;
+            found = true;
+            break;
+          }
+        }
       }
+      if (found) break;
     }
     // scheduledAt already defaults to +24h from initialization
   }
 
-  // Extract customer name from AI response
+  // Extract customer name from AI response, then fall back to customer message
   let customerName: string | null = null;
   const nameComma = aiResponse.match(NAME_AFTER_COMMA);
   if (nameComma) {
@@ -203,6 +294,17 @@ export function detectBookingIntent(
     const nameFor = aiResponse.match(NAME_AFTER_FOR);
     if (nameFor) {
       customerName = nameFor[1];
+    } else {
+      const nameHi = aiResponse.match(NAME_AFTER_HI);
+      if (nameHi) {
+        customerName = nameHi[1];
+      } else {
+        // Try customer self-introduction: "my name is X", "I'm X"
+        const nameSelf = customerMessage.match(NAME_SELF_INTRO);
+        if (nameSelf) {
+          customerName = nameSelf[1];
+        }
+      }
     }
   }
 

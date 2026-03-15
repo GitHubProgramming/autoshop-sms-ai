@@ -194,22 +194,33 @@ describe("detectBookingIntent — date extraction", () => {
     expect(r.scheduledAt).toBe("2026-03-20T14:00:00-05:00");
   });
 
-  it("extracts natural date 'March 15 at 2:00 PM' from AI response", () => {
+  it("extracts natural date 'March 15 at 2:00 PM' as ISO 8601", () => {
     const r = detectBookingIntent(
       "Your appointment is confirmed for March 15 at 2:00 PM.",
       "ok"
     );
     expect(r.scheduledAtExtracted).toBe(true);
-    expect(r.scheduledAt).toBe("March 15 at 2:00 PM");
+    // Should be a valid ISO date string, not raw natural language
+    expect(() => new Date(r.scheduledAt).toISOString()).not.toThrow();
+    const d = new Date(r.scheduledAt);
+    expect(d.getMonth()).toBe(2); // March = 2
+    expect(d.getDate()).toBe(15);
+    expect(d.getHours()).toBe(14); // 2 PM
   });
 
-  it("extracts 'tomorrow at 3pm'", () => {
+  it("extracts 'tomorrow at 3pm' as ISO 8601", () => {
     const r = detectBookingIntent(
       "You're all set for tomorrow at 3pm.",
       "ok"
     );
     expect(r.scheduledAtExtracted).toBe(true);
-    expect(r.scheduledAt).toBe("tomorrow at 3pm");
+    // Should be a valid ISO date string, not raw natural language
+    expect(() => new Date(r.scheduledAt).toISOString()).not.toThrow();
+    const d = new Date(r.scheduledAt);
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    expect(d.getDate()).toBe(tomorrow.getDate());
+    expect(d.getHours()).toBe(15); // 3 PM
   });
 
   it("falls back to +24h ISO when no date found", () => {
