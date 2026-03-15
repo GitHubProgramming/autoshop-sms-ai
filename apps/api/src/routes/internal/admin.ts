@@ -357,6 +357,7 @@ export async function adminRoute(app: FastifyInstance) {
               WHEN $1 = 'synced'    THEN a.calendar_synced
               WHEN $1 = 'today'     THEN a.scheduled_at::date = CURRENT_DATE
               WHEN $1 = 'upcoming'  THEN a.scheduled_at > NOW()
+              WHEN $1 = 'action_needed' THEN a.booking_state IN ('PENDING_MANUAL_CONFIRMATION', 'FAILED')
               ELSE true END
        )
        AND ($2::uuid IS NULL OR a.tenant_id = $2)
@@ -366,6 +367,105 @@ export async function adminRoute(app: FastifyInstance) {
     );
 
     return reply.status(200).send({ count: (bookings as any[]).length, bookings, page });
+  });
+
+  // ── GET /internal/admin/bookings/action-needed ─────────────────────────────
+  app.get("/admin/bookings/action-needed", { preHandler: [adminGuard] }, async (_req, reply) => {
+    const bookings = await query(
+      `SELECT a.id, a.tenant_id, t.shop_name, a.customer_phone, a.customer_name,
+         a.service_type, a.scheduled_at, a.calendar_synced, a.google_event_id, a.created_at,
+         a.conversation_id, a.booking_state
+       FROM appointments a
+       JOIN tenants t ON t.id = a.tenant_id
+       WHERE t.is_test = FALSE
+         AND a.booking_state IN ('PENDING_MANUAL_CONFIRMATION', 'FAILED')
+       ORDER BY a.created_at DESC
+       LIMIT 100`
+    );
+
+    return reply.status(200).send({ count: (bookings as any[]).length, bookings });
+  });
+
+  // ── PATCH /internal/admin/bookings/:id/state ──────────────────────────────
+  const BookingStateTransitionSchema = z.object({
+    booking_state: z.enum(["CONFIRMED_MANUAL", "RESOLVED"]),
+  });
+
+  const ALLOWED_TRANSITIONS: Record<string, string[]> = {
+    PENDING_MANUAL_CONFIRMATION: ["CONFIRMED_MANUAL"],
+    FAILED: ["RESOLVED"],
+  };
+
+  app.patch("/admin/bookings/:id/state", { preHandler: [adminGuard] }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsed = BookingStateTransitionSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      return reply.status(400).send({
+        error: "Validation failed",
+        details: parsed.error.issues.map(i => `${i.path.join(".")}: ${i.message}`),
+      });
+    }
+
+    const newState = parsed.data.booking_state;
+
+    // Fetch current booking state
+    const rows = await query<{ booking_state: string }>(
+      `SELECT booking_state FROM appointments WHERE id = $1`,
+      [id]
+    );
+
+    if ((rows as any[]).length === 0) {
+      return reply.status(404).send({ error: "Booking not found" });
+    }
+
+    const currentState = (rows as any[])[0].booking_state;
+    const allowed = ALLOWED_TRANSITIONS[currentState];
+
+    if (!allowed || !allowed.includes(newState)) {
+      return reply.status(409).send({
+        error: "Invalid state transition",
+        current_state: currentState,
+        requested_state: newState,
+        allowed_transitions: allowed || [],
+      });
+    }
+
+    // Perform the transition
+    await query(
+      `UPDATE appointments SET booking_state = $1 WHERE id = $2`,
+      [newState, id]
+    );
+
+    // Audit log entry if audit_log table exists
+    try {
+      const tenantRows = await query<{ tenant_id: string }>(
+        `SELECT tenant_id FROM appointments WHERE id = $1`,
+        [id]
+      );
+      const tenantId = (tenantRows as any[])[0]?.tenant_id;
+      if (tenantId) {
+        await query(
+          `INSERT INTO audit_log (tenant_id, event_type, actor, metadata)
+           VALUES ($1, $2, $3, $4)`,
+          [
+            tenantId,
+            "booking_state_change",
+            "admin",
+            JSON.stringify({ booking_id: id, from: currentState, to: newState }),
+          ]
+        );
+      }
+    } catch (_) {
+      // Non-critical — don't fail the transition if audit logging fails
+    }
+
+    return reply.status(200).send({
+      success: true,
+      booking_id: id,
+      previous_state: currentState,
+      booking_state: newState,
+    });
   });
 
   // ── GET /internal/admin/billing ─────────────────────────────────────────────

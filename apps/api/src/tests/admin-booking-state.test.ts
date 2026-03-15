@@ -222,3 +222,152 @@ describe("GET /internal/admin/tenants/:id — booking_state in tenant bookings",
     expect(body.bookings[1].booking_state).toBe("PENDING_MANUAL_CONFIRMATION");
   });
 });
+
+// ── Action-needed endpoint tests ─────────────────────────────────────────────
+
+describe("GET /internal/admin/bookings/action-needed", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    process.env.ADMIN_EMAILS = "admin@test.com";
+  });
+
+  it("returns only PENDING_MANUAL_CONFIRMATION and FAILED bookings", async () => {
+    const fakeBookings = [
+      { id: "b1", tenant_id: "t1", shop_name: "Shop A", booking_state: "PENDING_MANUAL_CONFIRMATION" },
+      { id: "b2", tenant_id: "t1", shop_name: "Shop A", booking_state: "FAILED" },
+    ];
+    mocks.query.mockResolvedValueOnce(fakeBookings);
+
+    const app = buildApp();
+    const res = await app.inject({ method: "GET", url: "/internal/admin/bookings/action-needed" });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.count).toBe(2);
+    expect(body.bookings[0].booking_state).toBe("PENDING_MANUAL_CONFIRMATION");
+    expect(body.bookings[1].booking_state).toBe("FAILED");
+  });
+});
+
+// ── State transition tests ───────────────────────────────────────────────────
+
+describe("PATCH /internal/admin/bookings/:id/state — booking state transitions", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    process.env.ADMIN_EMAILS = "admin@test.com";
+  });
+
+  it("allows PENDING_MANUAL_CONFIRMATION → CONFIRMED_MANUAL", async () => {
+    // SELECT booking_state
+    mocks.query.mockResolvedValueOnce([{ booking_state: "PENDING_MANUAL_CONFIRMATION" }]);
+    // UPDATE
+    mocks.query.mockResolvedValueOnce([]);
+    // SELECT tenant_id for audit
+    mocks.query.mockResolvedValueOnce([{ tenant_id: "t1" }]);
+    // INSERT audit_log
+    mocks.query.mockResolvedValueOnce([]);
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/internal/admin/bookings/b1/state",
+      payload: { booking_state: "CONFIRMED_MANUAL" },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.success).toBe(true);
+    expect(body.previous_state).toBe("PENDING_MANUAL_CONFIRMATION");
+    expect(body.booking_state).toBe("CONFIRMED_MANUAL");
+  });
+
+  it("allows FAILED → RESOLVED", async () => {
+    mocks.query.mockResolvedValueOnce([{ booking_state: "FAILED" }]);
+    mocks.query.mockResolvedValueOnce([]);
+    mocks.query.mockResolvedValueOnce([{ tenant_id: "t1" }]);
+    mocks.query.mockResolvedValueOnce([]);
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/internal/admin/bookings/b2/state",
+      payload: { booking_state: "RESOLVED" },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.success).toBe(true);
+    expect(body.previous_state).toBe("FAILED");
+    expect(body.booking_state).toBe("RESOLVED");
+  });
+
+  it("rejects invalid transition: CONFIRMED_CALENDAR → RESOLVED", async () => {
+    mocks.query.mockResolvedValueOnce([{ booking_state: "CONFIRMED_CALENDAR" }]);
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/internal/admin/bookings/b3/state",
+      payload: { booking_state: "RESOLVED" },
+    });
+
+    expect(res.statusCode).toBe(409);
+    const body = res.json();
+    expect(body.error).toBe("Invalid state transition");
+    expect(body.current_state).toBe("CONFIRMED_CALENDAR");
+  });
+
+  it("rejects invalid transition: PENDING_MANUAL_CONFIRMATION → RESOLVED", async () => {
+    mocks.query.mockResolvedValueOnce([{ booking_state: "PENDING_MANUAL_CONFIRMATION" }]);
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/internal/admin/bookings/b4/state",
+      payload: { booking_state: "RESOLVED" },
+    });
+
+    expect(res.statusCode).toBe(409);
+    const body = res.json();
+    expect(body.error).toBe("Invalid state transition");
+  });
+
+  it("rejects invalid transition: FAILED → CONFIRMED_MANUAL", async () => {
+    mocks.query.mockResolvedValueOnce([{ booking_state: "FAILED" }]);
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/internal/admin/bookings/b5/state",
+      payload: { booking_state: "CONFIRMED_MANUAL" },
+    });
+
+    expect(res.statusCode).toBe(409);
+    const body = res.json();
+    expect(body.error).toBe("Invalid state transition");
+  });
+
+  it("returns 404 for non-existent booking", async () => {
+    mocks.query.mockResolvedValueOnce([]);
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/internal/admin/bookings/nonexistent/state",
+      payload: { booking_state: "CONFIRMED_MANUAL" },
+    });
+
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("rejects invalid booking_state value", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/internal/admin/bookings/b1/state",
+      payload: { booking_state: "INVALID_STATE" },
+    });
+
+    expect(res.statusCode).toBe(400);
+  });
+});
