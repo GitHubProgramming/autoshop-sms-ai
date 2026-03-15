@@ -9,6 +9,31 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: pilot-shop-config — 2026-03-15
+
+**Branch:** ai/pilot-shop-config
+**Status:** COMPLETE — Per-tenant configurable messaging and AI settings
+**PR:** #107
+
+### Selected Task
+Add pilot-shop configurable messaging without changing the working booking pipeline.
+
+### Changes
+- Migration 014: `missed_call_sms_template`, `business_hours`, `services_description` on tenants
+- `missed-call-sms.ts`: reads tenant template, supports `{shop_name}` placeholder, falls back to default
+- `process-sms.ts`: injects tenant business_hours + services_description into AI system prompt
+- Admin API: GET/PUT `/internal/admin/tenants/:id/settings` (all five config fields)
+- Admin UI: "Settings" tab on account detail with save functionality
+- 15 new tests (278 total passing)
+
+### Verification
+- Tests: 17 files, 278/278 passed
+- Build: TypeScript clean
+- Docker: image builds successfully
+- Booking pipeline: NOT modified
+
+---
+
 ## TASK: twilio-production-wiring — 2026-03-15
 
 **Branch:** ai/twilio-production-wiring
