@@ -56,7 +56,7 @@ services:
       - key: INTERNAL_API_KEY
         generateValue: true
       - key: ADMIN_EMAILS
-        sync: false
+        value: "mantas.gipiskis@gmail.com"
       - key: SKIP_TWILIO_VALIDATION
         value: "false"
       - key: CORS_ORIGINS
