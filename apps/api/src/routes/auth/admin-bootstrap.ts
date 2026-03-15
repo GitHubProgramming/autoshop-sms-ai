@@ -24,11 +24,14 @@ const BootstrapBody = z.object({
  */
 export async function adminBootstrapRoute(app: FastifyInstance) {
   app.post("/admin-bootstrap", async (request, reply) => {
-    // ── Verify INTERNAL_API_KEY, ADMIN_BOOTSTRAP_KEY, or hardcoded one-time key
-    // TEMPORARY hardcoded key for initial admin setup — REMOVE after bootstrap.
-    const ONETIME_BOOTSTRAP_KEY = "setup-admin-2026-03-15-x8k4m2";
+    // ── Verify INTERNAL_API_KEY or ADMIN_BOOTSTRAP_KEY ──────────────────────
     const internalKey = process.env.INTERNAL_API_KEY;
     const bootstrapKey = process.env.ADMIN_BOOTSTRAP_KEY;
+    if (!internalKey && !bootstrapKey) {
+      return reply.status(503).send({
+        error: "Neither INTERNAL_API_KEY nor ADMIN_BOOTSTRAP_KEY configured on the server",
+      });
+    }
 
     const provided =
       (request.headers["x-internal-key"] as string) ??
@@ -36,8 +39,7 @@ export async function adminBootstrapRoute(app: FastifyInstance) {
 
     const keyMatch =
       (internalKey && provided === internalKey) ||
-      (bootstrapKey && provided === bootstrapKey) ||
-      (provided === ONETIME_BOOTSTRAP_KEY);
+      (bootstrapKey && provided === bootstrapKey);
 
     if (!provided || !keyMatch) {
       return reply.status(401).send({ error: "Invalid or missing internal API key" });
