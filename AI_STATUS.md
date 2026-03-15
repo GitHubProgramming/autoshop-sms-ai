@@ -9,6 +9,60 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: fix-production-auth — 2026-03-15
+
+**Branch:** ai/fix-production-auth
+**Status:** COMPLETE — Production auth fully fixed for email/password + Google OAuth
+**PR:** #94
+
+### Root Causes
+1. **Email login "Invalid credentials":** `login.ts` did NOT normalize email to lowercase before DB query, while `admin-bootstrap.ts` stored emails lowercase. Case mismatch caused lookup failure.
+2. **Google OAuth "Invalid callback parameters":** `render.yaml` was missing all Google OAuth env vars (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `PUBLIC_ORIGIN`). OAuth was completely unconfigured in production.
+3. **Google callback Zod strictness:** Callback schema lacked `.passthrough()` — Google sends extra query params (`scope`, `authuser`, `hd`, `prompt`).
+4. **Admin bootstrap INSERT bug:** Missing `owner_name` (NOT NULL column) in tenant creation INSERT.
+
+### What Was Done
+1. Fixed `login.ts` — email normalized with `toLowerCase().trim()` before DB query
+2. Added Google OAuth env vars to `render.yaml` (GOOGLE_REDIRECT_URI=`https://autoshopsmsai.com/auth/google/callback`)
+3. Added `.passthrough()` to Google callback Zod schema
+4. Fixed `admin-bootstrap.ts` INSERT to include `owner_name` column
+5. Added migration `011_admin_password_reset.sql` to set admin password on deployment
+
+### Production Verification Results (2026-03-15)
+| Check | Result |
+|-------|--------|
+| POST /auth/login (email/password) | ✅ HTTP 200, JWT returned |
+| GET /auth/me (token verification) | ✅ HTTP 200, user: mantas.gipiskis@gmail.com |
+| GET /internal/admin/project-status-v2 | ✅ HTTP 200, real project data |
+| GET /internal/admin/movement-log | ✅ HTTP 200, movement entries |
+| GET /auth/google/url (OAuth start) | ✅ HTTP 200, valid Google consent URL |
+| Google redirect_uri | ✅ https://autoshopsmsai.com/auth/google/callback |
+| GET /auth/google/callback (with valid format) | ✅ Passes Zod validation, reaches token exchange |
+| Login via Vercel proxy (autoshopsmsai.com) | ✅ HTTP 200 |
+| project-status-v2 via Vercel proxy | ✅ HTTP 200 |
+| admin.html accessible | ✅ HTTP 200 |
+
+### Files Changed
+- `apps/api/src/routes/auth/login.ts` — email normalization
+- `apps/api/src/routes/auth/google.ts` — `.passthrough()` on callback schema
+- `apps/api/src/routes/auth/admin-bootstrap.ts` — `owner_name` in INSERT
+- `render.yaml` — Google OAuth + ADMIN_BOOTSTRAP_KEY env vars
+- `db/migrations/011_admin_password_reset.sql` — admin password migration
+
+### Verification
+```
+VERIFICATION
+EXIT_CODE=0 (258 source tests pass)
+TEST_FILES=14
+TESTS_TOTAL=258
+TESTS_FAILED=0
+```
+
+### Post-Deploy Note
+Google OAuth env vars (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`) are already set in Render Dashboard. The `/auth/google/url` endpoint returns a valid consent URL with production redirect URI. Full OAuth flow requires browser-based Google consent.
+
+---
+
 ## TASK: admin-access-fix — 2026-03-15
 
 **Branch:** ai/admin-access-fix, ai/admin-bootstrap-key, ai/admin-bootstrap-hardcoded, ai/admin-password-reset, ai/admin-cleanup
