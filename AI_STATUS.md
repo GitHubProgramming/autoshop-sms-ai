@@ -9,6 +9,51 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: update-project-ops-status — 2026-03-15
+
+**Branch:** ai/update-project-ops-status
+**Status:** COMPLETE — Project Ops status files updated to reflect March 15 production auth fixes
+**PR:** #96
+
+### What Was Done
+Updated all Project Ops source-of-truth files so admin.html reflects current project state:
+
+1. **project_status_v2.json** (primary source for admin.html):
+   - Overall progress: 45→48%, momentum: blocked→progressing
+   - Stage 4 (Calendar): 45→50%, blocked→in_progress, added OAuth callback fix as done subtask
+   - Stage 5 (Admin): 65→70%, added production admin auth as done subtask
+   - Stage 6 (Production): 28→35%, added auth hardening as done subtask
+   - Updated blocker summary to reflect code fixes done
+   - Added 3 movement entries for March 15
+2. **project_status.json** (v1 fallback): aligned all stage progress and blocker text
+3. **project_status.md** (human-readable mirror): aligned tables, added recent changes
+4. **movement_log.json**: added 3 March 15 entries (auth fix, OAuth fix, access verification)
+
+### What Was Removed as Stale
+- Old `momentum: "blocked"` executive status
+- Old blocker text implying OAuth code/env was broken
+- `blocked` status on Calendar stage (code issues resolved)
+
+### What Was Added as Current
+- Production admin auth fix completion (PR #94, PRs #88-#92)
+- OAuth callback Zod fix + env vars as done subtask
+- Production auth hardening as done subtask
+- Updated blocker: now "complete Google consent in browser" only
+
+### Verification
+```
+VERIFICATION
+EXIT_CODE=0 (source tests)
+TEST_FILES=14
+TESTS_TOTAL=258
+TESTS_FAILED=0
+DURATION=6.73s
+```
+
+Production deploy: SHA 69251ac confirmed deployed. Admin.html will render updated data once Render build completes.
+
+---
+
 ## TASK: fix-production-auth — 2026-03-15
 
 **Branch:** ai/fix-production-auth
