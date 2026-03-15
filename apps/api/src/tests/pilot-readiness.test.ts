@@ -5,6 +5,7 @@ import Fastify from "fastify";
 
 const mocks = vi.hoisted(() => ({
   query: vi.fn(),
+  fetchTwilioNumberConfig: vi.fn(),
 }));
 
 vi.mock("../db/client", () => ({
@@ -16,11 +17,43 @@ vi.mock("../middleware/admin-guard", () => ({
   adminGuard: async () => {},
 }));
 
+vi.mock("../services/twilio-verify", () => ({
+  fetchTwilioNumberConfig: mocks.fetchTwilioNumberConfig,
+  verifyWebhookUrls: (
+    config: { sms_url: string | null; voice_url: string | null },
+    expectedOrigin: string
+  ) => {
+    const expectedSms = `${expectedOrigin}/webhooks/twilio/sms`;
+    const expectedVoice = `${expectedOrigin}/webhooks/twilio/voice`;
+    return {
+      sms_webhook: {
+        pass: config.sms_url === expectedSms,
+        expected: expectedSms,
+        actual: config.sms_url,
+      },
+      voice_webhook: {
+        pass: config.voice_url === expectedVoice,
+        expected: expectedVoice,
+        actual: config.voice_url,
+      },
+    };
+  },
+}));
+
+vi.mock("../db/app-config", () => ({
+  getConfig: async (key: string) => {
+    if (key === "TWILIO_ACCOUNT_SID") return "ACtest123";
+    if (key === "TWILIO_AUTH_TOKEN") return "authtest123";
+    return null;
+  },
+}));
+
 import { adminRoute } from "../routes/internal/admin";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const TENANT_ID = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+const TEST_ORIGIN = "https://api.autoshop.example.com";
 
 async function buildApp() {
   const app = Fastify({ logger: false });
@@ -32,6 +65,22 @@ async function buildApp() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  process.env.PUBLIC_ORIGIN = TEST_ORIGIN;
+
+  // Default: Twilio returns correct webhook URLs
+  mocks.fetchTwilioNumberConfig.mockResolvedValue({
+    success: true,
+    config: {
+      sms_url: `${TEST_ORIGIN}/webhooks/twilio/sms`,
+      sms_method: "POST",
+      voice_url: `${TEST_ORIGIN}/webhooks/twilio/voice`,
+      voice_method: "POST",
+      status_callback: null,
+      status_callback_method: null,
+      friendly_name: "AutoShop Test",
+    },
+    error: null,
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -59,6 +108,7 @@ describe("GET /internal/admin/tenants/:id/pilot-readiness", () => {
       phone_number: "+13257523890",
       forward_to: "+15125559999",
       status: "active",
+      twilio_sid: "PNf77089f763ad788a2ea7bf65e71c181a",
     };
 
     const calendar = overrides.calendar !== undefined ? overrides.calendar : {
@@ -91,7 +141,7 @@ describe("GET /internal/admin/tenants/:id/pilot-readiness", () => {
     expect(res.statusCode).toBe(404);
   });
 
-  it("returns 'ready' when all checks pass", async () => {
+  it("returns 'ready' when all checks pass including Twilio webhooks", async () => {
     const app = await buildApp();
     setupMocks();
 
@@ -106,6 +156,8 @@ describe("GET /internal/admin/tenants/:id/pilot-readiness", () => {
     expect(body.blockers).toHaveLength(0);
     expect(body.warnings).toHaveLength(0);
     expect(body.checks.every((c: any) => c.pass)).toBe(true);
+    // Verify Twilio API was called
+    expect(mocks.fetchTwilioNumberConfig).toHaveBeenCalledWith("PNf77089f763ad788a2ea7bf65e71c181a");
   });
 
   it("returns 'not_ready' when no phone number", async () => {
@@ -121,12 +173,15 @@ describe("GET /internal/admin/tenants/:id/pilot-readiness", () => {
     expect(body.verdict).toBe("not_ready");
     expect(body.blockers.some((b: any) => b.id === "twilio_number")).toBe(true);
     expect(body.blockers.some((b: any) => b.id === "forward_to")).toBe(true);
+    // Webhook checks should also fail (no phone = no SID to check)
+    expect(body.blockers.some((b: any) => b.id === "twilio_sms_webhook")).toBe(true);
+    expect(body.blockers.some((b: any) => b.id === "twilio_voice_webhook")).toBe(true);
   });
 
   it("returns 'not_ready' when forward_to is missing", async () => {
     const app = await buildApp();
     setupMocks({
-      phone: { phone_number: "+13257523890", forward_to: null, status: "active" },
+      phone: { phone_number: "+13257523890", forward_to: null, status: "active", twilio_sid: "PNtest" },
     });
 
     const res = await app.inject({
@@ -223,15 +278,15 @@ describe("GET /internal/admin/tenants/:id/pilot-readiness", () => {
   it("returns 'ready_with_warnings' when only non-critical checks fail", async () => {
     const app = await buildApp();
     setupMocks({
-      prompt: null, // AI prompt missing (non-critical)
+      prompt: null,
       tenant: {
         shop_name: "Joe's Auto",
         owner_phone: "+15125551234",
         billing_status: "trial",
         trial_ends_at: new Date(Date.now() + 7 * 86400000).toISOString(),
         missed_call_sms_template: "Template text",
-        business_hours: null, // missing (non-critical)
-        services_description: null, // missing (non-critical)
+        business_hours: null,
+        services_description: null,
       },
     });
 
@@ -257,11 +312,11 @@ describe("GET /internal/admin/tenants/:id/pilot-readiness", () => {
     });
 
     const body = res.json();
-    expect(body.checks).toHaveLength(9);
+    expect(body.checks).toHaveLength(11);
     expect(body.summary).toMatch(/\d+\/\d+ critical checks passed/);
   });
 
-  it("returns all 9 checks in live-path order", async () => {
+  it("returns all 11 checks in live-path order", async () => {
     const app = await buildApp();
     setupMocks();
 
@@ -274,6 +329,8 @@ describe("GET /internal/admin/tenants/:id/pilot-readiness", () => {
     const ids = body.checks.map((c: any) => c.id);
     expect(ids).toEqual([
       "twilio_number",
+      "twilio_sms_webhook",
+      "twilio_voice_webhook",
       "forward_to",
       "sms_template",
       "ai_prompt",
@@ -283,5 +340,111 @@ describe("GET /internal/admin/tenants/:id/pilot-readiness", () => {
       "calendar_token_valid",
       "billing_active",
     ]);
+  });
+
+  // ── Twilio webhook verification tests ──────────────────────────────────
+
+  it("returns 'not_ready' when Twilio SMS webhook URL is wrong", async () => {
+    const app = await buildApp();
+    setupMocks();
+    mocks.fetchTwilioNumberConfig.mockResolvedValue({
+      success: true,
+      config: {
+        sms_url: "https://old-domain.example.com/webhooks/twilio/sms",
+        sms_method: "POST",
+        voice_url: `${TEST_ORIGIN}/webhooks/twilio/voice`,
+        voice_method: "POST",
+        status_callback: null,
+        status_callback_method: null,
+        friendly_name: "AutoShop Test",
+      },
+      error: null,
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/internal/admin/tenants/${TENANT_ID}/pilot-readiness`,
+    });
+
+    const body = res.json();
+    expect(body.verdict).toBe("not_ready");
+    const smsCheck = body.checks.find((c: any) => c.id === "twilio_sms_webhook");
+    expect(smsCheck.pass).toBe(false);
+    expect(smsCheck.detail).toContain("MISMATCH");
+    expect(smsCheck.detail).toContain("old-domain.example.com");
+    expect(smsCheck.detail).toContain("Twilio Console");
+  });
+
+  it("returns 'not_ready' when Twilio Voice webhook URL is wrong", async () => {
+    const app = await buildApp();
+    setupMocks();
+    mocks.fetchTwilioNumberConfig.mockResolvedValue({
+      success: true,
+      config: {
+        sms_url: `${TEST_ORIGIN}/webhooks/twilio/sms`,
+        sms_method: "POST",
+        voice_url: "https://wrong.example.com/webhooks/twilio/voice",
+        voice_method: "POST",
+        status_callback: null,
+        status_callback_method: null,
+        friendly_name: "AutoShop Test",
+      },
+      error: null,
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/internal/admin/tenants/${TENANT_ID}/pilot-readiness`,
+    });
+
+    const body = res.json();
+    expect(body.verdict).toBe("not_ready");
+    const voiceCheck = body.checks.find((c: any) => c.id === "twilio_voice_webhook");
+    expect(voiceCheck.pass).toBe(false);
+    expect(voiceCheck.detail).toContain("MISMATCH");
+    expect(voiceCheck.detail).toContain("wrong.example.com");
+  });
+
+  it("shows error detail when Twilio API call fails", async () => {
+    const app = await buildApp();
+    setupMocks();
+    mocks.fetchTwilioNumberConfig.mockResolvedValue({
+      success: false,
+      config: null,
+      error: "Twilio API 401: Authentication failed",
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/internal/admin/tenants/${TENANT_ID}/pilot-readiness`,
+    });
+
+    const body = res.json();
+    expect(body.verdict).toBe("not_ready");
+    const smsCheck = body.checks.find((c: any) => c.id === "twilio_sms_webhook");
+    expect(smsCheck.pass).toBe(false);
+    expect(smsCheck.detail).toContain("Cannot verify");
+    expect(smsCheck.detail).toContain("Authentication failed");
+  });
+
+  it("shows error when PUBLIC_ORIGIN is not set", async () => {
+    const app = await buildApp();
+    setupMocks();
+    delete process.env.PUBLIC_ORIGIN;
+    delete process.env.API_BASE_URL;
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/internal/admin/tenants/${TENANT_ID}/pilot-readiness`,
+    });
+
+    const body = res.json();
+    expect(body.verdict).toBe("not_ready");
+    const smsCheck = body.checks.find((c: any) => c.id === "twilio_sms_webhook");
+    expect(smsCheck.pass).toBe(false);
+    expect(smsCheck.detail).toContain("PUBLIC_ORIGIN not configured");
+
+    // Restore for other tests
+    process.env.PUBLIC_ORIGIN = TEST_ORIGIN;
   });
 });
