@@ -6,6 +6,7 @@ import { query } from "../../db/client";
 const BootstrapBody = z.object({
   email: z.string().email(),
   password: z.string().min(8, "Password must be at least 8 characters"),
+  force: z.boolean().optional(),
 });
 
 /**
@@ -50,7 +51,7 @@ export async function adminBootstrapRoute(app: FastifyInstance) {
       });
     }
 
-    const { email, password } = parsed.data;
+    const { email, password, force } = parsed.data;
     const normalizedEmail = email.toLowerCase().trim();
 
     // ── Verify email is in ADMIN_EMAILS allowlist ────────────────────────────
@@ -87,27 +88,27 @@ export async function adminBootstrapRoute(app: FastifyInstance) {
     if (existing.length > 0) {
       const tenant = existing[0];
 
-      if (tenant.password_hash) {
+      if (tenant.password_hash && !force) {
         return reply.status(409).send({
-          error: "This tenant already has a password set. Use the login flow.",
+          error: "This tenant already has a password set. Use the login flow, or pass force:true to reset.",
           tenantId: tenant.id,
         });
       }
 
-      // Set password on existing tenant
+      // Set or reset password on existing tenant
       await query(
         "UPDATE tenants SET password_hash = $1 WHERE id = $2",
         [passwordHash, tenant.id],
       );
 
       request.log.info(
-        { tenantId: tenant.id, email: normalizedEmail },
+        { tenantId: tenant.id, email: normalizedEmail, reset: !!tenant.password_hash },
         "Admin bootstrap: password_hash set on existing tenant",
       );
 
       return reply.status(200).send({
         ok: true,
-        action: "password_set",
+        action: tenant.password_hash ? "password_reset" : "password_set",
         tenantId: tenant.id,
         shopName: tenant.shop_name,
         message: "Password set. You can now log in at /login.html",
