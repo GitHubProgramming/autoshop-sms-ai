@@ -66,7 +66,7 @@ function mockOverviewWithCount(count: number) {
   });
 }
 
-function assertNoCacheHeaders(headers: Record<string, string | string[] | undefined>) {
+function assertNoCacheHeaders(headers: Record<string, string | number | string[] | undefined>) {
   expect(headers["cache-control"]).toContain("no-store");
   expect(headers["cache-control"]).toContain("no-cache");
   expect(headers["cache-control"]).toContain("must-revalidate");
