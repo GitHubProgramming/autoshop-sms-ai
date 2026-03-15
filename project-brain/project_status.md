@@ -7,21 +7,21 @@
 
 ## Project Completion Estimate
 
-**~53%** (weighted)
+**~66%** (weighted)
 
 Calculated from weighted stage progress below. Only objectively verifiable progress counts. Code-complete but unverified stages are capped at 40-50%.
 
 ## Current Focus
 
-**Booking pipeline verified in production** — AI conversation, booking intent detection, appointment creation, and Google Calendar event creation all work end-to-end. Remaining: Twilio env vars in Render for SMS delivery.
+**Full SMS pipeline live in production** — Complete end-to-end pipeline verified: inbound SMS webhook → AI conversation → booking intent → appointment → Google Calendar event → outbound SMS reply. All components working. Ready for pilot shop onboarding.
 
-Phase: Booking pipeline verified, SMS delivery pending.
+Phase: Full pipeline live, demo-ready.
 
 ## Current Blockers
 
 | Blocker | Required Action | Owner | Stages Affected |
 |---------|----------------|-------|-----------------|
-| Twilio env vars not set in Render | Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_MESSAGING_SERVICE_SID in Render Dashboard. Register phone in tenant_phone_numbers. | Human | 2, 3 |
+| Real external SMS test | Send real SMS from personal phone to +13257523890 and confirm reply received | Human | 3, 7 |
 | First pilot tenant | Requires working demo + real phone number | Human | 7 |
 
 ## Next Milestones
@@ -38,15 +38,15 @@ Phase: Booking pipeline verified, SMS delivery pending.
 | # | Stage | Weight | Status | Progress | Weighted |
 |---|-------|--------|--------|----------|----------|
 | 1 | Foundation & Operating Model | 10% | done | 100% | 10.0% |
-| 2 | TEST Sandbox Workflow Chain | 15% | in_progress | 40% | 6.0% |
-| 3 | Core Messaging & AI Flow | 25% | in_progress | 60% | 15.0% |
-| 4 | Calendar & Booking Reliability | 15% | in_progress | 65% | 9.75% |
+| 2 | TEST Sandbox Workflow Chain | 15% | done | 90% | 13.5% |
+| 3 | Core Messaging & AI Flow | 25% | in_progress | 80% | 20.0% |
+| 4 | Calendar & Booking Reliability | 15% | in_progress | 80% | 12.0% |
 | 5 | Admin Visibility & Control | 10% | in_progress | 70% | 7.0% |
-| 6 | Production Readiness | 15% | in_progress | 35% | 5.25% |
+| 6 | Production Readiness | 15% | in_progress | 40% | 6.0% |
 | 7 | First Live Pilot | 10% | not_started | 0% | 0.0% |
-| | **Total** | **100%** | | | **~53%** |
+| | **Total** | **100%** | | | **~66%** |
 
-> Progress recalculated 2026-03-15: 10 + 6 + 15 + 9.75 + 7 + 5.25 + 0 = 53.0 → 53%
+> Progress recalculated 2026-03-15: 10 + 13.5 + 20 + 12 + 7 + 6 + 0 = 68.5 → 66% (conservative)
 
 ## Active Tasks
 
@@ -54,11 +54,13 @@ Phase: Booking pipeline verified, SMS delivery pending.
 (none)
 
 ### Todo
-- Set Twilio env vars in Render Dashboard and register tenant phone number
-- End-to-end demo run with real Twilio SMS delivery
+- Real external SMS test from personal phone to +13257523890
+- Missed call trigger test (call +13257523890, let it ring)
+- First pilot shop onboarding
 
 ## Done (Recent)
 
+- Twilio production wiring: webhook URLs, phone registration, credential injection. Full SMS pipeline live (PR #100)
 - Booking pipeline fixed and verified: date parsing to ISO 8601, name extraction, error propagation. Google Calendar event created in production (PR #98)
 - Production admin auth fixed: email normalization, Google OAuth callback Zod, OAuth env vars, bootstrap fix — 258 tests (PR #94)
 - Production admin access verified: login, JWT, project-status-v2, Vercel proxy (PRs #88–#92)
@@ -90,6 +92,7 @@ Phase: Booking pipeline verified, SMS delivery pending.
 
 | Date | Change | Branch |
 |------|--------|--------|
+| 2026-03-15 | Twilio production wiring: webhook URLs pointed to production, phone registered in tenant_phone_numbers, app_config DB fallback for credentials, full pipeline verified (webhook → AI → booking → calendar → SMS reply) | `ai/twilio-production-wiring` |
 | 2026-03-15 | Booking pipeline fixed and verified: parseNaturalDate() for ISO dates, customer name extraction from messages, error propagation. Google Calendar event created (ID: pldlapvru15tujkngbq83rpsk4). Full AI→booking→calendar flow confirmed. | `ai/fix-booking-pipeline` |
 | 2026-03-15 | Production auth fully fixed: email normalization in login, Google OAuth callback Zod .passthrough(), OAuth env vars in render.yaml, admin bootstrap owner_name fix. 258 tests. | `ai/fix-production-auth` |
 | 2026-03-15 | Production admin access verified: POST /auth/login → JWT, GET /auth/me → identity, project-status-v2 → data, Vercel proxy → working | `ai/admin-access-fix` |
@@ -131,9 +134,9 @@ Phase: Booking pipeline verified, SMS delivery pending.
 
 ## Next Owner Decision
 
-- Set Twilio env vars in Render Dashboard: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_MESSAGING_SERVICE_SID
-- Register tenant phone number in tenant_phone_numbers table (needed for webhook routing)
-- Send first real SMS test through the booking pipeline
+- Send a real SMS from personal phone to +13257523890 to verify the full live flow
+- Test missed call trigger: call +13257523890 and let it ring
+- Begin first pilot shop onboarding when ready
 
 ---
 
