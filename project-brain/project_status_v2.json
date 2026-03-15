@@ -260,6 +260,12 @@
           "title": "Tenant health monitoring",
           "status": "todo",
           "owner": "ai"
+        },
+        {
+          "id": "pilot_readiness_check",
+          "title": "Pilot tenant readiness check for live-test validation",
+          "status": "done",
+          "owner": "ai"
         }
       ],
       "next_task": "Add tenant health monitoring and conversation metrics panels",
@@ -370,6 +376,13 @@
     }
   ],
   "recent_movements": [
+    {
+      "date": "2026-03-15",
+      "type": "task_done",
+      "title": "Pilot tenant readiness check for live-test validation",
+      "impact": "Operator can now see exactly what's missing before running a real missed-call/SMS test on any tenant. 9 checks in live-path order with ready/not_ready verdict.",
+      "branch": "ai/pilot-readiness-check"
+    },
     {
       "date": "2026-03-15",
       "type": "task_done",
