@@ -9,6 +9,43 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: live-env-hardening — 2026-03-15
+
+**Branch:** ai/live-env-hardening
+**Status:** COMPLETE — Production hardening: startup env validation, shutdown timeout, safe webhook enqueue
+
+### Selected Task
+Live environment hardening — reduce silent failure modes in the production pipeline.
+
+### Why This Is BUILD Work
+The SMS pipeline code is functionally complete but has three production failure modes:
+1. **Missing env vars** (OPENAI_API_KEY, TWILIO_*) — service starts fine, silently fails on first customer SMS
+2. **Hung shutdown** — if any connection close hangs, process never exits and Docker must force-kill
+3. **Redis down during webhook** — Twilio gets 500, retries for 15s, customer waits forever
+
+These directly reduce execution risk in the live missed-call → SMS → AI → booking → calendar path.
+
+### Changes
+- `apps/api/src/index.ts` — Startup env validation (fail fast in production if pipeline vars missing, warn in dev). Graceful shutdown with 30s timeout to prevent hung processes.
+- `apps/api/src/routes/webhooks/twilio-sms.ts` — Wrap queue.add() in try/catch: always return 200 to Twilio even if Redis is down, log error for operator visibility.
+- `apps/api/src/routes/webhooks/twilio-voice-status.ts` — Same safe enqueue pattern for missed-call trigger.
+- `apps/api/src/routes/health.ts` — Enhanced: reports pipeline env var status (ok/missing), returns "degraded" when pipeline vars are absent.
+
+### Verification
+```
+VERIFICATION
+EXIT_CODE=0
+TEST_FILES=18
+TESTS_TOTAL=289
+TESTS_FAILED=0
+DURATION=5.01s
+```
+- TypeScript: clean (tsc --noEmit)
+- Lint: 0 errors (62 pre-existing warnings, no new ones)
+- All 289 tests pass
+
+---
+
 ## TASK: twilio-voice-webhook — 2026-03-15
 
 **Branch:** ai/twilio-voice-webhook

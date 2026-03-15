@@ -46,6 +46,42 @@ const app = Fastify({
 });
 
 async function bootstrap() {
+  // ── Validate required env vars at startup ───────────────────
+  // Fail fast: detect missing config before accepting any traffic.
+  const requiredEnv: Record<string, string> = {
+    JWT_SECRET: "Auth tokens (generate: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\")",
+    DATABASE_URL: "Postgres connection string",
+    REDIS_URL: "Redis/BullMQ connection string",
+  };
+  // Pipeline vars: required in production, warned in development
+  const pipelineEnv: Record<string, string> = {
+    OPENAI_API_KEY: "AI conversation replies",
+    TWILIO_ACCOUNT_SID: "Twilio webhook validation + SMS sending",
+    TWILIO_AUTH_TOKEN: "Twilio webhook signature validation",
+  };
+
+  const missing: string[] = [];
+  for (const [key, desc] of Object.entries(requiredEnv)) {
+    if (!process.env[key]) missing.push(`  ${key} — ${desc}`);
+  }
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing required environment variables:\n${missing.join("\n")}`
+    );
+  }
+
+  const missingPipeline: string[] = [];
+  for (const [key, desc] of Object.entries(pipelineEnv)) {
+    if (!process.env[key]) missingPipeline.push(`  ${key} — ${desc}`);
+  }
+  if (missingPipeline.length > 0) {
+    const msg = `Missing pipeline environment variables (SMS flow will fail):\n${missingPipeline.join("\n")}`;
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(msg);
+    }
+    app.log.warn(msg);
+  }
+
   // ── BullMQ workers ────────────────────────────────────────
   const smsWorker = startSmsInboundWorker();
   const provisionWorker = startProvisionNumberWorker();
@@ -59,13 +95,8 @@ async function bootstrap() {
   });
 
   // ── JWT auth ──────────────────────────────────────────────
-  if (!process.env.JWT_SECRET) {
-    throw new Error(
-      "JWT_SECRET env var is required. " +
-      "Generate: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
-    );
-  }
-  await app.register(fastifyJwt, { secret: process.env.JWT_SECRET });
+  // JWT_SECRET is validated in the requiredEnv block above — safe to assert.
+  await app.register(fastifyJwt, { secret: process.env.JWT_SECRET! });
 
   // ── Body parsers ──────────────────────────────────────────
   await app.register(formbody);
@@ -115,16 +146,30 @@ async function bootstrap() {
   });
 
   // ── Graceful shutdown ─────────────────────────────────────
+  const SHUTDOWN_TIMEOUT_MS = 30_000;
   const signals: NodeJS.Signals[] = ["SIGINT", "SIGTERM"];
   for (const signal of signals) {
     process.on(signal, async () => {
       app.log.info(`Received ${signal}, shutting down...`);
-      await app.close();
-      await smsWorker.close();
-      await provisionWorker.close();
-      await billingWorker.close();
-      await db.end();
-      redis.disconnect();
+
+      // Force-exit if graceful shutdown hangs
+      const forceTimer = setTimeout(() => {
+        app.log.error("Graceful shutdown timed out — forcing exit");
+        process.exit(1);
+      }, SHUTDOWN_TIMEOUT_MS);
+      forceTimer.unref(); // Don't keep process alive just for the timer
+
+      try {
+        await app.close();
+        await smsWorker.close();
+        await provisionWorker.close();
+        await billingWorker.close();
+        await db.end();
+        redis.disconnect();
+      } catch (err) {
+        app.log.error({ err }, "Error during shutdown");
+      }
+      clearTimeout(forceTimer);
       process.exit(0);
     });
   }
