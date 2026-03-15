@@ -110,6 +110,8 @@ export async function adminRoute(app: FastifyInstance) {
       needsAttentionRows,
       recentBillingEventsRows,
       recentConversationsRows,
+      pendingManualRows,
+      failedBookingsRows,
     ] = await Promise.all([
       query(`SELECT billing_status, COUNT(*) as count FROM tenants WHERE is_test = FALSE GROUP BY billing_status`),
       query(`SELECT COUNT(*)::int FROM tenants WHERE created_at > NOW() - INTERVAL '7 days' AND is_test = FALSE`),
@@ -140,6 +142,8 @@ export async function adminRoute(app: FastifyInstance) {
          FROM conversations c JOIN tenants t ON t.id = c.tenant_id
          WHERE t.is_test = FALSE
          ORDER BY c.opened_at DESC LIMIT 5`),
+      query(`SELECT COUNT(*)::int FROM appointments a JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE WHERE a.booking_state = 'PENDING_MANUAL_CONFIRMATION'`),
+      query(`SELECT COUNT(*)::int FROM appointments a JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE WHERE a.booking_state = 'FAILED'`),
     ]);
 
     // Build status map
@@ -166,6 +170,8 @@ export async function adminRoute(app: FastifyInstance) {
       needs_attention: needsAttentionRows,
       recent_billing_events: recentBillingEventsRows,
       recent_conversations: recentConversationsRows,
+      pending_manual_bookings: (pendingManualRows as any[])[0]?.count ?? 0,
+      failed_bookings: (failedBookingsRows as any[])[0]?.count ?? 0,
     });
   });
 
@@ -255,7 +261,7 @@ export async function adminRoute(app: FastifyInstance) {
       query(`SELECT id, calendar_id, connected_at, last_refreshed, token_expiry FROM tenant_calendar_tokens WHERE tenant_id = $1`, [id]),
       query(`SELECT id, customer_phone, status, turn_count, opened_at, last_message_at, closed_at, close_reason
          FROM conversations WHERE tenant_id = $1 ORDER BY opened_at DESC LIMIT 20`, [id]),
-      query(`SELECT id, customer_phone, customer_name, service_type, scheduled_at, calendar_synced, google_event_id, created_at
+      query(`SELECT id, customer_phone, customer_name, service_type, scheduled_at, calendar_synced, google_event_id, booking_state, created_at
          FROM appointments WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 10`, [id]),
       query(`SELECT id, event_type, processed_at, payload FROM billing_events WHERE tenant_id = $1 ORDER BY processed_at DESC LIMIT 20`, [id]),
       query(`SELECT id, event_type, actor, metadata, created_at FROM audit_log WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 20`, [id]),
@@ -293,6 +299,7 @@ export async function adminRoute(app: FastifyInstance) {
          c.opened_at, c.last_message_at, c.closed_at, c.close_reason,
          EXISTS(SELECT 1 FROM appointments a WHERE a.conversation_id = c.id) as has_booking,
          (SELECT calendar_synced FROM appointments a WHERE a.conversation_id = c.id LIMIT 1) as booking_synced,
+         (SELECT booking_state FROM appointments a WHERE a.conversation_id = c.id LIMIT 1) as booking_state,
          (SELECT COUNT(*)::int FROM messages m WHERE m.conversation_id = c.id) as message_count
        FROM conversations c
        JOIN tenants t ON t.id = c.tenant_id
@@ -337,7 +344,7 @@ export async function adminRoute(app: FastifyInstance) {
     const bookings = await query(
       `SELECT a.id, a.tenant_id, t.shop_name, a.customer_phone, a.customer_name,
          a.service_type, a.scheduled_at, a.calendar_synced, a.google_event_id, a.created_at,
-         a.conversation_id,
+         a.conversation_id, a.booking_state,
          CASE WHEN NOT a.calendar_synced AND a.google_event_id IS NULL THEN 'sync_failed'
               WHEN NOT a.calendar_synced THEN 'pending'
               ELSE 'synced' END as sync_status

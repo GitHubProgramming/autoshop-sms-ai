@@ -1113,14 +1113,20 @@ async function loadDashboardData() {
 
     // ── Map bookings ──
     bookingsData = (data.recent_bookings || []).map(function(b) {
-      var syncStatus = b.calendar_synced ? 'synced' : (b.google_event_id ? 'pending' : 'failed');
+      var stateMap = {
+        'CONFIRMED_CALENDAR': { status: 'synced', label: 'Confirmed', note: '' },
+        'PENDING_MANUAL_CONFIRMATION': { status: 'pending', label: 'Needs Manual Confirmation', note: 'Calendar sync failed — confirm this booking manually.' },
+        'FAILED': { status: 'failed', label: 'Failed', note: 'Booking failed — contact customer to reschedule.' },
+      };
+      var mapped = stateMap[b.booking_state] || { status: b.calendar_synced ? 'synced' : 'failed', label: b.calendar_synced ? 'Confirmed' : 'Failed', note: '' };
       return {
         date: fmtDate(b.scheduled_at || b.created_at),
         phone: fmtPhone(b.customer_phone),
         service: b.service_type || 'Appointment',
         vehicle: b.customer_name || '—',
-        syncStatus: syncStatus,
-        failNote: syncStatus === 'failed' ? 'Not synced to Google Calendar.' : ''
+        syncStatus: mapped.status,
+        syncLabel: mapped.label,
+        failNote: mapped.note
       };
     });
 
@@ -1484,10 +1490,12 @@ function renderBookingsCalendarAlert() {
 
 function renderBookings() {
   const html = bookingsData.map(b => {
-    const syncEl = `<span class="status-pill ${b.syncStatus}">${b.syncStatus.charAt(0).toUpperCase() + b.syncStatus.slice(1)}</span>`;
+    const syncEl = `<span class="status-pill ${b.syncStatus}">${b.syncLabel || b.syncStatus.charAt(0).toUpperCase() + b.syncStatus.slice(1)}</span>`;
     const failNote = b.failNote ? `<div style="font-family:var(--mono);font-size:11px;color:var(--red);margin-top:4px;">${b.failNote}</div>` : '';
     const action = b.syncStatus === 'failed'
       ? `<button class="view-btn red" onclick="showToast('Retrying calendar sync...')">Retry Sync</button>`
+      : b.syncStatus === 'pending'
+      ? `<span style="font-family:var(--mono);font-size:11px;color:var(--amber);font-weight:600;">Action Needed</span>`
       : `<span style="font-family:var(--mono);font-size:11px;color:var(--steel);">—</span>`;
     return `<tr>
       <td class="td-date">${b.date}</td>
