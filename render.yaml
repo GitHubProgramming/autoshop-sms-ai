@@ -55,6 +55,8 @@ services:
         sync: false
       - key: INTERNAL_API_KEY
         generateValue: true
+      - key: ADMIN_BOOTSTRAP_KEY
+        value: "bootstrap-2026-03-15-a7x9k2m4"
       - key: ADMIN_EMAILS
         value: "mantas.gipiskis@gmail.com"
       - key: SKIP_TWILIO_VALIDATION
