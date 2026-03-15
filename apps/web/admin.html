@@ -820,9 +820,9 @@ async function loadAccountDetail(id) {
 
 function renderAccountDetail(d) {
   const t = d.tenant;
-  const tabs = ['summary','settings','usage','billing','conversations','bookings','integrations','billing_events','audit'];
+  const tabs = ['summary','readiness','settings','usage','billing','conversations','bookings','integrations','billing_events','audit'];
   const tabLabels = {
-    summary:'Summary', settings:'Settings', usage:'Usage', billing:'Billing', conversations:'Conversations',
+    summary:'Summary', readiness:'Readiness', settings:'Settings', usage:'Usage', billing:'Billing', conversations:'Conversations',
     bookings:'Bookings', integrations:'Integrations', billing_events:'Billing Events', audit:'Audit Log'
   };
 
@@ -859,6 +859,17 @@ function renderAccountDetail(d) {
             </div>
           </div>
         </div>`;
+      break;
+
+    case 'readiness':
+      tabContent = `
+        <div class="panel" id="readinessPanel">
+          <div class="panel-header"><span class="panel-title">Pilot Readiness — Live-Test Checklist</span></div>
+          <div class="panel-body" id="readinessBody">
+            <div class="loading"><div class="spinner"></div> Checking readiness...</div>
+          </div>
+        </div>`;
+      setTimeout(() => loadPilotReadiness(t.id), 0);
       break;
 
     case 'settings':
@@ -1055,6 +1066,82 @@ function renderAccountDetail(d) {
 function switchAccountTab(tab) {
   accountDetailTab = tab;
   renderAccountDetail(window._accountDetailData);
+}
+
+// ── PILOT READINESS ─────────────────────────────────────────────────────────
+async function loadPilotReadiness(tenantId) {
+  const body = document.getElementById('readinessBody');
+  if (!body) return;
+  try {
+    const r = await apiFetch(`/internal/admin/tenants/${tenantId}/pilot-readiness`);
+
+    const verdictColor = r.verdict === 'ready' ? 'var(--green)' :
+                          r.verdict === 'ready_with_warnings' ? 'var(--amber)' : 'var(--red)';
+    const verdictLabel = r.verdict === 'ready' ? 'READY FOR LIVE TEST' :
+                          r.verdict === 'ready_with_warnings' ? 'READY (with warnings)' : 'NOT READY';
+    const verdictIcon = r.verdict === 'ready' ? '&#10003;' :
+                         r.verdict === 'ready_with_warnings' ? '!' : '&#10007;';
+
+    body.innerHTML = `
+      <div style="text-align:center;padding:24px 0 20px;border-bottom:1px solid var(--border);margin-bottom:20px">
+        <div style="display:inline-flex;align-items:center;gap:12px;padding:16px 32px;border-radius:12px;
+             border:2px solid ${verdictColor};background:${verdictColor}10">
+          <span style="font-size:28px;font-weight:700;color:${verdictColor}">${verdictIcon}</span>
+          <div>
+            <div style="font-size:20px;font-weight:700;color:${verdictColor};letter-spacing:-.01em">${verdictLabel}</div>
+            <div style="font-size:13px;color:var(--steel);margin-top:2px">${escHtml(r.summary)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="font-weight:700;font-size:14px;margin-bottom:12px;color:var(--white)">
+        Live Path: Twilio &rarr; Voice/SMS &rarr; Forward &rarr; Missed-call &rarr; AI Reply &rarr; Calendar
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${r.checks.map(c => `
+          <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-radius:10px;
+               border:1px solid ${c.pass ? 'var(--border)' : c.critical ? 'rgba(239,68,68,.3)' : 'rgba(245,158,11,.3)'};
+               background:${c.pass ? 'var(--bg)' : c.critical ? 'rgba(239,68,68,.04)' : 'rgba(245,158,11,.04)'}">
+            <span style="font-size:18px;flex-shrink:0;margin-top:1px;width:24px;text-align:center;
+                  color:${c.pass ? 'var(--green)' : c.critical ? 'var(--red)' : 'var(--amber)'}">
+              ${c.pass ? '&#10003;' : c.critical ? '&#10007;' : '!'}
+            </span>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:14px;color:var(--white);display:flex;align-items:center;gap:8px">
+                ${escHtml(c.label)}
+                ${c.critical ? '<span style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--red);background:rgba(239,68,68,.08);padding:2px 6px;border-radius:4px">critical</span>' : ''}
+              </div>
+              <div style="font-size:12px;color:var(--steel);margin-top:3px;font-family:var(--mono);word-break:break-all">${escHtml(c.detail)}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      ${r.blockers.length > 0 ? `
+        <div style="margin-top:24px;padding:16px;border-radius:10px;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2)">
+          <div style="font-weight:700;font-size:13px;color:var(--red);margin-bottom:8px">Blockers — must fix before live test</div>
+          <ul style="margin:0;padding-left:20px;color:var(--white);font-size:13px;line-height:1.8">
+            ${r.blockers.map(b => `<li><strong>${escHtml(b.label)}</strong>: ${escHtml(b.detail)}</li>`).join('')}
+          </ul>
+        </div>` : ''}
+
+      ${r.warnings.length > 0 ? `
+        <div style="margin-top:12px;padding:16px;border-radius:10px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2)">
+          <div style="font-weight:700;font-size:13px;color:var(--amber);margin-bottom:8px">Warnings — recommended before live test</div>
+          <ul style="margin:0;padding-left:20px;color:var(--white);font-size:13px;line-height:1.8">
+            ${r.warnings.map(w => `<li><strong>${escHtml(w.label)}</strong>: ${escHtml(w.detail)}</li>`).join('')}
+          </ul>
+        </div>` : ''}
+
+      <div style="margin-top:20px;padding:12px 16px;border-radius:8px;background:var(--bg);border:1px solid var(--border);
+           font-size:12px;color:var(--steel);font-family:var(--mono)">
+        Checked at ${new Date().toLocaleString()} — refresh the tab to re-check
+      </div>
+    `;
+  } catch (err) {
+    body.innerHTML = renderError(err);
+  }
 }
 
 // ── TENANT SETTINGS ─────────────────────────────────────────────────────────

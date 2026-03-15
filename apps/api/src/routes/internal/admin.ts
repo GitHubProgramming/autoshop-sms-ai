@@ -865,6 +865,164 @@ export async function adminRoute(app: FastifyInstance) {
     });
   });
 
+  // ── GET /internal/admin/tenants/:id/pilot-readiness ─────────────────────
+  app.get("/admin/tenants/:id/pilot-readiness", { preHandler: [adminGuard] }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const [tenantRows, phoneRows, calendarRows, promptRows] = await Promise.all([
+      query<{
+        shop_name: string | null;
+        owner_phone: string | null;
+        billing_status: string;
+        trial_ends_at: string | null;
+        missed_call_sms_template: string | null;
+        business_hours: string | null;
+        services_description: string | null;
+      }>(
+        `SELECT shop_name, owner_phone, billing_status, trial_ends_at,
+                missed_call_sms_template, business_hours, services_description
+         FROM tenants WHERE id = $1`,
+        [id]
+      ),
+      query<{ phone_number: string; forward_to: string | null; status: string }>(
+        `SELECT phone_number, forward_to, status FROM tenant_phone_numbers
+         WHERE tenant_id = $1 AND status = 'active'
+         ORDER BY provisioned_at DESC LIMIT 1`,
+        [id]
+      ),
+      query<{ token_expiry: string | null; connected_at: string | null }>(
+        `SELECT token_expiry, connected_at FROM tenant_calendar_tokens
+         WHERE tenant_id = $1 LIMIT 1`,
+        [id]
+      ),
+      query<{ prompt_text: string }>(
+        `SELECT prompt_text FROM system_prompts
+         WHERE tenant_id = $1 AND is_active = TRUE
+         ORDER BY version DESC LIMIT 1`,
+        [id]
+      ),
+    ]);
+
+    if ((tenantRows as any[]).length === 0) {
+      return reply.status(404).send({ error: "Tenant not found" });
+    }
+
+    const tenant = (tenantRows as any[])[0];
+    const phone = (phoneRows as any[])[0] ?? null;
+    const calendar = (calendarRows as any[])[0] ?? null;
+    const prompt = (promptRows as any[])[0] ?? null;
+
+    // Billing must be in a usable state
+    const blockedBillingStatuses = ["trial_expired", "canceled", "past_due_blocked"];
+    const billingOk = !blockedBillingStatuses.includes(tenant.billing_status);
+
+    // Build readiness checks — ordered by the live path:
+    // Twilio number → voice/sms webhook → forward_to → missed-call trigger → AI reply → calendar
+    const checks = [
+      {
+        id: "twilio_number",
+        label: "Twilio number assigned",
+        pass: !!phone,
+        detail: phone ? phone.phone_number : "No active phone number provisioned",
+        critical: true,
+      },
+      {
+        id: "forward_to",
+        label: "Call forwarding configured",
+        pass: !!phone?.forward_to,
+        detail: phone?.forward_to
+          ? `Calls forward to ${phone.forward_to}`
+          : "No forward_to number — incoming calls won't ring the shop",
+        critical: true,
+      },
+      {
+        id: "sms_template",
+        label: "Missed-call SMS template set",
+        pass: !!tenant.missed_call_sms_template?.trim(),
+        detail: tenant.missed_call_sms_template
+          ? `Template: "${tenant.missed_call_sms_template.substring(0, 80)}${tenant.missed_call_sms_template.length > 80 ? '...' : ''}"`
+          : "No SMS template — missed calls won't trigger outbound SMS",
+        critical: true,
+      },
+      {
+        id: "ai_prompt",
+        label: "AI system prompt configured",
+        pass: !!prompt?.prompt_text?.trim(),
+        detail: prompt
+          ? `Active prompt: ${prompt.prompt_text.substring(0, 60)}...`
+          : "No active AI prompt — conversations will use generic defaults",
+        critical: false,
+      },
+      {
+        id: "business_hours",
+        label: "Business hours set",
+        pass: !!tenant.business_hours?.trim(),
+        detail: tenant.business_hours || "Not configured — AI won't know shop hours",
+        critical: false,
+      },
+      {
+        id: "services",
+        label: "Services description set",
+        pass: !!tenant.services_description?.trim(),
+        detail: tenant.services_description
+          ? `${tenant.services_description.substring(0, 80)}${tenant.services_description.length > 80 ? '...' : ''}`
+          : "Not configured — AI won't know what services the shop offers",
+        critical: false,
+      },
+      {
+        id: "calendar_connected",
+        label: "Google Calendar connected",
+        pass: !!calendar?.connected_at,
+        detail: calendar?.connected_at
+          ? `Connected ${new Date(calendar.connected_at).toLocaleDateString()}`
+          : "OAuth not completed — bookings won't sync to calendar",
+        critical: true,
+      },
+      {
+        id: "calendar_token_valid",
+        label: "Calendar token not expired",
+        pass: !!calendar?.token_expiry && new Date(calendar.token_expiry) > new Date(),
+        detail: calendar?.token_expiry
+          ? `Expires ${new Date(calendar.token_expiry).toLocaleString()}`
+          : "No token — complete OAuth flow first",
+        critical: true,
+      },
+      {
+        id: "billing_active",
+        label: "Billing status allows operation",
+        pass: billingOk,
+        detail: `Status: ${tenant.billing_status}${!billingOk ? " — tenant is blocked from operating" : ""}`,
+        critical: true,
+      },
+    ];
+
+    const criticalPassed = checks.filter(c => c.critical && c.pass).length;
+    const criticalTotal = checks.filter(c => c.critical).length;
+    const allPassed = checks.every(c => c.pass);
+    const criticalAllPassed = checks.filter(c => c.critical).every(c => c.pass);
+    const blockers = checks.filter(c => c.critical && !c.pass);
+    const warnings = checks.filter(c => !c.critical && !c.pass);
+
+    let verdict: "ready" | "not_ready" | "ready_with_warnings";
+    if (!criticalAllPassed) {
+      verdict = "not_ready";
+    } else if (!allPassed) {
+      verdict = "ready_with_warnings";
+    } else {
+      verdict = "ready";
+    }
+
+    return reply.status(200).send({
+      tenant_id: id,
+      shop_name: tenant.shop_name,
+      verdict,
+      summary: `${criticalPassed}/${criticalTotal} critical checks passed`,
+      checks,
+      blockers: blockers.map(b => ({ id: b.id, label: b.label, detail: b.detail })),
+      warnings: warnings.map(w => ({ id: w.id, label: w.label, detail: w.detail })),
+    });
+  });
+
   // ── PUT /internal/admin/tenants/:id/settings ────────────────────────────
   const E164_REGEX = /^\+[1-9]\d{1,14}$/;
   const SettingsSchema = z.object({
