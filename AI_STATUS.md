@@ -9,6 +9,74 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: twilio-production-wiring — 2026-03-15
+
+**Branch:** ai/twilio-production-wiring
+**Status:** COMPLETE — Full production SMS → AI → booking → Google Calendar pipeline working end-to-end
+**PR:** #100
+
+### Selected Task
+Wire Twilio for live production: webhook URLs, phone number registration, credential injection.
+
+### Exact Remaining Wiring Issues Found & Fixed
+1. **Twilio Messaging Service inbound URL** → pointed to old n8n cloud (`bandomasis.app.n8n.cloud`). Updated via Twilio API to `autoshop-api-7ek9.onrender.com/webhooks/twilio/sms`.
+2. **Phone number SMS URL** → pointed to old ngrok dev tunnel. Updated to production.
+3. **Voice status callback** → pointed to old n8n cloud. Updated to production.
+4. **tenant_phone_numbers** → No record for +13257523890. Added via migration 012.
+5. **Twilio env vars** → Not set in Render Dashboard. Created DB-backed `app_config` table (migration 013) with `getConfig()` fallback. Injected credentials via `POST /internal/config`.
+
+### Exact Twilio/Tenant Mapping Fix
+- Phone: +13257523890 (Texas 325)
+- Twilio SID: PNf77089f763ad788a2ea7bf65e71c181a
+- Tenant: 90d1e2f2-b499-4710-9134-bab0a9a5ab4c
+- Registered in `tenant_phone_numbers` via migration 012
+
+### Files/Config Changed
+- `db/migrations/012_register_twilio_phone.sql` — Phone number registration
+- `db/migrations/013_app_config.sql` — Runtime config table
+- `apps/api/src/db/app-config.ts` — `getConfig()` env + DB fallback
+- `apps/api/src/routes/internal/config.ts` — POST/GET config endpoint
+- `apps/api/src/services/missed-call-sms.ts` — `sendTwilioSms()` uses `getConfig()`
+- `apps/api/src/middleware/twilio-validate.ts` — Signature validation uses `getConfig()`
+- `apps/api/src/index.ts` — Config route registration
+- Twilio Messaging Service inbound URL (updated via API)
+- Twilio phone number webhook URLs (updated via API)
+
+### Production Verification Results (2026-03-15)
+| Check | Result | Evidence |
+|-------|--------|----------|
+| Twilio webhook processing | ✅ | HTTP 200, `<Response/>`, signature validated |
+| Tenant lookup by phone number | ✅ | +13257523890 → tenant 90d1e2f2 |
+| BullMQ job enqueue | ✅ | Worker processes job within seconds |
+| AI response generation | ✅ | "Your tire rotation is scheduled for tomorrow at 1 PM" |
+| Customer name extraction | ✅ | "Maria" extracted from "My name is Maria Garcia" |
+| Booking intent detection | ✅ | `isBooked: true`, confidence high |
+| Appointment creation | ✅ | ID: bc73b31b-584a-4576-8b56-a5cb511965a4 |
+| Google Calendar event | ✅ | `calendarSynced: true` |
+| Outbound SMS reply | ✅ | `smsSent: true` via Twilio API |
+| Conversation close | ✅ | `conversationClosed: true`, reason: booking_completed |
+
+### Real Inbound SMS Now Works
+**Yes** — webhook at `https://autoshop-api-7ek9.onrender.com/webhooks/twilio/sms` processes inbound SMS with valid Twilio signature, routes to tenant, enqueues BullMQ job, worker processes via process-sms.
+
+### Outbound SMS Reply Now Works
+**Yes** — `smsSent: true` confirmed. Twilio credentials resolved from DB-backed `app_config` table. SMS sent via Twilio REST API.
+
+### Google Calendar Event Created from Real SMS Flow
+**Yes** — `calendarSynced: true` confirmed. Google Calendar tokens auto-refreshed, event created on tenant's primary calendar.
+
+### Verification
+```
+VERIFICATION
+EXIT_CODE=0
+TEST_FILES=14
+TESTS_TOTAL=258
+TESTS_FAILED=0
+DURATION=4.03s
+```
+
+---
+
 ## TASK: fix-booking-pipeline — 2026-03-15
 
 **Branch:** ai/fix-booking-pipeline

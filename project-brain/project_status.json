@@ -1,9 +1,9 @@
 {
-  "overall_progress": 53,
+  "overall_progress": 66,
 
-  "current_phase": "Booking pipeline verified — AI, appointments, calendar sync all working in production",
+  "current_phase": "Full SMS pipeline live in production — demo-ready",
 
-  "current_focus": "Full booking pipeline verified in production: AI conversation, booking intent detection, appointment creation, and Google Calendar event creation all work end-to-end. Remaining: set Twilio env vars in Render for SMS delivery.",
+  "current_focus": "Complete end-to-end pipeline verified in production: inbound SMS webhook → AI conversation → booking intent → appointment creation → Google Calendar event → outbound SMS reply. All components working. Ready for pilot shop onboarding.",
 
   "stages": [
     {
@@ -17,22 +17,22 @@
       "id": 2,
       "name": "TEST Sandbox Workflow Chain",
       "weight": 15,
-      "status": "in_progress",
-      "progress": 40
+      "status": "done",
+      "progress": 90
     },
     {
       "id": 3,
       "name": "Core Messaging & AI Flow",
       "weight": 25,
       "status": "in_progress",
-      "progress": 60
+      "progress": 80
     },
     {
       "id": 4,
       "name": "Calendar & Booking Reliability",
       "weight": 15,
       "status": "in_progress",
-      "progress": 65
+      "progress": 80
     },
     {
       "id": 5,
@@ -46,7 +46,7 @@
       "name": "Production Readiness",
       "weight": 15,
       "status": "in_progress",
-      "progress": 35
+      "progress": 40
     },
     {
       "id": 7,
@@ -59,11 +59,13 @@
 
   "active_tasks": {
     "todo": [
-      "Set Twilio env vars in Render Dashboard and register tenant phone number",
-      "End-to-end demo run with real Twilio SMS delivery"
+      "Real external SMS test from personal phone to +13257523890",
+      "Missed call trigger test (call +13257523890, let it ring)",
+      "First pilot shop onboarding"
     ],
     "in_progress": [],
     "done": [
+      "Twilio production wiring: webhook URLs, phone registration, credential injection. Full SMS pipeline verified (PR #100)",
       "Booking pipeline fixed: date parsing, name extraction, error propagation. Calendar event verified in production (PR #98)",
       "Production admin auth fixed: email normalization, Google OAuth callback, bootstrap (PR #94)",
       "Production admin access verified end-to-end (login, JWT, project-status-v2, Vercel proxy)",
@@ -105,13 +107,13 @@
       ]
     },
     {
-      "name": "Twilio env vars not set in Render Dashboard",
-      "required_action": "Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_MESSAGING_SERVICE_SID in Render Dashboard. Then register tenant phone number in tenant_phone_numbers table.",
+      "name": "Real external SMS test (from real phone)",
+      "required_action": "Send a real SMS from an external phone to +13257523890 and confirm full pipeline execution including outbound reply received.",
       "owner": "Human",
-      "affects_stage_ids": [2, 3],
+      "affects_stage_ids": [3, 7],
       "affects_stages": [
-        "TEST Sandbox Workflow Chain",
-        "Core Messaging & AI Flow"
+        "Core Messaging & AI Flow",
+        "First Live Pilot"
       ]
     },
     {
@@ -126,6 +128,11 @@
   ],
 
   "recent_changes": [
+    {
+      "date": "2026-03-15",
+      "change": "Twilio production wiring complete: Messaging Service + phone number webhook URLs pointed to production API, phone number registered in tenant_phone_numbers (migration 012), app_config DB fallback for Twilio credentials (migration 013), sendTwilioSms + signature validation use getConfig(). Full pipeline verified: webhook → AI → booking → appointment → Google Calendar → SMS reply. 258 tests.",
+      "branch": "ai/twilio-production-wiring"
+    },
     {
       "date": "2026-03-15",
       "change": "Booking pipeline fixed and verified in production: natural date parsing to ISO 8601, customer name extraction from messages, error propagation. Google Calendar event created successfully (ID: pldlapvru15tujkngbq83rpsk4). Full AI→booking→calendar flow confirmed. 258 tests.",
@@ -306,8 +313,8 @@
   ],
 
   "next_owner_decision": [
-    "Set Twilio env vars in Render Dashboard: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_MESSAGING_SERVICE_SID",
-    "Register tenant phone number in tenant_phone_numbers table for webhook routing",
-    "Send first real SMS test through the booking pipeline"
+    "Send a real SMS from personal phone to +13257523890 to verify the full live flow",
+    "Test missed call trigger: call +13257523890 and let it ring",
+    "Begin first pilot shop onboarding when ready"
   ]
 }
