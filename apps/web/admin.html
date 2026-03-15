@@ -154,6 +154,17 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
 .badge.pending_manual_confirmation{background:rgba(217,119,6,.08);color:#b45309;border:1px solid rgba(217,119,6,.2);font-weight:600;}
 .badge.pending_manual_confirmation::before{background:var(--amber);animation:pulse-amber 1.5s infinite;}
 @keyframes pulse-amber{0%,100%{opacity:1}50%{opacity:.4}}
+.badge.confirmed_manual{background:rgba(22,163,74,.08);color:#15803d;border:1px solid rgba(22,163,74,.2);}
+.badge.confirmed_manual::before{background:var(--green);}
+.badge.resolved{background:rgba(107,114,128,.08);color:var(--steel);border:1px solid rgba(107,114,128,.15);}
+.badge.resolved::before{background:var(--steel);}
+.action-btn{font-family:var(--body);font-size:12px;font-weight:600;padding:6px 14px;border:1px solid var(--border);background:var(--bg-panel);cursor:pointer;border-radius:6px;transition:all .15s;white-space:nowrap;}
+.action-btn:hover{border-color:var(--border-mid);box-shadow:0 1px 3px rgba(0,0,0,.06);}
+.action-btn.confirm{color:#15803d;border-color:rgba(22,163,74,.3);background:rgba(22,163,74,.06);}
+.action-btn.confirm:hover{background:rgba(22,163,74,.12);}
+.action-btn.resolve{color:var(--rust);border-color:rgba(59,130,246,.3);background:rgba(59,130,246,.06);}
+.action-btn.resolve:hover{background:rgba(59,130,246,.12);}
+.action-btn:disabled{opacity:.5;cursor:not-allowed;}
 .badge.open{background:rgba(37,99,235,.06);color:var(--rust);border:1px solid rgba(37,99,235,.2);}
 .badge.open::before{background:var(--rust);}
 .badge.booked{background:var(--green-dim);color:#15803d;border:1px solid rgba(22,163,74,.2);}
@@ -312,6 +323,10 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
       </div>
       <div class="sidebar-item" data-section="bookings" onclick="navigate('bookings')">
         <span class="sidebar-icon">◷</span> Bookings
+      </div>
+      <div class="sidebar-item" data-section="action-needed" onclick="navigate('action-needed')">
+        <span class="sidebar-icon">⚑</span> Action Needed
+        <span class="sidebar-badge" id="actionNeededBadge" style="display:none">0</span>
       </div>
       <div class="sidebar-label">Finance</div>
       <div class="sidebar-item" data-section="billing" onclick="navigate('billing')">
@@ -472,6 +487,7 @@ function navigate(section, params) {
     case 'account-detail': loadAccountDetail(params.id); break;
     case 'conversations': loadConversations(); break;
     case 'bookings':      loadBookings(); break;
+    case 'action-needed': loadActionNeeded(); break;
     case 'billing':       loadBilling(); break;
     case 'integrations':  loadIntegrations(); break;
     case 'errors':        loadErrors(); break;
@@ -491,9 +507,11 @@ function statusBadge(status) {
 
 function bookingStateBadge(state) {
   const map = {
-    'CONFIRMED_CALENDAR': { cls: 'confirmed_calendar', label: 'Confirmed' },
+    'CONFIRMED_CALENDAR': { cls: 'confirmed_calendar', label: 'Confirmed (Calendar)' },
+    'CONFIRMED_MANUAL': { cls: 'confirmed_manual', label: 'Confirmed (Manual)' },
     'PENDING_MANUAL_CONFIRMATION': { cls: 'pending_manual_confirmation', label: 'Needs Manual Confirmation' },
     'FAILED': { cls: 'failed', label: 'Failed' },
+    'RESOLVED': { cls: 'resolved', label: 'Resolved' },
   };
   const m = map[state] || { cls: 'unknown', label: state || '—' };
   return `<span class="badge ${m.cls}">${m.label}</span>`;
@@ -563,6 +581,16 @@ async function loadOverview() {
       document.getElementById('errorBadge').style.display = '';
     }
 
+    // Update action-needed badge
+    const actionCount = (d.pending_manual_bookings || 0) + (d.failed_bookings || 0);
+    const actionBadge = document.getElementById('actionNeededBadge');
+    if (actionCount > 0) {
+      actionBadge.textContent = actionCount;
+      actionBadge.style.display = '';
+    } else {
+      actionBadge.style.display = 'none';
+    }
+
     document.getElementById('mainContent').innerHTML = `
       <div class="page-header">
         <div>
@@ -593,8 +621,8 @@ async function loadOverview() {
       <div class="section-label">Alerts</div>
       <div class="stat-grid">
         <div class="stat-card red"><div class="stat-tag">Failed Syncs</div><div class="stat-val ${d.failed_calendar_syncs > 0 ? 'red' : ''}">${d.failed_calendar_syncs}</div><div class="stat-sub">cal sync &gt;1h</div></div>
-        <div class="stat-card red"><div class="stat-tag">Needs Manual Confirm</div><div class="stat-val ${d.pending_manual_bookings > 0 ? 'red' : ''}">${d.pending_manual_bookings}</div><div class="stat-sub">booking action needed</div></div>
-        <div class="stat-card red"><div class="stat-tag">Failed Bookings</div><div class="stat-val ${d.failed_bookings > 0 ? 'red' : ''}">${d.failed_bookings}</div><div class="stat-sub">booking failed</div></div>
+        <div class="stat-card red" style="cursor:pointer" onclick="navigate('action-needed')"><div class="stat-tag">Needs Manual Confirm</div><div class="stat-val ${d.pending_manual_bookings > 0 ? 'red' : ''}">${d.pending_manual_bookings}</div><div class="stat-sub">click to resolve</div></div>
+        <div class="stat-card red" style="cursor:pointer" onclick="navigate('action-needed')"><div class="stat-tag">Failed Bookings</div><div class="stat-val ${d.failed_bookings > 0 ? 'red' : ''}">${d.failed_bookings}</div><div class="stat-sub">click to resolve</div></div>
         <div class="stat-card amber"><div class="stat-tag">No Twilio</div><div class="stat-val ${d.no_twilio > 0 ? 'red' : ''}">${d.no_twilio}</div><div class="stat-sub">no active phone</div></div>
         <div class="stat-card amber"><div class="stat-tag">No Calendar</div><div class="stat-val ${d.no_calendar > 0 ? 'amber' : ''}">${d.no_calendar}</div><div class="stat-sub">not connected</div></div>
         <div class="stat-card amber"><div class="stat-tag">Near Expiry</div><div class="stat-val ${d.near_expiry > 0 ? 'amber' : ''}">${d.near_expiry}</div><div class="stat-sub">trial ≤3 days</div></div>
@@ -1215,13 +1243,111 @@ document.getElementById('convModal').addEventListener('click', e => {
 });
 
 // ── SECTION 5: BOOKINGS ──────────────────────────────────────────────────────
+// ── SECTION 4b: ACTION NEEDED ─────────────────────────────────────────────
+async function updateBookingState(bookingId, newState, btnEl) {
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Updating…'; }
+  try {
+    const token = localStorage.getItem('autoshop_jwt') || '';
+    const resp = await fetch(API + '/internal/admin/bookings/' + bookingId + '/state', {
+      method: 'PATCH',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ booking_state: newState }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: resp.statusText }));
+      throw new Error(err.error || resp.statusText);
+    }
+    // Reload action-needed view
+    loadActionNeeded();
+  } catch (err) {
+    if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Retry'; }
+    alert('Failed to update booking: ' + err.message);
+  }
+}
+
+async function loadActionNeeded() {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = '<div class="loading"><div class="spinner"></div> Loading…</div>';
+
+  try {
+    const d = await apiFetch('/internal/admin/bookings/action-needed');
+
+    const pending = d.bookings.filter(b => b.booking_state === 'PENDING_MANUAL_CONFIRMATION');
+    const failed = d.bookings.filter(b => b.booking_state === 'FAILED');
+
+    function renderActionRow(b) {
+      const actionBtn = b.booking_state === 'PENDING_MANUAL_CONFIRMATION'
+        ? `<button class="action-btn confirm" onclick="updateBookingState('${b.id}','CONFIRMED_MANUAL',this)">Mark Manually Confirmed</button>`
+        : `<button class="action-btn resolve" onclick="updateBookingState('${b.id}','RESOLVED',this)">Mark Resolved</button>`;
+
+      return `<tr>
+        <td style="font-weight:600">${escHtml(b.shop_name)}</td>
+        <td>${escHtml(b.customer_name || '—')}</td>
+        <td class="mono dim">${escHtml(b.customer_phone)}</td>
+        <td>${escHtml(b.service_type || '—')}</td>
+        <td class="mono dim">${fmtDate(b.scheduled_at)}</td>
+        <td>${bookingStateBadge(b.booking_state)}</td>
+        <td class="mono dim">${relTime(b.created_at)}</td>
+        <td>${actionBtn}</td>
+        <td>${b.conversation_id ? '<button class="link-btn" onclick="loadConversationDetail(\'' + b.conversation_id + '\')">View</button>' : '—'}</td>
+      </tr>`;
+    }
+
+    const tableHead = '<thead><tr><th>Shop</th><th>Customer</th><th>Phone</th><th>Service</th><th>Scheduled</th><th>Status</th><th>Created</th><th>Action</th><th>Conv</th></tr></thead>';
+
+    const pendingSection = `
+      <div class="section-label">Needs Manual Confirmation <span class="mono dim">(${pending.length})</span></div>
+      <div class="table-wrap">
+        ${pending.length > 0 ? `
+        <table class="data-table">
+          ${tableHead}
+          <tbody>${pending.map(renderActionRow).join('')}</tbody>
+        </table>` : renderEmpty('No bookings pending manual confirmation')}
+      </div>`;
+
+    const failedSection = `
+      <div class="section-label" style="margin-top:32px">Failed Bookings <span class="mono dim">(${failed.length})</span></div>
+      <div class="table-wrap">
+        ${failed.length > 0 ? `
+        <table class="data-table">
+          ${tableHead}
+          <tbody>${failed.map(renderActionRow).join('')}</tbody>
+        </table>` : renderEmpty('No failed bookings')}
+      </div>`;
+
+    // Update sidebar badge
+    const totalAction = d.count;
+    const actionBadge = document.getElementById('actionNeededBadge');
+    if (totalAction > 0) {
+      actionBadge.textContent = totalAction;
+      actionBadge.style.display = '';
+    } else {
+      actionBadge.style.display = 'none';
+    }
+
+    main.innerHTML = `
+      <div class="page-header">
+        <div>
+          <div class="page-title">Action Needed</div>
+          <div class="page-subtitle">Bookings requiring operator action — ${d.count} total</div>
+        </div>
+        <button class="btn-sm" onclick="navigate('action-needed')">&#8635; Refresh</button>
+      </div>
+      ${pendingSection}
+      ${failedSection}`;
+  } catch (err) {
+    main.innerHTML = renderError(err);
+  }
+}
+
+// ── SECTION 5: BOOKINGS ──────────────────────────────────────────────────────
 function loadBookings(filter) {
   if (filter !== undefined) _bookFilter = filter;
   const params = { page: _bookPage };
   if (_bookFilter) params.filter = _bookFilter;
 
   const filters = [
-    {label:'All',val:null},{label:'Today',val:'today'},{label:'Upcoming',val:'upcoming'},
+    {label:'All',val:null},{label:'Action Needed',val:'action_needed'},{label:'Today',val:'today'},{label:'Upcoming',val:'upcoming'},
     {label:'Sync Failed',val:'failed'},{label:'Pending',val:'pending'},{label:'Synced',val:'synced'}
   ];
 
@@ -1238,7 +1364,14 @@ function loadBookings(filter) {
 
   apiFetch('/internal/admin/bookings', params)
     .then(d => {
-      const tbody = d.bookings.length > 0 ? d.bookings.map(b => `<tr>
+      const tbody = d.bookings.length > 0 ? d.bookings.map(b => {
+        let actionCell = '—';
+        if (b.booking_state === 'PENDING_MANUAL_CONFIRMATION') {
+          actionCell = `<button class="action-btn confirm" onclick="updateBookingState('${b.id}','CONFIRMED_MANUAL',this)">Confirm</button>`;
+        } else if (b.booking_state === 'FAILED') {
+          actionCell = `<button class="action-btn resolve" onclick="updateBookingState('${b.id}','RESOLVED',this); setTimeout(()=>loadBookings(),500)">Resolve</button>`;
+        }
+        return `<tr>
         <td style="font-weight:600">${escHtml(b.shop_name)}</td>
         <td>${escHtml(b.customer_name || '—')}</td>
         <td class="mono dim">${escHtml(b.customer_phone)}</td>
@@ -1246,9 +1379,11 @@ function loadBookings(filter) {
         <td class="mono dim">${fmtDate(b.scheduled_at)}</td>
         <td class="mono dim">${relTime(b.created_at)}</td>
         <td>${bookingStateBadge(b.booking_state)}</td>
+        <td>${actionCell}</td>
         <td class="mono dim" style="font-size:10px">${escHtml(b.google_event_id || '—')}</td>
         <td>${b.conversation_id ? `<button class="link-btn" onclick="loadConversationDetail('${b.conversation_id}')">View</button>` : '—'}</td>
-      </tr>`).join('') : `<tr><td colspan="9">${renderEmpty('No bookings match')}</td></tr>`;
+      </tr>`;
+      }).join('') : `<tr><td colspan="10">${renderEmpty('No bookings match')}</td></tr>`;
 
       document.getElementById('mainContent').innerHTML = header + `
         <div class="table-wrap">
@@ -1257,7 +1392,7 @@ function loadBookings(filter) {
           <table class="data-table">
             <thead><tr>
               <th>Shop</th><th>Customer Name</th><th>Phone</th><th>Service</th>
-              <th>Scheduled At</th><th>Created</th><th>Booking Status</th><th>Google Event ID</th><th>Conv</th>
+              <th>Scheduled At</th><th>Created</th><th>Booking Status</th><th>Action</th><th>Google Event ID</th><th>Conv</th>
             </tr></thead>
             <tbody>${tbody}</tbody>
           </table>

@@ -9,6 +9,48 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: booking-action-workflow — 2026-03-15
+
+**Branch:** ai/booking-action-workflow
+**Status:** COMPLETE — Operator action workflow for action-needed bookings
+
+### Selected Task
+Turn action-needed bookings (PENDING_MANUAL_CONFIRMATION, FAILED) into an actionable operator workflow in the admin dashboard.
+
+### Why This Is Highest Leverage
+Visibility alone is not enough. Operators can see action-needed bookings but cannot close them from the dashboard. This means:
+- Action-needed bookings pile up with no closure mechanism
+- Operators revert to ad-hoc phone/memory workflows
+- The dashboard is a passive monitor, not an operational tool
+
+This task closes the final gap in the booking path: booking detected → booking resolved.
+
+### State Transitions Implemented
+- `PENDING_MANUAL_CONFIRMATION` → `CONFIRMED_MANUAL` (operator marks as manually confirmed)
+- `FAILED` → `RESOLVED` (operator marks failed booking as resolved)
+- Invalid transitions are rejected with 409
+
+### Changes
+- `apps/api/src/services/appointments.ts` — Extended BookingState type with CONFIRMED_MANUAL, RESOLVED
+- `apps/api/src/routes/internal/admin.ts` — Added GET /admin/bookings/action-needed, PATCH /admin/bookings/:id/state with transition validation and audit logging
+- `apps/web/admin.html` — Added Action Needed sidebar nav with badge count, dedicated action-needed page with operator action buttons, action buttons in main bookings list, updated badge labels for truthful distinction
+- `apps/web/app.html` — Updated tenant dashboard state map with new states
+- `apps/api/src/tests/admin-booking-state.test.ts` — Added 8 new tests: action-needed endpoint, allowed transitions, rejected invalid transitions, 404, invalid state
+
+### Verification
+```
+VERIFICATION
+EXIT_CODE=0
+TEST_FILES=19
+TESTS_TOTAL=304
+TESTS_FAILED=0
+DURATION=4.72s
+```
+- All 304 tests pass (19 test files)
+- 8 new tests for booking state transitions
+
+---
+
 ## TASK: live-env-hardening — 2026-03-15
 
 **Branch:** ai/live-env-hardening

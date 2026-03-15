@@ -9,7 +9,7 @@
 
 import { query } from "../db/client";
 
-export type BookingState = "CONFIRMED_CALENDAR" | "PENDING_MANUAL_CONFIRMATION" | "FAILED";
+export type BookingState = "CONFIRMED_CALENDAR" | "PENDING_MANUAL_CONFIRMATION" | "FAILED" | "CONFIRMED_MANUAL" | "RESOLVED";
 
 export interface CreateAppointmentInput {
   tenantId: string;
