@@ -1,20 +1,20 @@
 {
   "meta": {
     "version": 2,
-    "last_updated": "2026-03-15T12:00:00Z",
+    "last_updated": "2026-03-15T18:00:00Z",
     "updated_by": "claude",
     "repo_branch": "main"
   },
   "executive": {
     "project_name": "AutoShop AI Agent SaaS",
-    "current_mission": "Full SMS pipeline live — ready for pilot shop",
+    "current_mission": "Full SMS pipeline production-verified — awaiting human demo run and pilot onboarding",
     "current_node_id": "calendar_reliability",
     "overall_progress": 67,
     "momentum": "progressing",
     "ai_can_continue_now": true,
     "human_action_required": true,
     "demo_ready_path_complete": false,
-    "current_blocker_summary": "Full SMS pipeline verified in production. Booking + Calendar working. Awaiting real external SMS test and pilot onboarding."
+    "current_blocker_summary": "Full SMS pipeline verified in production (webhook → AI → booking → calendar → SMS reply). Voice webhook live. Awaiting human end-to-end demo run and Google OAuth browser consent."
   },
   "critical_path": {
     "title": "Path to MVP Demo",
@@ -123,7 +123,7 @@
         {
           "id": "lt_sandbox_sms_test_flow",
           "title": "LT sandbox SMS test flow development",
-          "status": "in_progress",
+          "status": "done",
           "owner": "ai"
         },
         {
@@ -133,8 +133,8 @@
           "owner": "human"
         }
       ],
-      "next_task": "Complete live TEST workflow validation with real inbound/outbound messages",
-      "last_change": "2026-03-14"
+      "next_task": "Human must run end-to-end demo with real Twilio numbers",
+      "last_change": "2026-03-15"
     },
     {
       "id": "core_messaging_ai",
@@ -166,14 +166,20 @@
           "owner": "ai"
         },
         {
+          "id": "voice_webhook",
+          "title": "Twilio voice webhook for call forwarding and missed-call detection",
+          "status": "done",
+          "owner": "ai"
+        },
+        {
           "id": "workflow_e2e_validation",
-          "title": "Workflow end-to-end validation",
-          "status": "in_progress",
+          "title": "Production pipeline end-to-end validation",
+          "status": "done",
           "owner": "ai"
         }
       ],
-      "next_task": "Verify TEST missed-call -> SMS -> AI response chain against live workflow",
-      "last_change": "2026-03-14"
+      "next_task": "Awaiting human external SMS test to confirm full live path",
+      "last_change": "2026-03-15"
     },
     {
       "id": "calendar_reliability",
@@ -244,6 +250,12 @@
           "owner": "ai"
         },
         {
+          "id": "test_tenant_exclusion",
+          "title": "Test/demo tenants excluded from admin dashboards",
+          "status": "done",
+          "owner": "ai"
+        },
+        {
           "id": "tenant_health_monitoring",
           "title": "Tenant health monitoring",
           "status": "todo",
@@ -280,6 +292,12 @@
         {
           "id": "production_auth_hardening",
           "title": "Production auth: email normalization, OAuth env config, bootstrap fixes",
+          "status": "done",
+          "owner": "ai"
+        },
+        {
+          "id": "pilot_shop_config",
+          "title": "Pilot-shop configurable messaging and AI settings",
           "status": "done",
           "owner": "ai"
         },
@@ -329,37 +347,18 @@
       "required_action": "OAuth callback code and env vars are fixed (PR #94). Open /auth/google/url in browser, complete consent, confirm calendar event creation works."
     },
     {
-      "id": "confirm_real_twilio_demo",
-      "title": "Run end-to-end demo with real Twilio numbers",
+      "id": "run_external_sms_test",
+      "title": "Send real SMS from personal phone to verify live flow",
       "priority": "high",
       "status": "waiting",
       "blocks": [
-        "test_workflow_chain",
         "end_to_end_demo_run"
       ],
-      "impact": "Validates live demo path for MVP",
-      "required_action": "Use real Twilio number and execute missed call -> SMS -> AI -> booking flow"
-    },
-    {
-      "id": "confirm_priority_lane",
-      "title": "Confirm highest-priority lane",
-      "priority": "medium",
-      "status": "waiting",
-      "blocks": [],
-      "impact": "Prevents AI from splitting focus",
-      "required_action": "Choose whether to keep pushing TEST demo path first or switch to another track"
+      "impact": "Confirms the full pipeline works from an external caller's perspective",
+      "required_action": "Send SMS from personal phone to +13257523890 and confirm AI reply. Call +13257523890 and let it ring to test missed-call trigger."
     }
   ],
-  "active_backlog": [
-    {
-      "id": "test_flow_live_validation",
-      "title": "Validate TEST workflow chain against real messages",
-      "status": "in_progress",
-      "owner": "ai",
-      "priority": "high",
-      "stage_id": "test_workflow_chain"
-    }
-  ],
+  "active_backlog": [],
   "blocked_backlog": [
     {
       "id": "oauth_live_check",
@@ -374,44 +373,44 @@
     {
       "date": "2026-03-15",
       "type": "task_done",
+      "title": "Twilio voice webhook for call forwarding and missed-call detection",
+      "impact": "Incoming calls forwarded to shop phone with 20s timeout. Missed calls trigger SMS pipeline via voice-status callback.",
+      "branch": "ai/twilio-voice-webhook"
+    },
+    {
+      "date": "2026-03-15",
+      "type": "task_done",
+      "title": "Pilot-shop configurable messaging and AI settings",
+      "impact": "Per-tenant SMS template, AI system prompt, business hours, services. Admin Settings tab. Migration 014.",
+      "branch": "ai/pilot-shop-config"
+    },
+    {
+      "date": "2026-03-15",
+      "type": "task_done",
+      "title": "Test/demo tenants excluded from admin dashboards",
+      "impact": "Admin metrics and tenant lists no longer polluted by test data.",
+      "branch": "ai/exclude-test-tenants"
+    },
+    {
+      "date": "2026-03-15",
+      "type": "task_done",
+      "title": "Full SMS pipeline verified in production",
+      "impact": "Webhook → AI → booking → calendar → SMS reply confirmed working. Twilio production wiring complete.",
+      "branch": "ai/twilio-production-wiring"
+    },
+    {
+      "date": "2026-03-15",
+      "type": "task_done",
+      "title": "Booking pipeline fixed and verified",
+      "impact": "Date parsing to ISO 8601, name extraction, error propagation. Google Calendar event created in production.",
+      "branch": "ai/fix-booking-pipeline"
+    },
+    {
+      "date": "2026-03-15",
+      "type": "task_done",
       "title": "Production admin auth fully fixed",
-      "impact": "Email login, Google OAuth callback, admin bootstrap all working in production. Admin dashboard accessible.",
+      "impact": "Email login, Google OAuth callback, admin bootstrap all working in production.",
       "branch": "ai/fix-production-auth"
-    },
-    {
-      "date": "2026-03-15",
-      "type": "blocker_resolved",
-      "title": "Google OAuth callback validation fixed",
-      "impact": "Zod schema now accepts Google's extra query params. OAuth env vars configured in render.yaml.",
-      "branch": "ai/fix-production-auth"
-    },
-    {
-      "date": "2026-03-15",
-      "type": "task_done",
-      "title": "Production admin access verified end-to-end",
-      "impact": "POST /auth/login returns JWT, GET /auth/me confirms identity, project-status-v2 returns data via Vercel proxy.",
-      "branch": "ai/admin-access-fix"
-    },
-    {
-      "date": "2026-03-14",
-      "type": "task_done",
-      "title": "Project Ops v2 dashboard implemented",
-      "impact": "Mission map, blocker lane, movement timeline, and critical path now live in admin UI",
-      "branch": "ai/project-ops-v2-polish"
-    },
-    {
-      "date": "2026-03-14",
-      "type": "task_done",
-      "title": "Google Calendar event creation endpoint completed",
-      "impact": "Calendar infrastructure advanced toward live booking proof",
-      "branch": "ai/gcal-event-creation"
-    },
-    {
-      "date": "2026-03-14",
-      "type": "task_done",
-      "title": "Booking intent detection service completed",
-      "impact": "AI booking extraction became test-backed",
-      "branch": "ai/gcal-event-creation"
     }
   ]
 }
