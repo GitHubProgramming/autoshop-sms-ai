@@ -371,3 +371,104 @@ describe("PATCH /internal/admin/bookings/:id/state — booking state transitions
     expect(res.statusCode).toBe(400);
   });
 });
+
+// ── Filter correctness after operator actions ────────────────────────────────
+
+describe("GET /internal/admin/bookings — filter uses booking_state", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    process.env.ADMIN_EMAILS = "admin@test.com";
+  });
+
+  it("'failed' filter queries booking_state = FAILED, not calendar_synced", async () => {
+    mocks.query.mockResolvedValueOnce([]);
+    const app = buildApp();
+    await app.inject({ method: "GET", url: "/internal/admin/bookings?filter=failed" });
+
+    const sql = mocks.query.mock.calls[0][0] as string;
+    expect(sql).toContain("booking_state = 'FAILED'");
+    expect(sql).not.toMatch(/WHEN \$1 = 'failed'.*calendar_synced/);
+  });
+
+  it("'pending' filter queries booking_state = PENDING_MANUAL_CONFIRMATION", async () => {
+    mocks.query.mockResolvedValueOnce([]);
+    const app = buildApp();
+    await app.inject({ method: "GET", url: "/internal/admin/bookings?filter=pending" });
+
+    const sql = mocks.query.mock.calls[0][0] as string;
+    expect(sql).toContain("booking_state = 'PENDING_MANUAL_CONFIRMATION'");
+  });
+
+  it("'synced' filter includes CONFIRMED_CALENDAR, CONFIRMED_MANUAL, and RESOLVED", async () => {
+    mocks.query.mockResolvedValueOnce([]);
+    const app = buildApp();
+    await app.inject({ method: "GET", url: "/internal/admin/bookings?filter=synced" });
+
+    const sql = mocks.query.mock.calls[0][0] as string;
+    expect(sql).toContain("CONFIRMED_CALENDAR");
+    expect(sql).toContain("CONFIRMED_MANUAL");
+    expect(sql).toContain("RESOLVED");
+  });
+
+  it("'action_needed' filter matches only PENDING_MANUAL_CONFIRMATION and FAILED", async () => {
+    mocks.query.mockResolvedValueOnce([]);
+    const app = buildApp();
+    await app.inject({ method: "GET", url: "/internal/admin/bookings?filter=action_needed" });
+
+    const sql = mocks.query.mock.calls[0][0] as string;
+    // Extract just the action_needed filter line from the SQL
+    const actionNeededLine = sql.split("\n").find((l: string) => l.includes("action_needed"));
+    expect(actionNeededLine).toBeDefined();
+    expect(actionNeededLine).toContain("PENDING_MANUAL_CONFIRMATION");
+    expect(actionNeededLine).toContain("FAILED");
+    expect(actionNeededLine).not.toContain("CONFIRMED_MANUAL");
+    expect(actionNeededLine).not.toContain("RESOLVED");
+  });
+});
+
+describe("GET /internal/admin/overview — failed_calendar_syncs excludes resolved states", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    process.env.ADMIN_EMAILS = "admin@test.com";
+  });
+
+  it("failed_calendar_syncs query excludes CONFIRMED_MANUAL and RESOLVED", async () => {
+    // Mock all 16 overview queries
+    const overviewMocks = [
+      [{ billing_status: "active", count: "1" }],
+      [{ count: 0 }], [{ count: 0 }], [{ count: 0 }], [{ count: 0 }],
+      [{ count: 0 }], [{ count: 0 }], [{ count: 0 }], [{ count: 0 }],
+      [{ count: 0 }], [], [], [], [],
+      [{ count: 0 }], [{ count: 0 }],
+    ];
+    for (const mock of overviewMocks) {
+      mocks.query.mockResolvedValueOnce(mock);
+    }
+
+    const app = buildApp();
+    await app.inject({ method: "GET", url: "/internal/admin/overview" });
+
+    // The failed_calendar_syncs query is the 6th query (index 5)
+    const failedSyncSql = mocks.query.mock.calls[5][0] as string;
+    expect(failedSyncSql).toContain("calendar_synced = false");
+    expect(failedSyncSql).toContain("NOT IN ('CONFIRMED_MANUAL', 'RESOLVED')");
+  });
+});
+
+describe("GET /internal/admin/bookings — sync_status respects booking_state", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    process.env.ADMIN_EMAILS = "admin@test.com";
+  });
+
+  it("sync_status SQL checks booking_state before calendar_synced", async () => {
+    mocks.query.mockResolvedValueOnce([]);
+    const app = buildApp();
+    await app.inject({ method: "GET", url: "/internal/admin/bookings" });
+
+    const sql = mocks.query.mock.calls[0][0] as string;
+    // CONFIRMED_MANUAL and RESOLVED cases should appear before the calendar_synced fallback
+    expect(sql).toContain("WHEN a.booking_state = 'CONFIRMED_MANUAL' THEN 'confirmed_manual'");
+    expect(sql).toContain("WHEN a.booking_state = 'RESOLVED' THEN 'resolved'");
+  });
+});

@@ -118,7 +118,7 @@ export async function adminRoute(app: FastifyInstance) {
       query(`SELECT status, COUNT(*)::int as count FROM signup_attempts WHERE created_at > NOW() - INTERVAL '7 days' GROUP BY status`),
       query(`SELECT COUNT(*)::int FROM conversations c JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE WHERE c.opened_at >= CURRENT_DATE`),
       query(`SELECT COUNT(*)::int FROM appointments a JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE WHERE a.created_at >= CURRENT_DATE`),
-      query(`SELECT COUNT(*)::int FROM appointments a JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE WHERE a.calendar_synced = false AND a.created_at < NOW() - INTERVAL '1 hour'`),
+      query(`SELECT COUNT(*)::int FROM appointments a JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE WHERE a.calendar_synced = false AND a.created_at < NOW() - INTERVAL '1 hour' AND a.booking_state NOT IN ('CONFIRMED_MANUAL', 'RESOLVED')`),
       query(`SELECT COUNT(*)::int FROM tenants t WHERE t.is_test = FALSE AND NOT EXISTS (SELECT 1 FROM tenant_phone_numbers tpn WHERE tpn.tenant_id = t.id AND tpn.status = 'active')`),
       query(`SELECT COUNT(*)::int FROM tenants t WHERE t.is_test = FALSE AND NOT EXISTS (SELECT 1 FROM tenant_calendar_tokens tct WHERE tct.tenant_id = t.id)`),
       query(`SELECT COUNT(*)::int FROM tenants WHERE is_test = FALSE AND billing_status = 'trial' AND trial_ends_at > NOW() AND trial_ends_at <= NOW() + INTERVAL '3 days'`),
@@ -345,16 +345,18 @@ export async function adminRoute(app: FastifyInstance) {
       `SELECT a.id, a.tenant_id, t.shop_name, a.customer_phone, a.customer_name,
          a.service_type, a.scheduled_at, a.calendar_synced, a.google_event_id, a.created_at,
          a.conversation_id, a.booking_state,
-         CASE WHEN NOT a.calendar_synced AND a.google_event_id IS NULL THEN 'sync_failed'
+         CASE WHEN a.booking_state = 'CONFIRMED_MANUAL' THEN 'confirmed_manual'
+              WHEN a.booking_state = 'RESOLVED' THEN 'resolved'
+              WHEN NOT a.calendar_synced AND a.google_event_id IS NULL THEN 'sync_failed'
               WHEN NOT a.calendar_synced THEN 'pending'
               ELSE 'synced' END as sync_status
        FROM appointments a
        JOIN tenants t ON t.id = a.tenant_id
        WHERE t.is_test = FALSE
          AND ($1::text IS NULL OR
-         CASE WHEN $1 = 'failed'    THEN NOT a.calendar_synced AND a.created_at < NOW() - INTERVAL '1 hour'
-              WHEN $1 = 'pending'   THEN NOT a.calendar_synced AND a.created_at >= NOW() - INTERVAL '1 hour'
-              WHEN $1 = 'synced'    THEN a.calendar_synced
+         CASE WHEN $1 = 'failed'    THEN a.booking_state = 'FAILED'
+              WHEN $1 = 'pending'   THEN a.booking_state = 'PENDING_MANUAL_CONFIRMATION'
+              WHEN $1 = 'synced'    THEN a.booking_state IN ('CONFIRMED_CALENDAR', 'CONFIRMED_MANUAL', 'RESOLVED')
               WHEN $1 = 'today'     THEN a.scheduled_at::date = CURRENT_DATE
               WHEN $1 = 'upcoming'  THEN a.scheduled_at > NOW()
               WHEN $1 = 'action_needed' THEN a.booking_state IN ('PENDING_MANUAL_CONFIRMATION', 'FAILED')

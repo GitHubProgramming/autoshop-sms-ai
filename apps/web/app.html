@@ -1118,7 +1118,7 @@ async function loadDashboardData() {
         'CONFIRMED_MANUAL': { status: 'synced', label: 'Confirmed (Manual)', note: '' },
         'PENDING_MANUAL_CONFIRMATION': { status: 'pending', label: 'Needs Manual Confirmation', note: 'Calendar sync failed — confirm this booking manually.' },
         'FAILED': { status: 'failed', label: 'Failed', note: 'Booking failed — contact customer to reschedule.' },
-        'RESOLVED': { status: 'synced', label: 'Resolved', note: '' },
+        'RESOLVED': { status: 'resolved', label: 'Resolved', note: '' },
       };
       var mapped = stateMap[b.booking_state] || { status: b.calendar_synced ? 'synced' : 'failed', label: b.calendar_synced ? 'Confirmed' : 'Failed', note: '' };
       return {

@@ -1257,8 +1257,12 @@ async function updateBookingState(bookingId, newState, btnEl) {
       const err = await resp.json().catch(() => ({ error: resp.statusText }));
       throw new Error(err.error || resp.statusText);
     }
-    // Reload action-needed view
-    loadActionNeeded();
+    // Reload the current view to reflect updated state
+    if (currentSection === 'bookings') {
+      loadBookings();
+    } else {
+      loadActionNeeded();
+    }
   } catch (err) {
     if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Retry'; }
     alert('Failed to update booking: ' + err.message);
@@ -1369,7 +1373,7 @@ function loadBookings(filter) {
         if (b.booking_state === 'PENDING_MANUAL_CONFIRMATION') {
           actionCell = `<button class="action-btn confirm" onclick="updateBookingState('${b.id}','CONFIRMED_MANUAL',this)">Confirm</button>`;
         } else if (b.booking_state === 'FAILED') {
-          actionCell = `<button class="action-btn resolve" onclick="updateBookingState('${b.id}','RESOLVED',this); setTimeout(()=>loadBookings(),500)">Resolve</button>`;
+          actionCell = `<button class="action-btn resolve" onclick="updateBookingState('${b.id}','RESOLVED',this)">Resolve</button>`;
         }
         return `<tr>
         <td style="font-weight:600">${escHtml(b.shop_name)}</td>
