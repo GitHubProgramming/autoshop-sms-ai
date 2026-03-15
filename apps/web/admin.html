@@ -775,9 +775,9 @@ async function loadAccountDetail(id) {
 
 function renderAccountDetail(d) {
   const t = d.tenant;
-  const tabs = ['summary','usage','billing','conversations','bookings','integrations','billing_events','audit'];
+  const tabs = ['summary','settings','usage','billing','conversations','bookings','integrations','billing_events','audit'];
   const tabLabels = {
-    summary:'Summary', usage:'Usage', billing:'Billing', conversations:'Conversations',
+    summary:'Summary', settings:'Settings', usage:'Usage', billing:'Billing', conversations:'Conversations',
     bookings:'Bookings', integrations:'Integrations', billing_events:'Billing Events', audit:'Audit Log'
   };
 
@@ -814,6 +814,18 @@ function renderAccountDetail(d) {
             </div>
           </div>
         </div>`;
+      break;
+
+    case 'settings':
+      tabContent = `
+        <div class="panel" id="settingsPanel">
+          <div class="panel-header"><span class="panel-title">Messaging & AI Settings</span></div>
+          <div class="panel-body" id="settingsBody">
+            <div class="loading"><div class="spinner"></div> Loading settings...</div>
+          </div>
+        </div>`;
+      // Load settings async after render
+      setTimeout(() => loadTenantSettings(t.id), 0);
       break;
 
     case 'usage':
@@ -997,6 +1009,80 @@ function renderAccountDetail(d) {
 function switchAccountTab(tab) {
   accountDetailTab = tab;
   renderAccountDetail(window._accountDetailData);
+}
+
+// ── TENANT SETTINGS ─────────────────────────────────────────────────────────
+async function loadTenantSettings(tenantId) {
+  const body = document.getElementById('settingsBody');
+  if (!body) return;
+  try {
+    const s = await apiFetch(`/internal/admin/tenants/${tenantId}/settings`);
+    body.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:20px;max-width:640px">
+        <div>
+          <label style="font-weight:600;font-size:13px;display:block;margin-bottom:6px">Shop Name</label>
+          <input type="text" id="set_shop_name" value="${escHtml(s.shop_name || '')}"
+            style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:var(--body);font-size:14px;background:var(--bg);color:var(--white)" />
+        </div>
+        <div>
+          <label style="font-weight:600;font-size:13px;display:block;margin-bottom:6px">Missed Call SMS Template</label>
+          <div style="font-size:11px;color:var(--steel);margin-bottom:4px">Use {shop_name} as placeholder. Leave empty for default.</div>
+          <textarea id="set_missed_call_sms" rows="3"
+            style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:var(--body);font-size:14px;background:var(--bg);color:var(--white);resize:vertical">${escHtml(s.missed_call_sms_template || '')}</textarea>
+        </div>
+        <div>
+          <label style="font-weight:600;font-size:13px;display:block;margin-bottom:6px">AI System Prompt</label>
+          <div style="font-size:11px;color:var(--steel);margin-bottom:4px">Custom instructions for the AI conversation. Leave empty for default.</div>
+          <textarea id="set_ai_prompt" rows="5"
+            style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:var(--mono);font-size:13px;background:var(--bg);color:var(--white);resize:vertical">${escHtml(s.ai_system_prompt || '')}</textarea>
+        </div>
+        <div>
+          <label style="font-weight:600;font-size:13px;display:block;margin-bottom:6px">Business Hours</label>
+          <input type="text" id="set_business_hours" value="${escHtml(s.business_hours || '')}"
+            placeholder="e.g. Mon-Fri 8am-6pm, Sat 9am-2pm"
+            style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:var(--body);font-size:14px;background:var(--bg);color:var(--white)" />
+        </div>
+        <div>
+          <label style="font-weight:600;font-size:13px;display:block;margin-bottom:6px">Services Description</label>
+          <textarea id="set_services" rows="3" placeholder="e.g. Oil changes, brake repair, tire rotation, AC service, engine diagnostics"
+            style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:var(--body);font-size:14px;background:var(--bg);color:var(--white);resize:vertical">${escHtml(s.services_description || '')}</textarea>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center">
+          <button class="btn-sm primary" onclick="saveTenantSettings('${tenantId}')">Save Settings</button>
+          <span id="settingsSaveStatus" style="font-size:13px;color:var(--green)"></span>
+        </div>
+      </div>`;
+  } catch (err) {
+    body.innerHTML = renderError(err);
+  }
+}
+
+async function saveTenantSettings(tenantId) {
+  const status = document.getElementById('settingsSaveStatus');
+  if (status) status.textContent = 'Saving...';
+  try {
+    const payload = {
+      shop_name: document.getElementById('set_shop_name').value || undefined,
+      missed_call_sms_template: document.getElementById('set_missed_call_sms').value || null,
+      ai_system_prompt: document.getElementById('set_ai_prompt').value || null,
+      business_hours: document.getElementById('set_business_hours').value || null,
+      services_description: document.getElementById('set_services').value || null,
+    };
+    const token = localStorage.getItem('autoshop_jwt') || '';
+    const res = await fetch(API + `/internal/admin/tenants/${tenantId}/settings`, {
+      method: 'PUT',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) { const text = await res.text().catch(() => ''); throw new Error(text || res.statusText); }
+    if (status) { status.textContent = 'Saved!'; status.style.color = 'var(--green)'; }
+    // Update cached tenant data
+    if (window._accountDetailData && window._accountDetailData.tenant) {
+      if (payload.shop_name) window._accountDetailData.tenant.shop_name = payload.shop_name;
+    }
+  } catch (err) {
+    if (status) { status.textContent = 'Error: ' + err.message; status.style.color = 'var(--red)'; }
+  }
 }
 
 // ── SECTION 4: CONVERSATIONS ─────────────────────────────────────────────────

@@ -164,7 +164,7 @@ export async function processSms(
     return result;
   }
 
-  // ── 5. Fetch system prompt ───────────────────────────────────────────────
+  // ── 5. Fetch system prompt + tenant context ────────────────────────────
   let systemPrompt = DEFAULT_SYSTEM_PROMPT;
   try {
     const rows = await query<{ prompt_text: string }>(
@@ -178,6 +178,30 @@ export async function processSms(
     }
   } catch {
     // Use default prompt if lookup fails
+  }
+
+  // Inject tenant shop context (business_hours, services_description) into prompt
+  try {
+    const tenantRows = await query<{
+      shop_name: string | null;
+      business_hours: string | null;
+      services_description: string | null;
+    }>(
+      `SELECT shop_name, business_hours, services_description FROM tenants WHERE id = $1`,
+      [input.tenantId]
+    );
+    if (tenantRows.length > 0) {
+      const t = tenantRows[0];
+      const contextParts: string[] = [];
+      if (t.shop_name) contextParts.push(`Shop name: ${t.shop_name}`);
+      if (t.business_hours) contextParts.push(`Business hours: ${t.business_hours}`);
+      if (t.services_description) contextParts.push(`Services offered: ${t.services_description}`);
+      if (contextParts.length > 0) {
+        systemPrompt += "\n\n" + contextParts.join("\n");
+      }
+    }
+  } catch {
+    // Non-fatal: continue with base prompt if tenant lookup fails
   }
 
   // ── 6. Call OpenAI ──────────────────────────────────────────────────────
