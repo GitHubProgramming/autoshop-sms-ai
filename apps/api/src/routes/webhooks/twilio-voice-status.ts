@@ -6,7 +6,8 @@ import { smsInboundQueue, checkIdempotency, markIdempotency } from "../../queues
 
 const TwilioVoiceStatusBody = z.object({
   CallSid: z.string(),
-  CallStatus: z.string(), // no-answer, busy, failed, completed
+  CallStatus: z.string().optional(),     // from statusCallback
+  DialCallStatus: z.string().optional(), // from <Dial action="...">
   To: z.string(),         // shop's number
   From: z.string(),       // customer's number
   Direction: z.string().optional(),
@@ -14,7 +15,12 @@ const TwilioVoiceStatusBody = z.object({
 
 /**
  * Twilio calls this when a call to the shop's number ends.
- * If CallStatus = 'no-answer' | 'busy' | 'failed' → trigger missed-call SMS flow.
+ *
+ * Two trigger paths:
+ *   1. <Dial action="..."> callback → sends DialCallStatus (no-answer, busy, failed, completed)
+ *   2. StatusCallback URL → sends CallStatus
+ *
+ * If status = 'no-answer' | 'busy' | 'failed' → trigger missed-call SMS flow.
  */
 export async function twilioVoiceStatusRoute(app: FastifyInstance) {
   app.post(
@@ -26,7 +32,9 @@ export async function twilioVoiceStatusRoute(app: FastifyInstance) {
         return reply.status(400).send({ error: "Invalid body" });
       }
 
-      const { CallSid, CallStatus, To, From } = parsed.data;
+      // DialCallStatus takes priority (from <Dial action>), fall back to CallStatus
+      const { CallSid, DialCallStatus, To, From } = parsed.data;
+      const CallStatus = DialCallStatus ?? parsed.data.CallStatus ?? "";
 
       const MISSED_STATUSES = ["no-answer", "busy", "failed"];
       if (!MISSED_STATUSES.includes(CallStatus)) {
