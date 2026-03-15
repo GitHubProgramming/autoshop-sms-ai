@@ -92,7 +92,7 @@ const CallbackQuerySchema = z.object({
   code: z.string().min(1).optional(),
   state: z.string().uuid(), // tenantId passed as state
   error: z.string().optional(),
-});
+}).passthrough(); // Google sends extra params (scope, authuser, hd, prompt)
 
 export async function googleAuthRoute(app: FastifyInstance) {
   const clientId = process.env.GOOGLE_CLIENT_ID;
