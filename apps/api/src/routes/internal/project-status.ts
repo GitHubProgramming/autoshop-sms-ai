@@ -151,6 +151,38 @@ export async function projectStatusRoute(app: FastifyInstance) {
     return reply.status(200).send([]);
   });
 
+  // ── admin config diagnostic (no auth, no secrets) ────────────────────────
+  // Returns whether key admin env vars are configured, without exposing values.
+  // Temporary endpoint for deploy verification — remove after admin access is confirmed.
+  app.get("/admin/config-check", async (_req, reply) => {
+    reply.header("Cache-Control", "no-store");
+
+    const adminEmailsRaw = process.env.ADMIN_EMAILS ?? "";
+    const adminEmails = new Set(
+      adminEmailsRaw.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean),
+    );
+
+    const internalKeyConfigured = Boolean(process.env.INTERNAL_API_KEY);
+    const internalKeyLength = (process.env.INTERNAL_API_KEY ?? "").length;
+
+    return reply.status(200).send({
+      adminEmails: {
+        configured: adminEmails.size > 0,
+        count: adminEmails.size,
+        includesMantas: adminEmails.has("mantas.gipiskis@gmail.com"),
+        includesMantasAutoshop: adminEmails.has("mantas@autoshopsmsai.com"),
+      },
+      internalApiKey: {
+        configured: internalKeyConfigured,
+        length: internalKeyLength,
+      },
+      jwtSecret: {
+        configured: Boolean(process.env.JWT_SECRET),
+      },
+      nodeEnv: process.env.NODE_ENV ?? "unknown",
+    });
+  });
+
   // ── diagnostic (no auth) ─────────────────────────────────────────────────
   // Returns file metadata (resolved path, sha256, key fields) but NOT full data.
   // Used for deploy verification without requiring admin credentials.
