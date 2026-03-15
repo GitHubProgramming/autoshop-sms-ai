@@ -1,5 +1,6 @@
 import { FastifyInstance } from "fastify";
 import * as bcrypt from "bcryptjs";
+import { z } from "zod";
 import { query } from "../../db/client";
 import { adminGuard } from "../../middleware/admin-guard";
 
@@ -685,5 +686,125 @@ export async function adminRoute(app: FastifyInstance) {
         booked: r.booked,
       })),
     });
+  });
+
+  // ── GET /internal/admin/tenants/:id/settings ────────────────────────────
+  app.get("/admin/tenants/:id/settings", { preHandler: [adminGuard] }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const [tenantRows, promptRows] = await Promise.all([
+      query<{
+        shop_name: string | null;
+        missed_call_sms_template: string | null;
+        business_hours: string | null;
+        services_description: string | null;
+      }>(
+        `SELECT shop_name, missed_call_sms_template, business_hours, services_description
+         FROM tenants WHERE id = $1`,
+        [id]
+      ),
+      query<{ prompt_text: string }>(
+        `SELECT prompt_text FROM system_prompts
+         WHERE tenant_id = $1 AND is_active = TRUE
+         ORDER BY version DESC LIMIT 1`,
+        [id]
+      ),
+    ]);
+
+    if ((tenantRows as any[]).length === 0) {
+      return reply.status(404).send({ error: "Tenant not found" });
+    }
+
+    const tenant = (tenantRows as any[])[0];
+    return reply.status(200).send({
+      shop_name: tenant.shop_name,
+      missed_call_sms_template: tenant.missed_call_sms_template,
+      ai_system_prompt: (promptRows as any[])[0]?.prompt_text ?? null,
+      business_hours: tenant.business_hours,
+      services_description: tenant.services_description,
+    });
+  });
+
+  // ── PUT /internal/admin/tenants/:id/settings ────────────────────────────
+  const SettingsSchema = z.object({
+    shop_name: z.string().min(1).max(200).optional(),
+    missed_call_sms_template: z.string().max(500).nullable().optional(),
+    ai_system_prompt: z.string().max(2000).nullable().optional(),
+    business_hours: z.string().max(500).nullable().optional(),
+    services_description: z.string().max(1000).nullable().optional(),
+  });
+
+  app.put("/admin/tenants/:id/settings", { preHandler: [adminGuard] }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsed = SettingsSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      return reply.status(400).send({
+        error: "Validation failed",
+        details: parsed.error.issues.map(i => `${i.path.join(".")}: ${i.message}`),
+      });
+    }
+
+    // Check tenant exists
+    const existing = await query(`SELECT id FROM tenants WHERE id = $1`, [id]);
+    if ((existing as any[]).length === 0) {
+      return reply.status(404).send({ error: "Tenant not found" });
+    }
+
+    const data = parsed.data;
+
+    // Update tenant columns (shop_name, missed_call_sms_template, business_hours, services_description)
+    const tenantUpdates: string[] = [];
+    const tenantValues: (string | null)[] = [];
+    let paramIdx = 1;
+
+    if (data.shop_name !== undefined) {
+      tenantUpdates.push(`shop_name = $${paramIdx++}`);
+      tenantValues.push(data.shop_name);
+    }
+    if (data.missed_call_sms_template !== undefined) {
+      tenantUpdates.push(`missed_call_sms_template = $${paramIdx++}`);
+      tenantValues.push(data.missed_call_sms_template);
+    }
+    if (data.business_hours !== undefined) {
+      tenantUpdates.push(`business_hours = $${paramIdx++}`);
+      tenantValues.push(data.business_hours);
+    }
+    if (data.services_description !== undefined) {
+      tenantUpdates.push(`services_description = $${paramIdx++}`);
+      tenantValues.push(data.services_description);
+    }
+
+    if (tenantUpdates.length > 0) {
+      tenantUpdates.push(`updated_at = NOW()`);
+      await query(
+        `UPDATE tenants SET ${tenantUpdates.join(", ")} WHERE id = $${paramIdx}`,
+        [...tenantValues, id]
+      );
+    }
+
+    // Update ai_system_prompt in system_prompts table
+    if (data.ai_system_prompt !== undefined) {
+      if (data.ai_system_prompt === null || data.ai_system_prompt.trim() === "") {
+        // Deactivate existing prompts
+        await query(
+          `UPDATE system_prompts SET is_active = FALSE WHERE tenant_id = $1`,
+          [id]
+        );
+      } else {
+        // Deactivate old, insert new version
+        await query(
+          `UPDATE system_prompts SET is_active = FALSE WHERE tenant_id = $1`,
+          [id]
+        );
+        await query(
+          `INSERT INTO system_prompts (tenant_id, version, prompt_text, is_active)
+           VALUES ($1, (SELECT COALESCE(MAX(version), 0) + 1 FROM system_prompts WHERE tenant_id = $1), $2, TRUE)`,
+          [id, data.ai_system_prompt.trim()]
+        );
+      }
+    }
+
+    return reply.status(200).send({ success: true });
   });
 }

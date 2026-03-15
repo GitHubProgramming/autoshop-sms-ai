@@ -37,8 +37,16 @@ export interface MissedCallResult {
  * Builds the initial SMS text for a missed call.
  * Uses the shop name if available for a personal touch.
  */
-export function buildMissedCallSms(shopName: string | null): string {
+export function buildMissedCallSms(
+  shopName: string | null,
+  template: string | null = null
+): string {
   const name = shopName || "our shop";
+
+  if (template && template.trim()) {
+    return template.replace(/\{shop_name\}/gi, name);
+  }
+
   return (
     `Hi! We noticed you just called ${name} but we couldn't pick up. ` +
     `How can we help you today? Reply here and we'll get you taken care of.`
@@ -108,16 +116,18 @@ export async function handleMissedCallSms(
   input: MissedCallInput,
   fetchFn: typeof fetch = fetch
 ): Promise<MissedCallResult> {
-  // 1. Validate tenant and get shop info
+  // 1. Validate tenant and get shop info + messaging config
   let shopName: string | null = null;
   let billingStatus: string = "unknown";
+  let missedCallTemplate: string | null = null;
   try {
     const rows = await query<{
       id: string;
       shop_name: string | null;
       billing_status: string;
+      missed_call_sms_template: string | null;
     }>(
-      `SELECT id, shop_name, billing_status FROM tenants WHERE id = $1`,
+      `SELECT id, shop_name, billing_status, missed_call_sms_template FROM tenants WHERE id = $1`,
       [input.tenantId]
     );
 
@@ -133,6 +143,7 @@ export async function handleMissedCallSms(
 
     shopName = rows[0].shop_name;
     billingStatus = rows[0].billing_status;
+    missedCallTemplate = rows[0].missed_call_sms_template;
   } catch (err) {
     return {
       success: false,
@@ -200,8 +211,8 @@ export async function handleMissedCallSms(
     // Non-fatal — continue with SMS even if logging fails
   }
 
-  // 5. Send the initial outbound SMS
-  const smsBody = buildMissedCallSms(shopName);
+  // 5. Send the initial outbound SMS (use tenant template if configured)
+  const smsBody = buildMissedCallSms(shopName, missedCallTemplate);
   const twilioResult = await sendTwilioSms(
     input.customerPhone,
     smsBody,
