@@ -104,6 +104,7 @@ function setupDbMocks(options: {
   hasSystemPrompt?: boolean;
   hasHistory?: boolean;
   hasCalendarTokens?: boolean;
+  hasOwnerPhone?: boolean;
 } = {}) {
   mocks.query.mockImplementation(async (sql: string, params?: unknown[]) => {
     // get_or_create_conversation
@@ -139,6 +140,16 @@ function setupDbMocks(options: {
         ];
       }
       return [];
+    }
+
+    // Tenant context lookup (for system prompt enrichment + owner_phone)
+    if (sql.includes("SELECT shop_name, business_hours")) {
+      return [{
+        shop_name: "Joe's Auto",
+        business_hours: null,
+        services_description: null,
+        owner_phone: options.hasOwnerPhone ? "+15125559999" : null,
+      }];
     }
 
     // Tenant lookup (for appointments)
@@ -238,7 +249,7 @@ describe("processSms — happy path", () => {
     );
     expect(openaiCall).toBeDefined();
     const body = JSON.parse((openaiCall![1] as { body: string }).body);
-    expect(body.messages[0].content).toBe("You are Joe's Auto Repair assistant.");
+    expect(body.messages[0].content).toContain("You are Joe's Auto Repair assistant.");
   });
 
   it("includes conversation history in OpenAI request", async () => {
@@ -299,6 +310,64 @@ describe("processSms — booking flow", () => {
     expect(result.isBooked).toBe(true);
     expect(result.appointmentId).toBe(APPOINTMENT_ID);
     expect(result.calendarSynced).toBe(false);
+  });
+
+  it("sends operator alert SMS when calendar sync fails and owner_phone exists", async () => {
+    setupDbMocks({ hasCalendarTokens: true, hasOwnerPhone: true });
+    const fetchMock = mockFetchAll({
+      aiResponse: "Your appointment is confirmed for Wednesday at 3 PM.",
+      googleOk: false,
+    });
+
+    const result = await processSms(validInput(), fetchMock);
+
+    expect(result.isBooked).toBe(true);
+    expect(result.calendarSynced).toBe(false);
+    // Should have sent 3 Twilio calls: AI reply SMS + operator alert SMS
+    const twilioCalls = (fetchMock as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (call: unknown[]) => typeof call[0] === "string" && (call[0] as string).includes("twilio.com")
+    );
+    expect(twilioCalls.length).toBe(2);
+    // Second Twilio call should be the operator alert
+    const alertBody = decodeURIComponent(twilioCalls[1][1].body);
+    expect(alertBody).toContain("AutoShop AI Alert");
+    expect(alertBody).toContain("could NOT be synced");
+    expect(alertBody).toContain(PHONE); // customer phone
+  });
+
+  it("does not send operator alert when no owner_phone", async () => {
+    setupDbMocks({ hasCalendarTokens: true, hasOwnerPhone: false });
+    const fetchMock = mockFetchAll({
+      aiResponse: "Your appointment is confirmed for Wednesday at 3 PM.",
+      googleOk: false,
+    });
+
+    const result = await processSms(validInput(), fetchMock);
+
+    expect(result.isBooked).toBe(true);
+    expect(result.calendarSynced).toBe(false);
+    // Should have only 1 Twilio call: AI reply SMS (no operator alert)
+    const twilioCalls = (fetchMock as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (call: unknown[]) => typeof call[0] === "string" && (call[0] as string).includes("twilio.com")
+    );
+    expect(twilioCalls.length).toBe(1);
+  });
+
+  it("does not send operator alert when calendar tokens missing (unconfigured OAuth)", async () => {
+    setupDbMocks({ hasCalendarTokens: false, hasOwnerPhone: true });
+    const fetchMock = mockFetchAll({
+      aiResponse: "Booking confirmed for Thursday at 9 AM.",
+    });
+
+    const result = await processSms(validInput(), fetchMock);
+
+    expect(result.isBooked).toBe(true);
+    expect(result.calendarSynced).toBe(false);
+    // Should have only 1 Twilio call: AI reply SMS (no alert for unconfigured OAuth)
+    const twilioCalls = (fetchMock as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (call: unknown[]) => typeof call[0] === "string" && (call[0] as string).includes("twilio.com")
+    );
+    expect(twilioCalls.length).toBe(1);
   });
 
   it("skips calendar when no tokens for tenant", async () => {

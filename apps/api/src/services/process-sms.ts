@@ -181,17 +181,23 @@ export async function processSms(
   }
 
   // Inject tenant shop context (business_hours, services_description) into prompt
+  // Also fetch owner_phone for calendar-sync failure alerts
+  let ownerPhone: string | null = null;
+  let shopName: string | null = null;
   try {
     const tenantRows = await query<{
       shop_name: string | null;
       business_hours: string | null;
       services_description: string | null;
+      owner_phone: string | null;
     }>(
-      `SELECT shop_name, business_hours, services_description FROM tenants WHERE id = $1`,
+      `SELECT shop_name, business_hours, services_description, owner_phone FROM tenants WHERE id = $1`,
       [input.tenantId]
     );
     if (tenantRows.length > 0) {
       const t = tenantRows[0];
+      ownerPhone = t.owner_phone;
+      shopName = t.shop_name;
       const contextParts: string[] = [];
       if (t.shop_name) contextParts.push(`Shop name: ${t.shop_name}`);
       if (t.business_hours) contextParts.push(`Business hours: ${t.business_hours}`);
@@ -330,6 +336,21 @@ export async function processSms(
         result.error = result.error
           ? `${result.error}; Calendar: ${calResult.error}`
           : `Calendar sync failed: ${calResult.error}`;
+
+        // ── Operator alert: notify shop owner about failed calendar sync ──
+        // Only alert when tokens existed but API failed (not when OAuth is unconfigured)
+        if (ownerPhone && !calResult.error.includes("No calendar tokens")) {
+          const alertBody =
+            `AutoShop AI Alert: New booking from ${input.customerPhone}` +
+            ` for ${intent.serviceType}` +
+            (intent.scheduledAt ? ` on ${intent.scheduledAt}` : "") +
+            ` could NOT be synced to Google Calendar. Please add it manually.`;
+          try {
+            await sendTwilioSms(ownerPhone, alertBody, fetchFn);
+          } catch {
+            // Non-fatal: best-effort alert
+          }
+        }
       }
     } else {
       result.error = result.error
