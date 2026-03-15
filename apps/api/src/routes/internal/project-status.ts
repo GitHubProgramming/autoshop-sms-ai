@@ -4,9 +4,9 @@ import { join, resolve } from "path";
 import { createHash } from "crypto";
 import { adminGuard } from "../../middleware/admin-guard";
 
-const REPO_STATUS_FILE = join("project-brain", "project_status.json");
-const API_LOCAL_FILE = join("project-status", "project_status.json");
-
+// ── Canonical source: project_status_v2.json ──────────────────────────────
+// v2 is the single source of truth. The v1 endpoint derives its response
+// from v2 data so there is only one file to maintain (no drift possible).
 const REPO_STATUS_V2_FILE = join("project-brain", "project_status_v2.json");
 const API_LOCAL_V2_FILE = join("project-status", "project_status_v2.json");
 
@@ -40,7 +40,7 @@ function getCandidatePaths(
   candidates.push(resolve(__dirname, "..", "..", "..", repoRelative));
 
   // 3. API-local deploy-safe copy (fallback inside container where repo root is absent)
-  //    In container: /app/project-status/project_status.json
+  //    In container: /app/project-status/project_status_v2.json
   candidates.push(resolve(process.cwd(), apiLocalRelative));
   candidates.push(resolve(__dirname, "..", "..", "..", apiLocalRelative));
 
@@ -85,23 +85,38 @@ async function readFirstAccessibleWithMeta(
  * Read-only endpoints for the Project Ops dashboard.
  */
 export async function projectStatusRoute(app: FastifyInstance) {
-  // ── v1 (legacy) ──────────────────────────────────────────────────────────
+  // ── v1 (legacy — derived from v2) ────────────────────────────────────────
   app.get("/admin/project-status", { preHandler: [adminGuard] }, async (_req, reply) => {
     reply.header("Cache-Control", "no-store");
     const candidates = getCandidatePaths(
-      REPO_STATUS_FILE,
-      API_LOCAL_FILE,
-      process.env.PROJECT_STATUS_JSON_PATH,
+      REPO_STATUS_V2_FILE,
+      API_LOCAL_V2_FILE,
+      process.env.PROJECT_STATUS_V2_JSON_PATH,
     );
-    const data = await readFirstAccessible(candidates);
+    const v2 = await readFirstAccessible(candidates) as Record<string, unknown> | null;
 
-    if (data !== null) {
-      return reply.status(200).send(data);
+    if (v2 !== null) {
+      const exec = v2.executive as Record<string, unknown> | undefined;
+      const stages = (v2.stages as Array<Record<string, unknown>> | undefined) ?? [];
+      // Transform v2 → v1 shape for backward compatibility
+      const v1 = {
+        overall_progress: exec?.overall_progress ?? 0,
+        current_phase: exec?.current_mission ?? "",
+        current_focus: exec?.current_blocker_summary ?? "",
+        stages: stages.map((s, i) => ({
+          id: i + 1,
+          name: s.title ?? s.id,
+          weight: s.weight ?? 0,
+          status: s.status ?? "todo",
+          progress: s.progress ?? 0,
+        })),
+      };
+      return reply.status(200).send(v1);
     }
 
     app.log.error(
       { attemptedPaths: candidates },
-      "Failed to read project_status.json — none of the candidate paths exist",
+      "Failed to read project_status_v2.json for v1 derivation",
     );
     return reply.status(500).send({
       error: "Failed to read project status file",
@@ -178,12 +193,11 @@ export async function projectStatusRoute(app: FastifyInstance) {
       };
     };
 
-    const [v1, v2, ml] = await Promise.all([
-      check("project_status.json", REPO_STATUS_FILE, API_LOCAL_FILE, process.env.PROJECT_STATUS_JSON_PATH),
-      check("project_status_v2.json", REPO_STATUS_V2_FILE, API_LOCAL_V2_FILE, process.env.PROJECT_STATUS_V2_JSON_PATH),
+    const [v2, ml] = await Promise.all([
+      check("project_status_v2.json (canonical)", REPO_STATUS_V2_FILE, API_LOCAL_V2_FILE, process.env.PROJECT_STATUS_V2_JSON_PATH),
       check("movement_log.json", REPO_MOVEMENT_LOG, API_LOCAL_MOVEMENT_LOG, process.env.MOVEMENT_LOG_JSON_PATH),
     ]);
 
-    return reply.status(200).send({ cwd: process.cwd(), files: [v1, v2, ml] });
+    return reply.status(200).send({ cwd: process.cwd(), canonical: "project_status_v2.json", files: [v2, ml] });
   });
 }
