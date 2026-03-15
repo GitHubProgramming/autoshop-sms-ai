@@ -302,6 +302,15 @@ export async function processSms(
       );
 
       result.calendarSynced = calResult.calendarSynced;
+      if (!calResult.calendarSynced && calResult.error) {
+        result.error = result.error
+          ? `${result.error}; Calendar: ${calResult.error}`
+          : `Calendar sync failed: ${calResult.error}`;
+      }
+    } else {
+      result.error = result.error
+        ? `${result.error}; Appointment: ${apptResult.error}`
+        : `Appointment creation failed: ${apptResult.error}`;
     }
 
     // Close conversation as booked
