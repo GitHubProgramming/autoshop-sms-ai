@@ -62,6 +62,7 @@ Phase: Production-verified, awaiting human demo run.
 
 ## Done (Recent)
 
+- Pilot tenant readiness check: per-tenant live-path checklist with ready/not_ready verdict, 9 checks, admin UI tab (PR #120)
 - Live environment hardening: startup env validation, graceful shutdown timeout, safe webhook enqueue, enhanced health check (PR #113)
 - Twilio voice webhook: call forwarding with 20s timeout, missed-call detection via voice-status callback, 11 tests (PR #111)
 - Pilot-shop configurable messaging: per-tenant SMS template, AI prompt, business hours, services. Admin Settings tab (PR #107)
@@ -85,6 +86,7 @@ Phase: Production-verified, awaiting human demo run.
 
 | Date | Change | Branch/PR |
 |------|--------|-----------|
+| 2026-03-15 | Pilot tenant readiness check: per-tenant live-path checklist with verdict | PR #120 |
 | 2026-03-15 | Live env hardening: startup env validation, shutdown timeout, safe webhook enqueue | PR #113 |
 | 2026-03-15 | Twilio voice webhook: call forwarding + missed-call detection (8+3 tests, 289 total) | PR #111 |
 | 2026-03-15 | Pilot-shop configurable messaging and AI settings (15 tests, 278 total) | PR #107 |

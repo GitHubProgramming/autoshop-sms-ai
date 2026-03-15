@@ -9,6 +9,47 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: pilot-readiness-check — 2026-03-15
+
+**Branch:** ai/pilot-readiness-check
+**Status:** COMPLETE — Pilot tenant readiness check for live-test validation
+
+### Selected Task
+Per-tenant readiness check that inspects all critical wiring for the live path and surfaces exactly what's missing before a human can run a real live test.
+
+### Why This Is Highest Leverage
+The system has all configurable pieces (phone wiring, SMS templates, AI prompts, calendar OAuth), but there's no contract check that tells an operator "this tenant is ready for a real missed-call test" vs "these 3 things are still missing." Without this, a human could attempt a live test and hit a silent failure from missing forward_to, expired calendar token, or missing SMS template.
+
+### Changes
+- `apps/api/src/routes/internal/admin.ts` — Added GET /admin/tenants/:id/pilot-readiness endpoint with 9 checks in live-path order
+- `apps/web/admin.html` — Added "Readiness" tab in tenant detail view with visual pass/fail checklist
+- `apps/api/src/tests/pilot-readiness.test.ts` — 11 new tests covering all verdict states
+
+### Live-Path Checks (in order)
+1. Twilio number assigned (critical)
+2. Call forwarding configured (critical)
+3. Missed-call SMS template set (critical)
+4. AI system prompt configured (advisory)
+5. Business hours set (advisory)
+6. Services description set (advisory)
+7. Google Calendar connected (critical)
+8. Calendar token not expired (critical)
+9. Billing status allows operation (critical)
+
+### Verification
+```
+VERIFICATION
+EXIT_CODE=0
+TEST_FILES=20
+TESTS_TOTAL=327
+TESTS_FAILED=0
+DURATION=5.74s
+```
+- All 327 tests pass (20 test files)
+- 11 new tests for pilot readiness endpoint
+
+---
+
 ## TASK: booking-action-workflow — 2026-03-15
 
 **Branch:** ai/booking-action-workflow
