@@ -1042,7 +1042,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
           </div>
           <div class="settings-row">
             <div><div class="settings-row-label">Shop Name in Messages</div></div>
-            <input class="s-input" type="text" id="settingsShopName" value="" style="width:200px;">
+            <input class="s-input" type="text" id="settingsAIShopName" value="" style="width:200px;">
           </div>
         </div>
       </div>
@@ -1141,8 +1141,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 <!-- TOAST -->
 <div class="toast" id="toastEl"></div>
 
-</content>
-</invoke><script>
+<script>
 // ════════════════════════════════════════════
 // TENANT STATE — populated from API
 // ════════════════════════════════════════════
@@ -2115,6 +2114,8 @@ function renderLiveRevenueBlocks() {
   if (convsSub) convsSub.textContent = 'All SMS threads — ' + months[now.getMonth()] + ' ' + now.getFullYear();
   var settingsShop = document.getElementById('settingsShopName');
   if (settingsShop) settingsShop.value = shopName;
+  var settingsAIShop = document.getElementById('settingsAIShopName');
+  if (settingsAIShop) settingsAIShop.value = shopName;
 
   // Nav account
   var avatar = document.getElementById('navAvatar');
