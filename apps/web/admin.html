@@ -825,9 +825,9 @@ async function loadAccountDetail(id) {
 
 function renderAccountDetail(d) {
   const t = d.tenant;
-  const tabs = ['summary','readiness','settings','usage','billing','conversations','bookings','integrations','billing_events','audit'];
+  const tabs = ['summary','health','readiness','settings','usage','billing','conversations','bookings','integrations','billing_events','audit'];
   const tabLabels = {
-    summary:'Summary', readiness:'Readiness', settings:'Settings', usage:'Usage', billing:'Billing', conversations:'Conversations',
+    summary:'Summary', health:'Health', readiness:'Readiness', settings:'Settings', usage:'Usage', billing:'Billing', conversations:'Conversations',
     bookings:'Bookings', integrations:'Integrations', billing_events:'Billing Events', audit:'Audit Log'
   };
 
@@ -864,6 +864,14 @@ function renderAccountDetail(d) {
             </div>
           </div>
         </div>`;
+      break;
+
+    case 'health':
+      tabContent = `
+        <div id="healthPanel">
+          <div class="loading"><div class="spinner"></div> Loading health metrics...</div>
+        </div>`;
+      setTimeout(() => loadTenantHealth(t.id), 0);
       break;
 
     case 'readiness':
@@ -1071,6 +1079,141 @@ function renderAccountDetail(d) {
 function switchAccountTab(tab) {
   accountDetailTab = tab;
   renderAccountDetail(window._accountDetailData);
+}
+
+// ── TENANT HEALTH ───────────────────────────────────────────────────────────
+async function loadTenantHealth(tenantId) {
+  const panel = document.getElementById('healthPanel');
+  if (!panel) return;
+  try {
+    const h = await apiFetch(`/internal/admin/tenants/${tenantId}/health`);
+
+    function healthStat(label, value, sub) {
+      return `<div style="padding:16px;border-radius:10px;border:1px solid var(--border);background:var(--bg)">
+        <div style="font-size:11px;color:var(--steel);text-transform:uppercase;letter-spacing:.06em;font-weight:600">${label}</div>
+        <div style="font-size:28px;font-weight:700;color:var(--white);margin-top:4px">${value}</div>
+        ${sub ? `<div style="font-size:12px;color:var(--steel);margin-top:2px;font-family:var(--mono)">${sub}</div>` : ''}
+      </div>`;
+    }
+
+    function pctColor(pct) {
+      if (pct === null) return 'var(--steel)';
+      if (pct >= 70) return 'var(--green)';
+      if (pct >= 40) return 'var(--amber)';
+      return 'var(--red)';
+    }
+
+    function pctBadge(pct, label) {
+      if (pct === null) return `<span style="color:var(--steel)">—</span>`;
+      return `<span style="color:${pctColor(pct)};font-weight:700">${pct}%</span> <span style="color:var(--steel)">${label}</span>`;
+    }
+
+    const c = h.conversations;
+    const b = h.bookings;
+    const p = h.pipeline;
+    const a = h.last_activity;
+    const cal = h.calendar;
+
+    // Calendar status
+    let calStatus = 'Not connected';
+    let calColor = 'var(--steel)';
+    if (cal) {
+      if (cal.status === 'active') { calStatus = 'Active'; calColor = 'var(--green)'; }
+      else if (cal.status === 'refresh_failed') { calStatus = 'Refresh Failed'; calColor = 'var(--red)'; }
+      else { calStatus = cal.status || 'Unknown'; calColor = 'var(--amber)'; }
+    }
+
+    panel.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+        ${healthStat('Conversations (30d)', c.total_30d, pctBadge(c.completion_rate_pct, 'completion'))}
+        ${healthStat('Bookings', b.total, pctBadge(b.sync_rate_pct, 'synced'))}
+        ${healthStat('Pipeline Runs (30d)', p.total_30d, pctBadge(p.success_rate_pct, 'success'))}
+        ${healthStat('Calendar', `<span style="color:${calColor};font-size:18px">${escHtml(calStatus)}</span>`,
+          cal ? (cal.google_account_email ? escHtml(cal.google_account_email) : '') : '')}
+      </div>
+
+      <div class="two-col" style="margin-bottom:20px">
+        <div class="panel">
+          <div class="panel-header"><span class="panel-title">Conversation Metrics (30 days)</span></div>
+          <div class="panel-body">
+            <div class="kv-grid">
+              <div class="kv-item"><div class="kv-label">Total</div><div class="kv-val">${c.total_30d}</div></div>
+              <div class="kv-item"><div class="kv-label">Completed</div><div class="kv-val">${c.completed}</div></div>
+              <div class="kv-item"><div class="kv-label">Still Open</div><div class="kv-val">${c.still_open}</div></div>
+              <div class="kv-item"><div class="kv-label">Led to Booking</div><div class="kv-val">${c.with_booking}</div></div>
+              <div class="kv-item"><div class="kv-label">Completion Rate</div><div class="kv-val">${pctBadge(c.completion_rate_pct, '')}</div></div>
+              <div class="kv-item"><div class="kv-label">Booking Rate</div><div class="kv-val">${pctBadge(c.booking_rate_pct, '')}</div></div>
+              <div class="kv-item"><div class="kv-label">Avg Turns</div><div class="kv-val">${c.avg_turns !== null ? c.avg_turns : '—'}</div></div>
+              <div class="kv-item"><div class="kv-label">Avg Duration</div><div class="kv-val">${c.avg_duration_min !== null ? c.avg_duration_min + ' min' : '—'}</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><span class="panel-title">Booking Breakdown</span></div>
+          <div class="panel-body">
+            <div class="kv-grid">
+              <div class="kv-item"><div class="kv-label">Total Bookings</div><div class="kv-val">${b.total}</div></div>
+              <div class="kv-item"><div class="kv-label">Calendar Synced</div><div class="kv-val" style="color:var(--green)">${b.synced}</div></div>
+              <div class="kv-item"><div class="kv-label">Confirmed (Calendar)</div><div class="kv-val">${b.confirmed_calendar}</div></div>
+              <div class="kv-item"><div class="kv-label">Confirmed (Manual)</div><div class="kv-val">${b.confirmed_manual}</div></div>
+              <div class="kv-item"><div class="kv-label">Action Needed</div><div class="kv-val" style="color:${b.action_needed > 0 ? 'var(--amber)' : 'var(--steel)'}">${b.action_needed}</div></div>
+              <div class="kv-item"><div class="kv-label">Failed</div><div class="kv-val" style="color:${b.failed > 0 ? 'var(--red)' : 'var(--steel)'}">${b.failed}</div></div>
+              <div class="kv-item"><div class="kv-label">Sync Rate</div><div class="kv-val">${pctBadge(b.sync_rate_pct, '')}</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="two-col" style="margin-bottom:20px">
+        <div class="panel">
+          <div class="panel-header"><span class="panel-title">Pipeline Health (30 days)</span></div>
+          <div class="panel-body">
+            <div class="kv-grid">
+              <div class="kv-item"><div class="kv-label">Total Runs</div><div class="kv-val">${p.total_30d}</div></div>
+              <div class="kv-item"><div class="kv-label">Completed</div><div class="kv-val" style="color:var(--green)">${p.completed}</div></div>
+              <div class="kv-item"><div class="kv-label">Failed</div><div class="kv-val" style="color:${p.failed > 0 ? 'var(--red)' : 'var(--steel)'}">${p.failed}</div></div>
+              <div class="kv-item"><div class="kv-label">Success Rate</div><div class="kv-val">${pctBadge(p.success_rate_pct, '')}</div></div>
+              <div class="kv-item"><div class="kv-label">Last Run</div><div class="kv-val mono dim">${p.last_trace_at ? relTime(p.last_trace_at) : '—'}</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><span class="panel-title">Last Activity</span></div>
+          <div class="panel-body">
+            <div class="kv-grid">
+              <div class="kv-item"><div class="kv-label">Last Conversation</div><div class="kv-val mono dim">${a.last_conversation_at ? relTime(a.last_conversation_at) : '—'}</div></div>
+              <div class="kv-item"><div class="kv-label">Last Booking</div><div class="kv-val mono dim">${a.last_booking_at ? relTime(a.last_booking_at) : '—'}</div></div>
+              <div class="kv-item"><div class="kv-label">Last Inbound SMS</div><div class="kv-val mono dim">${a.last_inbound_sms_at ? relTime(a.last_inbound_sms_at) : '—'}</div></div>
+              <div class="kv-item"><div class="kv-label">Last Outbound SMS</div><div class="kv-val mono dim">${a.last_outbound_sms_at ? relTime(a.last_outbound_sms_at) : '—'}</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      ${cal ? `
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">Calendar Integration</span></div>
+        <div class="panel-body">
+          <div class="kv-grid">
+            <div class="kv-item"><div class="kv-label">Status</div><div class="kv-val" style="color:${calColor};font-weight:600">${escHtml(calStatus)}</div></div>
+            <div class="kv-item"><div class="kv-label">Google Account</div><div class="kv-val mono dim">${escHtml(cal.google_account_email || '—')}</div></div>
+            <div class="kv-item"><div class="kv-label">Connected</div><div class="kv-val mono dim">${cal.connected_at ? relTime(cal.connected_at) : '—'}</div></div>
+            <div class="kv-item"><div class="kv-label">Last Refreshed</div><div class="kv-val mono dim">${cal.last_refreshed ? relTime(cal.last_refreshed) : '—'}</div></div>
+            ${cal.last_error ? `<div class="kv-item" style="grid-column:1/-1"><div class="kv-label">Last Error</div><div class="kv-val" style="color:var(--red);font-family:var(--mono);font-size:12px">${escHtml(cal.last_error)}</div></div>` : ''}
+          </div>
+        </div>
+      </div>` : ''}
+
+      <div style="margin-top:16px;padding:12px 16px;border-radius:8px;background:var(--bg);border:1px solid var(--border);
+           font-size:12px;color:var(--steel);font-family:var(--mono)">
+        Health data as of ${new Date().toLocaleString()} — refresh the tab to update
+      </div>
+    `;
+  } catch (err) {
+    panel.innerHTML = renderError(err);
+  }
 }
 
 // ── PILOT READINESS ─────────────────────────────────────────────────────────

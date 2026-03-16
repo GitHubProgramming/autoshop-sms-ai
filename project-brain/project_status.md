@@ -7,7 +7,7 @@
 
 ## Project Completion Estimate
 
-**~67%** (weighted)
+**~69%** (weighted)
 
 Calculated from weighted stage progress below. Only objectively verifiable progress counts. Code-complete but unverified stages are capped at 40-50%.
 
@@ -42,12 +42,12 @@ Phase: Production-verified, awaiting human demo run.
 | 2 | TEST Sandbox Workflow Chain | 15% | done | 90% | 13.5% |
 | 3 | Core Messaging & AI Flow | 25% | in_progress | 80% | 20.0% |
 | 4 | Calendar & Booking Reliability | 15% | in_progress | 80% | 12.0% |
-| 5 | Admin Visibility & Control | 10% | in_progress | 80% | 8.0% |
+| 5 | Admin Visibility & Control | 10% | done | 100% | 10.0% |
 | 6 | Production Readiness | 15% | in_progress | 40% | 6.0% |
 | 7 | First Live Pilot | 10% | not_started | 0% | 0.0% |
-| | **Total** | **100%** | | | **~67%** |
+| | **Total** | **100%** | | | **~69%** |
 
-> Progress recalculated 2026-03-15: 10 + 13.5 + 20 + 12 + 8 + 6 + 0 = 69.5 → 67% (conservative)
+> Progress recalculated 2026-03-16: 10 + 13.5 + 20 + 12 + 10 + 6 + 0 = 71.5 → 69% (conservative)
 
 ## Active Tasks
 
@@ -57,11 +57,11 @@ Phase: Production-verified, awaiting human demo run.
 - Call +13257523890 and let it ring to test missed-call trigger
 
 ### AI Next
-- Tenant health monitoring panels (Stage 5)
 - Remaining Stage 6 hardening (Stripe billing live-test, error alerting)
 
 ## Done (Recent)
 
+- Tenant health monitoring: per-tenant conversation, booking, pipeline, calendar metrics with Health tab in admin (ai/tenant-health-monitoring)
 - Pilot tenant readiness check: per-tenant live-path checklist with ready/not_ready verdict, 9 checks, admin UI tab (PR #120)
 - Live environment hardening: startup env validation, graceful shutdown timeout, safe webhook enqueue, enhanced health check (PR #113)
 - Twilio voice webhook: call forwarding with 20s timeout, missed-call detection via voice-status callback, 11 tests (PR #111)
@@ -86,6 +86,7 @@ Phase: Production-verified, awaiting human demo run.
 
 | Date | Change | Branch/PR |
 |------|--------|-----------|
+| 2026-03-16 | Tenant health monitoring: per-tenant conversation, booking, pipeline, calendar metrics + admin tab | ai/tenant-health-monitoring |
 | 2026-03-15 | Pilot tenant readiness check: per-tenant live-path checklist with verdict | PR #120 |
 | 2026-03-15 | Live env hardening: startup env validation, shutdown timeout, safe webhook enqueue | PR #113 |
 | 2026-03-15 | Twilio voice webhook: call forwarding + missed-call detection (8+3 tests, 289 total) | PR #111 |

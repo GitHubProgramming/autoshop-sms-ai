@@ -27,6 +27,7 @@ import { getRecentTraces, getTraceById } from "../../services/pipeline-trace";
  *   GET /internal/admin/signup-attempts
  *   GET /internal/admin/audit
  *   GET /internal/admin/metrics/conversation-health
+ *   GET /internal/admin/tenants/:id/health
  */
 export async function adminRoute(app: FastifyInstance) {
   // ── No-cache headers for all admin responses ──────────────────────────────
@@ -1175,6 +1176,141 @@ export async function adminRoute(app: FastifyInstance) {
     }
 
     return reply.status(200).send({ success: true });
+  });
+
+  // ── GET /internal/admin/tenants/:id/health ───────────────────────────────
+  app.get("/admin/tenants/:id/health", { preHandler: [adminGuard] }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const [
+      tenantRows,
+      convStatsRows,
+      bookingStatsRows,
+      pipelineStatsRows,
+      lastActivityRows,
+      calendarRows,
+    ] = await Promise.all([
+      query(`SELECT id, shop_name FROM tenants WHERE id = $1`, [id]),
+      // Conversation stats (last 30 days)
+      query(
+        `SELECT
+           COUNT(*)::int AS total,
+           COUNT(*) FILTER (WHERE status IN ('closed','booked','expired'))::int AS completed,
+           COUNT(*) FILTER (WHERE status = 'open')::int AS still_open,
+           COUNT(*) FILTER (WHERE appointment_id IS NOT NULL)::int AS with_booking,
+           ROUND(AVG(turn_count), 1) AS avg_turns,
+           ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(closed_at, NOW()) - opened_at)) / 60), 1) AS avg_duration_min
+         FROM conversations
+         WHERE tenant_id = $1 AND opened_at >= NOW() - INTERVAL '30 days'`,
+        [id]
+      ),
+      // Booking stats (all time)
+      query(
+        `SELECT
+           COUNT(*)::int AS total,
+           COUNT(*) FILTER (WHERE calendar_synced = TRUE)::int AS synced,
+           COUNT(*) FILTER (WHERE booking_state IN ('PENDING_MANUAL_CONFIRMATION','FAILED'))::int AS action_needed,
+           COUNT(*) FILTER (WHERE booking_state = 'CONFIRMED_CALENDAR')::int AS confirmed_calendar,
+           COUNT(*) FILTER (WHERE booking_state = 'CONFIRMED_MANUAL')::int AS confirmed_manual,
+           COUNT(*) FILTER (WHERE booking_state = 'FAILED')::int AS failed
+         FROM appointments
+         WHERE tenant_id = $1`,
+        [id]
+      ),
+      // Pipeline trace stats (last 30 days)
+      query(
+        `SELECT
+           COUNT(*)::int AS total,
+           COUNT(*) FILTER (WHERE status = 'completed')::int AS completed,
+           COUNT(*) FILTER (WHERE status = 'failed')::int AS failed,
+           MAX(completed_at) AS last_trace_at
+         FROM pipeline_traces
+         WHERE tenant_id = $1 AND started_at >= NOW() - INTERVAL '30 days'`,
+        [id]
+      ),
+      // Last activity timestamps
+      query(
+        `SELECT
+           (SELECT MAX(last_message_at) FROM conversations WHERE tenant_id = $1) AS last_conversation_at,
+           (SELECT MAX(created_at) FROM appointments WHERE tenant_id = $1) AS last_booking_at,
+           (SELECT MAX(sent_at) FROM messages WHERE tenant_id = $1 AND direction = 'inbound') AS last_inbound_sms_at,
+           (SELECT MAX(sent_at) FROM messages WHERE tenant_id = $1 AND direction = 'outbound') AS last_outbound_sms_at`,
+        [id]
+      ),
+      // Calendar integration health
+      query(
+        `SELECT integration_status, last_refreshed, last_error, connected_at, google_account_email
+         FROM tenant_calendar_tokens WHERE tenant_id = $1 LIMIT 1`,
+        [id]
+      ),
+    ]);
+
+    if (!(tenantRows as any[]).length) {
+      return reply.status(404).send({ error: "Tenant not found" });
+    }
+
+    const conv = (convStatsRows as any[])[0] || {};
+    const booking = (bookingStatsRows as any[])[0] || {};
+    const pipeline = (pipelineStatsRows as any[])[0] || {};
+    const activity = (lastActivityRows as any[])[0] || {};
+    const calendar = (calendarRows as any[])[0] || null;
+
+    const completionRate = conv.total > 0
+      ? Math.round((conv.completed / conv.total) * 100)
+      : null;
+    const bookingRate = conv.total > 0
+      ? Math.round((conv.with_booking / conv.total) * 100)
+      : null;
+    const syncRate = booking.total > 0
+      ? Math.round((booking.synced / booking.total) * 100)
+      : null;
+    const pipelineSuccessRate = pipeline.total > 0
+      ? Math.round((pipeline.completed / pipeline.total) * 100)
+      : null;
+
+    return reply.status(200).send({
+      tenant_id: id,
+      shop_name: (tenantRows as any[])[0].shop_name,
+      conversations: {
+        total_30d: conv.total || 0,
+        completed: conv.completed || 0,
+        still_open: conv.still_open || 0,
+        with_booking: conv.with_booking || 0,
+        completion_rate_pct: completionRate,
+        booking_rate_pct: bookingRate,
+        avg_turns: parseFloat(conv.avg_turns) || null,
+        avg_duration_min: parseFloat(conv.avg_duration_min) || null,
+      },
+      bookings: {
+        total: booking.total || 0,
+        synced: booking.synced || 0,
+        action_needed: booking.action_needed || 0,
+        confirmed_calendar: booking.confirmed_calendar || 0,
+        confirmed_manual: booking.confirmed_manual || 0,
+        failed: booking.failed || 0,
+        sync_rate_pct: syncRate,
+      },
+      pipeline: {
+        total_30d: pipeline.total || 0,
+        completed: pipeline.completed || 0,
+        failed: pipeline.failed || 0,
+        success_rate_pct: pipelineSuccessRate,
+        last_trace_at: pipeline.last_trace_at || null,
+      },
+      last_activity: {
+        last_conversation_at: activity.last_conversation_at || null,
+        last_booking_at: activity.last_booking_at || null,
+        last_inbound_sms_at: activity.last_inbound_sms_at || null,
+        last_outbound_sms_at: activity.last_outbound_sms_at || null,
+      },
+      calendar: calendar ? {
+        status: calendar.integration_status,
+        last_refreshed: calendar.last_refreshed,
+        last_error: calendar.last_error,
+        connected_at: calendar.connected_at,
+        google_account_email: calendar.google_account_email,
+      } : null,
+    });
   });
 
   // ── GET /internal/admin/traces ────────────────────────────────────────────

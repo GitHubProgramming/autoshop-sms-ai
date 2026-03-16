@@ -9,6 +9,43 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: tenant-health-monitoring — 2026-03-16
+
+**Branch:** ai/tenant-health-monitoring
+**Status:** COMPLETE — Per-tenant health monitoring with conversation, booking, pipeline, and calendar metrics
+
+### Selected Task
+Add tenant health monitoring to the admin dashboard — the last remaining `todo` child in Stage 5 (Admin Visibility & Control).
+
+### Why This Is Highest Leverage
+All human-blocked items (Google OAuth consent, external SMS test) require human action. This is the highest-leverage AI-owned task: it gives operators a single view of tenant operational health — conversation volume, booking success rates, pipeline reliability, calendar integration status, and last activity timestamps.
+
+### Changes
+- `apps/api/src/routes/internal/admin.ts` — Added GET /admin/tenants/:id/health endpoint with 6 parallel queries aggregating conversation (30d), booking, pipeline (30d), last activity, and calendar health metrics
+- `apps/web/admin.html` — Added "Health" tab in tenant detail view with 4 stat cards, conversation metrics panel, booking breakdown, pipeline health, last activity timestamps, and calendar integration details
+- `apps/api/src/tests/tenant-health.test.ts` — 5 new tests covering 404, full metrics, empty data, calendar errors, percentage rounding
+
+### Health Metrics Provided
+1. **Conversations (30d):** total, completed, open, booking rate, completion rate, avg turns, avg duration
+2. **Bookings:** total, synced, action needed, failed, confirmed (calendar/manual), sync rate
+3. **Pipeline (30d):** total runs, completed, failed, success rate, last run time
+4. **Last Activity:** last conversation, last booking, last inbound/outbound SMS
+5. **Calendar:** integration status, Google account, connected date, last refresh, errors
+
+### Verification
+```
+VERIFICATION
+EXIT_CODE=0
+TEST_FILES=24
+TESTS_TOTAL=374
+TESTS_FAILED=0
+DURATION=19.06s
+```
+- All 374 tests pass (24 test files)
+- 5 new tests for tenant health endpoint
+
+---
+
 ## TASK: pilot-readiness-check — 2026-03-15
 
 **Branch:** ai/pilot-readiness-check

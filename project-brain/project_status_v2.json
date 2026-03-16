@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": 2,
-    "last_updated": "2026-03-15T18:00:00Z",
+    "last_updated": "2026-03-16T18:00:00Z",
     "updated_by": "claude",
     "repo_branch": "main"
   },
@@ -9,7 +9,7 @@
     "project_name": "AutoShop AI Agent SaaS",
     "current_mission": "Full SMS pipeline production-verified — awaiting human demo run and pilot onboarding",
     "current_node_id": "calendar_reliability",
-    "overall_progress": 67,
+    "overall_progress": 69,
     "momentum": "progressing",
     "ai_can_continue_now": true,
     "human_action_required": true,
@@ -224,8 +224,8 @@
       "id": "admin_visibility_control",
       "title": "Admin Visibility & Control",
       "weight": 10,
-      "status": "in_progress",
-      "progress": 80,
+      "status": "done",
+      "progress": 100,
       "owner": "ai",
       "depends_on": [
         "foundation_operating_model"
@@ -258,7 +258,7 @@
         {
           "id": "tenant_health_monitoring",
           "title": "Tenant health monitoring",
-          "status": "todo",
+          "status": "done",
           "owner": "ai"
         },
         {
@@ -268,8 +268,8 @@
           "owner": "ai"
         }
       ],
-      "next_task": "Add tenant health monitoring and conversation metrics panels",
-      "last_change": "2026-03-15"
+      "next_task": null,
+      "last_change": "2026-03-16"
     },
     {
       "id": "production_readiness",
@@ -376,6 +376,13 @@
     }
   ],
   "recent_movements": [
+    {
+      "date": "2026-03-16",
+      "type": "task_done",
+      "title": "Tenant health monitoring — per-tenant health dashboard",
+      "impact": "Operators see conversation volume, booking success rates, pipeline reliability, calendar health, and last activity timestamps per tenant. Stage 5 complete.",
+      "branch": "ai/tenant-health-monitoring"
+    },
     {
       "date": "2026-03-15",
       "type": "task_done",
