@@ -63,19 +63,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .nav-logo span{color:var(--rust)}
 .nav-divider{width:1px;height:20px;background:var(--border)}
 .nav-shop{font-size:14px;font-weight:500;color:var(--text-secondary);letter-spacing:-.01em}
-.plan-badge{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:4px}
-.plan-badge.trial{background:#FEF3C7;color:#92400E}
-.plan-badge.starter{background:#F1F5F9;color:#475569}
-.plan-badge.pro{background:#DBEAFE;color:#1E40AF}
-.plan-badge.premium{background:#DCFCE7;color:#166534}
-.plan-badge.past-due{background:#FEE2E2;color:#991B1B}
-.plan-badge.suspended{background:#FEE2E2;color:#991B1B}
 .nav-right{display:flex;align-items:center;gap:12px}
-.nav-usage{display:flex;align-items:center;gap:8px;padding:5px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg)}
-.nav-usage-text{font-family:var(--mono);font-size:11px;color:var(--text-tertiary)}
-.nav-usage-text strong{color:var(--text)}
-.nav-usage-mini{width:48px;height:3px;background:var(--border);border-radius:2px;overflow:hidden}
-.nav-usage-mini-fill{height:100%;background:var(--rust);border-radius:2px;transition:width .4s,background .4s}
 .nav-account{display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 8px;border-radius:8px;transition:background .15s;position:relative}
 .nav-account:hover{background:var(--bg-hover)}
 .nav-avatar{width:28px;height:28px;background:var(--rust);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
@@ -913,13 +901,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
     <a href="index.html" class="nav-logo">Auto<span>Shop</span> AI</a>
     <div class="nav-divider"></div>
     <span class="nav-shop" id="navShopName">—</span>
-    <span class="plan-badge" id="navPlanBadge">Trial</span>
   </div>
   <div class="nav-right">
-    <div class="nav-usage" id="navUsage">
-      <span class="nav-usage-text" id="navUsageText"></span>
-      <div class="nav-usage-mini"><div class="nav-usage-mini-fill" id="navUsageFill"></div></div>
-    </div>
     <div class="nav-account">
       <div class="nav-avatar" id="navAvatar">?</div>
       <span class="nav-account-name" id="navAccountName">—</span>
@@ -2076,21 +2059,7 @@ function renderBanners() {
 // ════════════════════════════════════════════
 function renderNav() {
   const s = tenantState;
-  // Plan badge
-  const badgeMap = { trial:'trial', starter:'starter', pro:'pro', premium:'premium', past_due:'past-due', suspended:'suspended' };
-  const badgeKey = ['suspended','canceled','trial_expired'].includes(s.status) ? 'suspended' : s.status === 'past_due' ? 'past-due' : s.plan;
-  const badgeEl = document.getElementById('navPlanBadge');
-  badgeEl.className = 'plan-badge ' + (badgeMap[badgeKey] || 'starter');
-  badgeEl.textContent = badgeKey === 'past-due' ? 'Past Due' : badgeKey.charAt(0).toUpperCase() + badgeKey.slice(1);
-
-  // Usage
-  const isTrial = s.plan === 'trial';
-  const limit = isTrial ? s.trialLimit : s.convLimit;
-  const pct = Math.min((s.convUsed / limit) * 100, 100);
-  document.getElementById('navUsageText').innerHTML = `<strong>${s.convUsed}</strong> / ${limit} conversations`;
-  const fill = document.getElementById('navUsageFill');
-  fill.style.width = pct + '%';
-  fill.style.background = pct >= 100 ? 'var(--red)' : pct >= 80 ? 'var(--amber)' : 'var(--rust)';
+  // Plan badge and usage are shown in the top banner only
 
   // Settings — Twilio
   const twEl = document.getElementById('settingsTwilioNumber');
