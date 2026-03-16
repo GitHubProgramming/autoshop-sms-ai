@@ -446,28 +446,72 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 @media(max-width:1024px){.two-col{grid-template-columns:1fr}}
 
 /* ── BILLING ── */
-.billing-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
-.billing-card{background:var(--bg-panel);border:1px solid var(--border);overflow:hidden;border-radius:var(--radius)}
-.billing-card-header{padding:14px 20px;border-bottom:1px solid var(--border);background:var(--bg);font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text-tertiary)}
-.billing-card-body{padding:20px}
-.billing-plan-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
-.billing-plan-name{font-size:26px;font-weight:700;color:var(--text);letter-spacing:-.02em}
-.billing-plan-price{font-size:22px;font-weight:700;color:var(--text);letter-spacing:-.02em}
-.billing-plan-price span{font-family:var(--mono);font-size:12px;color:var(--text-tertiary)}
-.billing-detail-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
-.billing-detail-row:last-child{border-bottom:none}
-.billing-detail-label{color:var(--text-tertiary)}
-.billing-detail-value{font-family:var(--mono);font-size:12px;color:var(--text)}
-.usage-bar-wrap{margin:14px 0}
-.usage-bar-label{display:flex;justify-content:space-between;margin-bottom:5px}
-.usage-bar-label span{font-size:12px;color:var(--text-tertiary)}
-.usage-bar-label strong{color:var(--text)}
-.usage-bar-bg{height:5px;background:var(--border);border-radius:3px;overflow:hidden}
-.usage-bar-fill{height:100%;border-radius:3px;transition:width .4s,background .4s}
-.usage-bar-fill.normal{background:var(--rust)}
-.usage-bar-fill.warn{background:var(--amber)}
-.usage-bar-fill.over{background:var(--red)}
-.billing-warning{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:8px;margin-bottom:12px}
+.billing-top-grid{display:grid;grid-template-columns:2fr 1fr;gap:24px;margin-bottom:32px}
+@media(max-width:900px){.billing-top-grid{grid-template-columns:1fr}}
+.billing-card{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);padding:24px}
+.billing-card-title{font-size:17px;font-weight:600;color:var(--text);margin-bottom:4px}
+.billing-card-subtitle{font-size:13px;color:var(--text-tertiary)}
+.billing-status-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:#ECFDF5;color:#10B981;border-radius:20px;font-size:12px;font-weight:500}
+.billing-status-badge svg{width:12px;height:12px}
+.billing-plan-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px}
+.billing-price-block{padding-bottom:24px;border-bottom:1px solid var(--border);margin-bottom:24px}
+.billing-price-big{font-size:32px;font-weight:600;color:var(--text);letter-spacing:-.02em}
+.billing-price-period{font-size:14px;color:var(--text-tertiary);margin-left:4px}
+.billing-plan-name{font-size:17px;font-weight:500;color:var(--text);margin-top:6px}
+.billing-plan-included{font-size:13px;color:var(--text-tertiary);margin-top:2px}
+.billing-usage-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.billing-usage-label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--text)}
+.billing-usage-label svg{width:16px;height:16px;color:var(--rust)}
+.billing-usage-count{font-size:13px;color:var(--text-tertiary)}
+.billing-usage-bar{position:relative;width:100%;height:10px;background:#F1F5F9;border-radius:6px;overflow:hidden}
+.billing-usage-bar-fill{position:absolute;top:0;left:0;height:100%;background:var(--rust);border-radius:6px;transition:width .4s}
+.billing-usage-bar-fill.warn{background:var(--amber)}
+.billing-usage-bar-fill.over{background:var(--red)}
+.billing-usage-pct{font-size:12px;color:var(--text-tertiary);margin-top:8px}
+.billing-next-row{display:flex;align-items:center;justify-content:space-between;padding:16px;background:#F8FAFC;border-radius:10px;margin-top:24px}
+.billing-next-left{display:flex;align-items:center;gap:12px}
+.billing-next-left svg{width:20px;height:20px;color:var(--text-tertiary)}
+.billing-next-title{font-size:13px;font-weight:500;color:var(--text)}
+.billing-next-date{font-size:12px;color:var(--text-tertiary)}
+.billing-next-amount{font-size:13px;font-weight:500;color:var(--text)}
+.billing-payment-box{padding:16px;background:#F8FAFC;border-radius:10px;margin-bottom:16px}
+.billing-payment-row{display:flex;align-items:flex-start;gap:12px;margin-bottom:12px}
+.billing-payment-icon{width:40px;height:32px;background:var(--rust);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.billing-payment-icon svg{width:20px;height:20px;color:#fff}
+.billing-payment-card{font-size:13px;font-weight:500;color:var(--text);margin-bottom:2px}
+.billing-payment-exp{font-size:12px;color:var(--text-tertiary)}
+.billing-payment-default{display:flex;align-items:center;gap:4px;font-size:12px;color:#10B981}
+.billing-payment-default svg{width:12px;height:12px}
+.billing-btn-outline{width:100%;padding:8px 16px;border:1px solid var(--border);background:transparent;color:var(--text);border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s}
+.billing-btn-outline:hover{background:#F8FAFC}
+.billing-plans-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+@media(max-width:900px){.billing-plans-grid{grid-template-columns:1fr}}
+.billing-plan-card{border:1px solid var(--border);border-radius:var(--radius);padding:24px;transition:all .2s}
+.billing-plan-card:hover{border-color:var(--rust)}
+.billing-plan-card.current{border-color:var(--rust);background:#EFF6FF;box-shadow:0 0 0 2px rgba(37,99,235,.15)}
+.billing-plan-card .plan-current-tag{display:inline-block;padding:4px 10px;background:var(--rust);color:#fff;border-radius:4px;font-size:11px;font-weight:500;margin-bottom:16px}
+.billing-plan-card-name{font-size:18px;font-weight:600;color:var(--text);margin-bottom:8px}
+.billing-plan-card-price{font-size:32px;font-weight:600;color:var(--text);letter-spacing:-.02em}
+.billing-plan-card-price span{font-size:14px;color:var(--text-tertiary);font-weight:400}
+.billing-plan-card-convos{font-size:13px;color:var(--text-tertiary);margin:8px 0 20px}
+.billing-plan-features{list-style:none;margin-bottom:24px}
+.billing-plan-features li{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--text);padding:6px 0}
+.billing-plan-features li svg{width:16px;height:16px;color:#10B981;flex-shrink:0;margin-top:1px}
+.billing-btn-primary{width:100%;padding:10px 16px;background:var(--rust);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s}
+.billing-btn-primary:hover{background:#1D4ED8}
+.billing-btn-disabled{width:100%;padding:10px 16px;background:#F1F5F9;color:var(--text-tertiary);border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:not-allowed}
+.billing-invoice-table{width:100%;border-collapse:collapse}
+.billing-invoice-table thead{background:#F8FAFC;border-bottom:1px solid var(--border)}
+.billing-invoice-table th{text-align:left;padding:12px 20px;font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.05em}
+.billing-invoice-table td{padding:14px 20px;font-size:13px;border-bottom:1px solid var(--border)}
+.billing-invoice-table tr:last-child td{border-bottom:none}
+.billing-invoice-table tr:hover{background:#F8FAFC}
+.billing-invoice-status{display:inline-block;padding:3px 10px;background:#ECFDF5;color:#10B981;border-radius:4px;font-size:12px;font-weight:500}
+.billing-invoice-dl{display:flex;align-items:center;gap:4px;font-size:13px;color:var(--rust);cursor:pointer;background:none;border:none;font-family:inherit}
+.billing-invoice-dl:hover{color:#1D4ED8}
+.billing-dl-all{display:flex;align-items:center;gap:8px;padding:8px 16px;color:var(--rust);background:none;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s;font-family:inherit}
+.billing-dl-all:hover{background:#EFF6FF}
+.billing-warning{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:8px;margin-bottom:16px}
 .billing-warning.amber{background:#FFFBEB;border:1px solid #FEF3C7}
 .billing-warning.red{background:#FEF2F2;border:1px solid #FEE2E2}
 .billing-warning-icon{font-size:14px;flex-shrink:0;margin-top:1px}
@@ -476,15 +520,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .billing-warning.amber .billing-warning-text strong{color:var(--amber)}
 .billing-warning.red .billing-warning-text strong{color:var(--red)}
 .billing-warning-text p{color:var(--text-tertiary)}
-.plan-options{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:16px}
-.plan-option{background:var(--bg-panel);padding:18px 16px;cursor:pointer;transition:all .2s;border:1px solid var(--border);border-radius:var(--radius)}
-.plan-option:hover{border-color:var(--border-mid);box-shadow:var(--shadow-md)}
-.plan-option.recommended{border-color:var(--rust);box-shadow:0 0 0 1px var(--rust)}
-.plan-option-name{font-size:15px;font-weight:700;color:var(--text);margin-bottom:3px}
-.plan-option-price{font-size:20px;font-weight:700;color:var(--text);letter-spacing:-.02em}
-.plan-option-price span{font-family:var(--mono);font-size:11px;color:var(--text-tertiary)}
-.plan-option-limit{font-size:12px;color:var(--text-tertiary);margin-top:4px}
-.plan-option-tag{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--rust);margin-top:6px}
 
 /* ── BOOKINGS ── */
 .bookings-alert{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 16px;margin-bottom:14px;border-radius:8px}
@@ -1438,7 +1473,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
     <!-- ═══ BILLING ═══ -->
     <div class="view" id="view-billing">
       <div class="page-header">
-        <div><div class="page-title">Billing</div><div class="page-subtitle">Subscription, usage, and payment</div></div>
+        <div><div class="page-title">Billing & Subscription</div><div class="page-subtitle">Manage your subscription and billing information</div></div>
         <div class="page-actions"><a href="#" class="btn-sm primary" onclick="openBillingPortal();return false;">Open Billing Portal</a></div>
       </div>
       <div id="billingContent"></div>
@@ -2164,90 +2199,164 @@ function renderBillingPage() {
   const isSuspended = ['suspended','canceled','trial_expired'].includes(s.status);
   const limit = isTrial ? s.trialLimit : s.convLimit;
   const pct = Math.min((s.convUsed / limit) * 100, 100);
-  const barCls = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : 'normal';
+  const barCls = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : '';
+
+  const planPrices = {starter:199,pro:299,premium:499,trial:0};
+  const planNames = {starter:'Starter',pro:'Professional',premium:'Enterprise',trial:'Trial'};
+  const planConvos = {starter:500,pro:1000,premium:2500,trial:50};
+  const currentPrice = planPrices[s.plan] || 0;
+  const currentName = planNames[s.plan] || s.plan.charAt(0).toUpperCase()+s.plan.slice(1);
+
+  const svgCheck = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
+  const svgMsg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>';
+  const svgCal = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+  const svgCard = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>';
+  const svgDl = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
 
   let warningsHtml = '';
   if (isSuspended) {
-    warningsHtml = `<div class="billing-warning red"><div class="billing-warning-icon">⚠</div><div class="billing-warning-text"><strong>Service Paused</strong><p>Your account is ${s.status.replace('_',' ')}. Reactivate to resume recovering missed-call revenue. No conversations are being started.</p></div></div>`;
+    warningsHtml = `<div class="billing-warning red"><div class="billing-warning-icon">⚠</div><div class="billing-warning-text"><strong>Service Paused</strong><p>Your account is ${s.status.replace('_',' ')}. Reactivate to resume recovering missed-call revenue.</p></div></div>`;
   } else if (pct >= 100 && !isTrial && s.warnings.at100) {
-    warningsHtml = `<div class="billing-warning red"><div class="billing-warning-icon">⚠</div><div class="billing-warning-text"><strong>Usage Limit Reached</strong><p>All ${limit} conversations used this month. Service continues — new conversations are still started. Upgrade to increase your limit.</p></div></div>`;
+    warningsHtml = `<div class="billing-warning red"><div class="billing-warning-icon">⚠</div><div class="billing-warning-text"><strong>Usage Limit Reached</strong><p>All ${limit} conversations used. Service continues — upgrade to increase your limit.</p></div></div>`;
   } else if (pct >= 80 && !isTrial && s.warnings.at80) {
-    warningsHtml = `<div class="billing-warning amber"><div class="billing-warning-icon">⚡</div><div class="billing-warning-text"><strong>Approaching Usage Limit</strong><p>${s.convUsed} of ${limit} conversations used. No service disruption — paid plans are never hard-blocked by usage alone.</p></div></div>`;
+    warningsHtml = `<div class="billing-warning amber"><div class="billing-warning-icon">⚡</div><div class="billing-warning-text"><strong>Approaching Usage Limit</strong><p>${s.convUsed} of ${limit} conversations used.</p></div></div>`;
   }
 
-  const currentPlanHtml = isTrial
-    ? `<div class="billing-card-body">
-        ${warningsHtml}
-        <div class="billing-plan-row">
-          <div><div class="billing-plan-name">Trial</div><span class="plan-badge trial" style="display:inline-block;margin-top:6px;">14-Day Free Trial</span></div>
-          <div style="text-align:right;"><div class="billing-plan-price">$0<span>/mo</span></div><div style="font-family:var(--mono);font-size:11px;color:var(--steel);margin-top:4px;">Ends ${s.trialEndsAt}</div></div>
-        </div>
-        <div class="usage-bar-wrap">
-          <div class="usage-bar-label"><span>Conversations Used</span><span><strong>${s.convUsed}</strong> / ${limit}</span></div>
-          <div class="usage-bar-bg"><div class="usage-bar-fill ${barCls}" style="width:${pct}%"></div></div>
-        </div>
-        <div class="billing-detail-row"><span class="billing-detail-label">Trial ends</span><span class="billing-detail-value">${s.trialEndsAt}</span></div>
-        <div class="billing-detail-row" style="border-bottom:none;"><span class="billing-detail-label">After trial</span><span class="billing-detail-value" style="color:var(--rust-light);">System pauses — upgrade to continue</span></div>
-      </div>`
-    : `<div class="billing-card-body">
-        ${warningsHtml}
-        <div class="billing-plan-row">
-          <div><div class="billing-plan-name">${s.plan.charAt(0).toUpperCase()+s.plan.slice(1)}</div><span class="plan-badge ${s.plan}" style="display:inline-block;margin-top:6px;">${s.plan.toUpperCase()}</span></div>
-          <div style="text-align:right;"><div class="billing-plan-price">${{starter:'$199',pro:'$299',premium:'$499'}[s.plan]||'Custom'}<span>/mo</span></div></div>
-        </div>
-        <div class="usage-bar-wrap">
-          <div class="usage-bar-label"><span>Conversations Used</span><span><strong>${s.convUsed}</strong> / ${limit}</span></div>
-          <div class="usage-bar-bg"><div class="usage-bar-fill ${barCls}" style="width:${pct}%"></div></div>
-        </div>
-        <div class="billing-detail-row"><span class="billing-detail-label">Next renewal</span><span class="billing-detail-value">${s.billingRenewalDate}</span></div>
-        <div class="billing-detail-row" style="border-bottom:none;"><span class="billing-detail-label">Usage reset</span><span class="billing-detail-value">${s.billingRenewalDate}</span></div>
-      </div>`;
+  const statusBadge = isSuspended
+    ? `<span class="billing-status-badge" style="background:#FEF2F2;color:var(--red);">${svgCheck} ${s.status.replace('_',' ')}</span>`
+    : `<span class="billing-status-badge">${svgCheck} Active</span>`;
+
+  const billingDate = isTrial ? s.trialEndsAt : (s.billingRenewalDate || '—');
+  const nextLabel = isTrial ? 'Trial ends' : 'Next billing date';
+
+  // Plans definition matching TSX
+  const plans = [
+    { key:'starter', name:'Starter', price:199, convos:500, features:['500 AI conversations/month','Basic SMS automation','Email support','Calendar integration','Basic analytics'] },
+    { key:'pro', name:'Professional', price:299, convos:1000, features:['1,000 AI conversations/month','Advanced SMS automation','Priority phone support','Calendar & CRM integration','Advanced analytics','Custom AI responses'] },
+    { key:'premium', name:'Enterprise', price:499, convos:2500, features:['2,500 AI conversations/month','Enterprise automation','Dedicated account manager','Full API access','White-label options','Custom integrations','Advanced reporting'] }
+  ];
+
+  // Invoice history — placeholder data (would come from Stripe in production)
+  const invoices = [
+    { id:'INV-2026-003', period:'Mar 1 – Mar 31, 2026', date:'Mar 1, 2026', amount:currentPrice, status:'Paid' },
+    { id:'INV-2026-002', period:'Feb 1 – Feb 28, 2026', date:'Feb 1, 2026', amount:currentPrice, status:'Paid' },
+    { id:'INV-2026-001', period:'Jan 1 – Jan 31, 2026', date:'Jan 1, 2026', amount:currentPrice, status:'Paid' }
+  ];
+
+  let plansHtml = plans.map(p => {
+    const isCurrent = p.key === s.plan;
+    const featuresHtml = p.features.map(f => `<li>${svgCheck}<span>${f}</span></li>`).join('');
+    let btnHtml;
+    if (isCurrent) {
+      btnHtml = `<button class="billing-btn-disabled">Current Plan</button>`;
+    } else if (p.price > currentPrice) {
+      btnHtml = `<button class="billing-btn-primary" onclick="startCheckout('${p.key}')">Upgrade</button>`;
+    } else {
+      btnHtml = `<button class="billing-btn-primary" onclick="startCheckout('${p.key}')">Downgrade</button>`;
+    }
+    return `<div class="billing-plan-card${isCurrent ? ' current' : ''}">
+      ${isCurrent ? '<div class="plan-current-tag">Current Plan</div>' : ''}
+      <div class="billing-plan-card-name">${p.name}</div>
+      <div class="billing-plan-card-price">$${p.price}<span> /month</span></div>
+      <div class="billing-plan-card-convos">${p.convos.toLocaleString()} conversations/month</div>
+      <ul class="billing-plan-features">${featuresHtml}</ul>
+      ${btnHtml}
+    </div>`;
+  }).join('');
+
+  const invoiceRows = isTrial ? `<tr><td colspan="6" style="text-align:center;color:var(--text-tertiary);padding:32px 20px;">No invoices yet — upgrade to start your subscription</td></tr>` :
+    invoices.map(inv => `<tr>
+      <td><span style="font-weight:500;color:var(--text);">${inv.id}</span></td>
+      <td><span style="color:var(--text-tertiary);">${inv.period}</span></td>
+      <td>${inv.date}</td>
+      <td><span style="font-weight:500;">$${inv.amount.toFixed(2)}</span></td>
+      <td><span class="billing-invoice-status">${inv.status}</span></td>
+      <td><button class="billing-invoice-dl" onclick="openBillingPortal()">${svgDl} Download</button></td>
+    </tr>`).join('');
 
   const html = `
-    <div class="billing-grid">
+    ${warningsHtml}
+    <!-- Top: Current Plan + Payment Method -->
+    <div class="billing-top-grid">
       <div class="billing-card">
-        <div class="billing-card-header">Current Plan</div>
-        ${currentPlanHtml}
-      </div>
-      <div class="billing-card">
-        <div class="billing-card-header">Billing Actions</div>
-        <div class="billing-card-body">
-          <div style="display:flex;flex-direction:column;gap:10px;">
-            <a href="#" class="btn-sm primary" style="text-align:center;" onclick="openBillingPortal();return false;">Open Billing Portal</a>
-            <button class="btn-sm" onclick="openBillingPortal()">View Invoices</button>
-            <button class="btn-sm" onclick="openBillingPortal()">Update Payment Method</button>
+        <div class="billing-plan-header">
+          <div>
+            <div class="billing-card-title">Current Plan</div>
+            <div class="billing-card-subtitle">Your subscription details and usage</div>
           </div>
-          <div style="font-family:var(--mono);font-size:11px;color:var(--steel);margin-top:20px;line-height:1.8;letter-spacing:.04em;">
-            Billing secured by Stripe.<br>
-            No card data stored on our servers.<br>
-            Paid plans: usage warnings only — no hard block.
-          </div>
+          ${statusBadge}
         </div>
+        <div class="billing-price-block">
+          <div><span class="billing-price-big">$${currentPrice}</span><span class="billing-price-period">/month</span></div>
+          <div class="billing-plan-name">${currentName} Plan</div>
+          <div class="billing-plan-included">Up to ${(planConvos[s.plan]||limit).toLocaleString()} conversations per month</div>
+        </div>
+        <div>
+          <div class="billing-usage-header">
+            <div class="billing-usage-label">${svgMsg} Conversation Usage</div>
+            <div class="billing-usage-count">${s.convUsed} of ${limit} used</div>
+          </div>
+          <div class="billing-usage-bar"><div class="billing-usage-bar-fill ${barCls}" style="width:${pct}%"></div></div>
+          <div class="billing-usage-pct">${pct.toFixed(1)}% of monthly quota used</div>
+        </div>
+        <div class="billing-next-row">
+          <div class="billing-next-left">
+            ${svgCal}
+            <div>
+              <div class="billing-next-title">${nextLabel}</div>
+              <div class="billing-next-date">${billingDate}</div>
+            </div>
+          </div>
+          <div class="billing-next-amount">$${currentPrice}.00</div>
+        </div>
+      </div>
+
+      <div class="billing-card">
+        <div class="billing-card-title" style="margin-bottom:24px;">Payment Method</div>
+        <div class="billing-payment-box">
+          <div class="billing-payment-row">
+            <div class="billing-payment-icon">${svgCard}</div>
+            <div>
+              <div class="billing-payment-card">Visa ending in 4242</div>
+              <div class="billing-payment-exp">Expires 12/2027</div>
+            </div>
+          </div>
+          <div class="billing-payment-default">${svgCheck} Default payment method</div>
+        </div>
+        <button class="billing-btn-outline" onclick="openBillingPortal()">Update Payment Method</button>
       </div>
     </div>
-    <div class="section-label">Available Plans</div>
-    <div class="billing-card" style="margin-bottom:28px;">
-      <div class="billing-card-header">Upgrade Your Plan</div>
-      <div class="plan-options">
-        <div class="plan-option">
-          <div class="plan-option-name">Starter</div>
-          <div class="plan-option-price">$199<span>/mo</span></div>
-          <div class="plan-option-limit">150 conversations/mo</div>
-          <button class="btn-sm" style="margin-top:14px;" onclick="startCheckout('starter')">Select</button>
-        </div>
-        <div class="plan-option recommended">
-          <div class="plan-option-name">Pro</div>
-          <div class="plan-option-price">$299<span>/mo</span></div>
-          <div class="plan-option-limit">400 conversations/mo</div>
-          <div class="plan-option-tag">Most Popular</div>
-          <button class="btn-sm primary" style="margin-top:14px;" onclick="startCheckout('pro')">Upgrade</button>
-        </div>
-        <div class="plan-option">
-          <div class="plan-option-name">Premium</div>
-          <div class="plan-option-price">$499<span>/mo</span></div>
-          <div class="plan-option-limit">1,000 conversations/mo</div>
-          <button class="btn-sm" style="margin-top:14px;" onclick="startCheckout('premium')">Select</button>
-        </div>
+
+    <!-- Available Plans -->
+    <div class="billing-card" style="margin-bottom:32px;">
+      <div class="billing-card-title" style="margin-bottom:24px;">Available Plans</div>
+      <div class="billing-plans-grid">
+        ${plansHtml}
+      </div>
+    </div>
+
+    <!-- Invoice History -->
+    <div class="billing-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+        <div class="billing-card-title">Invoice History</div>
+        <button class="billing-dl-all" onclick="openBillingPortal()">${svgDl} Download All</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="billing-invoice-table">
+          <thead>
+            <tr>
+              <th>Invoice</th>
+              <th>Billing Period</th>
+              <th>Date</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${invoiceRows}
+          </tbody>
+        </table>
       </div>
     </div>`;
   document.getElementById('billingContent').innerHTML = html;
