@@ -12,6 +12,16 @@ vi.mock("../db/client", () => ({
   query: mocks.query,
 }));
 
+vi.mock("../services/pipeline-trace", () => ({
+  resumeTrace: vi.fn().mockResolvedValue({
+    id: "trace-mock-id",
+    step: vi.fn().mockResolvedValue(undefined),
+    setTenant: vi.fn().mockResolvedValue(undefined),
+    complete: vi.fn().mockResolvedValue(undefined),
+    fail: vi.fn().mockResolvedValue(undefined),
+  }),
+}));
+
 import { missedCallSmsRoute } from "../routes/internal/missed-call-sms";
 import {
   handleMissedCallSms,

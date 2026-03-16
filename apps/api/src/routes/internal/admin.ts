@@ -5,6 +5,7 @@ import { query } from "../../db/client";
 import { adminGuard } from "../../middleware/admin-guard";
 import { fetchTwilioNumberConfig, verifyWebhookUrls } from "../../services/twilio-verify";
 import { getConfig } from "../../db/app-config";
+import { getRecentTraces, getTraceById } from "../../services/pipeline-trace";
 
 /**
  * Internal Admin API
@@ -1172,5 +1173,20 @@ export async function adminRoute(app: FastifyInstance) {
     }
 
     return reply.status(200).send({ success: true });
+  });
+
+  // ── GET /internal/admin/traces ────────────────────────────────────────────
+  // Returns recent pipeline execution traces for pilot live-test visibility.
+  app.get("/admin/traces", { preHandler: [adminGuard] }, async (_req, reply) => {
+    const traces = await getRecentTraces(100);
+    return reply.send(traces);
+  });
+
+  // ── GET /internal/admin/traces/:id ────────────────────────────────────────
+  app.get("/admin/traces/:id", { preHandler: [adminGuard] }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const trace = await getTraceById(id);
+    if (!trace) return reply.status(404).send({ error: "Trace not found" });
+    return reply.send(trace);
   });
 }

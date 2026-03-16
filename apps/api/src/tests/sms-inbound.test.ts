@@ -29,6 +29,23 @@ vi.mock("../db/tenants", () => ({
   getBlockReason: mocks.getBlockReason,
 }));
 
+vi.mock("../services/pipeline-trace", () => ({
+  startTrace: vi.fn().mockResolvedValue({
+    id: "trace-mock-id",
+    step: vi.fn().mockResolvedValue(undefined),
+    setTenant: vi.fn().mockResolvedValue(undefined),
+    complete: vi.fn().mockResolvedValue(undefined),
+    fail: vi.fn().mockResolvedValue(undefined),
+  }),
+  resumeTrace: vi.fn().mockResolvedValue({
+    id: "trace-mock-id",
+    step: vi.fn().mockResolvedValue(undefined),
+    setTenant: vi.fn().mockResolvedValue(undefined),
+    complete: vi.fn().mockResolvedValue(undefined),
+    fail: vi.fn().mockResolvedValue(undefined),
+  }),
+}));
+
 import { twilioSmsRoute } from "../routes/webhooks/twilio-sms";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
