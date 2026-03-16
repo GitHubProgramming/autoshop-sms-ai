@@ -496,6 +496,88 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .view.active{display:block}
 
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* ── SIDEBAR BRANDING ── */
+.sidebar-brand{padding:20px 16px 16px;border-bottom:1px solid var(--border);margin-bottom:4px}
+.sidebar-brand-name{font-size:15px;font-weight:700;color:var(--text);letter-spacing:-.02em}
+.sidebar-brand-name span{color:var(--rust)}
+.sidebar-brand-shop{font-size:11px;color:var(--text-tertiary);margin-top:3px;font-weight:500}
+
+/* ── CONVERSATIONS 3-PANEL ── */
+.conv-layout{display:grid;grid-template-columns:300px 1fr 280px;gap:0;min-height:600px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--bg-panel)}
+@media(max-width:1100px){.conv-layout{grid-template-columns:260px 1fr;}.conv-detail-panel{display:none}}
+.conv-inbox{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.conv-inbox-header{padding:14px 16px;border-bottom:1px solid var(--border);background:var(--bg)}
+.conv-inbox-title{font-size:13px;font-weight:600;color:var(--text)}
+.conv-inbox-search{margin-top:8px}
+.conv-inbox-search input{width:100%;background:var(--bg-panel);border:1px solid var(--border);color:var(--text);font-size:12px;padding:6px 10px;outline:none;border-radius:6px;transition:border-color .15s}
+.conv-inbox-search input:focus{border-color:var(--rust)}
+.conv-inbox-filters{display:flex;gap:3px;margin-top:8px;flex-wrap:wrap}
+.conv-list{flex:1;overflow-y:auto}
+.conv-list-item{padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+.conv-list-item:hover{background:var(--bg-hover)}
+.conv-list-item.selected{background:#EFF6FF;border-left:3px solid var(--rust);padding-left:13px}
+.conv-list-top{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.conv-list-phone{font-family:var(--mono);font-size:12px;color:var(--text);font-weight:600}
+.conv-list-time{font-family:var(--mono);font-size:10px;color:var(--text-tertiary)}
+.conv-list-preview{font-size:12px;color:var(--text-tertiary);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conv-list-bottom{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
+.conv-thread-panel{display:flex;flex-direction:column;overflow:hidden}
+.conv-thread-header{padding:14px 20px;border-bottom:1px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.conv-thread-title{font-size:14px;font-weight:600;color:var(--text)}
+.conv-thread-body{flex:1;overflow-y:auto;padding:20px}
+.conv-detail-panel{border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+.conv-detail-header{padding:14px 16px;border-bottom:1px solid var(--border);background:var(--bg);font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text-tertiary)}
+.conv-detail-section{padding:12px 16px;border-bottom:1px solid var(--border)}
+.conv-detail-label{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:4px}
+.conv-detail-value{font-size:13px;color:var(--text);font-weight:500}
+.conv-empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-tertiary);font-size:14px;gap:8px}
+
+/* ── ACTION / TODAY CARDS ── */
+.action-card{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px}
+.action-card-header{padding:12px 16px;border-bottom:1px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:space-between}
+.action-card-title{font-size:13px;font-weight:600;color:var(--text)}
+.action-card-count{font-family:var(--mono);font-size:11px;background:var(--rust);color:#fff;padding:1px 7px;border-radius:10px}
+.action-item{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;transition:background .1s}
+.action-item:last-child{border-bottom:none}
+.action-item:hover{background:var(--bg-hover)}
+.action-item-left{min-width:0}
+.action-item-text{font-size:12px;font-weight:500;color:var(--text)}
+.action-item-sub{font-size:11px;color:var(--text-tertiary);margin-top:1px}
+.today-appt-item{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;transition:background .1s}
+.today-appt-item:last-child{border-bottom:none}
+.today-appt-item:hover{background:var(--bg-hover)}
+.today-appt-left{min-width:0}
+.today-appt-service{font-size:12px;font-weight:500;color:var(--text)}
+.today-appt-customer{font-size:11px;color:var(--text-tertiary);margin-top:1px}
+.today-appt-time{font-family:var(--mono);font-size:11px;color:var(--text-secondary);white-space:nowrap}
+
+/* ── SOURCE TAG ── */
+.source-tag{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2px 6px;border-radius:4px;white-space:nowrap}
+.source-tag.ai{background:#EFF6FF;color:var(--rust)}
+.source-tag.phone{background:rgba(217,119,6,.08);color:#92400E}
+.source-tag.manual{background:rgba(148,163,184,.1);color:var(--text-tertiary)}
+
+/* ── CUSTOMER PAGE ── */
+.customer-search-bar{display:flex;gap:8px;align-items:center;margin-bottom:16px}
+.customer-search-bar input{background:var(--bg-panel);border:1px solid var(--border);color:var(--text);font-size:13px;padding:8px 14px;outline:none;width:320px;border-radius:8px;transition:border-color .15s}
+.customer-search-bar input:focus{border-color:var(--rust);box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.customer-vehicle{font-family:var(--mono);font-size:11px;color:var(--text-tertiary)}
+.customer-appt-count{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text)}
+
+/* ── ANALYTICS ── */
+.analytics-kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+@media(max-width:900px){.analytics-kpi{grid-template-columns:repeat(2,1fr)}}
+.analytics-two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+@media(max-width:1024px){.analytics-two-col{grid-template-columns:1fr}}
+
+/* ── DASHBOARD LOWER ── */
+.dash-lower{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+@media(max-width:1024px){.dash-lower{grid-template-columns:1fr}}
+.dash-right{display:flex;flex-direction:column;gap:12px}
+
+/* ── SETTINGS EXPANDED ── */
+.settings-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px;overflow-x:auto}
 </style>
 </head>
 <body>
@@ -534,8 +616,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 <div class="layout">
   <!-- SIDEBAR (light) -->
   <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-name">Auto<span>Shop</span> AI</div>
+      <div class="sidebar-brand-shop" id="sidebarShopName">Texas Demo Shop</div>
+    </div>
     <div class="sidebar-section">
-      <div class="sidebar-label">Overview</div>
       <a class="sidebar-item active" href="#" onclick="switchView('dashboard');return false;">
         <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
         Dashboard
@@ -543,16 +628,20 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
       <a class="sidebar-item" href="#" onclick="switchView('conversations');return false;">
         <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
         Conversations
-        <span class="sidebar-badge" id="sidebarConvBadge">3</span>
+        <span class="sidebar-badge" id="sidebarConvBadge">0</span>
       </a>
-      <a class="sidebar-item" href="#" onclick="switchView('bookings');return false;">
+      <a class="sidebar-item" href="#" onclick="switchView('appointments');return false;">
         <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        Bookings
+        Appointments
+      </a>
+      <a class="sidebar-item" href="#" onclick="switchView('customers');return false;">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+        Customers
       </a>
     </div>
     <div class="sidebar-section">
-      <div class="sidebar-label">Revenue</div>
-      <a class="sidebar-item" href="#" onclick="switchView('revenue');return false;">
+      <div class="sidebar-label">Insights</div>
+      <a class="sidebar-item" href="#" onclick="switchView('analytics');return false;">
         <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
         Analytics
       </a>
@@ -587,14 +676,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
       <div class="page-header">
         <div>
           <div class="page-title">Dashboard</div>
-          <div class="page-subtitle" id="dashSubtitle">—</div>
+          <div class="page-subtitle" id="dashSubtitle">AI receptionist performance overview for your shop</div>
         </div>
         <div class="page-actions">
-          <a href="#" onclick="switchView('billing');return false;" class="btn-sm primary">Upgrade Plan</a>
+          <button class="btn-sm" onclick="showToast('Export coming soon.')">Export</button>
+          <button class="btn-sm" onclick="showToast('Date range filter coming soon.')">This Month</button>
         </div>
       </div>
 
-      <!-- System status -->
+      <!-- System status hero -->
       <div class="system-hero" id="systemHeroStrip">
         <div class="hero-status" id="heroStatusLabel"></div>
         <div class="hero-divider"></div>
@@ -602,21 +692,18 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
         <div class="hero-metrics" id="heroMetrics"></div>
       </div>
 
-      <!-- KPI cards -->
+      <!-- Primary KPI row -->
       <div class="kpi-grid" id="kpiGrid"></div>
 
-      <!-- Today activity -->
-      <div class="today-grid" id="todayGrid"></div>
-
-      <!-- Main 2-col: conversations + sidebar stats -->
+      <!-- Main 2-col: Live Conversations + Right sidebar -->
       <div class="dash-body">
         <div>
-          <!-- Conversations table -->
-          <div class="log-wrap" style="margin-bottom:16px">
+          <div class="log-wrap">
             <div class="log-header">
-              <div class="log-title">Recent Conversations</div>
+              <div class="log-title">Live Conversations</div>
               <div class="log-filters">
                 <button class="filter-chip active" onclick="filterConvTable(this,'all')">All</button>
+                <button class="filter-chip" onclick="filterConvTable(this,'active')">Active</button>
                 <button class="filter-chip" onclick="filterConvTable(this,'booked')">Booked</button>
                 <button class="filter-chip" onclick="filterConvTable(this,'lost')">Lost</button>
               </div>
@@ -626,77 +713,118 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
               <tbody id="dashConvBody"></tbody>
             </table>
           </div>
-
-          <!-- Pipeline (compact) -->
-          <div class="pipeline-wrap" id="pipelineWrap"></div>
-          <div style="display:none" id="pipelineLabel">Conversion Pipeline</div>
         </div>
 
-        <!-- Right column -->
-        <div class="revenue-sidebar" id="revenueSidebar"></div>
-      </div>
-
-      <!-- Since Activation (compact) -->
-      <div id="sinceActivationBlock" class="kpi-grid" style="grid-template-columns:1fr;margin-bottom:2px;"></div>
-
-      <!-- Setup checklist -->
-      <div id="activationComplete" class="activation-summary hidden">
-        <div class="activation-summary-left">
-          <div class="activation-summary-icon">&#10003;</div>
-          <div>
-            <div class="activation-summary-title">System Fully Activated</div>
-            <div class="activation-summary-sub">Missed call recovery is live</div>
+        <!-- Right column: Action Needed + Today's Appointments -->
+        <div class="dash-right">
+          <div class="action-card" id="actionNeededCard">
+            <div class="action-card-header">
+              <span class="action-card-title">Action Needed</span>
+              <span class="action-card-count" id="actionCount">0</span>
+            </div>
+            <div id="actionNeededBody">
+              <div class="empty-state" style="padding:24px 16px;"><div class="empty-icon" style="font-size:20px;">&#10003;</div><div style="font-size:12px;color:var(--text-tertiary);">No items need attention</div></div>
+            </div>
+          </div>
+          <div class="action-card" id="todayApptsCard">
+            <div class="action-card-header">
+              <span class="action-card-title">Today's Appointments</span>
+              <span class="action-card-count" id="todayApptCount">0</span>
+            </div>
+            <div id="todayApptsBody">
+              <div class="empty-state" style="padding:24px 16px;"><div class="empty-icon" style="font-size:20px;">&#128197;</div><div style="font-size:12px;color:var(--text-tertiary);">No appointments today</div></div>
+            </div>
           </div>
         </div>
-        <button class="btn-sm" onclick="toggleChecklist()">View Setup Checklist</button>
-      </div>
-      <div id="checklistWrapper">
-      <div class="checklist-card" id="checklistCard">
-        <div class="checklist-header">
-          <div>
-            <div class="checklist-title">Activation Checklist</div>
-            <div class="checklist-sub">Complete all steps to start recovering missed-call revenue.</div>
-          </div>
-          <div class="checklist-progress"><strong id="checklistDone">3</strong> / 4 complete</div>
-        </div>
-        <div class="checklist-steps" id="checklistSteps"></div>
-      </div>
       </div>
 
-      <!-- Integrations & Health -->
-      <div class="integrations-panel">
-        <div class="int-panel-header">
-          <div>
-            <div class="int-panel-title">Integrations</div>
-            <div class="int-panel-note">Webhook dedupe enabled</div>
+      <!-- Lower: Revenue Analytics + System Status -->
+      <div class="dash-lower">
+        <div class="chart-wrap" style="margin-bottom:0;">
+          <div class="chart-header">
+            <div class="chart-title">Revenue Analytics</div>
+            <div class="chart-toggles">
+              <button class="toggle-btn active" onclick="switchChart(this)">7D</button>
+              <button class="toggle-btn" onclick="switchChart(this)">30D</button>
+            </div>
+          </div>
+          <div class="chart-area">
+            <svg class="chart-svg" viewBox="0 0 800 140" preserveAspectRatio="none">
+              <defs><linearGradient id="dcg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2563EB" stop-opacity="0.15"/><stop offset="100%" stop-color="#2563EB" stop-opacity="0"/></linearGradient></defs>
+              <line x1="0" y1="35" x2="800" y2="35" stroke="rgba(0,0,0,.04)" stroke-width="1"/>
+              <line x1="0" y1="70" x2="800" y2="70" stroke="rgba(0,0,0,.04)" stroke-width="1"/>
+              <line x1="0" y1="105" x2="800" y2="105" stroke="rgba(0,0,0,.04)" stroke-width="1"/>
+              <path d="M0,120 C50,110 80,90 130,75 C180,60 200,50 250,55 C300,60 320,40 380,30 C440,20 460,35 520,45 C580,55 600,25 650,20 C700,15 740,30 800,25 L800,140 L0,140 Z" fill="url(#dcg)"/>
+              <path d="M0,120 C50,110 80,90 130,75 C180,60 200,50 250,55 C300,60 320,40 380,30 C440,20 460,35 520,45 C580,55 600,25 650,20 C700,15 740,30 800,25" fill="none" stroke="#2563EB" stroke-width="2"/>
+              <circle cx="380" cy="30" r="3" fill="#2563EB"/><circle cx="650" cy="20" r="3" fill="#2563EB"/><circle cx="800" cy="25" r="3" fill="#2563EB"/>
+            </svg>
+          </div>
+          <div class="chart-meta" id="dashChartMeta" style="grid-template-columns:repeat(2,1fr);">
+            <div class="chart-meta-item"><div class="chart-meta-label">Recovered Revenue</div><div class="chart-meta-value" id="dashRevRecovered">—</div></div>
+            <div class="chart-meta-item"><div class="chart-meta-label">Avg. Booking Value</div><div class="chart-meta-value green" id="dashAvgBooking">—</div></div>
           </div>
         </div>
-        <div class="int-grid" id="healthGrid"></div>
+        <div class="integrations-panel" style="margin-bottom:0;">
+          <div class="int-panel-header">
+            <div>
+              <div class="int-panel-title">System Status</div>
+              <div class="int-panel-note">All integrations</div>
+            </div>
+          </div>
+          <div class="int-grid" id="healthGrid"></div>
+        </div>
       </div>
     </div>
 
     <!-- ═══ CONVERSATIONS ═══ -->
     <div class="view" id="view-conversations">
       <div class="page-header">
-        <div><div class="page-title">Conversations</div><div class="page-subtitle" id="convsSubtitle">All SMS threads</div></div>
+        <div><div class="page-title">Conversations</div><div class="page-subtitle" id="convsSubtitle">SMS thread management</div></div>
         <div class="page-actions"><button class="btn-sm" onclick="showToast('Export coming soon.')">Export CSV</button></div>
       </div>
-      <div class="log-wrap">
-        <div class="log-header">
-          <div class="log-title">All Conversations</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-            <div class="log-filters">
+      <div class="conv-layout">
+        <!-- Left: Inbox -->
+        <div class="conv-inbox">
+          <div class="conv-inbox-header">
+            <div class="conv-inbox-title">Inbox</div>
+            <div class="conv-inbox-search">
+              <input type="text" id="convSearchInput" placeholder="Search by phone..." oninput="filterConvInbox(this.value)">
+            </div>
+            <div class="conv-inbox-filters">
               <button class="filter-chip active" onclick="filterFullConv(this,'all')">All</button>
-              <button class="filter-chip" onclick="filterFullConv(this,'booked')">Booked</button>
               <button class="filter-chip" onclick="filterFullConv(this,'active')">Active</button>
-              <button class="filter-chip" onclick="filterFullConv(this,'no-response')">No Response</button>
+              <button class="filter-chip" onclick="filterFullConv(this,'booked')">Booked</button>
+              <button class="filter-chip" onclick="filterFullConv(this,'no-response')">No Reply</button>
               <button class="filter-chip" onclick="filterFullConv(this,'lost')">Lost</button>
             </div>
-            <div class="log-search">
-              <input type="text" id="convSearchInput" placeholder="Search by phone..." oninput="searchConv(this.value)">
+          </div>
+          <div class="conv-list" id="convInboxList"></div>
+        </div>
+        <!-- Center: Thread -->
+        <div class="conv-thread-panel">
+          <div class="conv-thread-header" id="convThreadHeader">
+            <div class="conv-thread-title" id="convThreadTitle">Select a conversation</div>
+            <div id="convThreadActions"></div>
+          </div>
+          <div class="conv-thread-body" id="convThreadBody">
+            <div class="conv-empty-state">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+              <span>Select a conversation to view the thread</span>
             </div>
           </div>
         </div>
+        <!-- Right: Details -->
+        <div class="conv-detail-panel">
+          <div class="conv-detail-header">Customer Details</div>
+          <div id="convDetailBody">
+            <div class="conv-empty-state" style="min-height:200px;">
+              <span style="font-size:12px;">No conversation selected</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Hidden table for backward compat with existing render functions -->
+      <div style="display:none;">
         <div id="convTableContainer">
           <table class="log-table">
             <thead><tr><th>Date</th><th>Phone</th><th>Issue</th><th>Status</th><th>Est. ARO</th><th>Duration</th><th>Actions</th></tr></thead>
@@ -706,29 +834,87 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
       </div>
     </div>
 
-    <!-- ═══ BOOKINGS ═══ -->
-    <div class="view" id="view-bookings">
+    <!-- ═══ APPOINTMENTS ═══ -->
+    <div class="view" id="view-appointments">
       <div class="page-header">
-        <div><div class="page-title">Bookings</div><div class="page-subtitle">Appointments booked by AI — synced to Google Calendar</div></div>
+        <div><div class="page-title">Appointments</div><div class="page-subtitle">AI-booked appointments synced to Google Calendar</div></div>
+        <div class="page-actions">
+          <button class="btn-sm" onclick="switchView('settings');switchTab(document.querySelector('[onclick*=tab-integrations]'),'tab-integrations')">Calendar Settings</button>
+        </div>
       </div>
       <div id="bookingsCalendarAlert"></div>
+
+      <!-- Today's Appointments -->
+      <div class="section-label">Today</div>
+      <div id="todayAppointmentsSection">
+        <div class="log-wrap" style="margin-bottom:20px;">
+          <table class="log-table">
+            <thead><tr><th>Time</th><th>Customer</th><th>Service</th><th>Source</th><th>Status</th></tr></thead>
+            <tbody id="todayApptsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- All Appointments -->
+      <div class="section-label">All Appointments</div>
       <div class="log-wrap">
-        <div class="log-header"><div class="log-title">Appointment Log</div></div>
+        <div class="log-header">
+          <div class="log-title">Appointment Log</div>
+          <div class="log-filters">
+            <button class="filter-chip active" onclick="filterAppts(this,'all')">All</button>
+            <button class="filter-chip" onclick="filterAppts(this,'synced')">Confirmed</button>
+            <button class="filter-chip" onclick="filterAppts(this,'pending')">Pending</button>
+            <button class="filter-chip" onclick="filterAppts(this,'failed')">Failed</button>
+          </div>
+        </div>
         <table class="log-table">
-          <thead><tr><th>Date / Time</th><th>Customer</th><th>Service</th><th>Vehicle</th><th>Sync Status</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Date / Time</th><th>Customer</th><th>Service</th><th>Source</th><th>Vehicle</th><th>Sync Status</th><th>Actions</th></tr></thead>
           <tbody id="bookingsBody"></tbody>
         </table>
       </div>
     </div>
 
-    <!-- ═══ REVENUE ═══ -->
-    <div class="view" id="view-revenue">
+    <!-- ═══ CUSTOMERS ═══ -->
+    <div class="view" id="view-customers">
       <div class="page-header">
-        <div><div class="page-title">Revenue Analytics</div><div class="page-subtitle" id="revenueSubtitle">Recovered revenue tracking</div></div>
+        <div><div class="page-title">Customers</div><div class="page-subtitle">Customer database from AI conversations</div></div>
+        <div class="page-actions"><button class="btn-sm" onclick="showToast('Export coming soon.')">Export</button></div>
       </div>
+      <div class="customer-search-bar">
+        <input type="text" id="customerSearchInput" placeholder="Search customers by name or phone..." oninput="searchCustomers(this.value)">
+      </div>
+      <div class="log-wrap">
+        <div class="log-header">
+          <div class="log-title" id="customerCount">All Customers</div>
+        </div>
+        <table class="log-table" id="customerTable">
+          <thead><tr><th>Customer</th><th>Phone</th><th>Last Interaction</th><th>Appointments</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="customerBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ ANALYTICS ═══ -->
+    <div class="view" id="view-analytics">
+      <div class="page-header">
+        <div><div class="page-title">Analytics</div><div class="page-subtitle" id="revenueSubtitle">Performance metrics and trends</div></div>
+        <div class="page-actions">
+          <button class="btn-sm" onclick="showToast('Export coming soon.')">Export Report</button>
+        </div>
+      </div>
+
+      <!-- KPI Summary -->
+      <div class="analytics-kpi" id="analyticsKpiRow">
+        <div class="kpi-card revenue fade-in"><div class="kpi-tag">Total Conversations</div><div class="kpi-value" id="revTotalConvs">—</div><div class="kpi-sub">All-time since activation</div></div>
+        <div class="kpi-card booked fade-in"><div class="kpi-tag">Total Bookings</div><div class="kpi-value" id="revTotalBookings2">—</div><div class="kpi-sub">All-time appointments booked</div></div>
+        <div class="kpi-card calls fade-in"><div class="kpi-tag">AI Conversion Rate</div><div class="kpi-value" id="analyticsConvRate">—</div><div class="kpi-sub">Conversations → Bookings</div></div>
+        <div class="kpi-card fade-in" style=""><div class="kpi-tag">Plan</div><div class="kpi-value" id="revPlan" style="font-size:28px;">—</div><div class="kpi-sub" id="revPlanSub">Current subscription plan</div></div>
+      </div>
+
+      <!-- Revenue Chart -->
       <div class="chart-wrap">
         <div class="chart-header">
-          <div class="chart-title">Revenue Recovered</div>
+          <div class="chart-title">Revenue Trend</div>
           <div class="chart-toggles">
             <button class="toggle-btn active" onclick="switchChart(this)">7D</button>
             <button class="toggle-btn" onclick="switchChart(this)">30D</button>
@@ -752,12 +938,33 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
           <div class="chart-meta-item"><div class="chart-meta-label">Conversations This Month</div><div class="chart-meta-value green" id="revMonthConvs">—</div></div>
         </div>
       </div>
-      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);" id="revenueKpiGrid">
-        <div class="kpi-card revenue"><div class="kpi-tag">Total Conversations</div><div class="kpi-value" id="revTotalConvs">—</div><div class="kpi-sub">All-time since activation</div></div>
-        <div class="kpi-card calls"><div class="kpi-tag">Total Bookings</div><div class="kpi-value" id="revTotalBookings2">—</div><div class="kpi-sub">All-time appointments booked</div></div>
-        <div class="kpi-card booked"><div class="kpi-tag">Plan</div><div class="kpi-value" id="revPlan" style="font-size:28px;">—</div><div class="kpi-sub" id="revPlanSub">Current subscription plan</div></div>
+
+      <!-- Two-col: Pipeline + Performance -->
+      <div class="analytics-two-col">
+        <div>
+          <div class="pipeline-wrap" id="pipelineWrap"></div>
+          <div style="display:none" id="pipelineLabel">Conversion Pipeline</div>
+        </div>
+        <div>
+          <div id="sinceActivationBlock" class="kpi-grid" style="grid-template-columns:1fr;margin-bottom:0;"></div>
+        </div>
+      </div>
+
+      <!-- Activity Summary -->
+      <div class="section-label">Activity Summary</div>
+      <div class="two-col">
+        <div class="rev-card" id="analyticsActivityCard">
+          <div class="rev-card-title">Monthly Performance</div>
+          <div id="analyticsActivityBody"></div>
+        </div>
+        <div class="rev-card" id="analyticsUsageCard">
+          <div class="rev-card-title">Usage</div>
+          <div id="analyticsUsageBody"></div>
+        </div>
       </div>
     </div>
+    <!-- Keep backward-compat alias -->
+    <div class="view" id="view-revenue" style="display:none;"></div>
 
     <!-- ═══ BILLING ═══ -->
     <div class="view" id="view-billing">
@@ -775,10 +982,29 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
         <div class="page-actions"><button class="btn-sm primary" onclick="showToast('Settings saved.')">Save Changes</button></div>
       </div>
       <div class="settings-tabs">
-        <button class="tab-btn active" onclick="switchTab(this,'tab-ai')">AI Settings</button>
+        <button class="tab-btn active" onclick="switchTab(this,'tab-shop')">Shop Profile</button>
+        <button class="tab-btn" onclick="switchTab(this,'tab-ai')">AI & Automation</button>
         <button class="tab-btn" onclick="switchTab(this,'tab-integrations')">Integrations</button>
+        <button class="tab-btn" onclick="switchTab(this,'tab-notifications')">Notifications</button>
+        <button class="tab-btn" onclick="switchTab(this,'tab-setup')">Setup</button>
       </div>
-      <div class="tab-panel active" id="tab-ai">
+      <!-- Shop Profile tab -->
+      <div class="tab-panel active" id="tab-shop">
+        <div class="settings-group">
+          <div class="settings-group-title">Shop Information</div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">Shop Name</div><div class="settings-row-sub">Displayed in SMS messages to customers</div></div>
+            <input class="s-input" type="text" id="settingsShopName" value="" style="width:200px;">
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">Shop Phone</div><div class="settings-row-sub">Your main business phone number</div></div>
+            <input class="s-input" type="text" value="" placeholder="(555) 123-4567" style="width:160px;">
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">Address</div></div>
+            <input class="s-input" type="text" value="" placeholder="123 Main St, City, TX" style="width:260px;">
+          </div>
+        </div>
         <div class="settings-group">
           <div class="settings-group-title">Business Hours</div>
           <div class="settings-row">
@@ -790,6 +1016,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
             <select class="s-select"><option>Monday – Saturday</option><option>Monday – Friday</option><option>7 Days</option></select>
           </div>
         </div>
+      </div>
+      <!-- AI Settings tab -->
+      <div class="tab-panel" id="tab-ai">
         <div class="settings-group">
           <div class="settings-group-title">Booking Configuration</div>
           <div class="settings-row">
@@ -832,6 +1061,60 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
         <div class="settings-group">
           <div class="settings-group-title">Google Calendar</div>
           <div id="settingsCalendarBlock"></div>
+        </div>
+      </div>
+      <!-- Notifications tab -->
+      <div class="tab-panel" id="tab-notifications">
+        <div class="settings-group">
+          <div class="settings-group-title">Email Notifications</div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">New Booking Alert</div><div class="settings-row-sub">Get notified when AI books an appointment</div></div>
+            <div class="s-toggle on" onclick="this.classList.toggle('on')"></div>
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">Operator Needed Alert</div><div class="settings-row-sub">When a conversation needs human intervention</div></div>
+            <div class="s-toggle on" onclick="this.classList.toggle('on')"></div>
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">Calendar Sync Failure</div><div class="settings-row-sub">When Google Calendar sync fails</div></div>
+            <div class="s-toggle on" onclick="this.classList.toggle('on')"></div>
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">Daily Summary</div><div class="settings-row-sub">End-of-day recap of AI activity</div></div>
+            <div class="s-toggle" onclick="this.classList.toggle('on')"></div>
+          </div>
+        </div>
+        <div class="settings-group">
+          <div class="settings-group-title">SMS Notifications</div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">Forward Operator Requests</div><div class="settings-row-sub">SMS you when customer requests a human</div></div>
+            <div class="s-toggle" onclick="this.classList.toggle('on')"></div>
+          </div>
+        </div>
+      </div>
+      <!-- Setup / Checklist tab -->
+      <div class="tab-panel" id="tab-setup">
+        <div id="activationComplete" class="activation-summary hidden">
+          <div class="activation-summary-left">
+            <div class="activation-summary-icon">&#10003;</div>
+            <div>
+              <div class="activation-summary-title">System Fully Activated</div>
+              <div class="activation-summary-sub">Missed call recovery is live</div>
+            </div>
+          </div>
+          <button class="btn-sm" onclick="toggleChecklist()">View Setup Checklist</button>
+        </div>
+        <div id="checklistWrapper">
+          <div class="checklist-card" id="checklistCard">
+            <div class="checklist-header">
+              <div>
+                <div class="checklist-title">Activation Checklist</div>
+                <div class="checklist-sub">Complete all steps to start recovering missed-call revenue.</div>
+              </div>
+              <div class="checklist-progress"><strong id="checklistDone">3</strong> / 4 complete</div>
+            </div>
+            <div class="checklist-steps" id="checklistSteps"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -1029,17 +1312,22 @@ document.addEventListener('DOMContentLoaded', async function() {
   renderNav();
   renderChecklist();
   renderHealthGrid();
-  renderDashConvTable(conversationsData.slice(0,6));
+  renderDashConvTable(conversationsData.slice(0,8));
   renderFullConvTable(conversationsData);
+  renderConvInbox();
   renderBookings();
   renderBillingPage();
   renderBookingsCalendarAlert();
   renderSystemHero();
   checkActivationState();
   renderLiveKPIs();
-  renderLiveTodayActivity();
   renderLivePipeline();
   renderLiveRevenueBlocks();
+  renderActionNeeded();
+  renderTodayAppointments();
+  renderCustomers();
+  renderAppointmentsPage();
+  updateSidebarBadge();
 
   // Handle Google Calendar OAuth return
   var calParam = new URLSearchParams(window.location.search).get('calendar');
@@ -1378,6 +1666,7 @@ function renderBookings() {
       <td class="td-date">${b.date}</td>
       <td class="td-phone">${b.phone}</td>
       <td class="td-issue">${b.service}</td>
+      <td><span class="source-tag ai">AI</span></td>
       <td class="td-date">${b.vehicle}</td>
       <td>${syncEl}${failNote}</td>
       <td>${action}</td>
@@ -1625,23 +1914,29 @@ async function disconnectGoogleCalendar() {
 // NAVIGATION
 // ════════════════════════════════════════════
 function switchView(view) {
+  // Backward compat aliases
+  var aliases = { bookings:'appointments', revenue:'analytics' };
+  if (aliases[view]) view = aliases[view];
+
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
   const el = document.getElementById('view-' + view);
   if (el) el.classList.add('active');
-  const map = { dashboard:0, conversations:1, bookings:2, revenue:3, billing:4, settings:5 };
+  const map = { dashboard:0, conversations:1, appointments:2, customers:3, analytics:4, billing:5, settings:6 };
   const items = document.querySelectorAll('.sidebar-item');
-  if (items[map[view]]) items[map[view]].classList.add('active');
+  if (items[map[view]] !== undefined) items[map[view]].classList.add('active');
 }
 
 // ════════════════════════════════════════════
 // SETTINGS TABS
 // ════════════════════════════════════════════
 function switchTab(btn, tabId) {
+  if (!btn) return;
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById(tabId).classList.add('active');
+  var panel = document.getElementById(tabId);
+  if (panel) panel.classList.add('active');
 }
 
 // ════════════════════════════════════════════
@@ -1718,44 +2013,44 @@ function renderSystemHero() {
 // ════════════════════════════════════════════
 function renderLiveKPIs() {
   var s = dashboardStats;
-  var cal = tenantState.integrations.googleCalendar;
-  var tw = tenantState.integrations.twilioNumber;
-
-  var calClass = cal === 'connected' ? 'ok' : (cal === 'token_expired' ? 'warn' : 'err');
-  var calDot = cal === 'connected' ? 'green' : (cal === 'token_expired' ? 'amber' : 'red');
-  var calLabel = cal === 'connected' ? 'Connected' : (cal === 'token_expired' ? 'Token Expired' : 'Not Connected');
-  var twClass = tw === 'active' ? 'ok' : 'err';
-  var twDot = tw === 'active' ? 'green' : 'red';
-  var twLabel = tw === 'active' ? 'Connected' : 'Not Provisioned';
+  var defaultARO = 540;
+  var recoveredRev = (s.total_appointments || 0) * defaultARO;
+  var monthRev = (s.appointments_this_month || 0) * defaultARO;
 
   document.getElementById('kpiGrid').innerHTML =
     '<div class="kpi-card revenue fade-in">' +
-      '<div class="kpi-tag">Conversations — This Month</div>' +
-      '<div class="kpi-value">' + (s.conversations_this_month || 0) + '</div>' +
-      '<div class="kpi-sub">SMS conversations triggered by missed calls</div>' +
-    '</div>' +
-    '<div class="kpi-card calls fade-in">' +
-      '<div class="kpi-tag">Total Conversations</div>' +
-      '<div class="kpi-value">' + (s.total_conversations || 0) + '</div>' +
-      '<div class="kpi-sub">All-time conversations since activation</div>' +
+      '<div class="kpi-tag">Recovered Revenue</div>' +
+      '<div class="kpi-value"><span class="curr">$</span>' + recoveredRev.toLocaleString() + '</div>' +
+      '<div class="kpi-sub">$' + monthRev.toLocaleString() + ' this month</div>' +
     '</div>' +
     '<div class="kpi-card booked fade-in">' +
-      '<div class="kpi-tag">Appointments Booked</div>' +
+      '<div class="kpi-tag">AI Booked Appointments</div>' +
       '<div class="kpi-value">' + (s.appointments_this_month || 0) + '</div>' +
-      '<div class="kpi-sub">This month · ' + (s.total_appointments || 0) + ' all time</div>' +
+      '<div class="kpi-sub">' + (s.total_appointments || 0) + ' all time</div>' +
     '</div>' +
-    '<div class="kpi-card health-card fade-in">' +
-      '<div class="health-header"><div class="kpi-tag" style="margin-bottom:0;">System Health</div></div>' +
-      '<div class="health-row"><span class="health-label">Twilio SMS</span><span class="health-val ' + twClass + '"><span class="hdot ' + twDot + '"></span>' + twLabel + '</span></div>' +
-      '<div class="health-row"><span class="health-label">Google Calendar</span><span class="health-val ' + calClass + '"><span class="hdot ' + calDot + '"></span>' + calLabel + '</span></div>' +
-      '<div class="health-row"><span class="health-label">Active Convos</span><span class="health-val neutral">' + (s.active_conversations || 0) + '</span></div>' +
-      '<div class="health-row"><span class="health-label">Appts Today</span><span class="health-val neutral">' + (s.appointments_today || 0) + '</span></div>' +
+    '<div class="kpi-card calls fade-in">' +
+      '<div class="kpi-tag">Missed Calls Captured</div>' +
+      '<div class="kpi-value">' + (s.conversations_this_month || 0) + '</div>' +
+      '<div class="kpi-sub">' + (s.total_conversations || 0) + ' all time</div>' +
+    '</div>' +
+    '<div class="kpi-card fade-in" style="border-top:3px solid var(--amber);">' +
+      '<div class="kpi-tag">Active Conversations</div>' +
+      '<div class="kpi-value">' + (s.active_conversations || 0) + '</div>' +
+      '<div class="kpi-sub">' + (s.appointments_today || 0) + ' appointments today</div>' +
     '</div>';
+
+  // Dashboard chart meta
+  var drr = document.getElementById('dashRevRecovered');
+  if (drr) drr.textContent = '$' + recoveredRev.toLocaleString();
+  var dab = document.getElementById('dashAvgBooking');
+  if (dab) dab.textContent = '$' + defaultARO;
 }
 
 function renderLiveTodayActivity() {
   var s = dashboardStats;
-  document.getElementById('todayGrid').innerHTML =
+  var todayEl = document.getElementById('todayGrid');
+  if (!todayEl) return;
+  todayEl.innerHTML =
     '<div class="today-card"><div class="today-tag">Conversations Today</div><div class="today-num">' + (s.conversations_today || 0) + '</div></div>' +
     '<div class="today-card"><div class="today-tag">SMS Conversations</div><div class="today-num">' + (s.conversations_today || 0) + '</div></div>' +
     '<div class="today-card" style="border-bottom-color:var(--amber);"><div class="today-tag">Active Conversations</div><div class="today-num amber">' + (s.active_conversations || 0) + '</div></div>' +
@@ -1861,20 +2156,34 @@ function renderLiveRevenueBlocks() {
   var rps = document.getElementById('revPlanSub');
   if (rps) rps.textContent = tenantState.status.replace(/_/g, ' ');
 
-  // Revenue sidebar
-  document.getElementById('revenueSidebar').innerHTML =
-    '<div class="rev-card">' +
-      '<div class="rev-card-title">Activity Summary</div>' +
+  // Sidebar shop name
+  var sidebarShop = document.getElementById('sidebarShopName');
+  if (sidebarShop) sidebarShop.textContent = shopName;
+
+  // Analytics activity card
+  var actBody = document.getElementById('analyticsActivityBody');
+  if (actBody) {
+    actBody.innerHTML =
       '<div class="rev-stat"><div class="rev-stat-label">Conversations (This Month)</div><div class="rev-stat-value green">' + (s.conversations_this_month || 0) + '</div></div>' +
       '<div class="rev-stat"><div class="rev-stat-label">Appointments Booked (This Month)</div><div class="rev-stat-value amber">' + (s.appointments_this_month || 0) + '</div></div>' +
-      '<div class="rev-stat"><div class="rev-stat-label">Total Bookings (All Time)</div><div class="rev-stat-value">' + totalAppts + '</div></div>' +
-    '</div>' +
-    '<div class="rev-card">' +
-      '<div class="rev-card-title">Usage</div>' +
+      '<div class="rev-stat"><div class="rev-stat-label">Total Bookings (All Time)</div><div class="rev-stat-value">' + totalAppts + '</div></div>';
+  }
+
+  // Analytics usage card
+  var usageBody = document.getElementById('analyticsUsageBody');
+  if (usageBody) {
+    usageBody.innerHTML =
       '<div class="rev-sub-row"><span class="rev-sub-label">Conversations Used</span><span class="rev-sub-value">' + tenantState.convUsed + ' / ' + (tenantState.plan === 'trial' ? tenantState.trialLimit : tenantState.convLimit) + '</span></div>' +
       '<div class="rev-sub-row"><span class="rev-sub-label">Plan</span><span class="rev-sub-value">' + tenantState.plan.charAt(0).toUpperCase() + tenantState.plan.slice(1) + '</span></div>' +
-      '<div class="rev-sub-row" style="border-bottom:none;"><span class="rev-sub-label">Status</span><span class="rev-sub-value" style="color:var(--green);">' + tenantState.status.replace(/_/g,' ') + '</span></div>' +
-    '</div>';
+      '<div class="rev-sub-row" style="border-bottom:none;"><span class="rev-sub-label">Status</span><span class="rev-sub-value" style="color:var(--green);">' + tenantState.status.replace(/_/g,' ') + '</span></div>';
+  }
+
+  // Analytics conversion rate
+  var acr = document.getElementById('analyticsConvRate');
+  if (acr) {
+    var rate = (s.total_conversations || 0) > 0 ? Math.round(((s.total_appointments || 0) / (s.total_conversations || 1)) * 100) : 0;
+    acr.textContent = rate + '%';
+  }
 }
 
 // ════════════════════════════════════════════
@@ -1912,6 +2221,251 @@ function toggleChecklist() {
   }
 }
 
+</script>
+
+<!-- ── NEW PAGE RENDER FUNCTIONS ── -->
+<script>
+// ════════════════════════════════════════════
+// CONVERSATIONS INBOX (3-panel)
+// ════════════════════════════════════════════
+function renderConvInbox() {
+  var list = document.getElementById('convInboxList');
+  if (!list) return;
+  if (!conversationsData.length) {
+    list.innerHTML = '<div class="conv-empty-state" style="padding:40px 16px;"><div style="font-size:13px;">No conversations yet</div></div>';
+    return;
+  }
+  var html = '';
+  conversationsData.forEach(function(c, idx) {
+    html += '<div class="conv-list-item' + (idx === 0 ? ' selected' : '') + '" data-id="' + c.id + '" data-status="' + c.status + '" data-phone="' + c.phone + '" onclick="selectConversation(this,\'' + c.id + '\')">' +
+      '<div class="conv-list-top"><span class="conv-list-phone">' + c.phone + '</span><span class="conv-list-time">' + c.date + '</span></div>' +
+      '<div class="conv-list-preview">' + c.issue + '</div>' +
+      '<div class="conv-list-bottom"><span class="status-pill ' + c.status + '" style="font-size:10px;padding:1px 6px;">' + pillLabel(c.status) + '</span></div>' +
+    '</div>';
+  });
+  list.innerHTML = html;
+  // Select first conversation
+  if (conversationsData.length > 0) selectConversation(null, conversationsData[0].id);
+}
+
+function selectConversation(el, id) {
+  // Update selected state
+  document.querySelectorAll('.conv-list-item').forEach(function(i) { i.classList.remove('selected'); });
+  if (el) el.classList.add('selected');
+  else {
+    var item = document.querySelector('.conv-list-item[data-id="' + id + '"]');
+    if (item) item.classList.add('selected');
+  }
+
+  // Find conversation data
+  var conv = conversationsData.find(function(c) { return c.id === id; });
+  if (!conv) return;
+
+  // Update thread header
+  var title = document.getElementById('convThreadTitle');
+  if (title) title.textContent = conv.phone + ' — ' + conv.issue;
+  var actions = document.getElementById('convThreadActions');
+  if (actions) actions.innerHTML = '<span class="status-pill ' + conv.status + '">' + pillLabel(conv.status) + '</span>';
+
+  // Thread body — show messages if available
+  var body = document.getElementById('convThreadBody');
+  var data = convThreads[id];
+  if (data && data.thread) {
+    var thread = '';
+    data.thread.forEach(function(m) {
+      if (m.ts) thread += '<div class="msg-time">' + m.ts + '</div>';
+      if (m.d === 'ai') thread += '<div class="msg-row"><div class="msg-bubble ai"><div class="msg-sender">AutoShop AI</div>' + m.t + '</div></div>';
+      else thread += '<div class="msg-row right"><div class="msg-bubble customer">' + m.t + '</div></div>';
+    });
+    if (data.result) thread += '<div class="modal-result"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><div class="modal-result-text"><strong>' + data.result + '</strong></div></div>';
+    body.innerHTML = thread;
+  } else {
+    body.innerHTML = '<div class="conv-empty-state"><span style="font-size:13px;">Thread data not available — <a style="color:var(--rust);cursor:pointer;" onclick="openModal(\'' + id + '\')">open in modal</a></span></div>';
+  }
+
+  // Detail panel
+  var detail = document.getElementById('convDetailBody');
+  if (detail) {
+    detail.innerHTML =
+      '<div class="conv-detail-section"><div class="conv-detail-label">Phone</div><div class="conv-detail-value">' + conv.phone + '</div></div>' +
+      '<div class="conv-detail-section"><div class="conv-detail-label">Status</div><div><span class="status-pill ' + conv.status + '">' + pillLabel(conv.status) + '</span></div></div>' +
+      '<div class="conv-detail-section"><div class="conv-detail-label">First Contact</div><div class="conv-detail-value">' + conv.date + '</div></div>' +
+      '<div class="conv-detail-section"><div class="conv-detail-label">Issue</div><div class="conv-detail-value">' + conv.issue + '</div></div>' +
+      '<div class="conv-detail-section"><div class="conv-detail-label">Duration</div><div class="conv-detail-value">' + conv.duration + '</div></div>' +
+      '<div class="conv-detail-section" style="border-bottom:none;"><div class="conv-detail-label">Actions</div><div style="display:flex;gap:6px;flex-wrap:wrap;"><button class="btn-sm" onclick="openModal(\'' + id + '\')">Full View</button><button class="btn-sm" onclick="markResolved(this,\'' + id + '\')">Resolve</button></div></div>';
+  }
+}
+
+function filterConvInbox(val) {
+  document.querySelectorAll('.conv-list-item').forEach(function(item) {
+    item.style.display = item.dataset.phone.includes(val) ? '' : 'none';
+  });
+}
+
+// Override filterFullConv for new inbox layout
+var _origFilterFullConv = typeof filterFullConv === 'function' ? filterFullConv : null;
+function filterFullConv(btn, status) {
+  // Update filter chips
+  var container = btn.closest('.conv-inbox-filters') || btn.closest('.log-filters');
+  if (container) container.querySelectorAll('.filter-chip').forEach(function(c) { c.classList.remove('active'); });
+  btn.classList.add('active');
+  // Filter inbox items
+  document.querySelectorAll('.conv-list-item').forEach(function(item) {
+    item.style.display = (status === 'all' || item.dataset.status === status) ? '' : 'none';
+  });
+}
+
+// ════════════════════════════════════════════
+// DASHBOARD: ACTION NEEDED + TODAY APPOINTMENTS
+// ════════════════════════════════════════════
+function renderActionNeeded() {
+  var items = [];
+  // Active conversations that might need operator
+  conversationsData.forEach(function(c) {
+    if (c.status === 'active') items.push({ text: 'Active conversation', sub: c.phone, id: c.id });
+  });
+  // Failed bookings
+  bookingsData.forEach(function(b) {
+    if (b.syncStatus === 'failed') items.push({ text: 'Booking sync failed', sub: b.phone });
+    if (b.syncStatus === 'pending') items.push({ text: 'Needs manual confirmation', sub: b.phone });
+  });
+
+  var countEl = document.getElementById('actionCount');
+  if (countEl) countEl.textContent = items.length;
+
+  var body = document.getElementById('actionNeededBody');
+  if (!body) return;
+  if (!items.length) {
+    body.innerHTML = '<div style="padding:20px 16px;text-align:center;"><div style="font-size:12px;color:var(--text-tertiary);">No items need attention</div></div>';
+    return;
+  }
+  body.innerHTML = items.slice(0, 5).map(function(item) {
+    return '<div class="action-item">' +
+      '<div class="action-item-left"><div class="action-item-text">' + item.text + '</div><div class="action-item-sub">' + item.sub + '</div></div>' +
+      (item.id ? '<button class="view-btn" onclick="openModal(\'' + item.id + '\')">View</button>' : '<span class="status-pill pending">Pending</span>') +
+    '</div>';
+  }).join('');
+}
+
+function renderTodayAppointments() {
+  var today = new Date().toDateString();
+  var todayAppts = bookingsData.filter(function(b) {
+    var d = new Date(b.date);
+    return d.toDateString() === today;
+  });
+
+  var countEl = document.getElementById('todayApptCount');
+  if (countEl) countEl.textContent = todayAppts.length || (dashboardStats.appointments_today || 0);
+
+  var body = document.getElementById('todayApptsBody');
+  if (!body) return;
+  if (!todayAppts.length) {
+    var apptCount = dashboardStats.appointments_today || 0;
+    if (apptCount > 0) {
+      body.innerHTML = '<div style="padding:16px;text-align:center;"><div style="font-size:24px;font-weight:700;color:var(--text);margin-bottom:4px;">' + apptCount + '</div><div style="font-size:12px;color:var(--text-tertiary);">appointments scheduled today</div></div>';
+    } else {
+      body.innerHTML = '<div style="padding:20px 16px;text-align:center;"><div style="font-size:12px;color:var(--text-tertiary);">No appointments today</div></div>';
+    }
+    return;
+  }
+  body.innerHTML = todayAppts.slice(0, 5).map(function(b) {
+    return '<div class="today-appt-item"><div class="today-appt-left"><div class="today-appt-service">' + b.service + '</div><div class="today-appt-customer">' + b.phone + '</div></div><div><span class="status-pill ' + b.syncStatus + '" style="font-size:10px;">' + (b.syncLabel || b.syncStatus) + '</span></div></div>';
+  }).join('');
+}
+
+// ════════════════════════════════════════════
+// CUSTOMERS PAGE
+// ════════════════════════════════════════════
+function renderCustomers() {
+  // Derive customers from conversations + bookings
+  var customerMap = {};
+  conversationsData.forEach(function(c) {
+    if (!customerMap[c.phone]) customerMap[c.phone] = { phone: c.phone, name: '—', lastDate: c.date, apptCount: 0, status: c.status, issue: c.issue };
+    else customerMap[c.phone].lastDate = c.date;
+  });
+  bookingsData.forEach(function(b) {
+    if (!customerMap[b.phone]) customerMap[b.phone] = { phone: b.phone, name: b.vehicle || '—', lastDate: b.date, apptCount: 1, status: 'booked', issue: b.service };
+    else {
+      customerMap[b.phone].apptCount = (customerMap[b.phone].apptCount || 0) + 1;
+      if (b.vehicle && b.vehicle !== '—') customerMap[b.phone].name = b.vehicle;
+    }
+  });
+
+  var customers = Object.values(customerMap);
+  var countEl = document.getElementById('customerCount');
+  if (countEl) countEl.textContent = customers.length + ' Customers';
+
+  var tbody = document.getElementById('customerBody');
+  if (!tbody) return;
+  if (!customers.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">&#128100;</div><div class="empty-title">No Customers Yet</div><div class="empty-sub">Customers will appear here after their first AI conversation.</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = customers.map(function(c) {
+    return '<tr data-phone="' + c.phone + '">' +
+      '<td class="td-issue">' + c.name + '</td>' +
+      '<td class="td-phone">' + c.phone + '</td>' +
+      '<td class="td-date">' + c.lastDate + '</td>' +
+      '<td class="customer-appt-count">' + (c.apptCount || 0) + '</td>' +
+      '<td><span class="status-pill ' + c.status + '">' + pillLabel(c.status) + '</span></td>' +
+      '<td><button class="view-btn" onclick="switchView(\'conversations\')">View</button></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function searchCustomers(val) {
+  document.querySelectorAll('#customerBody tr').forEach(function(r) {
+    var phone = r.dataset.phone || '';
+    var name = r.querySelector('.td-issue') ? r.querySelector('.td-issue').textContent : '';
+    r.style.display = (phone.includes(val) || name.toLowerCase().includes(val.toLowerCase())) ? '' : 'none';
+  });
+}
+
+// ════════════════════════════════════════════
+// APPOINTMENTS PAGE RENDERING
+// ════════════════════════════════════════════
+function renderAppointmentsPage() {
+  // Render today's appointments table
+  var today = new Date().toDateString();
+  var todayAppts = bookingsData.filter(function(b) {
+    var d = new Date(b.date);
+    return d.toDateString() === today;
+  });
+  var todayBody = document.getElementById('todayApptsTableBody');
+  if (todayBody) {
+    if (!todayAppts.length) {
+      todayBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-tertiary);font-size:13px;">No appointments scheduled for today</td></tr>';
+    } else {
+      todayBody.innerHTML = todayAppts.map(function(b) {
+        return '<tr><td class="td-date">' + b.date + '</td><td class="td-phone">' + b.phone + '</td><td class="td-issue">' + b.service + '</td><td><span class="source-tag ai">AI</span></td><td><span class="status-pill ' + b.syncStatus + '">' + (b.syncLabel || b.syncStatus) + '</span></td></tr>';
+      }).join('');
+    }
+  }
+}
+
+function filterAppts(btn, status) {
+  btn.closest('.log-filters').querySelectorAll('.filter-chip').forEach(function(c) { c.classList.remove('active'); });
+  btn.classList.add('active');
+  document.querySelectorAll('#bookingsBody tr').forEach(function(r) {
+    if (status === 'all') { r.style.display = ''; return; }
+    var pill = r.querySelector('.status-pill');
+    if (!pill) { r.style.display = ''; return; }
+    var rowStatus = pill.className.replace('status-pill ', '').trim();
+    r.style.display = rowStatus === status ? '' : 'none';
+  });
+}
+
+// ════════════════════════════════════════════
+// SIDEBAR BADGE UPDATE
+// ════════════════════════════════════════════
+function updateSidebarBadge() {
+  var active = conversationsData.filter(function(c) { return c.status === 'active'; }).length;
+  var badge = document.getElementById('sidebarConvBadge');
+  if (badge) {
+    badge.textContent = active;
+    badge.style.display = active > 0 ? '' : 'none';
+  }
+}
 </script>
 
 <!-- ── AUTH GUARD ── -->
