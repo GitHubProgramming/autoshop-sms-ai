@@ -9,6 +9,7 @@
 
 import { query } from "../db/client";
 import { decryptToken } from "../routes/auth/google";
+import { isTokenExpired, refreshAccessToken } from "./google-token-refresh";
 
 const GOOGLE_CALENDAR_API = "https://www.googleapis.com/calendar/v3";
 
@@ -32,18 +33,19 @@ export interface CalendarEventResult {
 
 /**
  * Fetches decrypted Google Calendar tokens for a tenant from the database.
- * Does NOT refresh tokens — callers should use the /internal/calendar-tokens
- * endpoint if they need auto-refresh (n8n does this). This service fetches
- * directly to avoid circular HTTP calls.
+ * Auto-refreshes the access token if it is expired or will expire within
+ * 5 minutes, using the stored refresh_token.
  */
 export async function getCalendarTokens(
   tenantId: string
 ): Promise<{ accessToken: string; calendarId: string } | null> {
   const rows = await query<{
     access_token: string;
+    refresh_token: string;
+    token_expiry: string;
     calendar_id: string;
   }>(
-    `SELECT access_token, calendar_id
+    `SELECT access_token, refresh_token, token_expiry, calendar_id
      FROM tenant_calendar_tokens
      WHERE tenant_id = $1`,
     [tenantId]
@@ -52,6 +54,17 @@ export async function getCalendarTokens(
   if (rows.length === 0) return null;
 
   const row = rows[0];
+
+  // Auto-refresh if token is expired or about to expire
+  if (row.token_expiry && isTokenExpired(row.token_expiry)) {
+    const refreshed = await refreshAccessToken(tenantId, row.refresh_token);
+    if (refreshed) {
+      return { accessToken: refreshed.accessToken, calendarId: row.calendar_id };
+    }
+    // Refresh failed — fall through to return the stale token.
+    // The caller will get a 401 from Google and can surface the error.
+  }
+
   const accessToken = decryptToken(row.access_token);
   return { accessToken, calendarId: row.calendar_id };
 }
@@ -81,6 +94,22 @@ export function buildEventBody(input: CalendarEventInput) {
       timeZone: tz,
     },
   };
+}
+
+/**
+ * Force-refreshes the access token for a tenant, bypassing expiry check.
+ * Used as a fallback when Google returns 401 despite the token appearing valid.
+ * Returns the new plaintext access token, or null if refresh failed.
+ */
+async function forceRefreshToken(tenantId: string): Promise<string | null> {
+  const rows = await query<{ refresh_token: string }>(
+    `SELECT refresh_token FROM tenant_calendar_tokens WHERE tenant_id = $1`,
+    [tenantId]
+  );
+  if (rows.length === 0) return null;
+
+  const refreshed = await refreshAccessToken(tenantId, rows[0].refresh_token);
+  return refreshed ? refreshed.accessToken : null;
 }
 
 /**
@@ -119,7 +148,7 @@ export async function createCalendarEvent(
     // which is better than blocking event creation entirely
   }
 
-  // 1. Get tokens
+  // 1. Get tokens (mutable — may be refreshed on 401 retry)
   let tokens: { accessToken: string; calendarId: string } | null;
   try {
     tokens = await getCalendarTokens(input.tenantId);
@@ -144,11 +173,11 @@ export async function createCalendarEvent(
   // 2. Build event
   const eventBody = buildEventBody(input);
 
-  // 3. Create event via Google Calendar API
+  // 3. Create event via Google Calendar API (with 401 retry after token refresh)
   let googleEventId: string | null = null;
   try {
     const url = `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(tokens.calendarId)}/events`;
-    const res = await fetchFn(url, {
+    let res = await fetchFn(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${tokens.accessToken}`,
@@ -156,6 +185,22 @@ export async function createCalendarEvent(
       },
       body: JSON.stringify(eventBody),
     });
+
+    // 401 → token may have expired mid-flight; force-refresh and retry once
+    if (res.status === 401) {
+      const refreshed = await forceRefreshToken(input.tenantId);
+      if (refreshed) {
+        tokens = { accessToken: refreshed, calendarId: tokens.calendarId };
+        res = await fetchFn(url, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${tokens.accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(eventBody),
+        });
+      }
+    }
 
     if (!res.ok) {
       const body = await res.text().catch(() => "");

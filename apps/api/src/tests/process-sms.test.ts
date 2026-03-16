@@ -17,6 +17,12 @@ vi.mock("../routes/auth/google", () => ({
   decryptToken: vi.fn((t: string) => t),
 }));
 
+// Mock token refresh — tokens are always valid in process-sms tests
+vi.mock("../services/google-token-refresh", () => ({
+  isTokenExpired: vi.fn(() => false),
+  refreshAccessToken: vi.fn().mockResolvedValue(null),
+}));
+
 vi.mock("../services/pipeline-trace", () => ({
   resumeTrace: vi.fn().mockResolvedValue({
     id: "trace-mock-id",
@@ -198,9 +204,14 @@ function setupDbMocks(options: {
     }
 
     // Calendar tokens
-    if (sql.includes("SELECT access_token, calendar_id")) {
+    if (sql.includes("SELECT access_token, refresh_token, token_expiry, calendar_id")) {
       if (options.hasCalendarTokens) {
-        return [{ access_token: "test_access_token", calendar_id: "primary" }];
+        return [{
+          access_token: "test_access_token",
+          refresh_token: "test_refresh_token",
+          token_expiry: new Date(Date.now() + 3600 * 1000).toISOString(),
+          calendar_id: "primary",
+        }];
       }
       return [];
     }
