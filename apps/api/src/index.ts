@@ -141,8 +141,8 @@ async function bootstrap() {
     prefix: "/",
     decorateReply: false,
     setHeaders: (res, filePath) => {
-      // Prevent caching of admin pages so operators always see fresh content
-      if (typeof filePath === "string" && filePath.replace(/\\/g, "/").includes("admin")) {
+      // Prevent caching of all HTML pages so users always see fresh content
+      if (typeof filePath === "string" && filePath.endsWith(".html")) {
         res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
         res.setHeader("Pragma", "no-cache");
         res.setHeader("Expires", "0");
