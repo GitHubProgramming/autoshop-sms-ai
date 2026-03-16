@@ -706,11 +706,55 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .appt-source-inline svg{width:13px;height:13px}
 
 /* ── CUSTOMER PAGE ── */
-.customer-search-bar{display:flex;gap:8px;align-items:center;margin-bottom:16px}
-.customer-search-bar input{background:var(--bg-panel);border:1px solid var(--border);color:var(--text);font-size:13px;padding:8px 14px;outline:none;width:320px;border-radius:8px;transition:border-color .15s}
-.customer-search-bar input:focus{border-color:var(--rust);box-shadow:0 0 0 3px rgba(37,99,235,.08)}
-.customer-vehicle{font-family:var(--mono);font-size:11px;color:var(--text-tertiary)}
-.customer-appt-count{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text)}
+/* ── CUSTOMERS PAGE (SaaS redesign) ── */
+.cust-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.cust-stat-card{background:var(--bg-panel);border-radius:var(--radius);border:1px solid var(--border);padding:20px 24px}
+.cust-stat-value{font-size:28px;font-weight:700;color:var(--text);line-height:1;margin-bottom:4px;letter-spacing:-.02em}
+.cust-stat-label{font-size:13px;color:var(--text-tertiary);margin-bottom:8px}
+.cust-stat-sub{font-size:12px;font-weight:500}
+.cust-stat-sub.green{color:#10B981}
+.cust-stat-sub.blue{color:#2563EB}
+.cust-stat-sub.muted{color:var(--text-tertiary)}
+.cust-list-card{background:var(--bg-panel);border-radius:var(--radius);border:1px solid var(--border)}
+.cust-toolbar{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--border);gap:12px;flex-wrap:wrap}
+.cust-search-wrap{position:relative;flex:1;max-width:400px}
+.cust-search-wrap svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-tertiary)}
+.cust-search-wrap input{width:100%;padding:9px 14px 9px 36px;background:#F8FAFC;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s}
+.cust-search-wrap input:focus{border-color:var(--rust);box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.cust-toolbar-right{display:flex;align-items:center;gap:10px}
+.cust-filter-select{padding:9px 14px;background:#F8FAFC;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);outline:none;cursor:pointer;transition:border-color .15s}
+.cust-filter-select:focus{border-color:var(--rust);box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.cust-add-btn{padding:9px 16px;background:#2563EB;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s}
+.cust-add-btn:hover{background:#1D4ED8}
+.cust-table{width:100%;border-collapse:collapse}
+.cust-table thead{background:#F8FAFC;border-bottom:1px solid var(--border)}
+.cust-table th{text-align:left;padding:12px 24px;font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.04em}
+.cust-table td{padding:14px 24px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text);vertical-align:middle}
+.cust-table tbody tr:last-child td{border-bottom:none}
+.cust-table tbody tr{transition:background .12s}
+.cust-table tbody tr:hover{background:#F8FAFC}
+.cust-avatar{width:38px;height:38px;background:#2563EB;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:14px;flex-shrink:0}
+.cust-name-cell{display:flex;align-items:center;gap:12px}
+.cust-name{font-weight:500;color:var(--text)}
+.cust-phone{font-size:12px;color:var(--text-tertiary)}
+.cust-icon-cell{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text)}
+.cust-icon-cell svg{width:15px;height:15px;color:var(--text-tertiary);flex-shrink:0}
+.cust-spent{font-weight:600;font-family:var(--mono);font-size:13px}
+.cust-status{display:inline-block;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600}
+.cust-status.active{background:#ECFDF5;color:#10B981}
+.cust-status.new{background:#EFF6FF;color:#2563EB}
+.cust-status.inactive{background:#F1F5F9;color:#64748B}
+.cust-actions-btn{padding:6px 8px;background:transparent;border:none;border-radius:6px;cursor:pointer;transition:background .12s;color:var(--text-tertiary)}
+.cust-actions-btn:hover{background:#F1F5F9}
+.cust-pagination{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-top:1px solid var(--border)}
+.cust-pagination-info{font-size:13px;color:var(--text-tertiary)}
+.cust-pagination-btns{display:flex;align-items:center;gap:6px}
+.cust-pg-btn{padding:6px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text-tertiary);background:transparent;cursor:pointer;transition:background .12s}
+.cust-pg-btn:hover{background:#F8FAFC}
+.cust-pg-btn.active{background:#2563EB;color:#fff;border-color:#2563EB}
+.cust-pg-btn:disabled{opacity:.4;cursor:default}
+@media(max-width:1024px){.cust-stats-row{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:640px){.cust-stats-row{grid-template-columns:1fr}.cust-toolbar{flex-direction:column;align-items:stretch}.cust-search-wrap{max-width:none}}
 
 /* ── ANALYTICS ── */
 .analytics-kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
@@ -1034,20 +1078,60 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
     <!-- ═══ CUSTOMERS ═══ -->
     <div class="view" id="view-customers">
       <div class="page-header">
-        <div><div class="page-title">Customers</div><div class="page-subtitle">Customer database from AI conversations</div></div>
+        <div><div class="page-title">Customers</div><div class="page-subtitle">Manage your customer database and service history</div></div>
         <div class="page-actions"><button class="btn-sm" onclick="showToast('Export coming soon.')">Export</button></div>
       </div>
-      <div class="customer-search-bar">
-        <input type="text" id="customerSearchInput" placeholder="Search customers by name or phone..." oninput="searchCustomers(this.value)">
+
+      <!-- Stats Row -->
+      <div class="cust-stats-row">
+        <div class="cust-stat-card"><div class="cust-stat-value" id="custStatTotal">0</div><div class="cust-stat-label">Total Customers</div><div class="cust-stat-sub green" id="custStatTotalSub">—</div></div>
+        <div class="cust-stat-card"><div class="cust-stat-value" id="custStatRetention">—</div><div class="cust-stat-label">Retention Rate</div><div class="cust-stat-sub green" id="custStatRetentionSub">—</div></div>
+        <div class="cust-stat-card"><div class="cust-stat-value" id="custStatLTV">—</div><div class="cust-stat-label">Avg Lifetime Value</div><div class="cust-stat-sub blue" id="custStatLTVSub">Per customer</div></div>
+        <div class="cust-stat-card"><div class="cust-stat-value" id="custStatVisits">—</div><div class="cust-stat-label">Avg Visits</div><div class="cust-stat-sub muted" id="custStatVisitsSub">Per year</div></div>
       </div>
-      <div class="log-wrap">
-        <div class="log-header">
-          <div class="log-title" id="customerCount">All Customers</div>
+
+      <!-- Customer List Card -->
+      <div class="cust-list-card">
+        <!-- Toolbar -->
+        <div class="cust-toolbar">
+          <div class="cust-search-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="customerSearchInput" placeholder="Search customers..." oninput="searchCustomers(this.value)">
+          </div>
+          <div class="cust-toolbar-right">
+            <select class="cust-filter-select" id="customerFilterSelect" onchange="filterCustomers(this.value)">
+              <option value="all">All Customers</option>
+              <option value="active">Active</option>
+              <option value="new">New</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            <button class="cust-add-btn" onclick="showToast('Add customer coming soon.')">Add Customer</button>
+          </div>
         </div>
-        <table class="log-table" id="customerTable">
-          <thead><tr><th>Customer</th><th>Phone</th><th>Last Interaction</th><th>Appointments</th><th>Status</th><th>Actions</th></tr></thead>
-          <tbody id="customerBody"></tbody>
-        </table>
+
+        <!-- Table -->
+        <div style="overflow-x:auto;">
+          <table class="cust-table" id="customerTable">
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th>Vehicle</th>
+                <th>Last Visit</th>
+                <th>Appointments</th>
+                <th>Total Spent</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="customerBody"></tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="cust-pagination">
+          <div class="cust-pagination-info" id="custPaginationInfo">Showing 0 customers</div>
+          <div class="cust-pagination-btns" id="custPaginationBtns"></div>
+        </div>
       </div>
     </div>
 
@@ -2673,49 +2757,129 @@ function renderTodayAppointments() {
 // ════════════════════════════════════════════
 // CUSTOMERS PAGE
 // ════════════════════════════════════════════
+var custPageState = { all: [], filtered: [], page: 1, perPage: 10 };
+
 function renderCustomers() {
   // Derive customers from conversations + bookings
   var customerMap = {};
   conversationsData.forEach(function(c) {
-    if (!customerMap[c.phone]) customerMap[c.phone] = { phone: c.phone, name: '—', lastDate: c.date, apptCount: 0, status: c.status, issue: c.issue };
-    else customerMap[c.phone].lastDate = c.date;
+    if (!customerMap[c.phone]) customerMap[c.phone] = { phone: c.phone, name: '—', vehicle: '—', lastDate: c.date, apptCount: 0, status: c.status, issue: c.issue, totalSpent: 0 };
+    else {
+      if (c.date > customerMap[c.phone].lastDate) customerMap[c.phone].lastDate = c.date;
+    }
   });
   bookingsData.forEach(function(b) {
-    if (!customerMap[b.phone]) customerMap[b.phone] = { phone: b.phone, name: b.vehicle || '—', lastDate: b.date, apptCount: 1, status: 'booked', issue: b.service };
+    if (!customerMap[b.phone]) customerMap[b.phone] = { phone: b.phone, name: '—', vehicle: b.vehicle || '—', lastDate: b.date, apptCount: 1, status: 'booked', issue: b.service, totalSpent: 0 };
     else {
       customerMap[b.phone].apptCount = (customerMap[b.phone].apptCount || 0) + 1;
-      if (b.vehicle && b.vehicle !== '—') customerMap[b.phone].name = b.vehicle;
+      if (b.vehicle && b.vehicle !== '—') customerMap[b.phone].vehicle = b.vehicle;
     }
   });
 
   var customers = Object.values(customerMap);
-  var countEl = document.getElementById('customerCount');
-  if (countEl) countEl.textContent = customers.length + ' Customers';
+  custPageState.all = customers;
+  custPageState.filtered = customers;
+  custPageState.page = 1;
+
+  // Stats
+  var el = function(id) { return document.getElementById(id); };
+  if (el('custStatTotal')) el('custStatTotal').textContent = customers.length;
+  if (el('custStatTotalSub')) el('custStatTotalSub').textContent = customers.length > 0 ? 'From AI conversations' : '—';
+
+  var activeCount = customers.filter(function(c) { return c.apptCount >= 2; }).length;
+  var retPct = customers.length > 0 ? Math.round((activeCount / customers.length) * 100) : 0;
+  if (el('custStatRetention')) el('custStatRetention').textContent = retPct + '%';
+  if (el('custStatRetentionSub')) el('custStatRetentionSub').textContent = activeCount + ' returning';
+
+  var avgVisits = customers.length > 0 ? (customers.reduce(function(s,c){ return s + (c.apptCount||0); }, 0) / customers.length).toFixed(1) : '0';
+  if (el('custStatVisits')) el('custStatVisits').textContent = avgVisits;
+
+  if (el('custStatLTV')) el('custStatLTV').textContent = '—';
+
+  renderCustomerPage();
+}
+
+function renderCustomerPage() {
+  var list = custPageState.filtered;
+  var page = custPageState.page;
+  var perPage = custPageState.perPage;
+  var start = (page - 1) * perPage;
+  var end = Math.min(start + perPage, list.length);
+  var pageItems = list.slice(start, end);
+  var totalPages = Math.max(1, Math.ceil(list.length / perPage));
 
   var tbody = document.getElementById('customerBody');
   if (!tbody) return;
-  if (!customers.length) {
-    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">&#128100;</div><div class="empty-title">No Customers Yet</div><div class="empty-sub">Customers will appear here after their first AI conversation.</div></div></td></tr>';
-    return;
+
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">&#128100;</div><div class="empty-title">No Customers Yet</div><div class="empty-sub">Customers will appear here after their first AI conversation.</div></div></td></tr>';
+  } else {
+    tbody.innerHTML = pageItems.map(function(c) {
+      var initial = (c.name && c.name !== '—') ? c.name.charAt(0).toUpperCase() : (c.phone ? c.phone.charAt(c.phone.length - 1) : '?');
+      var displayName = (c.name && c.name !== '—') ? c.name : 'Customer';
+      var statusClass = (c.apptCount >= 2) ? 'active' : (c.apptCount === 1 ? 'new' : 'inactive');
+      var statusLabel = statusClass === 'active' ? 'Active' : (statusClass === 'new' ? 'New' : 'Inactive');
+      var vehicle = (c.vehicle && c.vehicle !== '—') ? c.vehicle : '—';
+      var spent = c.totalSpent ? '$' + c.totalSpent : '—';
+      return '<tr data-phone="' + c.phone + '" data-status="' + statusClass + '">' +
+        '<td><div class="cust-name-cell"><div class="cust-avatar">' + initial + '</div><div><div class="cust-name">' + displayName + '</div><div class="cust-phone">' + c.phone + '</div></div></div></td>' +
+        '<td><div class="cust-icon-cell"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.8 3.8 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>' + vehicle + '</div></td>' +
+        '<td><div class="cust-icon-cell"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>' + c.lastDate + '</div></td>' +
+        '<td><div class="cust-icon-cell"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22z"/></svg>' + (c.apptCount || 0) + '</div></td>' +
+        '<td><span class="cust-spent">' + spent + '</span></td>' +
+        '<td><span class="cust-status ' + statusClass + '">' + statusLabel + '</span></td>' +
+        '<td><button class="cust-actions-btn" onclick="switchView(\'conversations\')"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button></td>' +
+      '</tr>';
+    }).join('');
   }
-  tbody.innerHTML = customers.map(function(c) {
-    return '<tr data-phone="' + c.phone + '">' +
-      '<td class="td-issue">' + c.name + '</td>' +
-      '<td class="td-phone">' + c.phone + '</td>' +
-      '<td class="td-date">' + c.lastDate + '</td>' +
-      '<td class="customer-appt-count">' + (c.apptCount || 0) + '</td>' +
-      '<td><span class="status-pill ' + c.status + '">' + pillLabel(c.status) + '</span></td>' +
-      '<td><button class="view-btn" onclick="switchView(\'conversations\')">View</button></td>' +
-    '</tr>';
-  }).join('');
+
+  // Pagination info
+  var infoEl = document.getElementById('custPaginationInfo');
+  if (infoEl) {
+    infoEl.textContent = list.length === 0 ? 'No customers' : 'Showing ' + (start + 1) + ' to ' + end + ' of ' + list.length + ' customers';
+  }
+
+  // Pagination buttons
+  var btnsEl = document.getElementById('custPaginationBtns');
+  if (btnsEl) {
+    var html = '<button class="cust-pg-btn" onclick="custGoPage(' + (page - 1) + ')"' + (page <= 1 ? ' disabled' : '') + '>Previous</button>';
+    for (var i = 1; i <= Math.min(totalPages, 5); i++) {
+      html += '<button class="cust-pg-btn' + (i === page ? ' active' : '') + '" onclick="custGoPage(' + i + ')">' + i + '</button>';
+    }
+    html += '<button class="cust-pg-btn" onclick="custGoPage(' + (page + 1) + ')"' + (page >= totalPages ? ' disabled' : '') + '>Next</button>';
+    btnsEl.innerHTML = html;
+  }
+}
+
+function custGoPage(p) {
+  var totalPages = Math.max(1, Math.ceil(custPageState.filtered.length / custPageState.perPage));
+  if (p < 1 || p > totalPages) return;
+  custPageState.page = p;
+  renderCustomerPage();
 }
 
 function searchCustomers(val) {
-  document.querySelectorAll('#customerBody tr').forEach(function(r) {
-    var phone = r.dataset.phone || '';
-    var name = r.querySelector('.td-issue') ? r.querySelector('.td-issue').textContent : '';
-    r.style.display = (phone.includes(val) || name.toLowerCase().includes(val.toLowerCase())) ? '' : 'none';
+  var filterVal = document.getElementById('customerFilterSelect') ? document.getElementById('customerFilterSelect').value : 'all';
+  custPageState.filtered = custPageState.all.filter(function(c) {
+    var matchSearch = !val || c.phone.includes(val) || (c.name && c.name.toLowerCase().includes(val.toLowerCase()));
+    var statusClass = (c.apptCount >= 2) ? 'active' : (c.apptCount === 1 ? 'new' : 'inactive');
+    var matchFilter = filterVal === 'all' || statusClass === filterVal;
+    return matchSearch && matchFilter;
   });
+  custPageState.page = 1;
+  renderCustomerPage();
+}
+
+function filterCustomers(filterVal) {
+  var searchVal = document.getElementById('customerSearchInput') ? document.getElementById('customerSearchInput').value : '';
+  custPageState.filtered = custPageState.all.filter(function(c) {
+    var matchSearch = !searchVal || c.phone.includes(searchVal) || (c.name && c.name.toLowerCase().includes(searchVal.toLowerCase()));
+    var statusClass = (c.apptCount >= 2) ? 'active' : (c.apptCount === 1 ? 'new' : 'inactive');
+    var matchFilter = filterVal === 'all' || statusClass === filterVal;
+    return matchSearch && matchFilter;
+  });
+  custPageState.page = 1;
+  renderCustomerPage();
 }
 
 // ════════════════════════════════════════════
