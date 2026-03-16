@@ -663,6 +663,48 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .source-tag.phone{background:rgba(217,119,6,.08);color:#92400E}
 .source-tag.manual{background:rgba(148,163,184,.1);color:var(--text-tertiary)}
 
+/* ── APPOINTMENTS PAGE (SaaS redesign) ── */
+.appt-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.appt-stat-card{background:var(--bg-panel);border-radius:var(--radius);border:1px solid var(--border);padding:20px 24px}
+.appt-stat-value{font-size:28px;font-weight:700;color:var(--text);line-height:1;margin-bottom:4px;letter-spacing:-.02em}
+.appt-stat-label{font-size:13px;color:var(--text-tertiary);margin-bottom:8px}
+.appt-stat-sub{font-size:12px;font-weight:500}
+.appt-stat-sub.green{color:#10B981}
+.appt-stat-sub.blue{color:#2563EB}
+.appt-columns{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:1024px){.appt-stats-row{grid-template-columns:repeat(2,1fr)}.appt-columns{grid-template-columns:1fr}}
+.appt-panel{background:var(--bg-panel);border-radius:var(--radius);border:1px solid var(--border);padding:24px}
+.appt-panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.appt-panel-title{font-size:16px;font-weight:600;color:var(--text)}
+.appt-today-card{display:flex;align-items:flex-start;gap:14px;padding:14px;background:#F8FAFC;border-radius:var(--radius);border:1px solid var(--border);cursor:pointer;transition:background .15s;margin-bottom:12px}
+.appt-today-card:last-child{margin-bottom:0}
+.appt-today-card:hover{background:#F1F5F9}
+.appt-time-block{width:48px;height:48px;background:#2563EB;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:15px;flex-shrink:0;flex-direction:column;line-height:1}
+.appt-time-block .appt-time-ampm{font-size:10px;font-weight:500;opacity:.85;margin-top:1px}
+.appt-today-body{flex:1;min-width:0}
+.appt-today-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px}
+.appt-today-name{font-size:14px;font-weight:600;color:var(--text);margin-bottom:2px}
+.appt-today-service{font-size:13px;color:var(--text-tertiary)}
+.appt-status-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.appt-status-badge.confirmed{background:#ECFDF5;color:#10B981}
+.appt-status-badge.pending{background:#FEF3C7;color:#F59E0B}
+.appt-status-badge.completed{background:#F1F5F9;color:#64748B}
+.appt-status-badge.cancelled{background:#FEE2E2;color:#DC2626}
+.appt-today-meta{display:flex;align-items:center;gap:14px;margin-top:8px;font-size:12px;color:var(--text-tertiary)}
+.appt-today-meta svg{width:13px;height:13px;vertical-align:middle;margin-right:3px}
+.appt-upcoming-card{padding:14px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:border-color .15s;margin-bottom:10px}
+.appt-upcoming-card:last-child{margin-bottom:0}
+.appt-upcoming-card:hover{border-color:#2563EB}
+.appt-upcoming-date{display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:13px}
+.appt-upcoming-date svg{width:15px;height:15px;color:var(--text-tertiary)}
+.appt-upcoming-date .date-text{font-weight:500;color:var(--text)}
+.appt-upcoming-date .time-text{color:var(--text-tertiary)}
+.appt-upcoming-name{font-size:14px;font-weight:600;color:var(--text);margin-bottom:2px}
+.appt-upcoming-service{font-size:13px;color:var(--text-tertiary);margin-bottom:8px}
+.appt-upcoming-tags{display:flex;align-items:center;gap:10px}
+.appt-source-inline{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--text-tertiary)}
+.appt-source-inline svg{width:13px;height:13px}
+
 /* ── CUSTOMER PAGE ── */
 .customer-search-bar{display:flex;gap:8px;align-items:center;margin-bottom:16px}
 .customer-search-bar input{background:var(--bg-panel);border:1px solid var(--border);color:var(--text);font-size:13px;padding:8px 14px;outline:none;width:320px;border-radius:8px;transition:border-color .15s}
@@ -931,26 +973,47 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
     <!-- ═══ APPOINTMENTS ═══ -->
     <div class="view" id="view-appointments">
       <div class="page-header">
-        <div><div class="page-title">Appointments</div><div class="page-subtitle">AI-booked appointments synced to Google Calendar</div></div>
+        <div><div class="page-title">Appointments</div><div class="page-subtitle">Manage and track all customer appointments</div></div>
         <div class="page-actions">
           <button class="btn-sm" onclick="switchView('settings');switchTab(document.querySelector('[onclick*=tab-integrations]'),'tab-integrations')">Calendar Settings</button>
         </div>
       </div>
       <div id="bookingsCalendarAlert"></div>
 
-      <!-- Today's Appointments -->
-      <div class="section-label">Today</div>
-      <div id="todayAppointmentsSection">
-        <div class="log-wrap" style="margin-bottom:20px;">
-          <table class="log-table">
-            <thead><tr><th>Time</th><th>Customer</th><th>Service</th><th>Source</th><th>Status</th></tr></thead>
-            <tbody id="todayApptsTableBody"></tbody>
-          </table>
+      <!-- Stats Row -->
+      <div class="appt-stats-row" id="apptStatsRow">
+        <div class="appt-stat-card"><div class="appt-stat-value" id="apptStatToday">0</div><div class="appt-stat-label">Today's Bookings</div><div class="appt-stat-sub green" id="apptStatTodaySub">—</div></div>
+        <div class="appt-stat-card"><div class="appt-stat-value" id="apptStatWeek">0</div><div class="appt-stat-label">This Week</div><div class="appt-stat-sub blue" id="apptStatWeekSub">—</div></div>
+        <div class="appt-stat-card"><div class="appt-stat-value" id="apptStatAI">—</div><div class="appt-stat-label">AI Booked</div><div class="appt-stat-sub green" id="apptStatAISub">—</div></div>
+        <div class="appt-stat-card"><div class="appt-stat-value" id="apptStatShowup">—</div><div class="appt-stat-label">Show-up Rate</div><div class="appt-stat-sub green" id="apptStatShowupSub">—</div></div>
+      </div>
+
+      <!-- Two-column layout -->
+      <div class="appt-columns">
+        <!-- Today's Appointments -->
+        <div class="appt-panel">
+          <div class="appt-panel-header">
+            <div class="appt-panel-title" id="apptTodayTitle">Today</div>
+            <button class="btn-sm primary" onclick="showToast('Add appointment coming soon.')">Add Appointment</button>
+          </div>
+          <div id="apptTodayCards">
+            <div style="padding:24px 0;text-align:center;font-size:13px;color:var(--text-tertiary);">No appointments today</div>
+          </div>
+        </div>
+
+        <!-- Upcoming Appointments -->
+        <div class="appt-panel">
+          <div class="appt-panel-header">
+            <div class="appt-panel-title">Upcoming Appointments</div>
+          </div>
+          <div id="apptUpcomingCards">
+            <div style="padding:24px 0;text-align:center;font-size:13px;color:var(--text-tertiary);">No upcoming appointments</div>
+          </div>
         </div>
       </div>
 
-      <!-- All Appointments -->
-      <div class="section-label">All Appointments</div>
+      <!-- All Appointments (table, preserved for data) -->
+      <div class="section-label" style="margin-top:32px;">All Appointments</div>
       <div class="log-wrap">
         <div class="log-header">
           <div class="log-title">Appointment Log</div>
@@ -2659,19 +2722,122 @@ function searchCustomers(val) {
 // APPOINTMENTS PAGE RENDERING
 // ════════════════════════════════════════════
 function renderAppointmentsPage() {
-  // Render today's appointments table
-  var today = new Date().toDateString();
+  var today = new Date();
+  var todayStr = today.toDateString();
   var todayAppts = bookingsData.filter(function(b) {
     var d = new Date(b.date);
-    return d.toDateString() === today;
+    return d.toDateString() === todayStr;
   });
-  var todayBody = document.getElementById('todayApptsTableBody');
-  if (todayBody) {
-    if (!todayAppts.length) {
-      todayBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-tertiary);font-size:13px;">No appointments scheduled for today</td></tr>';
+
+  // Upcoming = future, not today
+  var upcomingAppts = bookingsData.filter(function(b) {
+    var d = new Date(b.date);
+    return d > today && d.toDateString() !== todayStr;
+  }).sort(function(a, b) { return new Date(a.date) - new Date(b.date); });
+
+  // Stats
+  var todayCount = todayAppts.length || (dashboardStats.appointments_today || 0);
+  var weekStart = new Date(today); weekStart.setDate(today.getDate() - today.getDay());
+  var weekAppts = bookingsData.filter(function(b) { return new Date(b.date) >= weekStart; });
+  var weekCount = weekAppts.length || todayCount;
+  var aiCount = bookingsData.filter(function(b) { return (b.source || 'AI').toLowerCase() === 'ai'; }).length;
+  var aiPct = bookingsData.length > 0 ? Math.round((aiCount / bookingsData.length) * 100) : 0;
+  var confirmedCount = todayAppts.filter(function(b) { return b.syncStatus === 'synced' || b.syncStatus === 'confirmed'; }).length;
+
+  var el = function(id) { return document.getElementById(id); };
+  if (el('apptStatToday')) el('apptStatToday').textContent = todayCount;
+  if (el('apptStatTodaySub')) el('apptStatTodaySub').textContent = confirmedCount === todayCount && todayCount > 0 ? 'All confirmed' : confirmedCount + ' confirmed';
+  if (el('apptStatWeek')) el('apptStatWeek').textContent = weekCount;
+  if (el('apptStatWeekSub')) el('apptStatWeekSub').textContent = weekCount + ' this week';
+  if (el('apptStatAI')) el('apptStatAI').textContent = aiPct > 0 ? aiPct + '%' : '—';
+  if (el('apptStatAISub')) el('apptStatAISub').textContent = aiCount > 0 ? aiCount + ' AI booked' : '—';
+  if (el('apptStatShowup')) el('apptStatShowup').textContent = todayCount > 0 ? '—' : '—';
+  if (el('apptStatShowupSub')) el('apptStatShowupSub').textContent = 'Tracking soon';
+
+  // Today title with date
+  var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  if (el('apptTodayTitle')) el('apptTodayTitle').textContent = 'Today - ' + months[today.getMonth()] + ' ' + today.getDate() + ', ' + today.getFullYear();
+
+  // Helper: source icon SVG
+  function srcIcon(source) {
+    var s = (source || 'AI').toLowerCase();
+    if (s === 'ai') return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>';
+    if (s === 'phone') return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.362 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>';
+    return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+  }
+
+  // Helper: status class
+  function statusCls(syncStatus) {
+    if (syncStatus === 'synced' || syncStatus === 'confirmed') return 'confirmed';
+    if (syncStatus === 'pending') return 'pending';
+    if (syncStatus === 'failed' || syncStatus === 'cancelled') return 'cancelled';
+    if (syncStatus === 'completed') return 'completed';
+    return 'pending';
+  }
+  function statusLabel(syncStatus) {
+    var cls = statusCls(syncStatus);
+    return cls.charAt(0).toUpperCase() + cls.slice(1);
+  }
+
+  // Render today's cards
+  var todayContainer = el('apptTodayCards');
+  if (todayContainer) {
+    if (!todayAppts.length && todayCount === 0) {
+      todayContainer.innerHTML = '<div style="padding:24px 0;text-align:center;font-size:13px;color:var(--text-tertiary);">No appointments scheduled for today</div>';
+    } else if (!todayAppts.length && todayCount > 0) {
+      todayContainer.innerHTML = '<div style="padding:24px 0;text-align:center;font-size:13px;color:var(--text-tertiary);">' + todayCount + ' appointment(s) today — details syncing</div>';
     } else {
-      todayBody.innerHTML = todayAppts.map(function(b) {
-        return '<tr><td class="td-date">' + b.date + '</td><td class="td-phone">' + b.phone + '</td><td class="td-issue">' + b.service + '</td><td><span class="source-tag ai">AI</span></td><td><span class="status-pill ' + b.syncStatus + '">' + (b.syncLabel || b.syncStatus) + '</span></td></tr>';
+      todayContainer.innerHTML = todayAppts.map(function(b) {
+        var d = new Date(b.date);
+        var hour = d.getHours();
+        var ampm = hour >= 12 ? 'PM' : 'AM';
+        var h = hour % 12 || 12;
+        var timeStr = h + ':' + String(d.getMinutes()).padStart(2, '0') + ' ' + ampm;
+        var source = b.source || 'AI';
+        var sc = statusCls(b.syncStatus);
+        var sl = statusLabel(b.syncStatus);
+        return '<div class="appt-today-card">' +
+          '<div class="appt-time-block">' + h + '<span class="appt-time-ampm">' + ampm + '</span></div>' +
+          '<div class="appt-today-body">' +
+            '<div class="appt-today-top"><div><div class="appt-today-name">' + (b.customer || b.phone || 'Customer') + '</div><div class="appt-today-service">' + (b.service || 'Service') + '</div></div>' +
+            '<span class="appt-status-badge ' + sc + '">' + sl + '</span></div>' +
+            '<div class="appt-today-meta">' +
+              '<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.362 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>' + (b.phone || '—') + '</span>' +
+              '<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' + (b.duration || '—') + '</span>' +
+              '<span>' + srcIcon(source) + ' ' + source + '</span>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+  }
+
+  // Render upcoming cards
+  var upcomingContainer = el('apptUpcomingCards');
+  if (upcomingContainer) {
+    if (!upcomingAppts.length) {
+      upcomingContainer.innerHTML = '<div style="padding:24px 0;text-align:center;font-size:13px;color:var(--text-tertiary);">No upcoming appointments</div>';
+    } else {
+      upcomingContainer.innerHTML = upcomingAppts.slice(0, 8).map(function(b) {
+        var d = new Date(b.date);
+        var dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        var timeStr = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        var source = b.source || 'AI';
+        var sc = statusCls(b.syncStatus);
+        var sl = statusLabel(b.syncStatus);
+        return '<div class="appt-upcoming-card">' +
+          '<div class="appt-upcoming-date">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' +
+            '<span class="date-text">' + dateStr + '</span>' +
+            '<span class="time-text">at ' + timeStr + '</span>' +
+          '</div>' +
+          '<div class="appt-upcoming-name">' + (b.customer || b.phone || 'Customer') + '</div>' +
+          '<div class="appt-upcoming-service">' + (b.service || 'Service') + '</div>' +
+          '<div class="appt-upcoming-tags">' +
+            '<span class="appt-status-badge ' + sc + '">' + sl + '</span>' +
+            '<span class="appt-source-inline">' + srcIcon(source) + ' ' + source + '</span>' +
+          '</div>' +
+        '</div>';
       }).join('');
     }
   }
