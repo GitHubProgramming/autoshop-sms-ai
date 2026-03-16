@@ -204,6 +204,21 @@ export async function createCalendarEvent(
 
     if (!res.ok) {
       const body = await res.text().catch(() => "");
+      // If still getting 401 after retry, the refresh_token is likely revoked
+      if (res.status === 401) {
+        try {
+          await query(
+            `UPDATE tenant_calendar_tokens
+             SET integration_status = 'refresh_failed',
+                 last_error = 'Google Calendar API returned 401 after token refresh retry',
+                 updated_at = NOW()
+             WHERE tenant_id = $1`,
+            [input.tenantId]
+          );
+        } catch {
+          // Best-effort
+        }
+      }
       return {
         success: false,
         googleEventId: null,
