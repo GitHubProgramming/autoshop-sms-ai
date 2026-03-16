@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import Fastify from "fastify";
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
@@ -6,6 +6,8 @@ import Fastify from "fastify";
 const mocks = vi.hoisted(() => ({
   query: vi.fn(),
   decryptToken: vi.fn(),
+  isTokenExpired: vi.fn(),
+  refreshAccessToken: vi.fn(),
 }));
 
 vi.mock("../db/client", () => ({
@@ -15,6 +17,11 @@ vi.mock("../db/client", () => ({
 
 vi.mock("../routes/auth/google", () => ({
   decryptToken: mocks.decryptToken,
+}));
+
+vi.mock("../services/google-token-refresh", () => ({
+  isTokenExpired: mocks.isTokenExpired,
+  refreshAccessToken: mocks.refreshAccessToken,
 }));
 
 import { calendarEventRoute } from "../routes/internal/calendar-event";
@@ -47,6 +54,8 @@ function validBody(overrides: Record<string, unknown> = {}) {
 function tokenRow() {
   return {
     access_token: "enc_access",
+    refresh_token: "enc_refresh",
+    token_expiry: new Date(Date.now() + 3600 * 1000).toISOString(), // 1h from now
     calendar_id: CALENDAR_ID,
   };
 }
@@ -62,6 +71,8 @@ async function buildApp() {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.decryptToken.mockReturnValue(ACCESS_TOKEN);
+  mocks.isTokenExpired.mockReturnValue(false); // tokens are valid by default
+  mocks.refreshAccessToken.mockResolvedValue(null);
   mocks.query.mockResolvedValue([]);
 });
 
@@ -129,13 +140,44 @@ describe("getCalendarTokens", () => {
     expect(result).toBeNull();
   });
 
-  it("returns decrypted access token and calendar ID", async () => {
+  it("returns decrypted access token when not expired", async () => {
     mocks.query.mockResolvedValueOnce([tokenRow()]);
     const result = await getCalendarTokens(TENANT_ID);
     expect(result).toEqual({
       accessToken: ACCESS_TOKEN,
       calendarId: CALENDAR_ID,
     });
+    expect(mocks.decryptToken).toHaveBeenCalledWith("enc_access");
+    expect(mocks.refreshAccessToken).not.toHaveBeenCalled();
+  });
+
+  it("auto-refreshes and returns new token when expired", async () => {
+    mocks.isTokenExpired.mockReturnValueOnce(true);
+    mocks.refreshAccessToken.mockResolvedValueOnce({
+      accessToken: "ya29.refreshed",
+      tokenExpiry: new Date(Date.now() + 3600 * 1000).toISOString(),
+    });
+    mocks.query.mockResolvedValueOnce([tokenRow()]);
+
+    const result = await getCalendarTokens(TENANT_ID);
+    expect(result).toEqual({
+      accessToken: "ya29.refreshed",
+      calendarId: CALENDAR_ID,
+    });
+    expect(mocks.refreshAccessToken).toHaveBeenCalledWith(TENANT_ID, "enc_refresh");
+  });
+
+  it("returns stale token when refresh fails", async () => {
+    mocks.isTokenExpired.mockReturnValueOnce(true);
+    mocks.refreshAccessToken.mockResolvedValueOnce(null);
+    mocks.query.mockResolvedValueOnce([tokenRow()]);
+
+    const result = await getCalendarTokens(TENANT_ID);
+    expect(result).toEqual({
+      accessToken: ACCESS_TOKEN,
+      calendarId: CALENDAR_ID,
+    });
+    // Falls through to decryptToken
     expect(mocks.decryptToken).toHaveBeenCalledWith("enc_access");
   });
 });
@@ -246,9 +288,10 @@ describe("createCalendarEvent", () => {
 
   // ── Google API error ────────────────────────────────────────────────────
 
-  it("returns error when Google Calendar API returns 401", async () => {
+  it("returns error when Google Calendar API returns 401 and refresh fails", async () => {
     mocks.query.mockResolvedValueOnce([]); // idempotency check
-    mocks.query.mockResolvedValueOnce([tokenRow()]);
+    mocks.query.mockResolvedValueOnce([tokenRow()]); // getCalendarTokens
+    mocks.query.mockResolvedValueOnce([{ refresh_token: "enc_refresh" }]); // forceRefreshToken query
 
     const fetchFn = mockFetch(401, { error: "invalid_token" });
     const result = await createCalendarEvent(validBody(), fetchFn);
@@ -256,8 +299,40 @@ describe("createCalendarEvent", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("Google Calendar API error 401");
     expect(result.calendarSynced).toBe(false);
-    // Should NOT update DB (2 calls: idempotency check + token fetch)
-    expect(mocks.query).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries with refreshed token on 401 and succeeds", async () => {
+    mocks.query.mockResolvedValueOnce([]); // idempotency check
+    mocks.query.mockResolvedValueOnce([tokenRow()]); // getCalendarTokens
+    mocks.query.mockResolvedValueOnce([{ refresh_token: "enc_refresh" }]); // forceRefreshToken query
+    mocks.query.mockResolvedValueOnce([]); // UPDATE appointment
+
+    mocks.refreshAccessToken.mockResolvedValueOnce({
+      accessToken: "ya29.refreshed-token",
+      tokenExpiry: new Date(Date.now() + 3600 * 1000).toISOString(),
+    });
+
+    let callCount = 0;
+    const fetchFn = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve(new Response(JSON.stringify({ error: "invalid_token" }), { status: 401 }));
+      }
+      return Promise.resolve(new Response(JSON.stringify({ id: GOOGLE_EVENT_ID }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }));
+    });
+
+    const result = await createCalendarEvent(validBody(), fetchFn);
+
+    expect(result.success).toBe(true);
+    expect(result.googleEventId).toBe(GOOGLE_EVENT_ID);
+    expect(result.calendarSynced).toBe(true);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    // Second call should use refreshed token
+    const [, opts] = fetchFn.mock.calls[1];
+    expect(opts.headers.Authorization).toBe("Bearer ya29.refreshed-token");
   });
 
   it("returns error when Google Calendar API returns 403", async () => {
@@ -472,11 +547,12 @@ describe("POST /internal/calendar-event", () => {
 
   it("returns 502 when Google API fails", async () => {
     mocks.query.mockResolvedValueOnce([]); // idempotency check
-    mocks.query.mockResolvedValueOnce([tokenRow()]);
+    mocks.query.mockResolvedValueOnce([tokenRow()]); // getCalendarTokens
+    mocks.query.mockResolvedValueOnce([{ refresh_token: "enc_refresh" }]); // forceRefreshToken
 
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
+      .mockResolvedValue(
         new Response("Unauthorized", { status: 401 })
       );
 
