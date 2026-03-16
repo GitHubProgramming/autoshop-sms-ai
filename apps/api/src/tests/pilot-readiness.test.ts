@@ -114,6 +114,7 @@ describe("GET /internal/admin/tenants/:id/pilot-readiness", () => {
     const calendar = overrides.calendar !== undefined ? overrides.calendar : {
       token_expiry: new Date(Date.now() + 3600000).toISOString(),
       connected_at: new Date().toISOString(),
+      integration_status: "active",
     };
 
     const prompt = overrides.prompt !== undefined ? overrides.prompt : {
@@ -208,12 +209,13 @@ describe("GET /internal/admin/tenants/:id/pilot-readiness", () => {
     expect(body.blockers.some((b: any) => b.id === "calendar_connected")).toBe(true);
   });
 
-  it("returns 'not_ready' when calendar token expired", async () => {
+  it("returns 'not_ready' when calendar refresh has failed", async () => {
     const app = await buildApp();
     setupMocks({
       calendar: {
         connected_at: new Date().toISOString(),
         token_expiry: new Date(Date.now() - 3600000).toISOString(),
+        integration_status: "refresh_failed",
       },
     });
 

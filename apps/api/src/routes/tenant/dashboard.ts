@@ -38,7 +38,8 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
       ),
       // Google Calendar integration
       query(
-        `SELECT calendar_id, connected_at, last_refreshed, token_expiry
+        `SELECT calendar_id, connected_at, last_refreshed, token_expiry,
+                integration_status, google_account_email
          FROM tenant_calendar_tokens WHERE tenant_id = $1`,
         [tenantId]
       ),
@@ -120,14 +121,21 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
     const calendar = (calendarRows as any[])[0] || null;
     const phone = (phoneRows as any[])[0] || null;
 
-    // Determine calendar integration status
+    // Determine calendar integration status from integration_status column.
+    // Do NOT derive status from token_expiry — access tokens expire every hour,
+    // which is normal and does not mean the user needs to reconnect.
+    // integration_status is set to 'active' on successful OAuth connect/reconnect,
+    // and updated to 'refresh_failed' only when the refresh_token actually fails.
     let calendarStatus: string = "not_connected";
     if (calendar) {
-      const expiry = new Date(calendar.token_expiry);
-      if (expiry < new Date()) {
-        calendarStatus = "token_expired";
-      } else {
+      const status = calendar.integration_status;
+      if (status === "active") {
         calendarStatus = "connected";
+      } else if (status === "refresh_failed") {
+        calendarStatus = "token_expired"; // UI maps this to "Needs Reconnect"
+      } else {
+        // 'pending' or unknown — treat as not connected
+        calendarStatus = "not_connected";
       }
     }
 
@@ -151,6 +159,7 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
           calendar_id: calendar?.calendar_id ?? null,
           connected_at: calendar?.connected_at ?? null,
           token_expiry: calendar?.token_expiry ?? null,
+          google_account_email: calendar?.google_account_email ?? null,
         },
         twilio: {
           phone_number: phone?.phone_number ?? null,

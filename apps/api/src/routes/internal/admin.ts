@@ -893,8 +893,8 @@ export async function adminRoute(app: FastifyInstance) {
          ORDER BY provisioned_at DESC LIMIT 1`,
         [id]
       ),
-      query<{ token_expiry: string | null; connected_at: string | null }>(
-        `SELECT token_expiry, connected_at FROM tenant_calendar_tokens
+      query<{ token_expiry: string | null; connected_at: string | null; integration_status: string | null }>(
+        `SELECT token_expiry, connected_at, integration_status FROM tenant_calendar_tokens
          WHERE tenant_id = $1 LIMIT 1`,
         [id]
       ),
@@ -1033,11 +1033,13 @@ export async function adminRoute(app: FastifyInstance) {
       },
       {
         id: "calendar_token_valid",
-        label: "Calendar token not expired",
-        pass: !!calendar?.token_expiry && new Date(calendar.token_expiry) > new Date(),
-        detail: calendar?.token_expiry
-          ? `Expires ${new Date(calendar.token_expiry).toLocaleString()}`
-          : "No token — complete OAuth flow first",
+        label: "Calendar integration active",
+        pass: calendar?.integration_status === "active",
+        detail: !calendar
+          ? "No token — complete OAuth flow first"
+          : calendar.integration_status === "active"
+            ? `Active (access token auto-refreshes)`
+            : `Status: ${calendar.integration_status} — reconnect required`,
         critical: true,
       },
       {

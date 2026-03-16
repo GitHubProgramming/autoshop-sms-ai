@@ -65,6 +65,20 @@ export async function refreshAccessToken(
   }
 
   if (!res.ok) {
+    // Mark integration as failed so dashboard shows correct status.
+    // Google returned an error — refresh_token may be revoked or invalid.
+    try {
+      await query(
+        `UPDATE tenant_calendar_tokens
+         SET integration_status = 'refresh_failed',
+             last_error = $1,
+             updated_at = NOW()
+         WHERE tenant_id = $2`,
+        [`Google token refresh failed: HTTP ${res.status}`, tenantId]
+      );
+    } catch {
+      // Best-effort status update — don't block the caller
+    }
     return null;
   }
 
@@ -78,7 +92,8 @@ export async function refreshAccessToken(
 
   await query(
     `UPDATE tenant_calendar_tokens
-     SET access_token = $1, token_expiry = $2, last_refreshed = NOW()
+     SET access_token = $1, token_expiry = $2, last_refreshed = NOW(),
+         integration_status = 'active', last_error = NULL, updated_at = NOW()
      WHERE tenant_id = $3`,
     [encAccess, tokenExpiry.toISOString(), tenantId]
   );
