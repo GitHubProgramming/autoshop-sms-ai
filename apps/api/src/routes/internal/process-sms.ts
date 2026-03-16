@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { processSms } from "../../services/process-sms";
+import { resumeTrace } from "../../services/pipeline-trace";
 
 const BodySchema = z.object({
   tenantId: z.string().uuid(),
@@ -9,6 +10,7 @@ const BodySchema = z.object({
   body: z.string().min(1),
   messageSid: z.string().min(1),
   atSoftLimit: z.boolean().default(false),
+  traceId: z.string().uuid().nullable().optional(),
 });
 
 /**
@@ -34,7 +36,48 @@ export async function processSmsRoute(app: FastifyInstance) {
       });
     }
 
-    const result = await processSms(parsed.data);
+    const { traceId, ...smsInput } = parsed.data;
+    const trace = traceId ? await resumeTrace(traceId).catch(() => null) : null;
+
+    if (trace) {
+      await trace.step("worker_picked_up", "ok", "process-sms handler started");
+    }
+
+    const result = await processSms(smsInput);
+
+    // ── Record trace steps from result ──────────────────────────────────
+    if (trace) {
+      try {
+        if (result.conversationId) {
+          await trace.step("conversation_resolved", "ok", `conv: ${result.conversationId.slice(0, 8)}`);
+        }
+        if (result.aiResponse) {
+          await trace.step("ai_replied", "ok", `${result.aiResponse.length} chars`);
+        } else if (result.error?.includes("OpenAI")) {
+          await trace.step("ai_replied", "fail", result.error);
+        }
+        if (result.isBooked) {
+          await trace.step("booking_detected", "ok", `appointment: ${result.appointmentId?.slice(0, 8) ?? "n/a"}`);
+        }
+        if (result.calendarSynced) {
+          await trace.step("calendar_synced", "ok", "Google Calendar event created");
+        } else if (result.isBooked) {
+          await trace.step("calendar_synced", result.bookingState === "FAILED" ? "fail" : "skip",
+            result.error?.includes("Calendar") ? result.error : "Calendar sync not completed");
+        }
+        if (result.smsSent) {
+          await trace.step("sms_sent", "ok", `Reply SMS sent to customer`);
+        } else if (result.error?.includes("SMS")) {
+          await trace.step("sms_sent", "fail", result.error);
+        }
+
+        if (result.success) {
+          await trace.complete();
+        } else {
+          await trace.fail(result.error ?? "Unknown error");
+        }
+      } catch { /* non-fatal */ }
+    }
 
     request.log.info(
       {

@@ -17,6 +17,16 @@ vi.mock("../routes/auth/google", () => ({
   decryptToken: vi.fn((t: string) => t),
 }));
 
+vi.mock("../services/pipeline-trace", () => ({
+  resumeTrace: vi.fn().mockResolvedValue({
+    id: "trace-mock-id",
+    step: vi.fn().mockResolvedValue(undefined),
+    setTenant: vi.fn().mockResolvedValue(undefined),
+    complete: vi.fn().mockResolvedValue(undefined),
+    fail: vi.fn().mockResolvedValue(undefined),
+  }),
+}));
+
 import { processSms, ProcessSmsInput } from "../services/process-sms";
 import { processSmsRoute } from "../routes/internal/process-sms";
 

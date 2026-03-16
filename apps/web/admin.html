@@ -344,6 +344,10 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
       <div class="sidebar-item" data-section="signup" onclick="navigate('signup')">
         <span class="sidebar-icon">⊕</span> Signup Funnel
       </div>
+      <div class="sidebar-label">Pilot</div>
+      <div class="sidebar-item" data-section="traces" onclick="navigate('traces')">
+        <span class="sidebar-icon">▸</span> Execution Traces
+      </div>
       <div class="sidebar-label">Logs</div>
       <div class="sidebar-item" data-section="audit" onclick="navigate('audit')">
         <span class="sidebar-icon">≡</span> Audit Log
@@ -493,6 +497,7 @@ function navigate(section, params) {
     case 'errors':        loadErrors(); break;
     case 'signup':        loadSignupFunnel(); break;
     case 'audit':         loadAudit(); break;
+    case 'traces':        loadTraces(); break;
     case 'project-ops':   loadProjectOps(); break;
     default: main.innerHTML = '<div class="empty-state">Unknown section</div>';
   }
@@ -1729,6 +1734,129 @@ async function loadSignupFunnel() {
   } catch (err) {
     document.getElementById('mainContent').innerHTML = renderError(err);
   }
+}
+
+// ── SECTION: EXECUTION TRACES ────────────────────────────────────────────────
+function loadTraces() {
+  apiFetch('/internal/admin/traces').then(traces => {
+    const main = document.getElementById('mainContent');
+    if (!traces || traces.length === 0) {
+      main.innerHTML = `
+        <div class="page-header">
+          <div><div class="page-title">Execution Traces</div>
+          <div class="page-subtitle">Pipeline execution traces for pilot live-test visibility</div></div>
+        </div>
+        <div class="empty-state">No traces yet. Traces appear when Twilio webhooks fire (missed call or inbound SMS).</div>`;
+      return;
+    }
+
+    const rows = traces.map(t => {
+      const steps = (typeof t.steps === 'string' ? JSON.parse(t.steps) : t.steps) || [];
+      const stepCount = steps.length;
+      const failedSteps = steps.filter(s => s.status === 'fail');
+      const lastStep = steps.length > 0 ? steps[steps.length - 1] : null;
+      const statusCls = t.status === 'completed' ? 'active' : t.status === 'failed' ? 'past_due_blocked' : 'trialing';
+      const statusLabel = t.status === 'completed' ? 'OK' : t.status === 'failed' ? 'FAILED' : 'RUNNING';
+      const triggerLabel = t.trigger_type === 'missed_call' ? 'Missed Call' : 'Inbound SMS';
+      const triggerCls = t.trigger_type === 'missed_call' ? 'amber' : 'rust';
+
+      const durationMs = t.completed_at && t.started_at
+        ? new Date(t.completed_at).getTime() - new Date(t.started_at).getTime()
+        : null;
+      const durationStr = durationMs !== null ? (durationMs < 1000 ? durationMs + 'ms' : (durationMs/1000).toFixed(1) + 's') : '...';
+
+      return `<tr class="clickable-row" onclick="showTraceDetail('${t.id}')">
+        <td><span class="badge ${statusCls}">${statusLabel}</span></td>
+        <td><span class="badge ${triggerCls}" style="font-size:11px">${triggerLabel}</span></td>
+        <td class="mono">${escHtml(t.customer_phone)}</td>
+        <td>${stepCount} steps${failedSteps.length > 0 ? ' <span style="color:var(--red)">(' + failedSteps.length + ' failed)</span>' : ''}</td>
+        <td>${lastStep ? escHtml(lastStep.step) : '—'}</td>
+        <td class="mono dim">${durationStr}</td>
+        <td>${relTime(t.started_at)}</td>
+        <td class="mono dim" style="font-size:11px">${t.trigger_id ? escHtml(t.trigger_id.slice(0, 16)) + '...' : '—'}</td>
+      </tr>`;
+    }).join('');
+
+    const completedCount = traces.filter(t => t.status === 'completed').length;
+    const failedCount = traces.filter(t => t.status === 'failed').length;
+    const runningCount = traces.filter(t => t.status === 'running').length;
+
+    main.innerHTML = `
+      <div class="page-header">
+        <div><div class="page-title">Execution Traces</div>
+        <div class="page-subtitle">Pipeline execution traces for pilot live-test visibility</div></div>
+        <button class="btn-sm" onclick="loadTraces()">Refresh</button>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card green"><div class="stat-tag">Completed</div><div class="stat-val">${completedCount}</div></div>
+        <div class="stat-card red"><div class="stat-tag">Failed</div><div class="stat-val ${failedCount > 0 ? 'red' : ''}">${failedCount}</div></div>
+        <div class="stat-card amber"><div class="stat-tag">Running</div><div class="stat-val">${runningCount}</div></div>
+        <div class="stat-card steel"><div class="stat-tag">Total Traces</div><div class="stat-val">${traces.length}</div></div>
+      </div>
+      <div class="section-label">Recent Traces</div>
+      <table class="data-table">
+        <thead><tr>
+          <th>Status</th><th>Trigger</th><th>Phone</th><th>Steps</th><th>Last Step</th><th>Duration</th><th>When</th><th>Trigger ID</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }).catch(err => {
+    document.getElementById('mainContent').innerHTML =
+      '<div class="empty-state" style="color:var(--red)">Failed to load traces: ' + escHtml(err.message) + '</div>';
+  });
+}
+
+function showTraceDetail(traceId) {
+  apiFetch('/internal/admin/traces/' + traceId).then(t => {
+    const steps = (typeof t.steps === 'string' ? JSON.parse(t.steps) : t.steps) || [];
+    const statusCls = t.status === 'completed' ? 'active' : t.status === 'failed' ? 'past_due_blocked' : 'trialing';
+    const statusLabel = t.status === 'completed' ? 'COMPLETED' : t.status === 'failed' ? 'FAILED' : 'RUNNING';
+
+    const stepRows = steps.map((s, i) => {
+      const sCls = s.status === 'ok' ? 'bool-ok' : s.status === 'fail' ? 'bool-fail' : 'bool-neutral';
+      const icon = s.status === 'ok' ? '✓' : s.status === 'fail' ? '✗' : '—';
+      const msStr = s.ms !== null && s.ms !== undefined ? s.ms + 'ms' : '';
+      const timeStr = s.at ? new Date(s.at).toLocaleTimeString() : '';
+      return `<tr>
+        <td style="text-align:center"><span class="${sCls}" style="font-size:16px">${icon}</span></td>
+        <td class="mono" style="font-weight:600">${escHtml(s.step)}</td>
+        <td>${escHtml(s.detail)}</td>
+        <td class="mono dim">${msStr}</td>
+        <td class="mono dim" style="font-size:11px">${timeStr}</td>
+      </tr>`;
+    }).join('');
+
+    const main = document.getElementById('mainContent');
+    main.innerHTML = `
+      <div class="page-header">
+        <div>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+            <button class="btn-sm" onclick="navigate('traces')">&larr; Back</button>
+            <div class="page-title">Trace Detail</div>
+          </div>
+          <div class="page-subtitle">${t.trigger_type === 'missed_call' ? 'Missed Call' : 'Inbound SMS'} — ${escHtml(t.customer_phone)}</div>
+        </div>
+        <span class="badge ${statusCls}" style="font-size:14px;padding:6px 16px">${statusLabel}</span>
+      </div>
+
+      <div class="stat-grid" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr))">
+        <div class="stat-card"><div class="stat-tag">Trigger ID</div><div style="font-family:var(--mono);font-size:12px;word-break:break-all">${escHtml(t.trigger_id)}</div></div>
+        <div class="stat-card"><div class="stat-tag">Tenant ID</div><div style="font-family:var(--mono);font-size:12px">${t.tenant_id ? escHtml(t.tenant_id.slice(0, 8)) + '...' : 'Not resolved'}</div></div>
+        <div class="stat-card"><div class="stat-tag">Started</div><div style="font-size:13px">${fmtDate(t.started_at)}</div></div>
+        <div class="stat-card"><div class="stat-tag">Completed</div><div style="font-size:13px">${t.completed_at ? fmtDate(t.completed_at) : 'In progress...'}</div></div>
+      </div>
+
+      ${t.error_summary ? '<div style="background:var(--red-dim);border:1px solid var(--red);border-radius:8px;padding:16px;margin-bottom:24px"><strong style="color:var(--red)">Error:</strong> <span style="font-family:var(--mono);font-size:13px">' + escHtml(t.error_summary) + '</span></div>' : ''}
+
+      <div class="section-label">Pipeline Steps (${steps.length})</div>
+      <table class="data-table">
+        <thead><tr><th style="width:40px"></th><th>Step</th><th>Detail</th><th>Duration</th><th>Time</th></tr></thead>
+        <tbody>${stepRows.length > 0 ? stepRows : '<tr><td colspan="5" class="empty-state">No steps recorded</td></tr>'}</tbody>
+      </table>`;
+  }).catch(err => {
+    document.getElementById('mainContent').innerHTML =
+      '<div class="empty-state" style="color:var(--red)">Failed to load trace: ' + escHtml(err.message) + '</div>';
+  });
 }
 
 // ── SECTION 10: AUDIT LOG ─────────────────────────────────────────────────────

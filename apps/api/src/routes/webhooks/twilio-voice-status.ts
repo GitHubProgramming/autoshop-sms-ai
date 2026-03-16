@@ -3,6 +3,7 @@ import { z } from "zod";
 import { validateTwilioSignature } from "../../middleware/twilio-validate";
 import { getTenantByPhoneNumber } from "../../db/tenants";
 import { smsInboundQueue, checkIdempotency, markIdempotency } from "../../queues/redis";
+import { startTrace, resumeTrace } from "../../services/pipeline-trace";
 
 const TwilioVoiceStatusBody = z.object({
   CallSid: z.string(),
@@ -42,6 +43,20 @@ export async function twilioVoiceStatusRoute(app: FastifyInstance) {
         return reply.status(200).type("text/xml").send("<Response/>");
       }
 
+      // ── Start execution trace ──────────────────────────────────────────
+      let traceId: string | null = null;
+      try {
+        const trace = await startTrace({
+          triggerType: "missed_call",
+          triggerId: CallSid,
+          customerPhone: From,
+        });
+        traceId = trace.id;
+        await trace.step("webhook_received", "ok", `POST /webhooks/twilio/voice-status — ${CallStatus}`);
+      } catch {
+        // Non-fatal
+      }
+
       // Idempotency
       const key = `voice:${CallSid}`;
       if (await checkIdempotency(key)) {
@@ -52,7 +67,22 @@ export async function twilioVoiceStatusRoute(app: FastifyInstance) {
       const tenant = await getTenantByPhoneNumber(To);
       if (!tenant) {
         request.log.warn({ to: To }, "No tenant found for voice status webhook");
+        if (traceId) {
+          try {
+            const t = await resumeTrace(traceId);
+            await t.step("tenant_resolved", "fail", `No tenant for ${To}`);
+            await t.fail(`No tenant found for phone number ${To}`);
+          } catch { /* non-fatal */ }
+        }
         return reply.status(200).type("text/xml").send("<Response/>");
+      }
+
+      if (traceId) {
+        try {
+          const t = await resumeTrace(traceId);
+          await t.setTenant(tenant.id);
+          await t.step("tenant_resolved", "ok", `${tenant.shop_name ?? "unknown"} (${tenant.id.slice(0, 8)})`);
+        } catch { /* non-fatal */ }
       }
 
       // Enqueue missed-call SMS trigger
@@ -68,6 +98,7 @@ export async function twilioVoiceStatusRoute(app: FastifyInstance) {
             callSid: CallSid,
             callStatus: CallStatus,
             triggerType: "missed_call",
+            traceId,
           },
           {
             jobId: `missed-call-${CallSid}`,
@@ -79,11 +110,25 @@ export async function twilioVoiceStatusRoute(app: FastifyInstance) {
           { tenantId: tenant.id, callSid: CallSid, callStatus: CallStatus },
           "Missed call job enqueued"
         );
+
+        if (traceId) {
+          try {
+            const t = await resumeTrace(traceId);
+            await t.step("job_enqueued", "ok", "sms-inbound / missed-call-trigger");
+          } catch { /* non-fatal */ }
+        }
       } catch (err) {
         request.log.error(
           { err, tenantId: tenant.id, callSid: CallSid },
           "Failed to enqueue missed-call job — Redis may be down"
         );
+        if (traceId) {
+          try {
+            const t = await resumeTrace(traceId);
+            await t.step("job_enqueued", "fail", `Redis error: ${(err as Error).message}`);
+            await t.fail(`Failed to enqueue job: ${(err as Error).message}`);
+          } catch { /* non-fatal */ }
+        }
       }
 
       return reply.status(200).type("text/xml").send("<Response/>");

@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { handleMissedCallSms } from "../../services/missed-call-sms";
+import { resumeTrace } from "../../services/pipeline-trace";
 
 const BodySchema = z.object({
   tenantId: z.string().uuid(),
@@ -8,6 +9,7 @@ const BodySchema = z.object({
   ourPhone: z.string().min(1),
   callSid: z.string().min(1),
   callStatus: z.string().min(1),
+  traceId: z.string().uuid().nullable().optional(),
 });
 
 /**
@@ -31,7 +33,34 @@ export async function missedCallSmsRoute(app: FastifyInstance) {
       });
     }
 
-    const result = await handleMissedCallSms(parsed.data);
+    const { traceId, ...missedCallInput } = parsed.data;
+    const trace = traceId ? await resumeTrace(traceId).catch(() => null) : null;
+
+    if (trace) {
+      await trace.step("worker_picked_up", "ok", "missed-call-sms handler started");
+    }
+
+    const result = await handleMissedCallSms(missedCallInput);
+
+    // ── Record trace steps from result ──────────────────────────────────
+    if (trace) {
+      try {
+        if (result.conversationId) {
+          await trace.step("conversation_created", "ok", `conv: ${result.conversationId.slice(0, 8)}`);
+        }
+        if (result.smsSent) {
+          await trace.step("sms_sent", "ok", `Initial SMS sent (sid: ${result.twilioSid?.slice(0, 10) ?? "n/a"})`);
+        } else {
+          await trace.step("sms_sent", "fail", result.error ?? "SMS not sent");
+        }
+
+        if (result.success) {
+          await trace.complete();
+        } else {
+          await trace.fail(result.error ?? "Unknown error");
+        }
+      } catch { /* non-fatal */ }
+    }
 
     request.log.info(
       {
