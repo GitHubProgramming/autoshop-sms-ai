@@ -532,13 +532,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .modal-info-value.green{color:var(--green)}
 .modal-info-value.amber{color:var(--amber)}
 .thread-label{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:12px}
-.msg-row{display:flex;margin-bottom:8px}
+.msg-row{display:flex;margin-bottom:12px}
 .msg-row.right{justify-content:flex-end}
-.msg-bubble{max-width:80%;padding:10px 14px;font-size:13px;line-height:1.5;color:var(--text)}
-.msg-bubble.ai{background:var(--bg);border:1px solid var(--border);border-radius:4px 12px 12px 12px}
-.msg-bubble.ai .msg-sender{font-size:10px;font-weight:600;color:var(--rust);margin-bottom:3px}
-.msg-bubble.customer{background:#EFF6FF;border:1px solid #DBEAFE;border-radius:12px 4px 12px 12px}
-.msg-time{font-family:var(--mono);font-size:10px;color:var(--text-tertiary);text-align:center;margin:6px 0 10px}
+.msg-bubble{max-width:420px;padding:12px 16px;font-size:13px;line-height:1.5;color:var(--text)}
+.msg-bubble.ai{background:var(--bg);border-radius:4px 12px 12px 12px}
+.msg-bubble.ai .msg-sender{font-size:11px;font-weight:600;color:var(--rust);margin-bottom:4px}
+.msg-bubble.customer{background:var(--rust);color:#fff;border-radius:12px 4px 12px 12px}
+.msg-bubble .msg-ts{font-size:10px;margin-top:4px;opacity:.6}
+.msg-bubble.customer .msg-ts{color:rgba(255,255,255,.6)}
+.msg-bubble.ai .msg-ts{color:var(--text-tertiary)}
+.msg-time{font-family:var(--mono);font-size:10px;color:var(--text-tertiary);text-align:center;margin:8px 0 12px}
 .modal-result{background:var(--green-dim);border:1px solid #DCFCE7;padding:12px 14px;margin-top:14px;display:flex;align-items:center;gap:8px;border-radius:8px}
 .modal-result-text{font-size:13px;font-weight:500;color:#15803D}
 .modal-result-text strong{color:var(--text)}
@@ -564,32 +567,73 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .sidebar-brand-shop{font-size:11px;color:var(--text-tertiary);margin-top:3px;font-weight:500}
 
 /* ── CONVERSATIONS 3-PANEL ── */
-.conv-layout{display:grid;grid-template-columns:300px 1fr 280px;gap:0;min-height:600px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--bg-panel)}
-@media(max-width:1100px){.conv-layout{grid-template-columns:260px 1fr;}.conv-detail-panel{display:none}}
+.conv-layout{display:grid;grid-template-columns:320px 1fr 320px;gap:0;min-height:calc(100vh - 200px);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--bg-panel)}
+@media(max-width:1200px){.conv-layout{grid-template-columns:280px 1fr;}.conv-detail-panel{display:none}}
 .conv-inbox{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
-.conv-inbox-header{padding:14px 16px;border-bottom:1px solid var(--border);background:var(--bg)}
-.conv-inbox-title{font-size:13px;font-weight:600;color:var(--text)}
-.conv-inbox-search{margin-top:8px}
-.conv-inbox-search input{width:100%;background:var(--bg-panel);border:1px solid var(--border);color:var(--text);font-size:12px;padding:6px 10px;outline:none;border-radius:6px;transition:border-color .15s}
-.conv-inbox-search input:focus{border-color:var(--rust)}
-.conv-inbox-filters{display:flex;gap:3px;margin-top:8px;flex-wrap:wrap}
+.conv-inbox-header{padding:16px;border-bottom:1px solid var(--border)}
+.conv-inbox-title{font-size:18px;font-weight:600;color:var(--text);margin-bottom:12px}
+.conv-inbox-search{position:relative}
+.conv-inbox-search input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:13px;padding:8px 12px 8px 34px;outline:none;border-radius:8px;transition:border-color .15s}
+.conv-inbox-search input:focus{border-color:var(--rust);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.conv-inbox-search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-tertiary);pointer-events:none}
+.conv-inbox-filters{display:flex;gap:4px;margin-top:10px;flex-wrap:wrap}
 .conv-list{flex:1;overflow-y:auto}
-.conv-list-item{padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+.conv-list-item{padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s}
 .conv-list-item:hover{background:var(--bg-hover)}
-.conv-list-item.selected{background:#EFF6FF;border-left:3px solid var(--rust);padding-left:13px}
-.conv-list-top{display:flex;align-items:center;justify-content:space-between;gap:6px}
-.conv-list-phone{font-family:var(--mono);font-size:12px;color:var(--text);font-weight:600}
-.conv-list-time{font-family:var(--mono);font-size:10px;color:var(--text-tertiary)}
-.conv-list-preview{font-size:12px;color:var(--text-tertiary);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.conv-list-bottom{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
+.conv-list-item.selected{background:#EFF6FF}
+.conv-list-row{display:flex;align-items:flex-start;gap:12px}
+.conv-avatar{width:40px;height:40px;background:var(--rust);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:14px;flex-shrink:0}
+.conv-list-body{flex:1;min-width:0}
+.conv-list-top{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px}
+.conv-list-name{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conv-list-time{font-size:11px;color:var(--text-tertiary);flex-shrink:0}
+.conv-list-phone{font-size:11px;color:var(--text-tertiary);margin-bottom:4px}
+.conv-list-preview-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.conv-list-preview{font-size:12px;color:var(--text-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.conv-list-preview.unread{font-weight:600;color:var(--text)}
+.conv-unread-dot{width:8px;height:8px;background:var(--rust);border-radius:50%;flex-shrink:0}
+.conv-status-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.conv-status-badge.ai{background:#EFF6FF;color:#2563EB}
+.conv-status-badge.booked{background:#ECFDF5;color:#10B981}
+.conv-status-badge.needs-operator{background:#FEF3C7;color:#F59E0B}
+.conv-status-badge.resolved,.conv-status-badge.no-response,.conv-status-badge.lost{background:#F1F5F9;color:#64748B}
 .conv-thread-panel{display:flex;flex-direction:column;overflow:hidden}
-.conv-thread-header{padding:14px 20px;border-bottom:1px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:12px}
-.conv-thread-title{font-size:14px;font-weight:600;color:var(--text)}
-.conv-thread-body{flex:1;overflow-y:auto;padding:20px}
-.conv-detail-panel{border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
-.conv-detail-header{padding:14px 16px;border-bottom:1px solid var(--border);background:var(--bg);font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text-tertiary)}
-.conv-detail-section{padding:12px 16px;border-bottom:1px solid var(--border)}
-.conv-detail-label{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:4px}
+.conv-thread-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.conv-thread-header-left{display:flex;align-items:center;gap:12px}
+.conv-thread-avatar{width:40px;height:40px;background:var(--rust);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:14px;flex-shrink:0}
+.conv-thread-info{display:flex;flex-direction:column}
+.conv-thread-name{font-size:14px;font-weight:600;color:var(--text)}
+.conv-thread-phone{font-size:12px;color:var(--text-tertiary)}
+.conv-thread-menu{padding:8px;border-radius:8px;border:none;background:none;cursor:pointer;color:var(--text-tertiary);transition:background .15s}
+.conv-thread-menu:hover{background:var(--bg)}
+.conv-thread-body{flex:1;overflow-y:auto;padding:24px}
+.conv-composer{padding:16px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.conv-composer-attach{padding:8px;border-radius:8px;border:none;background:none;cursor:pointer;color:var(--text-tertiary);transition:background .15s}
+.conv-composer-attach:hover{background:var(--bg)}
+.conv-composer input{flex:1;padding:8px 16px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);outline:none;transition:border-color .15s}
+.conv-composer input:focus{border-color:var(--rust);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.conv-composer-send{padding:8px 16px;background:var(--rust);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;transition:background .15s}
+.conv-composer-send:hover{background:var(--rust-light)}
+.conv-detail-panel{border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;padding:24px}
+.conv-detail-title{font-size:16px;font-weight:600;color:var(--text);margin-bottom:20px}
+.conv-detail-section{margin-bottom:20px}
+.conv-detail-section.bordered{padding-top:20px;border-top:1px solid var(--border)}
+.conv-detail-label{font-size:12px;font-weight:500;color:var(--text-tertiary);margin-bottom:10px}
+.conv-detail-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.conv-detail-row svg{flex-shrink:0;color:var(--text-tertiary)}
+.conv-detail-row span{font-size:13px;color:var(--text);font-weight:500}
+.conv-detail-vehicle{background:var(--bg);border-radius:8px;padding:14px}
+.conv-detail-vehicle-row{display:flex;align-items:flex-start;gap:10px}
+.conv-detail-vehicle-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px}
+.conv-detail-vehicle-sub{font-size:11px;color:var(--text-tertiary)}
+.conv-detail-appt{margin-bottom:10px}
+.conv-detail-appt-name{font-size:13px;font-weight:600;color:var(--text)}
+.conv-detail-appt-date{font-size:11px;color:var(--text-tertiary);margin-top:1px}
+.conv-detail-appt-tag{display:inline-block;margin-top:4px;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500}
+.conv-detail-appt-tag.upcoming{background:#ECFDF5;color:#10B981}
+.conv-detail-appt-tag.completed{background:#F1F5F9;color:#64748B}
+.conv-detail-notes{width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);font-family:var(--body);resize:none;outline:none;transition:border-color .15s}
+.conv-detail-notes:focus{border-color:var(--rust);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
 .conv-detail-value{font-size:13px;color:var(--text);font-weight:500}
 .conv-empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-tertiary);font-size:14px;gap:8px}
 
@@ -810,12 +854,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
         <div class="page-actions"><button class="btn-sm" onclick="showToast('Export coming soon.')">Export CSV</button></div>
       </div>
       <div class="conv-layout">
-        <!-- Left: Inbox -->
+        <!-- Left: Conversation List -->
         <div class="conv-inbox">
           <div class="conv-inbox-header">
-            <div class="conv-inbox-title">Inbox</div>
+            <div class="conv-inbox-title">Conversations</div>
             <div class="conv-inbox-search">
-              <input type="text" id="convSearchInput" placeholder="Search by phone..." oninput="filterConvInbox(this.value)">
+              <svg class="conv-inbox-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="convSearchInput" placeholder="Search conversations..." oninput="filterConvInbox(this.value)">
             </div>
             <div class="conv-inbox-filters">
               <button class="filter-chip active" onclick="filterFullConv(this,'all')">All</button>
@@ -827,11 +872,22 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
           </div>
           <div class="conv-list" id="convInboxList"></div>
         </div>
-        <!-- Center: Thread -->
+        <!-- Center: Message Thread -->
         <div class="conv-thread-panel">
           <div class="conv-thread-header" id="convThreadHeader">
-            <div class="conv-thread-title" id="convThreadTitle">Select a conversation</div>
-            <div id="convThreadActions"></div>
+            <div class="conv-thread-header-left">
+              <div class="conv-thread-avatar" id="convThreadAvatar">?</div>
+              <div class="conv-thread-info">
+                <div class="conv-thread-name" id="convThreadTitle">Select a conversation</div>
+                <div class="conv-thread-phone" id="convThreadPhone"></div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div id="convThreadActions"></div>
+              <button class="conv-thread-menu" onclick="showToast('Menu coming soon.')">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+              </button>
+            </div>
           </div>
           <div class="conv-thread-body" id="convThreadBody">
             <div class="conv-empty-state">
@@ -839,10 +895,20 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
               <span>Select a conversation to view the thread</span>
             </div>
           </div>
+          <div class="conv-composer">
+            <button class="conv-composer-attach" onclick="showToast('Attachments coming soon.')">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+            </button>
+            <input type="text" id="convMessageInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter')showToast('Sending coming soon.')">
+            <button class="conv-composer-send" onclick="showToast('Sending coming soon.')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              Send
+            </button>
+          </div>
         </div>
-        <!-- Right: Details -->
+        <!-- Right: Customer Details -->
         <div class="conv-detail-panel">
-          <div class="conv-detail-header">Customer Details</div>
+          <div class="conv-detail-title">Customer Details</div>
           <div id="convDetailBody">
             <div class="conv-empty-state" style="min-height:200px;">
               <span style="font-size:12px;">No conversation selected</span>
@@ -1288,7 +1354,15 @@ async function loadDashboardData() {
         id: c.id,
         date: fmtDate(c.opened_at),
         phone: fmtPhone(c.customer_phone),
+        customerName: c.customer_name || '',
+        email: c.customer_email || '',
+        location: c.customer_location || '',
+        vehicleModel: c.vehicle_model || '',
+        vin: c.vin || '',
+        mileage: c.mileage || '',
         issue: c.close_reason || 'SMS Conversation',
+        lastMessage: c.last_message || c.close_reason || 'SMS Conversation',
+        timeAgo: fmtDate(c.last_message_at || c.opened_at),
         status: status,
         aro: '—',
         duration: c.turn_count ? c.turn_count + ' msgs' : '—'
@@ -2272,6 +2346,17 @@ function toggleChecklist() {
 // ════════════════════════════════════════════
 // CONVERSATIONS INBOX (3-panel)
 // ════════════════════════════════════════════
+function convStatusBadge(status) {
+  var map = { active:'ai', booked:'booked', 'no-response':'needs-operator', lost:'resolved' };
+  var labelMap = { active:'AI', booked:'Booked', 'no-response':'Needs Operator', lost:'Resolved' };
+  var cls = map[status] || 'resolved';
+  var label = labelMap[status] || pillLabel(status);
+  return '<span class="conv-status-badge ' + cls + '">' + label + '</span>';
+}
+function convInitial(name) {
+  if (!name) return '?';
+  return name.charAt(0).toUpperCase();
+}
 function renderConvInbox() {
   var list = document.getElementById('convInboxList');
   if (!list) return;
@@ -2281,10 +2366,20 @@ function renderConvInbox() {
   }
   var html = '';
   conversationsData.forEach(function(c, idx) {
-    html += '<div class="conv-list-item' + (idx === 0 ? ' selected' : '') + '" data-id="' + c.id + '" data-status="' + c.status + '" data-phone="' + c.phone + '" onclick="selectConversation(this,\'' + c.id + '\')">' +
-      '<div class="conv-list-top"><span class="conv-list-phone">' + c.phone + '</span><span class="conv-list-time">' + c.date + '</span></div>' +
-      '<div class="conv-list-preview">' + c.issue + '</div>' +
-      '<div class="conv-list-bottom"><span class="status-pill ' + c.status + '" style="font-size:10px;padding:1px 6px;">' + pillLabel(c.status) + '</span></div>' +
+    var name = c.customerName || c.phone;
+    var isUnread = c.status === 'active';
+    var preview = c.issue || c.lastMessage || '';
+    var timeAgo = c.timeAgo || c.date || '';
+    html += '<div class="conv-list-item' + (idx === 0 ? ' selected' : '') + '" data-id="' + c.id + '" data-status="' + c.status + '" data-phone="' + c.phone + '" data-name="' + (name || '') + '" onclick="selectConversation(this,\'' + c.id + '\')">' +
+      '<div class="conv-list-row">' +
+        '<div class="conv-avatar">' + convInitial(name) + '</div>' +
+        '<div class="conv-list-body">' +
+          '<div class="conv-list-top"><span class="conv-list-name">' + name + '</span><span class="conv-list-time">' + timeAgo + '</span></div>' +
+          '<div class="conv-list-phone">' + c.phone + '</div>' +
+          '<div class="conv-list-preview-row"><span class="conv-list-preview' + (isUnread ? ' unread' : '') + '">' + preview + '</span>' + (isUnread ? '<span class="conv-unread-dot"></span>' : '') + '</div>' +
+          '<div>' + convStatusBadge(c.status) + '</div>' +
+        '</div>' +
+      '</div>' +
     '</div>';
   });
   list.innerHTML = html;
@@ -2305,11 +2400,17 @@ function selectConversation(el, id) {
   var conv = conversationsData.find(function(c) { return c.id === id; });
   if (!conv) return;
 
-  // Update thread header
+  var name = conv.customerName || conv.phone;
+
+  // Update thread header — avatar, name, phone
+  var avatar = document.getElementById('convThreadAvatar');
+  if (avatar) avatar.textContent = convInitial(name);
   var title = document.getElementById('convThreadTitle');
-  if (title) title.textContent = conv.phone + ' — ' + conv.issue;
+  if (title) title.textContent = name;
+  var phone = document.getElementById('convThreadPhone');
+  if (phone) phone.textContent = conv.phone;
   var actions = document.getElementById('convThreadActions');
-  if (actions) actions.innerHTML = '<span class="status-pill ' + conv.status + '">' + pillLabel(conv.status) + '</span>';
+  if (actions) actions.innerHTML = convStatusBadge(conv.status);
 
   // Thread body — show messages if available
   var body = document.getElementById('convThreadBody');
@@ -2318,31 +2419,84 @@ function selectConversation(el, id) {
     var thread = '';
     data.thread.forEach(function(m) {
       if (m.ts) thread += '<div class="msg-time">' + m.ts + '</div>';
-      if (m.d === 'ai') thread += '<div class="msg-row"><div class="msg-bubble ai"><div class="msg-sender">AutoShop AI</div>' + m.t + '</div></div>';
-      else thread += '<div class="msg-row right"><div class="msg-bubble customer">' + m.t + '</div></div>';
+      if (m.d === 'ai') thread += '<div class="msg-row"><div class="msg-bubble ai"><div class="msg-sender">AutoShop AI</div>' + m.t + '<div class="msg-ts">' + (m.ts || '') + '</div></div></div>';
+      else thread += '<div class="msg-row right"><div class="msg-bubble customer">' + m.t + '<div class="msg-ts">' + (m.ts || '') + '</div></div></div>';
     });
     if (data.result) thread += '<div class="modal-result"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><div class="modal-result-text"><strong>' + data.result + '</strong></div></div>';
     body.innerHTML = thread;
+    body.scrollTop = body.scrollHeight;
   } else {
     body.innerHTML = '<div class="conv-empty-state"><span style="font-size:13px;">Thread data not available — <a style="color:var(--rust);cursor:pointer;" onclick="openModal(\'' + id + '\')">open in modal</a></span></div>';
   }
 
-  // Detail panel
+  // Detail panel — enhanced with contact, vehicle, appointments, notes
   var detail = document.getElementById('convDetailBody');
   if (detail) {
-    detail.innerHTML =
-      '<div class="conv-detail-section"><div class="conv-detail-label">Phone</div><div class="conv-detail-value">' + conv.phone + '</div></div>' +
-      '<div class="conv-detail-section"><div class="conv-detail-label">Status</div><div><span class="status-pill ' + conv.status + '">' + pillLabel(conv.status) + '</span></div></div>' +
-      '<div class="conv-detail-section"><div class="conv-detail-label">First Contact</div><div class="conv-detail-value">' + conv.date + '</div></div>' +
-      '<div class="conv-detail-section"><div class="conv-detail-label">Issue</div><div class="conv-detail-value">' + conv.issue + '</div></div>' +
-      '<div class="conv-detail-section"><div class="conv-detail-label">Duration</div><div class="conv-detail-value">' + conv.duration + '</div></div>' +
-      '<div class="conv-detail-section" style="border-bottom:none;"><div class="conv-detail-label">Actions</div><div style="display:flex;gap:6px;flex-wrap:wrap;"><button class="btn-sm" onclick="openModal(\'' + id + '\')">Full View</button><button class="btn-sm" onclick="markResolved(this,\'' + id + '\')">Resolve</button></div></div>';
+    var vehicleModel = conv.vehicleModel || conv.vehicle || '';
+    var vin = conv.vin || '';
+    var mileage = conv.mileage || '';
+    var email = conv.email || '';
+    var location = conv.location || '';
+
+    var html = '';
+
+    // Contact Information
+    html += '<div class="conv-detail-section">' +
+      '<div class="conv-detail-label">Contact Information</div>' +
+      '<div class="conv-detail-row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg><span>' + conv.phone + '</span></div>' +
+      (email ? '<div class="conv-detail-row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><span>' + email + '</span></div>' : '') +
+      (location ? '<div class="conv-detail-row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg><span>' + location + '</span></div>' : '') +
+    '</div>';
+
+    // Vehicle Information
+    if (vehicleModel || vin || mileage) {
+      html += '<div class="conv-detail-section bordered">' +
+        '<div class="conv-detail-label">Vehicle Information</div>' +
+        '<div class="conv-detail-vehicle"><div class="conv-detail-vehicle-row">' +
+          '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="' + 'var(--rust)' + '" stroke-width="2"><path d="M14 16H9m10 0h3v-3.15a1 1 0 00-.84-.99L16 11l-2.7-3.6a1 1 0 00-.8-.4H5.24a1 1 0 00-.9.55l-2.18 4.37a1 1 0 00-.16.53V16h3"/><circle cx="6.5" cy="16.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/></svg>' +
+          '<div>' +
+            (vehicleModel ? '<div class="conv-detail-vehicle-name">' + vehicleModel + '</div>' : '') +
+            (vin ? '<div class="conv-detail-vehicle-sub">VIN: ' + vin + '</div>' : '') +
+            (mileage ? '<div class="conv-detail-vehicle-sub">' + mileage + '</div>' : '') +
+          '</div>' +
+        '</div></div>' +
+      '</div>';
+    }
+
+    // Status and conversation info
+    html += '<div class="conv-detail-section bordered">' +
+      '<div class="conv-detail-label">Conversation Info</div>' +
+      '<div style="margin-bottom:8px;"><div style="font-size:11px;color:var(--text-tertiary);margin-bottom:2px;">Status</div><div>' + convStatusBadge(conv.status) + '</div></div>' +
+      '<div style="margin-bottom:8px;"><div style="font-size:11px;color:var(--text-tertiary);margin-bottom:2px;">First Contact</div><div class="conv-detail-value">' + conv.date + '</div></div>' +
+      '<div style="margin-bottom:8px;"><div style="font-size:11px;color:var(--text-tertiary);margin-bottom:2px;">Issue</div><div class="conv-detail-value">' + (conv.issue || '—') + '</div></div>' +
+      '<div><div style="font-size:11px;color:var(--text-tertiary);margin-bottom:2px;">Duration</div><div class="conv-detail-value">' + (conv.duration || '—') + '</div></div>' +
+    '</div>';
+
+    // Actions
+    html += '<div class="conv-detail-section bordered">' +
+      '<div class="conv-detail-label">Actions</div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
+        '<button class="btn-sm" onclick="openModal(\'' + id + '\')">Full View</button>' +
+        '<button class="btn-sm" onclick="markResolved(this,\'' + id + '\')">Resolve</button>' +
+      '</div>' +
+    '</div>';
+
+    // Notes
+    html += '<div class="conv-detail-section bordered" style="border-bottom:none;">' +
+      '<div class="conv-detail-label">Notes</div>' +
+      '<textarea class="conv-detail-notes" rows="4" placeholder="Add notes about this customer..." id="convNotes_' + id + '"></textarea>' +
+    '</div>';
+
+    detail.innerHTML = html;
   }
 }
 
 function filterConvInbox(val) {
+  var lower = val.toLowerCase();
   document.querySelectorAll('.conv-list-item').forEach(function(item) {
-    item.style.display = item.dataset.phone.includes(val) ? '' : 'none';
+    var phone = (item.dataset.phone || '').toLowerCase();
+    var name = (item.dataset.name || '').toLowerCase();
+    item.style.display = (phone.includes(lower) || name.includes(lower)) ? '' : 'none';
   });
 }
 
