@@ -6,6 +6,7 @@ import formbody from "@fastify/formbody";
 import fastifyJwt from "@fastify/jwt";
 import fastifyStatic from "@fastify/static";
 import { join } from "path";
+import { existsSync } from "fs";
 
 import { healthRoute } from "./routes/health";
 import { twilioSmsRoute } from "./routes/webhooks/twilio-sms";
@@ -127,10 +128,14 @@ async function bootstrap() {
 
   // ── Static frontend (login.html, signup.html, etc.) ───────
   // Served AFTER API routes so API paths are never shadowed.
-  // STATIC_DIR is set in the Docker image (Dockerfile copies apps/web/ → /app/public/).
-  // Falls back to ../public relative to dist/index.js, which also resolves
-  // to /app/public inside the container.
-  const staticDir = process.env.STATIC_DIR ?? join(__dirname, "../public");
+  // Resolution order:
+  //   1. STATIC_DIR env var (explicit override)
+  //   2. ../public  — works in Docker (/app/public) and after `npm run build`
+  //   3. ../../web  — works during local `tsx watch src/index.ts` (monorepo layout)
+  const staticDir = process.env.STATIC_DIR
+    ?? (existsSync(join(__dirname, "../public"))
+        ? join(__dirname, "../public")
+        : join(__dirname, "../../web"));
   await app.register(fastifyStatic, {
     root: staticDir,
     prefix: "/",
