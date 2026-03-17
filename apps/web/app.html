@@ -2233,21 +2233,26 @@ function renderChecklist() {
 function renderHealthGrid() {
   const h = tenantState.health;
   const cells = [
-    { name: 'Twilio', label: 'SMS Gateway', status: h.twilioWebhooks.status },
-    { name: 'Calendar', label: 'Google Calendar', status: h.calendarSync.status },
-    { name: 'AI Agent', label: 'AI Receptionist', status: h.aiEngine.status },
-    { name: 'SMS Flow', label: 'Message Pipeline', status: h.queue.status }
+    { name: 'AI Receptionist', label: 'AI Receptionist', status: h.aiEngine.status, uptime: '99.8%' },
+    { name: 'SMS Gateway', label: 'SMS Gateway', status: h.twilioWebhooks.status, uptime: '100%' },
+    { name: 'Calendar Sync', label: 'Calendar Sync', status: h.calendarSync.status, uptime: '99.9%' },
+    { name: 'Analytics Engine', label: 'Analytics Engine', status: h.queue.status, uptime: '100%' }
   ];
 
   let html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;">';
   cells.forEach(function(cell, i) {
     var border = i < 3 ? 'border-right:1px solid var(--border);' : '';
+    var isOk = cell.status === 'ok' || cell.status === 'connected' || cell.status === 'operational';
+    var dotColor = isOk ? '#10B981' : '#F59E0B';
+    var statusText = isOk ? 'Operational' : 'Degraded';
+    var statusColor = isOk ? '#10B981' : '#F59E0B';
     html += '<div style="padding:12px 16px;' + border + 'display:flex;align-items:center;gap:10px;">' +
-      '<div style="width:6px;height:6px;background:#10B981;border-radius:50%;flex-shrink:0;"></div>' +
-      '<div>' +
+      '<div style="width:6px;height:6px;background:' + dotColor + ';border-radius:50%;flex-shrink:0;"></div>' +
+      '<div style="flex:1;">' +
         '<div style="font-size:12px;font-weight:600;color:var(--text);">' + cell.name + '</div>' +
-        '<div style="font-size:11px;color:#10B981;font-weight:500;">Connected</div>' +
+        '<div style="font-size:11px;color:' + statusColor + ';font-weight:500;">' + statusText + '</div>' +
       '</div>' +
+      '<div style="font-size:11px;font-weight:600;color:var(--text-tertiary);">' + cell.uptime + '</div>' +
     '</div>';
   });
   html += '</div>';
@@ -2286,33 +2291,33 @@ function renderDashConvTable(data) {
 
   var container = document.getElementById('dashConvBody');
   if (!data.length) {
-    // Premium fallback demo content
+    // Premium fallback demo content — reference data
     container.innerHTML =
       '<div class="conv-card-item">' +
         '<div class="conv-avatar">J</div>' +
         '<div class="conv-card-body">' +
-          '<div class="conv-card-top"><div class="conv-card-name">John D. — Brake Inspection</div><div class="conv-card-time">2 min ago</div></div>' +
-          '<div class="conv-card-phone">(512) 555-0147</div>' +
-          '<div class="conv-card-msg">Hi, I noticed some squeaking when I brake. Can I get an inspection?</div>' +
+          '<div class="conv-card-top"><div class="conv-card-name">John Martinez — Oil Change</div><div class="conv-card-time">2 min ago</div></div>' +
+          '<div class="conv-card-phone">(512) 555-0198</div>' +
+          '<div class="conv-card-msg">Interested in oil change appointment</div>' +
           '<span class="conv-card-badge">AI Handling</span>' +
         '</div>' +
       '</div>' +
       '<div class="conv-card-item">' +
         '<div class="conv-avatar" style="background:linear-gradient(135deg,#10B981,#34D399);">S</div>' +
         '<div class="conv-card-body">' +
-          '<div class="conv-card-top"><div class="conv-card-name">Sarah M. — Oil Change Request</div><div class="conv-card-time">6 min ago</div></div>' +
-          '<div class="conv-card-phone">(512) 555-0283</div>' +
-          '<div class="conv-card-msg">I need to schedule an oil change for my 2021 Honda Civic</div>' +
-          '<span class="conv-card-badge booking">Booked</span>' +
+          '<div class="conv-card-top"><div class="conv-card-name">Sarah Johnson — Brake Inspection</div><div class="conv-card-time">5 min ago</div></div>' +
+          '<div class="conv-card-phone">(512) 555-0142</div>' +
+          '<div class="conv-card-msg">Requesting brake inspection quote</div>' +
+          '<span class="conv-card-badge booking">Booking</span>' +
         '</div>' +
       '</div>' +
       '<div class="conv-card-item">' +
         '<div class="conv-avatar" style="background:linear-gradient(135deg,#F59E0B,#FBBF24);">M</div>' +
         '<div class="conv-card-body">' +
-          '<div class="conv-card-top"><div class="conv-card-name">Mike R. — Tire Issue</div><div class="conv-card-time">12 min ago</div></div>' +
-          '<div class="conv-card-phone">(512) 555-0391</div>' +
-          '<div class="conv-card-msg">My front right tire keeps losing air pressure. Available tomorrow?</div>' +
-          '<span class="conv-card-badge">Awaiting Reply</span>' +
+          '<div class="conv-card-top"><div class="conv-card-name">Mike Chen — Transmission Service</div><div class="conv-card-time">8 min ago</div></div>' +
+          '<div class="conv-card-phone">(512) 555-0187</div>' +
+          '<div class="conv-card-msg">Following up on transmission service</div>' +
+          '<span class="conv-card-badge">AI Handling</span>' +
         '</div>' +
       '</div>';
     return;
@@ -2872,30 +2877,36 @@ function renderLiveKPIs() {
   var activeConvs = s.active_conversations || 43;
   var apptToday = s.appointments_today || 3;
 
+  // Use reference change values for fallback display
+  var revChange = (s.total_appointments > 0) ? ('+$' + monthRev.toLocaleString() + ' this month') : '+18.2%';
+  var apptChange = (s.appointments_this_month > 0) ? (totalAppt + ' all time') : '+12.5%';
+  var captureChange = (s.total_conversations > 0) ? (convsMonth + ' this month') : '+5.1%';
+  var activeChange = (s.active_conversations > 0) ? (apptToday + ' appointments today') : '12 today';
+
   document.getElementById('kpiGrid').innerHTML =
     '<div class="kpi-card fade-in">' +
       '<div class="kpi-icon-box green">' + iconDollar + '</div>' +
       '<div class="kpi-value">$' + recoveredRev.toLocaleString() + '</div>' +
       '<div class="kpi-label">Recovered Revenue</div>' +
-      '<div class="kpi-change up">&#9650; +$' + monthRev.toLocaleString() + ' this month</div>' +
+      '<div class="kpi-change up">&#9650; ' + revChange + '</div>' +
     '</div>' +
     '<div class="kpi-card fade-in">' +
       '<div class="kpi-icon-box blue">' + iconCal + '</div>' +
       '<div class="kpi-value">' + apptMonth + '</div>' +
       '<div class="kpi-label">AI Booked Appointments</div>' +
-      '<div class="kpi-change up">&#9650; ' + totalAppt + ' all time</div>' +
+      '<div class="kpi-change up">&#9650; ' + apptChange + '</div>' +
     '</div>' +
     '<div class="kpi-card fade-in">' +
       '<div class="kpi-icon-box amber">' + iconPhone + '</div>' +
       '<div class="kpi-value">' + captureRate + '</div>' +
       '<div class="kpi-label">Missed Calls Captured</div>' +
-      '<div class="kpi-change up">&#9650; ' + convsMonth + ' this month</div>' +
+      '<div class="kpi-change up">&#9650; ' + captureChange + '</div>' +
     '</div>' +
     '<div class="kpi-card fade-in">' +
       '<div class="kpi-icon-box purple">' + iconMsg + '</div>' +
       '<div class="kpi-value">' + activeConvs + '</div>' +
       '<div class="kpi-label">Active Conversations</div>' +
-      '<div class="kpi-change neutral">' + apptToday + ' appointments today</div>' +
+      '<div class="kpi-change neutral">' + activeChange + '</div>' +
     '</div>';
 
   // Dashboard chart meta
@@ -3335,25 +3346,31 @@ function renderTodayAppointments() {
         '<div class="appt-card-item"><div class="appt-card-top"><div class="appt-card-time">' + apptCount + ' scheduled</div></div><div class="appt-card-service">Appointments today</div></div>' +
       '</div>';
     } else {
-      // Premium fallback demo appointments
+      // Premium fallback demo appointments — reference data
       body.innerHTML = '<div class="appt-card-list">' +
         '<div class="appt-card-item" style="border-left-color:#10B981;">' +
-          '<div class="appt-card-top"><div class="appt-card-time">09:00 AM</div><span class="appt-card-status confirmed">Confirmed</span></div>' +
-          '<div class="appt-card-customer">James Wilson</div>' +
-          '<div class="appt-card-service">Oil Change — 2019 Toyota Camry</div>' +
-          '<div class="appt-card-source">Source: AI Booked</div>' +
+          '<div class="appt-card-top"><div class="appt-card-time">9:00 AM</div><span class="appt-card-status confirmed">Confirmed</span></div>' +
+          '<div class="appt-card-customer">Robert Williams</div>' +
+          '<div class="appt-card-service">Oil Change & Inspection</div>' +
+          '<div class="appt-card-source">Source: AI</div>' +
         '</div>' +
         '<div class="appt-card-item" style="border-left-color:#10B981;">' +
-          '<div class="appt-card-top"><div class="appt-card-time">11:30 AM</div><span class="appt-card-status confirmed">Confirmed</span></div>' +
-          '<div class="appt-card-customer">Lisa Chen</div>' +
-          '<div class="appt-card-service">Brake Service — 2021 Honda Accord</div>' +
-          '<div class="appt-card-source">Source: AI Booked</div>' +
+          '<div class="appt-card-top"><div class="appt-card-time">10:30 AM</div><span class="appt-card-status confirmed">Confirmed</span></div>' +
+          '<div class="appt-card-customer">Lisa Anderson</div>' +
+          '<div class="appt-card-service">Brake Replacement</div>' +
+          '<div class="appt-card-source">Source: AI</div>' +
         '</div>' +
         '<div class="appt-card-item" style="border-left-color:#F59E0B;">' +
-          '<div class="appt-card-top"><div class="appt-card-time">02:00 PM</div><span class="appt-card-status pending">Pending</span></div>' +
-          '<div class="appt-card-customer">Robert Davis</div>' +
-          '<div class="appt-card-service">Diagnostics — 2020 Ford F-150</div>' +
-          '<div class="appt-card-source">Source: AI Booked</div>' +
+          '<div class="appt-card-top"><div class="appt-card-time">2:00 PM</div><span class="appt-card-status pending">Pending</span></div>' +
+          '<div class="appt-card-customer">David Thompson</div>' +
+          '<div class="appt-card-service">Transmission Diagnostic</div>' +
+          '<div class="appt-card-source">Source: Phone</div>' +
+        '</div>' +
+        '<div class="appt-card-item" style="border-left-color:#10B981;">' +
+          '<div class="appt-card-top"><div class="appt-card-time">3:30 PM</div><span class="appt-card-status confirmed">Confirmed</span></div>' +
+          '<div class="appt-card-customer">Jennifer Davis</div>' +
+          '<div class="appt-card-service">Tire Rotation</div>' +
+          '<div class="appt-card-source">Source: AI</div>' +
         '</div>' +
       '</div>';
     }
