@@ -1,5 +1,14 @@
 # Project Brain — Shared Memory for Claude Execution
 
+## SYSTEM ENTRY POINT
+
+Before ANY task:
+→ Read `CLAUDE_RULES.md`
+
+If rules are ignored → output is invalid.
+
+---
+
 This directory is **working memory for Claude sessions**, not documentation for humans or customers.
 
 `project-brain/` is the canonical shared-memory directory for this repository. All session-persistent context, status tracking, and architectural decisions live here.
@@ -11,6 +20,8 @@ Enable execution continuity across Claude sessions. Every session starts faster 
 ## Session Start Protocol
 
 At the beginning of every session, read these files in order:
+
+0. `CLAUDE_RULES.md` — **MANDATORY** — Dashboard execution rules (autoloaded, critical priority)
 
 1. `current_focus.md` — What to work on right now
 2. `blockers.md` — What is currently blocked and why
