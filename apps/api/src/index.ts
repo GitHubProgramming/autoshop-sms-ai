@@ -89,7 +89,20 @@ async function bootstrap() {
   const billingWorker = startBillingEventsWorker();
 
   // ── Security ──────────────────────────────────────────────
-  await app.register(helmet);
+  await app.register(helmet, {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "https:", "'unsafe-inline'"],
+        fontSrc: ["'self'", "https:", "data:"],
+        imgSrc: ["'self'", "data:"],
+        connectSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        frameSrc: ["'none'"],
+      },
+    },
+  });
   await app.register(rateLimit, {
     max: 100,
     timeWindow: "1 minute",

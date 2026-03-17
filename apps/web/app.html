@@ -3343,10 +3343,8 @@ function renderTodayAppointments() {
   var body = document.getElementById('todayApptsBody');
   if (!body) return;
   if (!todayAppts.length || todayAppts.length < 2) {
-    // Show reference demo appointments when real data is absent or too weak
-    {
-      // Premium fallback demo appointments — reference data
-      body.innerHTML = '<div class="appt-card-list">' +
+    // Premium fallback demo appointments — reference data
+    body.innerHTML = '<div class="appt-card-list">' +
         '<div class="appt-card-item" style="border-left-color:#10B981;">' +
           '<div class="appt-card-top"><div class="appt-card-time">9:00 AM</div><span class="appt-card-status confirmed">Confirmed</span></div>' +
           '<div class="appt-card-customer">Robert Williams</div>' +
