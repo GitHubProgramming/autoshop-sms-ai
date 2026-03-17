@@ -2072,7 +2072,7 @@ function renderBanners() {
     const msgs = { suspended:'Your account has been suspended. Service is paused — no new conversations will be started.', canceled:'Your subscription is canceled. Reactivate to resume missed-call recovery.', trial_expired:'Your trial has expired. Upgrade to continue recovering missed-call revenue.' };
     html += `<div class="banner paused"><div class="banner-left"><span class="banner-label red">⚠ Service Paused</span><span class="banner-msg red">${msgs[s.status]}</span></div><a href="#" onclick="switchView('billing');return false;" class="btn-upgrade red">Reactivate Now</a></div>`;
     if (headerBtn) headerBtn.style.display = 'none';
-  } else if (s.plan === 'trial') {
+  } else if (s.status === 'trial') {
     // Trial states — hide header CTA, show banner CTA only
     if (headerBtn) headerBtn.style.display = 'none';
     const limit = s.trialLimit;
@@ -2100,7 +2100,7 @@ function renderBanners() {
   }
 
   // Usage warnings (paid only)
-  if (s.plan !== 'trial' && !isSuspended) {
+  if (s.status !== 'trial' && !isSuspended) {
     const pct = (s.convUsed / s.convLimit) * 100;
     if (pct >= 100 && s.warnings.at100) {
       html += `<div class="banner warning-100"><div class="banner-left"><span class="banner-label red">Usage Limit Reached</span><span class="banner-msg red">You've used all ${s.convLimit} conversations this month. New conversations are still accepted — upgrade to increase your limit.</span></div><a href="#" onclick="switchView('billing');return false;" class="btn-upgrade red">Upgrade Plan</a></div>`;
@@ -2453,7 +2453,7 @@ function renderBookings() {
 // ════════════════════════════════════════════
 function renderBillingPage() {
   const s = tenantState;
-  const isTrial = s.plan === 'trial';
+  const isTrial = s.status === 'trial';
   const isSuspended = ['suspended','canceled','trial_expired'].includes(s.status);
   const limit = isTrial ? s.trialLimit : s.convLimit;
   const pct = Math.min((s.convUsed / limit) * 100, 100);
@@ -3073,7 +3073,7 @@ function renderLiveRevenueBlocks() {
   var usageBody = document.getElementById('analyticsUsageBody');
   if (usageBody) {
     usageBody.innerHTML =
-      '<div class="rev-sub-row"><span class="rev-sub-label">Conversations Used</span><span class="rev-sub-value">' + tenantState.convUsed + ' / ' + (tenantState.plan === 'trial' ? tenantState.trialLimit : tenantState.convLimit) + '</span></div>' +
+      '<div class="rev-sub-row"><span class="rev-sub-label">Conversations Used</span><span class="rev-sub-value">' + tenantState.convUsed + ' / ' + (tenantState.status === 'trial' ? tenantState.trialLimit : tenantState.convLimit) + '</span></div>' +
       '<div class="rev-sub-row"><span class="rev-sub-label">Plan</span><span class="rev-sub-value">' + tenantState.plan.charAt(0).toUpperCase() + tenantState.plan.slice(1) + '</span></div>' +
       '<div class="rev-sub-row" style="border-bottom:none;"><span class="rev-sub-label">Status</span><span class="rev-sub-value" style="color:var(--green);">' + tenantState.status.replace(/_/g,' ') + '</span></div>';
   }
