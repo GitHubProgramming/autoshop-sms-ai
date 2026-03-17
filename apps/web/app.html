@@ -1039,7 +1039,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
             <div class="log-title" style="font-size:16px;font-weight:700;">Revenue Analytics</div>
             <div class="chart-trend" id="dashRevTrend" style="padding:6px 14px;background:#ECFDF5;border-radius:8px;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-              <span id="dashRevTrendText">+18.2% vs last week</span>
+              <span id="dashRevTrendText">Revenue trend</span>
             </div>
           </div>
           <div style="height:280px;padding:20px 24px 30px;position:relative;overflow:visible;">
@@ -1302,9 +1302,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
           <div class="an-kpi-icon green">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
           </div>
-          <div class="an-kpi-val" id="anKpiRecovery">94.2%</div>
+          <div class="an-kpi-val" id="anKpiRecovery">0%</div>
           <div class="an-kpi-label">Missed Call Recovery</div>
-          <div class="an-kpi-change" id="anKpiRecoveryChange">+5.1% vs last period</div>
+          <div class="an-kpi-change" id="anKpiRecoveryChange">No data yet</div>
         </div>
         <div class="an-kpi fade-in">
           <div class="an-kpi-icon blue">
@@ -1873,6 +1873,7 @@ let conversationsData = [];
 let bookingsData = [];
 let convThreads = {};
 let dashboardStats = {};
+let kpiSummary = null; // Real KPI data from /tenant/kpi/summary
 
 // ════════════════════════════════════════════
 // FORMAT HELPERS
@@ -2009,10 +2010,29 @@ async function loadDashboardData() {
 }
 
 // ════════════════════════════════════════════
+// FETCH REAL KPI DATA
+// ════════════════════════════════════════════
+async function loadKpiData() {
+  var token = localStorage.getItem('autoshop_jwt');
+  if (!token) return;
+  try {
+    var res = await fetch('/tenant/kpi/summary', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (res.ok) {
+      kpiSummary = await res.json();
+    }
+  } catch (err) {
+    console.error('KPI data fetch failed:', err);
+  }
+}
+
+// ════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', async function() {
   await loadDashboardData();
+  await loadKpiData();
 
   renderBanners();
   renderNav();
@@ -2306,40 +2326,15 @@ function pillLabel(s) {
 function renderDashConvTable(data) {
   var activeCount = data.filter(function(c) { return c.status === 'active'; }).length;
   var countEl = document.getElementById('dashConvActiveCount');
-  if (countEl) countEl.textContent = (activeCount || data.length || 3) + ' Active';
+  if (countEl) countEl.textContent = activeCount + ' Active';
 
   var container = document.getElementById('dashConvBody');
-  // Show fallback when data is empty OR too weak to render meaningful rows
-  var usableConvs = data.filter(function(c) { return c.phone && c.phone !== '—' && c.issue && c.issue !== '—'; });
-  if (!usableConvs.length || usableConvs.length < 2) {
-    // Premium fallback demo content — reference data
+  if (!data.length) {
     container.innerHTML =
-      '<div class="conv-card-item">' +
-        '<div class="conv-avatar">J</div>' +
-        '<div class="conv-card-body">' +
-          '<div class="conv-card-top"><div class="conv-card-name">John Martinez</div><div class="conv-card-time">2 min ago</div></div>' +
-          '<div class="conv-card-phone">(512) 555-0198</div>' +
-          '<div class="conv-card-msg">Interested in oil change appointment</div>' +
-          '<span class="conv-card-badge">AI Handling</span>' +
-        '</div>' +
-      '</div>' +
-      '<div class="conv-card-item">' +
-        '<div class="conv-avatar" style="background:linear-gradient(135deg,#10B981,#34D399);">S</div>' +
-        '<div class="conv-card-body">' +
-          '<div class="conv-card-top"><div class="conv-card-name">Sarah Johnson</div><div class="conv-card-time">5 min ago</div></div>' +
-          '<div class="conv-card-phone">(512) 555-0142</div>' +
-          '<div class="conv-card-msg">Requesting brake inspection quote</div>' +
-          '<span class="conv-card-badge booking">Booking</span>' +
-        '</div>' +
-      '</div>' +
-      '<div class="conv-card-item">' +
-        '<div class="conv-avatar" style="background:linear-gradient(135deg,#F59E0B,#FBBF24);">M</div>' +
-        '<div class="conv-card-body">' +
-          '<div class="conv-card-top"><div class="conv-card-name">Mike Chen</div><div class="conv-card-time">8 min ago</div></div>' +
-          '<div class="conv-card-phone">(512) 555-0187</div>' +
-          '<div class="conv-card-msg">Following up on transmission service</div>' +
-          '<span class="conv-card-badge">AI Handling</span>' +
-        '</div>' +
+      '<div style="padding:32px 20px;text-align:center;color:var(--text-secondary);">' +
+        '<div style="font-size:28px;margin-bottom:8px;">📱</div>' +
+        '<div style="font-weight:600;margin-bottom:4px;">No conversations yet</div>' +
+        '<div style="font-size:13px;">Conversations will appear here when customers respond to missed call SMS.</div>' +
       '</div>';
     return;
   }
@@ -2877,54 +2872,54 @@ function renderSystemHero() {
 // LIVE KPI RENDERING (from API data)
 // ════════════════════════════════════════════
 function renderLiveKPIs() {
-  var s = dashboardStats;
-  var defaultARO = 540;
+  // ALL values come from real KPI API data.
+  // No hardcoded values, no demo fallbacks, no fake percentages.
+  // If no data exists, show 0 or empty state.
+  var k = kpiSummary || {};
+  var s = dashboardStats || {};
 
-  // Treat weak data (below meaningful thresholds) same as no data
-  var hasStrongRevenue = (s.total_appointments || 0) >= 10;
-  var hasStrongAppts = (s.appointments_this_month || 0) >= 5;
-  var hasStrongConvs = (s.total_conversations || 0) >= 5;
-  var hasStrongActive = (s.active_conversations || 0) >= 3;
-
-  var recoveredRev = hasStrongRevenue ? (s.total_appointments * defaultARO) : 24580;
-  var monthRev = hasStrongAppts ? (s.appointments_this_month * defaultARO) : 4320;
-  var captureRate = '94.2%';
+  var recoveredRev = k.recovered_revenue || 0;
+  var aiBooked = k.ai_booked_this_month || 0;
+  var captureRate = k.capture_rate_pct || 0;
+  var activeConvs = k.active_conversations || s.active_conversations || 0;
+  var apptToday = k.appointments_today || s.appointments_today || 0;
+  var convsMonth = k.conversations_this_month || s.conversations_this_month || 0;
+  var totalRev = k.total_revenue || 0;
 
   var iconDollar = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>';
   var iconCal = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
   var iconPhone = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 2 16 8 22 8"/><line x1="23" y1="1" x2="16" y2="8"/><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>';
   var iconMsg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>';
 
-  var apptMonth = hasStrongAppts ? s.appointments_this_month : 127;
-  var totalAppt = hasStrongRevenue ? s.total_appointments : 127;
-  var convsMonth = hasStrongConvs ? s.conversations_this_month : 43;
-  var activeConvs = hasStrongActive ? s.active_conversations : 43;
-  var apptToday = s.appointments_today || 3;
+  // Real change metrics — no fake percentages
+  var revChange = totalRev > 0 ? ('+$' + totalRev.toLocaleString() + ' total (30d)') : 'No completed bookings yet';
+  var apptChange = aiBooked > 0 ? (aiBooked + ' this month') : 'No AI bookings yet';
+  var captureChange = convsMonth > 0 ? (convsMonth + ' conversations this month') : 'No conversations yet';
+  var activeChange = apptToday > 0 ? (apptToday + ' appointments today') : 'No appointments today';
 
-  // Use reference change values when data is weak
-  var revChange = hasStrongRevenue ? ('+$' + monthRev.toLocaleString() + ' this month') : '+18.2%';
-  var apptChange = hasStrongAppts ? (totalAppt + ' all time') : '+12.5%';
-  var captureChange = hasStrongConvs ? (convsMonth + ' this month') : '+5.1%';
-  var activeChange = hasStrongActive ? (apptToday + ' appointments today') : '12 today';
+  // Determine change arrow direction
+  var revDir = recoveredRev > 0 ? 'up' : 'neutral';
+  var apptDir = aiBooked > 0 ? 'up' : 'neutral';
+  var captureDir = captureRate > 0 ? 'up' : 'neutral';
 
   document.getElementById('kpiGrid').innerHTML =
     '<div class="kpi-card">' +
       '<div class="kpi-icon-box green">' + iconDollar + '</div>' +
       '<div class="kpi-value">$' + recoveredRev.toLocaleString() + '</div>' +
       '<div class="kpi-label">Recovered Revenue</div>' +
-      '<div class="kpi-change up">&#9650; ' + revChange + '</div>' +
+      '<div class="kpi-change ' + revDir + '">' + (revDir === 'up' ? '&#9650; ' : '') + revChange + '</div>' +
     '</div>' +
     '<div class="kpi-card">' +
       '<div class="kpi-icon-box blue">' + iconCal + '</div>' +
-      '<div class="kpi-value">' + apptMonth + '</div>' +
+      '<div class="kpi-value">' + aiBooked + '</div>' +
       '<div class="kpi-label">AI Booked Appointments</div>' +
-      '<div class="kpi-change up">&#9650; ' + apptChange + '</div>' +
+      '<div class="kpi-change ' + apptDir + '">' + (apptDir === 'up' ? '&#9650; ' : '') + apptChange + '</div>' +
     '</div>' +
     '<div class="kpi-card">' +
       '<div class="kpi-icon-box amber">' + iconPhone + '</div>' +
-      '<div class="kpi-value">' + captureRate + '</div>' +
+      '<div class="kpi-value">' + captureRate + '%</div>' +
       '<div class="kpi-label">Missed Calls Captured</div>' +
-      '<div class="kpi-change up">&#9650; ' + captureChange + '</div>' +
+      '<div class="kpi-change ' + captureDir + '">' + (captureDir === 'up' ? '&#9650; ' : '') + captureChange + '</div>' +
     '</div>' +
     '<div class="kpi-card">' +
       '<div class="kpi-icon-box purple">' + iconMsg + '</div>' +
@@ -2933,11 +2928,11 @@ function renderLiveKPIs() {
       '<div class="kpi-change neutral">' + activeChange + '</div>' +
     '</div>';
 
-  // Dashboard chart meta
+  // Dashboard chart meta — real values only
   var drr = document.getElementById('dashRevRecovered');
   if (drr) drr.textContent = '$' + recoveredRev.toLocaleString();
   var dab = document.getElementById('dashAvgBooking');
-  if (dab) dab.textContent = '$' + defaultARO;
+  if (dab) dab.textContent = totalRev > 0 && (k.recovered_bookings || 0) > 0 ? '$' + Math.round(totalRev / k.recovered_bookings).toLocaleString() : '$0';
 }
 
 function renderLiveTodayActivity() {
@@ -3084,6 +3079,15 @@ function renderLiveRevenueBlocks() {
     var rate = (s.total_conversations || 0) > 0 ? Math.round(((s.total_appointments || 0) / (s.total_conversations || 1)) * 100) : 0;
     acr.textContent = rate + '%';
   }
+
+  // Update analytics KPIs with real data from KPI summary
+  var k = kpiSummary || {};
+  var akr = document.getElementById('anKpiRecovery');
+  if (akr) akr.textContent = (k.capture_rate_pct || 0) + '%';
+  var akrc = document.getElementById('anKpiRecoveryChange');
+  if (akrc) akrc.textContent = k.missed_calls_captured ? (k.missed_calls_captured + ' of ' + k.missed_calls_total + ' captured') : 'No data yet';
+  var drt = document.getElementById('dashRevTrendText');
+  if (drt) drt.textContent = k.total_revenue ? ('$' + k.total_revenue.toLocaleString() + ' revenue (30d)') : 'No revenue data yet';
 }
 
 // ════════════════════════════════════════════
@@ -3364,33 +3368,12 @@ function renderTodayAppointments() {
 
   var body = document.getElementById('todayApptsBody');
   if (!body) return;
-  if (!todayAppts.length || todayAppts.length < 2) {
-    // Premium fallback demo appointments — reference data
-    body.innerHTML = '<div class="appt-card-list">' +
-        '<div class="appt-card-item" style="border-left-color:#10B981;">' +
-          '<div class="appt-card-top"><div class="appt-card-time">9:00 AM</div><span class="appt-card-status confirmed">Confirmed</span></div>' +
-          '<div class="appt-card-customer">Robert Williams</div>' +
-          '<div class="appt-card-service">Oil Change & Inspection</div>' +
-          '<div class="appt-card-source">Source: AI</div>' +
-        '</div>' +
-        '<div class="appt-card-item" style="border-left-color:#10B981;">' +
-          '<div class="appt-card-top"><div class="appt-card-time">10:30 AM</div><span class="appt-card-status confirmed">Confirmed</span></div>' +
-          '<div class="appt-card-customer">Lisa Anderson</div>' +
-          '<div class="appt-card-service">Brake Replacement</div>' +
-          '<div class="appt-card-source">Source: AI</div>' +
-        '</div>' +
-        '<div class="appt-card-item" style="border-left-color:#F59E0B;">' +
-          '<div class="appt-card-top"><div class="appt-card-time">2:00 PM</div><span class="appt-card-status pending">Pending</span></div>' +
-          '<div class="appt-card-customer">David Thompson</div>' +
-          '<div class="appt-card-service">Transmission Diagnostic</div>' +
-          '<div class="appt-card-source">Source: Phone</div>' +
-        '</div>' +
-        '<div class="appt-card-item" style="border-left-color:#10B981;">' +
-          '<div class="appt-card-top"><div class="appt-card-time">3:30 PM</div><span class="appt-card-status confirmed">Confirmed</span></div>' +
-          '<div class="appt-card-customer">Jennifer Davis</div>' +
-          '<div class="appt-card-service">Tire Rotation</div>' +
-          '<div class="appt-card-source">Source: AI</div>' +
-        '</div>' +
+  if (!todayAppts.length) {
+    body.innerHTML =
+      '<div style="padding:32px 16px;text-align:center;color:var(--text-secondary);">' +
+        '<div style="font-size:28px;margin-bottom:8px;">📅</div>' +
+        '<div style="font-weight:600;margin-bottom:4px;">No appointments today</div>' +
+        '<div style="font-size:13px;">Appointments will appear here when bookings are created.</div>' +
       '</div>';
     return;
   }
