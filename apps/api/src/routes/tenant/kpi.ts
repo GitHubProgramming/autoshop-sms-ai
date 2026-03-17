@@ -212,6 +212,41 @@ export async function tenantKpiRoute(app: FastifyInstance) {
   });
 
   /**
+   * GET /tenant/kpi/daily-revenue
+   *
+   * Daily revenue for the last 7 days from completed appointments.
+   * Returns an array of { date, total } entries, one per day.
+   * Days with no completions return total: 0.
+   */
+  app.get("/kpi/daily-revenue", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { tenantId } = request.user as { tenantId: string; email: string };
+
+    const rows = await query<{ day: string; total: string }>(
+      `SELECT d.day::date::text AS day,
+              COALESCE(SUM(a.final_price), 0)::text AS total
+       FROM generate_series(
+              CURRENT_DATE - INTERVAL '6 days',
+              CURRENT_DATE,
+              '1 day'
+            ) AS d(day)
+       LEFT JOIN appointments a
+         ON a.tenant_id = $1
+         AND a.completed_at IS NOT NULL
+         AND a.completed_at::date = d.day::date
+       GROUP BY d.day
+       ORDER BY d.day`,
+      [tenantId]
+    );
+
+    return reply.status(200).send({
+      days: rows.map((r) => ({
+        date: r.day,
+        total: parseFloat(r.total),
+      })),
+    });
+  });
+
+  /**
    * GET /tenant/customers/list
    *
    * Customer list derived from appointments table.
