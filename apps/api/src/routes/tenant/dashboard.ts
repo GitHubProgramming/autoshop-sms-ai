@@ -105,7 +105,8 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
       query(
         `SELECT id, conversation_id, customer_phone, customer_name,
                 service_type, scheduled_at, calendar_synced,
-                google_event_id, booking_state, created_at
+                google_event_id, booking_state, created_at,
+                completed_at, final_price
          FROM appointments
          WHERE tenant_id = $1
          ORDER BY created_at DESC LIMIT 20`,

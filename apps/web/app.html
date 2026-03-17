@@ -1221,7 +1221,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
           </div>
         </div>
         <table class="log-table">
-          <thead><tr><th>Date / Time</th><th>Customer</th><th>Service</th><th>Source</th><th>Vehicle</th><th>Sync Status</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Date / Time</th><th>Customer</th><th>Service</th><th>Source</th><th>Vehicle</th><th>Price</th><th>Sync Status</th><th>Actions</th></tr></thead>
           <tbody id="bookingsBody"></tbody>
         </table>
       </div>
@@ -1837,6 +1837,28 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
   </div>
 </div>
 
+<!-- COMPLETE APPOINTMENT MODAL -->
+<div class="modal-overlay" id="completeModal" onclick="if(event.target===this)closeCompleteModal()">
+  <div class="modal" style="width:400px">
+    <div class="modal-header">
+      <div><div class="modal-title">Complete Appointment</div><div class="modal-meta" id="completeModalMeta"></div></div>
+      <button class="modal-close" onclick="closeCompleteModal()">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">Final Price ($) <span style="color:var(--red)">*</span></label>
+        <input type="number" id="completePriceInput" min="0" step="0.01" placeholder="0.00" style="width:100%;padding:10px 12px;font-size:15px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);outline:none;font-family:var(--mono)" />
+        <div id="completePriceError" style="font-size:12px;color:var(--red);margin-top:4px;display:none"></div>
+      </div>
+      <div style="margin-bottom:20px">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">Notes (optional)</label>
+        <textarea id="completeNotesInput" rows="2" placeholder="Service notes..." style="width:100%;padding:10px 12px;font-size:13px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);outline:none;resize:vertical;font-family:inherit"></textarea>
+      </div>
+      <button id="completeSubmitBtn" onclick="submitCompleteAppointment()" style="width:100%;padding:10px;font-size:14px;font-weight:600;background:var(--green);color:#fff;border:none;border-radius:8px;cursor:pointer;transition:opacity .15s">Mark as Completed</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toastEl"></div>
 
@@ -1987,13 +2009,16 @@ async function loadDashboardData() {
       };
       var mapped = stateMap[b.booking_state] || { status: b.calendar_synced ? 'synced' : 'failed', label: b.calendar_synced ? 'Confirmed' : 'Failed', note: '' };
       return {
+        id: b.id,
         date: fmtDate(b.scheduled_at || b.created_at),
         phone: fmtPhone(b.customer_phone),
         service: b.service_type || 'Appointment',
         vehicle: b.customer_name || '—',
         syncStatus: mapped.status,
         syncLabel: mapped.label,
-        failNote: mapped.note
+        failNote: mapped.note,
+        completedAt: b.completed_at || null,
+        finalPrice: b.final_price != null ? parseFloat(b.final_price) : null
       };
     });
 
@@ -2423,19 +2448,31 @@ function renderBookingsCalendarAlert() {
 
 function renderBookings() {
   const html = bookingsData.map(b => {
-    const syncEl = `<span class="status-pill ${b.syncStatus}">${b.syncLabel || b.syncStatus.charAt(0).toUpperCase() + b.syncStatus.slice(1)}</span>`;
-    const failNote = b.failNote ? `<div style="font-family:var(--mono);font-size:11px;color:var(--red);margin-top:4px;">${b.failNote}</div>` : '';
-    const action = b.syncStatus === 'failed'
-      ? `<button class="view-btn red" onclick="showToast('Retrying calendar sync...')">Retry Sync</button>`
-      : b.syncStatus === 'pending'
-      ? `<span style="font-family:var(--mono);font-size:11px;color:var(--amber);font-weight:600;">Action Needed</span>`
+    const isCompleted = !!b.completedAt;
+    const syncEl = isCompleted
+      ? `<span class="status-pill synced">Completed</span>`
+      : `<span class="status-pill ${b.syncStatus}">${b.syncLabel || b.syncStatus.charAt(0).toUpperCase() + b.syncStatus.slice(1)}</span>`;
+    const failNote = b.failNote && !isCompleted ? `<div style="font-family:var(--mono);font-size:11px;color:var(--red);margin-top:4px;">${b.failNote}</div>` : '';
+    const priceCell = b.finalPrice != null
+      ? `<span style="font-family:var(--mono);font-weight:600;color:var(--green);">$${b.finalPrice.toFixed(2)}</span>`
       : `<span style="font-family:var(--mono);font-size:11px;color:var(--steel);">—</span>`;
-    return `<tr>
+    let action;
+    if (isCompleted) {
+      action = `<span style="font-family:var(--mono);font-size:11px;color:var(--green);font-weight:600;">Done</span>`;
+    } else if (b.syncStatus === 'failed') {
+      action = `<button class="view-btn red" onclick="showToast('Retrying calendar sync...')">Retry Sync</button>`;
+    } else if (b.syncStatus === 'pending') {
+      action = `<span style="font-family:var(--mono);font-size:11px;color:var(--amber);font-weight:600;">Action Needed</span>`;
+    } else {
+      action = `<button class="view-btn" onclick="openCompleteModal('${b.id}')">Complete</button>`;
+    }
+    return `<tr data-appt-id="${b.id}">
       <td class="td-date">${b.date}</td>
       <td class="td-phone">${b.phone}</td>
       <td class="td-issue">${b.service}</td>
       <td><span class="source-tag ai">AI</span></td>
       <td class="td-date">${b.vehicle}</td>
+      <td>${priceCell}</td>
       <td>${syncEl}${failNote}</td>
       <td>${action}</td>
     </tr>`;
@@ -2686,7 +2723,107 @@ function openModal(id) {
   document.getElementById('convModal').classList.add('open');
 }
 function closeModal() { document.getElementById('convModal').classList.remove('open'); }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeCompleteModal(); } });
+
+// ════════════════════════════════════════════
+// COMPLETE APPOINTMENT MODAL
+// ════════════════════════════════════════════
+let _completeApptId = null;
+let _completeSubmitting = false;
+
+function openCompleteModal(apptId) {
+  _completeApptId = apptId;
+  _completeSubmitting = false;
+  var b = bookingsData.find(function(x) { return x.id === apptId; });
+  document.getElementById('completeModalMeta').textContent = b ? b.service + ' — ' + b.phone : '';
+  document.getElementById('completePriceInput').value = '';
+  document.getElementById('completeNotesInput').value = '';
+  document.getElementById('completePriceError').style.display = 'none';
+  document.getElementById('completeSubmitBtn').disabled = false;
+  document.getElementById('completeSubmitBtn').textContent = 'Mark as Completed';
+  document.getElementById('completeModal').classList.add('open');
+  document.getElementById('completePriceInput').focus();
+}
+
+function closeCompleteModal() {
+  document.getElementById('completeModal').classList.remove('open');
+  _completeApptId = null;
+  _completeSubmitting = false;
+}
+
+async function submitCompleteAppointment() {
+  if (_completeSubmitting || !_completeApptId) return;
+
+  var priceInput = document.getElementById('completePriceInput');
+  var errorEl = document.getElementById('completePriceError');
+  var val = priceInput.value.trim();
+
+  if (val === '') {
+    errorEl.textContent = 'Final price is required.';
+    errorEl.style.display = 'block';
+    priceInput.focus();
+    return;
+  }
+
+  var price = parseFloat(val);
+  if (isNaN(price) || price < 0) {
+    errorEl.textContent = 'Price must be a non-negative number.';
+    errorEl.style.display = 'block';
+    priceInput.focus();
+    return;
+  }
+
+  errorEl.style.display = 'none';
+  _completeSubmitting = true;
+  var btn = document.getElementById('completeSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting...';
+
+  var token = localStorage.getItem('autoshop_jwt');
+  if (!token) {
+    showToast('Session expired — please log in again.');
+    _completeSubmitting = false;
+    btn.disabled = false;
+    btn.textContent = 'Mark as Completed';
+    return;
+  }
+
+  try {
+    var res = await fetch('/tenant/appointments/' + _completeApptId + '/complete', {
+      method: 'PATCH',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ final_price: price })
+    });
+
+    if (!res.ok) {
+      var err = await res.json().catch(function() { return { error: 'Request failed' }; });
+      showToast(err.error || 'Failed to complete appointment.');
+      _completeSubmitting = false;
+      btn.disabled = false;
+      btn.textContent = 'Mark as Completed';
+      return;
+    }
+
+    // Update local data
+    var b = bookingsData.find(function(x) { return x.id === _completeApptId; });
+    if (b) {
+      b.completedAt = new Date().toISOString();
+      b.finalPrice = price;
+    }
+
+    closeCompleteModal();
+    renderBookings();
+    showToast('Appointment completed — $' + price.toFixed(2) + ' recorded.');
+
+    // Refresh KPI data if available
+    if (typeof loadKpiSummary === 'function') loadKpiSummary();
+  } catch (e) {
+    showToast('Network error — please try again.');
+    _completeSubmitting = false;
+    btn.disabled = false;
+    btn.textContent = 'Mark as Completed';
+  }
+}
 
 // ════════════════════════════════════════════
 // GOOGLE CALENDAR CONNECT (Task C)
