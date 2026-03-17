@@ -915,7 +915,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
     <a href="#" id="headerUpgradeBtn" onclick="switchView('billing');return false;" class="btn-upgrade" style="font-size:12px;padding:7px 18px;border-radius:8px;background:linear-gradient(135deg,#2563EB,#7C3AED);box-shadow:0 2px 8px rgba(37,99,235,.25);">Upgrade Plan</a>
     <div class="nav-account">
       <div class="nav-avatar" id="navAvatar">?</div>
-      <span class="nav-account-name" id="navAccountName">—</span>
+      <span class="nav-account-name" id="navAccountName" data-tenant-name></span>
       <span style="font-size:10px;color:var(--text-tertiary);margin-left:2px;">&#9662;</span>
       <div class="nav-dropdown">
         <a href="#" onclick="switchView('billing');return false;">Billing</a>
@@ -933,7 +933,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
   <aside class="sidebar">
     <div class="sidebar-brand">
       <div class="sidebar-brand-name">Auto<span>Shop</span> AI</div>
-      <div class="sidebar-brand-shop" id="sidebarShopName">Loading shop...</div>
+      <div class="sidebar-brand-shop" id="sidebarShopName" data-tenant-name></div>
     </div>
     <div class="sidebar-section">
       <div class="sidebar-label">Main</div>
@@ -1463,7 +1463,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
               <div class="settings-field-row">
                 <div class="settings-field">
                   <label>Shop Name</label>
-                  <input type="text" id="settingsShopName" value="" placeholder="Your Shop Name">
+                  <input type="text" id="shop-name-input" value="" placeholder="Your Shop Name">
                 </div>
                 <div class="settings-field">
                   <label>Phone Number</label>
@@ -1482,7 +1482,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
                 <label>Shop Description</label>
                 <textarea rows="4" placeholder="Describe your shop's services and specialties..."></textarea>
               </div>
-              <button class="settings-save-btn" onclick="showToast('Shop profile saved.')">
+              <button class="settings-save-btn" id="save-settings-btn">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                 Save Changes
               </button>
@@ -1720,6 +1720,39 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 
 <script>
 // ════════════════════════════════════════════
+// DYNAMIC TENANT NAME — localStorage source of truth
+// ════════════════════════════════════════════
+function getTenantName() {
+  return localStorage.getItem('tenant_name') || 'My Auto Shop';
+}
+
+function applyTenantName() {
+  var name = getTenantName();
+  document.querySelectorAll('[data-tenant-name]').forEach(function(el) {
+    el.textContent = name;
+  });
+  // Update avatar initial
+  var avatar = document.getElementById('navAvatar');
+  if (avatar) avatar.textContent = name.charAt(0).toUpperCase();
+  // Update subtitle if on dashboard
+  var navSub = document.getElementById('navPageSubtitle');
+  var dashView = document.getElementById('view-dashboard');
+  if (navSub && dashView && dashView.classList.contains('active')) {
+    var now = new Date();
+    var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    navSub.textContent = months[now.getMonth()] + ' ' + now.getFullYear() + ' \u00b7 ' + name;
+  }
+  // Update revenue subtitle
+  var revSub = document.getElementById('revenueSubtitle');
+  if (revSub) revSub.textContent = 'Recovered revenue tracking \u2014 ' + name;
+  // Update settings input if visible
+  var shopInput = document.getElementById('shop-name-input');
+  if (shopInput) shopInput.value = name;
+  var aiShopInput = document.getElementById('settingsAIShopName');
+  if (aiShopInput) aiShopInput.value = name;
+}
+
+// ════════════════════════════════════════════
 // TENANT STATE — populated from API
 // ════════════════════════════════════════════
 let tenantState = {
@@ -1806,7 +1839,9 @@ async function loadDashboardData() {
     var isTrial = t.billing_status === 'trial';
     var planId = t.plan_id || (isTrial ? 'trial' : 'starter');
 
-    tenantState.shopName = t.shop_name || '—';
+    tenantState.shopName = t.shop_name || getTenantName();
+    // Sync API shop name → localStorage (API is authoritative on first load)
+    if (t.shop_name) localStorage.setItem('tenant_name', t.shop_name);
     tenantState.plan = planId;
     tenantState.status = t.billing_status;
     tenantState.trialEndsAt = t.trial_ends_at ? new Date(t.trial_ends_at).toISOString().slice(0,10) : '';
@@ -3087,31 +3122,12 @@ function renderLivePipeline() {
 
 function renderLiveRevenueBlocks() {
   var s = dashboardStats;
-  var shopName = tenantState.shopName;
-
-  // Update nav and subtitle with real shop name
-  var navShop = document.getElementById('navShopName');
-  if (navShop) navShop.textContent = shopName;
+  // Apply tenant name via dynamic binding
+  applyTenantName();
   var now = new Date();
   var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  var navSub = document.getElementById('navPageSubtitle');
-  if (navSub && document.getElementById('view-dashboard').classList.contains('active')) {
-    navSub.textContent = months[now.getMonth()] + ' ' + now.getFullYear() + ' · ' + shopName;
-  }
-  var revSub = document.getElementById('revenueSubtitle');
-  if (revSub) revSub.textContent = 'Recovered revenue tracking — ' + shopName;
   var convsSub = document.getElementById('convsSubtitle');
-  if (convsSub) convsSub.textContent = 'All SMS threads — ' + months[now.getMonth()] + ' ' + now.getFullYear();
-  var settingsShop = document.getElementById('settingsShopName');
-  if (settingsShop) settingsShop.value = shopName;
-  var settingsAIShop = document.getElementById('settingsAIShopName');
-  if (settingsAIShop) settingsAIShop.value = shopName;
-
-  // Nav account
-  var avatar = document.getElementById('navAvatar');
-  var accountName = document.getElementById('navAccountName');
-  if (avatar) avatar.textContent = shopName.charAt(0).toUpperCase();
-  if (accountName) accountName.textContent = shopName;
+  if (convsSub) convsSub.textContent = 'All SMS threads \u2014 ' + months[now.getMonth()] + ' ' + now.getFullYear();
 
   // Since-activation block
   var totalAppts = s.total_appointments || 0;
@@ -3147,9 +3163,7 @@ function renderLiveRevenueBlocks() {
   var rps = document.getElementById('revPlanSub');
   if (rps) rps.textContent = tenantState.status.replace(/_/g, ' ');
 
-  // Sidebar shop name
-  var sidebarShop = document.getElementById('sidebarShopName');
-  if (sidebarShop) sidebarShop.textContent = shopName;
+  // Sidebar shop name — handled by applyTenantName()
 
   // Analytics activity card
   var actBody = document.getElementById('analyticsActivityBody');
@@ -3890,15 +3904,24 @@ function updateSidebarBadge() {
         window.location.href = 'login.html';
       });
     });
-    // Show shop name from session
-    var session = JSON.parse(localStorage.getItem('autoshop_session') || '{}');
-    if (session.shopName) {
-      var el = document.querySelector('.nav-shop');
-      if (el) el.textContent = session.shopName;
-      var avatar = document.querySelector('.nav-avatar');
-      if (avatar) avatar.textContent = session.initials || 'D';
-      var name = document.querySelector('.nav-account-name');
-      if (name) name.textContent = session.shopName || session.name || 'User';
+    // Apply tenant name on load
+    applyTenantName();
+
+    // Settings: save tenant name
+    var saveBtn = document.getElementById('save-settings-btn');
+    var nameInput = document.getElementById('shop-name-input');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', function() {
+        if (nameInput) {
+          var val = nameInput.value.trim();
+          if (val) {
+            localStorage.setItem('tenant_name', val);
+            tenantState.shopName = val;
+            applyTenantName();
+          }
+        }
+        showToast('Shop profile saved.');
+      });
     }
   });
 })();
