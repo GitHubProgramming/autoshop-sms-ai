@@ -912,7 +912,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
     </div>
   </div>
   <div class="nav-right">
-    <a href="#" onclick="switchView('billing');return false;" class="btn-upgrade" style="font-size:12px;padding:7px 18px;border-radius:8px;background:linear-gradient(135deg,#2563EB,#7C3AED);box-shadow:0 2px 8px rgba(37,99,235,.25);">Upgrade Plan</a>
+    <a href="#" id="headerUpgradeBtn" onclick="switchView('billing');return false;" class="btn-upgrade" style="font-size:12px;padding:7px 18px;border-radius:8px;background:linear-gradient(135deg,#2563EB,#7C3AED);box-shadow:0 2px 8px rgba(37,99,235,.25);">Upgrade Plan</a>
     <div class="nav-account">
       <div class="nav-avatar" id="navAvatar">?</div>
       <span class="nav-account-name" id="navAccountName">—</span>
@@ -2065,16 +2065,38 @@ function renderBanners() {
   const s = tenantState;
   let html = '';
   const isSuspended = ['suspended','canceled','trial_expired'].includes(s.status);
+  const headerBtn = document.getElementById('headerUpgradeBtn');
 
   if (isSuspended) {
+    // State 4: Suspended / canceled / trial_expired — show banner CTA only, hide header CTA
     const msgs = { suspended:'Your account has been suspended. Service is paused — no new conversations will be started.', canceled:'Your subscription is canceled. Reactivate to resume missed-call recovery.', trial_expired:'Your trial has expired. Upgrade to continue recovering missed-call revenue.' };
     html += `<div class="banner paused"><div class="banner-left"><span class="banner-label red">⚠ Service Paused</span><span class="banner-msg red">${msgs[s.status]}</span></div><a href="#" onclick="switchView('billing');return false;" class="btn-upgrade red">Reactivate Now</a></div>`;
+    if (headerBtn) headerBtn.style.display = 'none';
   } else if (s.plan === 'trial') {
+    // Trial states — hide header CTA, show banner CTA only
+    if (headerBtn) headerBtn.style.display = 'none';
     const limit = s.trialLimit;
+    const remaining = limit - s.convUsed;
     const pct = Math.round((s.convUsed / limit) * 100);
-    html += `<div class="banner trial"><div class="banner-left"><span class="banner-label rust">14-Day Trial</span><div style="display:flex;align-items:center;gap:10px;"><div class="banner-bar-bg"><div class="banner-bar-fill" style="width:${pct}%;background:linear-gradient(90deg,var(--rust),var(--amber));"></div></div><span class="banner-count"><strong>${s.convUsed}</strong> / ${limit} conversations used</span></div><span class="banner-days">Ends ${s.trialEndsAt}</span></div><a href="#" onclick="switchView('billing');return false;" class="btn-upgrade">Upgrade Now</a></div>`;
+    // Compute days remaining from trialEndsAt
+    let daysRemaining = 0;
+    if (s.trialEndsAt) {
+      const diff = new Date(s.trialEndsAt + 'T23:59:59') - new Date();
+      daysRemaining = Math.max(0, Math.ceil(diff / 86400000));
+    }
+    if (pct >= 80) {
+      // State 2: Near-limit trial (>=80% used)
+      html += `<div class="banner trial"><div class="banner-left"><span class="banner-label red">Almost out of conversations — ${s.convUsed}/${limit} used</span><span class="banner-msg red">Upgrade to keep responding to customers</span></div><a href="#" onclick="switchView('billing');return false;" class="btn-upgrade">Upgrade Plan</a></div>`;
+    } else {
+      // State 1: Normal trial
+      html += `<div class="banner trial"><div class="banner-left"><span class="banner-label rust">Free Trial &middot; ${remaining} conversations left</span><span class="banner-days">${daysRemaining} days remaining</span></div><a href="#" onclick="switchView('billing');return false;" class="btn-upgrade">Upgrade Now</a></div>`;
+    }
   } else if (s.status === 'past_due') {
     html += `<div class="banner warning-80"><div class="banner-left"><span class="banner-label amber">Payment Past Due</span><span class="banner-msg amber">Update your payment method to prevent service interruption.</span></div><a href="#" onclick="openBillingPortal();return false;" class="btn-upgrade amber">Update Payment</a></div>`;
+    if (headerBtn) { headerBtn.style.display = 'inline-block'; headerBtn.textContent = 'Manage Plan'; }
+  } else {
+    // State 3: Paid — no trial banner, show header CTA as "Manage Plan"
+    if (headerBtn) { headerBtn.style.display = 'inline-block'; headerBtn.textContent = 'Manage Plan'; }
   }
 
   // Usage warnings (paid only)
