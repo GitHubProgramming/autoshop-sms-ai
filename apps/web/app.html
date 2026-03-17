@@ -1007,53 +1007,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
       <!-- ── 1. KPI ROW (4 cards) ── -->
       <div class="kpi-grid" id="kpiGrid"></div>
 
-      <!-- ── 2. REVENUE INTELLIGENCE HERO (full-width) ── -->
-      <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:0 2px 8px rgba(0,0,0,.05);margin-bottom:28px;overflow:hidden;">
-        <div style="padding:28px 28px 0;display:flex;align-items:flex-start;justify-content:space-between;">
-          <div>
-            <div style="font-size:22px;font-weight:700;color:var(--text);letter-spacing:-.02em;">Revenue Intelligence</div>
-            <div style="font-size:13px;color:var(--text-tertiary);margin-top:5px;">Real-time performance metrics and AI-driven customer engagement</div>
-          </div>
-          <div class="chart-trend" id="dashRevTrend" style="padding:6px 14px;background:#ECFDF5;border-radius:8px;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-            <span id="dashRevTrendText">+18.2% vs last week</span>
-          </div>
-        </div>
-        <div style="height:240px;padding:20px 28px 0;position:relative;overflow:hidden;">
-          <svg class="chart-svg" viewBox="0 0 800 200" preserveAspectRatio="none" style="height:100%;width:100%;">
-            <defs>
-              <linearGradient id="dcg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2563EB" stop-opacity="0.18"/><stop offset="100%" stop-color="#2563EB" stop-opacity="0.01"/></linearGradient>
-              <linearGradient id="dcg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#10B981" stop-opacity="0.08"/><stop offset="100%" stop-color="#10B981" stop-opacity="0"/></linearGradient>
-            </defs>
-            <line x1="0" y1="40" x2="800" y2="40" stroke="rgba(0,0,0,.03)" stroke-width="1"/>
-            <line x1="0" y1="80" x2="800" y2="80" stroke="rgba(0,0,0,.03)" stroke-width="1"/>
-            <line x1="0" y1="120" x2="800" y2="120" stroke="rgba(0,0,0,.03)" stroke-width="1"/>
-            <line x1="0" y1="160" x2="800" y2="160" stroke="rgba(0,0,0,.03)" stroke-width="1"/>
-            <!-- Target line (dashed) -->
-            <path d="M0,160 C100,155 200,140 300,125 C400,110 500,100 600,90 C700,80 800,72 800,72" fill="none" stroke="#10B981" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.5"/>
-            <!-- Revenue area -->
-            <path d="M0,165 C50,155 80,130 130,110 C180,90 200,80 250,85 C300,90 320,60 380,45 C440,30 460,55 520,65 C580,80 600,38 650,28 C700,20 740,42 800,35 L800,200 L0,200 Z" fill="url(#dcg)"/>
-            <path d="M0,165 C50,155 80,130 130,110 C180,90 200,80 250,85 C300,90 320,60 380,45 C440,30 460,55 520,65 C580,80 600,38 650,28 C700,20 740,42 800,35" fill="none" stroke="#2563EB" stroke-width="2.5"/>
-            <!-- Data points -->
-            <circle cx="130" cy="110" r="4" fill="#fff" stroke="#2563EB" stroke-width="2"/>
-            <circle cx="380" cy="45" r="4" fill="#fff" stroke="#2563EB" stroke-width="2"/>
-            <circle cx="650" cy="28" r="5" fill="#2563EB"/>
-            <circle cx="800" cy="35" r="5" fill="#2563EB"/>
-          </svg>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid var(--border);margin-top:8px;">
-          <div style="padding:20px 28px;border-right:1px solid var(--border);">
-            <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:6px;">Recovered Revenue</div>
-            <div style="font-size:26px;font-weight:700;color:var(--text);letter-spacing:-.02em;" id="dashRevRecovered">$24,580</div>
-          </div>
-          <div style="padding:20px 28px;">
-            <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:6px;">Avg. Booking Value</div>
-            <div style="font-size:26px;font-weight:700;color:#059669;letter-spacing:-.02em;" id="dashAvgBooking">$540</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── 3. LIVE CONVERSATIONS + TODAY'S APPOINTMENTS (70/30 grid) ── -->
+      <!-- ── 2. LIVE CONVERSATIONS + TODAY'S APPOINTMENTS (2/3 + 1/3 grid) ── -->
       <div class="dash-body">
         <div class="log-wrap">
           <div class="log-header" style="border-bottom:1px solid var(--border);padding:20px 24px;">
@@ -1082,14 +1036,57 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
         </div>
       </div>
 
-      <!-- ── 4. SYSTEM STATUS (de-emphasized, compact) ── -->
-      <div style="margin-top:8px;">
-        <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:0 1px 2px rgba(0,0,0,.03);overflow:hidden;">
-          <div style="padding:14px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
-            <div style="font-size:13px;font-weight:600;color:var(--text-tertiary);">System Status</div>
-            <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:#10B981;"><div style="width:6px;height:6px;background:#10B981;border-radius:50%;animation:pulse-g 2s infinite;"></div>All Systems Operational</div>
+      <!-- ── 3. REVENUE ANALYTICS + SYSTEM STATUS (2/3 + 1/3 grid) ── -->
+      <div class="dash-body">
+        <!-- Revenue Analytics -->
+        <div class="log-wrap" style="overflow:hidden;">
+          <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+            <div class="log-title" style="font-size:16px;font-weight:700;">Revenue Analytics</div>
+            <div class="chart-trend" id="dashRevTrend" style="padding:6px 14px;background:#ECFDF5;border-radius:8px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+              <span id="dashRevTrendText">+18.2% vs last week</span>
+            </div>
           </div>
-          <div style="padding:4px 24px 8px;" id="healthGrid"></div>
+          <div style="height:280px;padding:20px 24px 0;position:relative;overflow:hidden;">
+            <svg class="chart-svg" viewBox="0 0 800 200" preserveAspectRatio="none" style="height:100%;width:100%;">
+              <defs>
+                <linearGradient id="dcg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2563EB" stop-opacity="0.18"/><stop offset="100%" stop-color="#2563EB" stop-opacity="0.01"/></linearGradient>
+                <linearGradient id="dcg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#10B981" stop-opacity="0.08"/><stop offset="100%" stop-color="#10B981" stop-opacity="0"/></linearGradient>
+              </defs>
+              <line x1="0" y1="40" x2="800" y2="40" stroke="rgba(0,0,0,.03)" stroke-width="1"/>
+              <line x1="0" y1="80" x2="800" y2="80" stroke="rgba(0,0,0,.03)" stroke-width="1"/>
+              <line x1="0" y1="120" x2="800" y2="120" stroke="rgba(0,0,0,.03)" stroke-width="1"/>
+              <line x1="0" y1="160" x2="800" y2="160" stroke="rgba(0,0,0,.03)" stroke-width="1"/>
+              <!-- Target line (dashed) -->
+              <path d="M0,160 C100,155 200,140 300,125 C400,110 500,100 600,90 C700,80 800,72 800,72" fill="none" stroke="#10B981" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.5"/>
+              <!-- Revenue area -->
+              <path d="M0,165 C50,155 80,130 130,110 C180,90 200,80 250,85 C300,90 320,60 380,45 C440,30 460,55 520,65 C580,80 600,38 650,28 C700,20 740,42 800,35 L800,200 L0,200 Z" fill="url(#dcg)"/>
+              <path d="M0,165 C50,155 80,130 130,110 C180,90 200,80 250,85 C300,90 320,60 380,45 C440,30 460,55 520,65 C580,80 600,38 650,28 C700,20 740,42 800,35" fill="none" stroke="#2563EB" stroke-width="2.5"/>
+              <!-- Data points -->
+              <circle cx="130" cy="110" r="4" fill="#fff" stroke="#2563EB" stroke-width="2"/>
+              <circle cx="380" cy="45" r="4" fill="#fff" stroke="#2563EB" stroke-width="2"/>
+              <circle cx="650" cy="28" r="5" fill="#2563EB"/>
+              <circle cx="800" cy="35" r="5" fill="#2563EB"/>
+            </svg>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid var(--border);margin-top:8px;">
+            <div style="padding:16px 24px;border-right:1px solid var(--border);">
+              <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:4px;">Recovered Revenue</div>
+              <div style="font-size:22px;font-weight:700;color:var(--text);letter-spacing:-.02em;" id="dashRevRecovered">$24,580</div>
+            </div>
+            <div style="padding:16px 24px;">
+              <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:4px;">Avg. Booking Value</div>
+              <div style="font-size:22px;font-weight:700;color:#059669;letter-spacing:-.02em;" id="dashAvgBooking">$540</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- System Status -->
+        <div class="log-wrap">
+          <div style="padding:20px 24px;border-bottom:1px solid var(--border);">
+            <div class="log-title" style="font-size:16px;font-weight:700;">System Status</div>
+          </div>
+          <div style="padding:16px 24px;" id="healthGrid"></div>
         </div>
       </div>
     </div>
@@ -2239,20 +2236,22 @@ function renderHealthGrid() {
     { name: 'Analytics Engine', label: 'Analytics Engine', status: h.queue.status, uptime: '100%' }
   ];
 
-  let html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;">';
+  let html = '<div style="display:flex;flex-direction:column;gap:0;">';
   cells.forEach(function(cell, i) {
-    var border = i < 3 ? 'border-right:1px solid var(--border);' : '';
     var isOk = cell.status === 'ok' || cell.status === 'connected' || cell.status === 'operational' || cell.status === 'healthy';
     var dotColor = isOk ? '#10B981' : '#F59E0B';
     var statusText = isOk ? 'Operational' : 'Degraded';
     var statusColor = isOk ? '#10B981' : '#F59E0B';
-    html += '<div style="padding:12px 16px;' + border + 'display:flex;align-items:center;gap:10px;">' +
-      '<div style="width:6px;height:6px;background:' + dotColor + ';border-radius:50%;flex-shrink:0;"></div>' +
-      '<div style="flex:1;">' +
-        '<div style="font-size:12px;font-weight:600;color:var(--text);">' + cell.name + '</div>' +
-        '<div style="font-size:11px;color:' + statusColor + ';font-weight:500;">' + statusText + '</div>' +
+    var borderBottom = i < cells.length - 1 ? 'border-bottom:1px solid var(--border);' : '';
+    html += '<div style="padding:14px 0;' + borderBottom + '">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">' +
+        '<div style="font-size:13px;font-weight:600;color:var(--text);">' + cell.name + '</div>' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="' + dotColor + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>' +
       '</div>' +
-      '<div style="font-size:11px;font-weight:600;color:var(--text-tertiary);">' + cell.uptime + '</div>' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+        '<span style="font-size:11px;color:' + statusColor + ';font-weight:500;">' + statusText + '</span>' +
+        '<span style="font-size:11px;color:var(--text-tertiary);">' + cell.uptime + ' uptime</span>' +
+      '</div>' +
     '</div>';
   });
   html += '</div>';
