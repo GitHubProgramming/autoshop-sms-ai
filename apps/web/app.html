@@ -2212,10 +2212,13 @@ function renderChecklist() {
     </div>`;
   });
 
-  document.getElementById('checklistSteps').innerHTML = html;
-  document.getElementById('checklistDone').textContent = done;
-  if (done === 4) {
-    document.getElementById('checklistCard').style.borderColor = 'rgba(34,197,94,0.3)';
+  var elSteps = document.getElementById('checklistSteps');
+  var elDone = document.getElementById('checklistDone');
+  var elCard = document.getElementById('checklistCard');
+  if (elSteps) elSteps.innerHTML = html;
+  if (elDone) elDone.textContent = done;
+  if (done === 4 && elCard) {
+    elCard.style.borderColor = 'rgba(34,197,94,0.3)';
   }
 }
 
@@ -3073,26 +3076,27 @@ function checkActivationState() {
     s.testSms        === 'passed'
   ];
   const completed = steps.filter(Boolean).length;
+  var elWrapper = document.getElementById('checklistWrapper');
+  var elComplete = document.getElementById('activationComplete');
   if (completed === 4) {
-    document.getElementById('checklistWrapper').style.display = 'none';
-    document.getElementById('activationComplete').classList.remove('hidden');
+    if (elWrapper) elWrapper.style.display = 'none';
+    if (elComplete) elComplete.classList.remove('hidden');
   } else {
-    document.getElementById('checklistWrapper').style.display = '';
-    document.getElementById('activationComplete').classList.add('hidden');
+    if (elWrapper) elWrapper.style.display = '';
+    if (elComplete) elComplete.classList.add('hidden');
   }
 }
 
 function toggleChecklist() {
   const w = document.getElementById('checklistWrapper');
   const btn = document.querySelector('#activationComplete .btn-sm');
-  const visible = w.style.display !== 'none' && w.style.display !== '';
-  // If it was hidden (post-completion), show it now as expanded
+  if (!w) return;
   if (w.style.display === 'none') {
     w.style.display = '';
-    btn.textContent = 'Hide Checklist';
+    if (btn) btn.textContent = 'Hide Checklist';
   } else {
     w.style.display = 'none';
-    btn.textContent = 'View Setup Checklist';
+    if (btn) btn.textContent = 'View Setup Checklist';
   }
 }
 
