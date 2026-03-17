@@ -1042,37 +1042,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
               <span id="dashRevTrendText">Revenue trend</span>
             </div>
           </div>
-          <div style="height:280px;padding:20px 24px 30px;position:relative;overflow:visible;">
-            <!-- Y-axis labels -->
-            <div style="position:absolute;left:0;top:20px;bottom:30px;width:44px;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none;">
-              <span style="font-size:11px;color:var(--text-tertiary);text-align:right;padding-right:8px;">$26k</span>
-              <span style="font-size:11px;color:var(--text-tertiary);text-align:right;padding-right:8px;">$20k</span>
-              <span style="font-size:11px;color:var(--text-tertiary);text-align:right;padding-right:8px;">$13k</span>
-              <span style="font-size:11px;color:var(--text-tertiary);text-align:right;padding-right:8px;">$7k</span>
-              <span style="font-size:11px;color:var(--text-tertiary);text-align:right;padding-right:8px;">$0k</span>
-            </div>
-            <svg class="chart-svg" viewBox="0 0 800 200" preserveAspectRatio="none" style="height:100%;width:100%;margin-left:20px;">
-              <defs>
-                <linearGradient id="dcg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2563EB" stop-opacity="0.18"/><stop offset="100%" stop-color="#2563EB" stop-opacity="0.01"/></linearGradient>
-              </defs>
-              <line x1="0" y1="40" x2="800" y2="40" stroke="rgba(0,0,0,.03)" stroke-width="1"/>
-              <line x1="0" y1="80" x2="800" y2="80" stroke="rgba(0,0,0,.03)" stroke-width="1"/>
-              <line x1="0" y1="120" x2="800" y2="120" stroke="rgba(0,0,0,.03)" stroke-width="1"/>
-              <line x1="0" y1="160" x2="800" y2="160" stroke="rgba(0,0,0,.03)" stroke-width="1"/>
-              <!-- Revenue line -->
-              <path d="M0,165 C60,160 100,150 130,145 C200,135 250,130 300,125 C350,120 400,110 450,95 C500,80 550,55 600,40 C650,30 700,25 750,22 C780,20 800,20 800,20 L800,200 L0,200 Z" fill="url(#dcg)"/>
-              <path d="M0,165 C60,160 100,150 130,145 C200,135 250,130 300,125 C350,120 400,110 450,95 C500,80 550,55 600,40 C650,30 700,25 750,22 C780,20 800,20 800,20" fill="none" stroke="#2563EB" stroke-width="2.5"/>
-            </svg>
-            <!-- X-axis labels -->
-            <div style="display:flex;justify-content:space-between;padding:6px 0 0 44px;">
-              <span style="font-size:11px;color:var(--text-tertiary);">Mar 10</span>
-              <span style="font-size:11px;color:var(--text-tertiary);">Mar 11</span>
-              <span style="font-size:11px;color:var(--text-tertiary);">Mar 12</span>
-              <span style="font-size:11px;color:var(--text-tertiary);">Mar 13</span>
-              <span style="font-size:11px;color:var(--text-tertiary);">Mar 14</span>
-              <span style="font-size:11px;color:var(--text-tertiary);">Mar 15</span>
-              <span style="font-size:11px;color:var(--text-tertiary);">Mar 16</span>
-            </div>
+          <div id="revenueChartContainer" style="height:280px;padding:20px 24px 30px;position:relative;overflow:visible;">
+            <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-tertiary);font-size:14px;">Loading chart…</div>
           </div>
         </div>
 
@@ -1938,6 +1909,105 @@ async function loadKpiData() {
 }
 
 // ════════════════════════════════════════════
+// REVENUE CHART — real daily data
+// ════════════════════════════════════════════
+async function loadRevenueChart() {
+  var container = document.getElementById('revenueChartContainer');
+  if (!container) return;
+  var token = localStorage.getItem('autoshop_jwt');
+  if (!token) return;
+
+  try {
+    var res = await fetch('/tenant/kpi/daily-revenue', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) throw new Error('fetch failed');
+    var data = await res.json();
+    var days = data.days || [];
+
+    // Check if there is any revenue at all
+    var hasRevenue = days.some(function(d) { return d.total > 0; });
+    if (!hasRevenue) {
+      container.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-tertiary);gap:8px;">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:32px;height:32px;opacity:0.4;"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 5-5"/></svg>' +
+        '<div style="font-size:14px;">No revenue chart data yet</div>' +
+        '<div style="font-size:12px;opacity:0.7;">Complete appointments to build trends</div>' +
+      '</div>';
+      return;
+    }
+
+    // Build chart from real data
+    var maxVal = Math.max.apply(null, days.map(function(d) { return d.total; }));
+    if (maxVal === 0) maxVal = 1;
+    var chartH = 200;
+    var chartW = 800;
+    var padTop = 10;
+    var usable = chartH - padTop;
+
+    // Y-axis labels (5 ticks from 0 to maxVal)
+    var yLabels = '';
+    for (var i = 4; i >= 0; i--) {
+      var val = Math.round((maxVal * i) / 4);
+      var label = val >= 1000 ? ('$' + Math.round(val / 1000) + 'k') : ('$' + val);
+      yLabels += '<span style="font-size:11px;color:var(--text-tertiary);text-align:right;padding-right:8px;">' + label + '</span>';
+    }
+
+    // SVG points
+    var points = [];
+    for (var j = 0; j < days.length; j++) {
+      var x = days.length > 1 ? (j / (days.length - 1)) * chartW : chartW / 2;
+      var y = padTop + usable - (days[j].total / maxVal) * usable;
+      points.push({ x: x, y: y });
+    }
+
+    // Build line path
+    var linePath = 'M' + points[0].x + ',' + points[0].y;
+    for (var p = 1; p < points.length; p++) {
+      linePath += ' L' + points[p].x + ',' + points[p].y;
+    }
+    // Area path (close to bottom)
+    var areaPath = linePath + ' L' + points[points.length - 1].x + ',' + chartH + ' L' + points[0].x + ',' + chartH + ' Z';
+
+    // Grid lines
+    var gridLines = '';
+    for (var g = 1; g <= 4; g++) {
+      var gy = padTop + (usable * g) / 4;
+      gridLines += '<line x1="0" y1="' + gy + '" x2="' + chartW + '" y2="' + gy + '" stroke="rgba(0,0,0,.03)" stroke-width="1"/>';
+    }
+
+    // X-axis date labels
+    var xLabels = '';
+    var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    for (var d = 0; d < days.length; d++) {
+      var parts = days[d].date.split('-');
+      var mon = parseInt(parts[1], 10) - 1;
+      var day = parseInt(parts[2], 10);
+      xLabels += '<span style="font-size:11px;color:var(--text-tertiary);">' + monthNames[mon] + ' ' + day + '</span>';
+    }
+
+    // Dot markers
+    var dots = '';
+    for (var m = 0; m < points.length; m++) {
+      dots += '<circle cx="' + points[m].x + '" cy="' + points[m].y + '" r="3" fill="#2563EB"/>';
+    }
+
+    container.innerHTML =
+      '<div style="position:absolute;left:0;top:20px;bottom:30px;width:44px;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none;">' + yLabels + '</div>' +
+      '<svg viewBox="0 0 ' + chartW + ' ' + chartH + '" preserveAspectRatio="none" style="height:100%;width:100%;margin-left:20px;">' +
+        '<defs><linearGradient id="dcg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2563EB" stop-opacity="0.18"/><stop offset="100%" stop-color="#2563EB" stop-opacity="0.01"/></linearGradient></defs>' +
+        gridLines +
+        '<path d="' + areaPath + '" fill="url(#dcg)"/>' +
+        '<path d="' + linePath + '" fill="none" stroke="#2563EB" stroke-width="2.5"/>' +
+        dots +
+      '</svg>' +
+      '<div style="display:flex;justify-content:space-between;padding:6px 0 0 44px;">' + xLabels + '</div>';
+  } catch (err) {
+    console.error('Revenue chart load failed:', err);
+    container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-tertiary);font-size:14px;">Unable to load chart data</div>';
+  }
+}
+
+// ════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', async function() {
@@ -1959,6 +2029,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   renderLiveKPIs();
   renderLivePipeline();
   renderLiveRevenueBlocks();
+  loadRevenueChart();
   renderActionNeeded();
   renderTodayAppointments();
   renderCustomers();
