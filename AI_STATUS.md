@@ -9,6 +9,71 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: real-data-model — 2026-03-17
+
+**Branch:** ai/real-data-model
+**Status:** COMPLETE — Real data model, KPI endpoints, fake data removal
+
+### Selected Task
+Implement real database tables (customers, vehicles, tenant_services, bookings) with proper pricing fields, create KPI endpoints that compute revenue from real data only, and remove all hardcoded/demo KPI values from the frontend.
+
+### Why This Is Highest Leverage
+Dashboard was showing fake numbers ($24,580, 94.2%, +18.2%, etc.) which creates false success signals. Revenue must come from real `final_price` on completed bookings only.
+
+### Changes
+1. **Migration `019_real_data_model.sql`** — New tables: customers, vehicles, tenant_services, bookings with pricing fields (estimated_price, quoted_price, final_price), booking_source/status tracking, proper indexes, RLS policies
+2. **`apps/api/src/routes/tenant/kpi.ts`** — New endpoints:
+   - GET /tenant/kpi/recovered-revenue (AI/SMS recovery revenue, 30d)
+   - GET /tenant/kpi/total-revenue (all sources, 30d)
+   - GET /tenant/kpi/summary (combined KPI for dashboard)
+   - GET /tenant/customers/list (real customer data with aggregated stats)
+   - PATCH /tenant/bookings/:id/complete (set final_price on completion)
+3. **`apps/api/src/index.ts`** — Registered new KPI routes
+4. **`apps/web/app.html`** — Removed ALL fake KPI values:
+   - Removed: $24,580, +18.2%, +12.5%, 94.2%, +5.1%, $540 ARO, 127, 43
+   - Removed: demo conversation cards (John Martinez, Sarah Johnson, Mike Chen)
+   - Removed: demo appointment cards (Robert Williams, Lisa Anderson, etc.)
+   - Replaced with: real API data from /tenant/kpi/summary
+   - Added: proper empty states when no data exists
+5. **`apps/api/src/tests/kpi.test.ts`** — 13 new tests covering all KPI endpoints, empty state, real data, no-fake-values assertion
+
+### Fake Values Removed
+| Value | Location | Replaced With |
+|-------|----------|---------------|
+| $24,580 | KPI card "Recovered Revenue" | Real SUM(final_price) from bookings |
+| +18.2% | KPI change metric | Real period-over-period comparison |
+| +12.5% | KPI change metric | Real booking count |
+| 94.2% | Capture rate (hardcoded) | Real captured/total from conversations |
+| +5.1% | Capture change | Real conversation count |
+| $540 ARO | Default revenue multiplier | Removed — only final_price used |
+| 127 | Fallback appointment count | Real COUNT from bookings |
+| 43 | Fallback conversation count | Real COUNT from conversations |
+| Demo conversations | John Martinez, Sarah Johnson, Mike Chen | Empty state message |
+| Demo appointments | Robert Williams, Lisa Anderson, etc. | Empty state message |
+
+### Price Flow
+1. tenant_services holds default_price per service
+2. Booking creation may copy default_price as estimated_price
+3. After service completion: PATCH /tenant/bookings/:id/complete sets final_price
+4. KPI uses ONLY: final_price WHERE booking_status = 'completed'
+
+### Verification
+```
+VERIFICATION
+EXIT_CODE=0
+TEST_FILES=25
+TESTS_TOTAL=387
+TESTS_FAILED=0
+DURATION=8.53s
+```
+- kpi.test.ts: 13/13 passed
+- Full suite: 387/387 passed (25 test files)
+- TypeScript: compiles clean (0 errors)
+
+REAL DATA FLOW: OK
+
+---
+
 ## TASK: tenant-health-monitoring — 2026-03-16
 
 **Branch:** ai/tenant-health-monitoring
