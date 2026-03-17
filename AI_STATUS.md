@@ -9,6 +9,29 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: dashboard-kpi-customers-analytics-fix — 2026-03-17
+
+**Branch:** ai/dashboard-kpi-customers-analytics-fix
+**Status:** COMPLETE — Dashboard wiring fixes: KPI refresh after completion, real customer API, analytics de-faked
+
+### Changes
+1. **KPI refresh after appointment completion** — `submitCompleteAppointment()` now calls `loadKpiData()` + re-renders `renderLiveKPIs()`, `renderLiveRevenueBlocks()`, `renderLivePipeline()` instead of broken `loadKpiSummary()` (function did not exist)
+2. **Customers table wired to `/tenant/customers/list`** — fetches real customer rows from API with `total_spent`, `last_visit`, `appointments_count` instead of deriving locally from conversationsData/bookingsData with hardcoded `totalSpent: 0`
+3. **Analytics page de-faked** — removed all hardcoded demo values:
+   - Revenue Per Booking: was `$193` → now computed from real KPI data or shows `—`
+   - Avg Response Time: was `2.4s` → now shows `—` (no API source)
+   - Revenue Trend chart: was fake $45k-$90k chart → now shows real total or empty state
+   - AI Performance chart: was fake weekly bars → now shows real conversation/booking counts
+   - Booking Sources donut: was fake 68%/22%/10% → now shows real AI vs manual ratio
+   - Conversation Volume: was fake daily line chart → now shows real monthly count or empty state
+   - All `+X% vs last period` fake change badges removed
+
+### Verification
+- 389/389 tests passed (25 test files, 12.01s)
+- Pre-existing lint error (prefer-const in test file) — not from this change
+
+---
+
 ## TASK: kpi-appointments-stabilization — 2026-03-17
 
 **Branch:** ai/kpi-appointments-stabilization

@@ -1318,17 +1318,17 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
           <div class="an-kpi-icon amber">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           </div>
-          <div class="an-kpi-val" id="anKpiRevenue">$193</div>
+          <div class="an-kpi-val" id="anKpiRevenue">—</div>
           <div class="an-kpi-label">Revenue Per Booking</div>
-          <div class="an-kpi-change">+8.2% vs last period</div>
+          <div class="an-kpi-change" id="anKpiRevenueChange">No data yet</div>
         </div>
         <div class="an-kpi fade-in">
           <div class="an-kpi-icon purple">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
           </div>
-          <div class="an-kpi-val">2.4s</div>
+          <div class="an-kpi-val" id="anKpiResponseTime">—</div>
           <div class="an-kpi-label">Avg Response Time</div>
-          <div class="an-kpi-change">-0.8s vs last period</div>
+          <div class="an-kpi-change" id="anKpiResponseTimeChange">No data yet</div>
         </div>
       </div>
 
@@ -1337,51 +1337,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
         <div class="an-card-head">
           <div>
             <div class="an-card-title">Revenue Trend</div>
-            <div class="an-card-sub">Monthly revenue vs target performance</div>
+            <div class="an-card-sub">Monthly revenue from completed appointments</div>
           </div>
-          <div class="an-trend-badge">
+          <div class="an-trend-badge" id="anRevTrendBadge" style="display:none;">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-            <span>+18.7% vs target</span>
+            <span id="anRevTrendBadgeText"></span>
           </div>
         </div>
-        <div class="an-chart-area">
-          <svg viewBox="0 0 800 200" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="anRevGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stop-color="#2563EB" stop-opacity="0.12"/><stop offset="95%" stop-color="#2563EB" stop-opacity="0"/></linearGradient>
-              <linearGradient id="anTargetGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stop-color="#10B981" stop-opacity="0.08"/><stop offset="95%" stop-color="#10B981" stop-opacity="0"/></linearGradient>
-            </defs>
-            <!-- Grid lines -->
-            <line x1="0" y1="40" x2="800" y2="40" stroke="#E5E7EB" stroke-width="1"/>
-            <line x1="0" y1="80" x2="800" y2="80" stroke="#E5E7EB" stroke-width="1"/>
-            <line x1="0" y1="120" x2="800" y2="120" stroke="#E5E7EB" stroke-width="1"/>
-            <line x1="0" y1="160" x2="800" y2="160" stroke="#E5E7EB" stroke-width="1"/>
-            <!-- Y-axis labels -->
-            <text x="5" y="44" fill="#64748B" font-size="11" font-family="Inter,sans-serif">$90k</text>
-            <text x="5" y="84" fill="#64748B" font-size="11" font-family="Inter,sans-serif">$75k</text>
-            <text x="5" y="124" fill="#64748B" font-size="11" font-family="Inter,sans-serif">$60k</text>
-            <text x="5" y="164" fill="#64748B" font-size="11" font-family="Inter,sans-serif">$45k</text>
-            <!-- X-axis labels -->
-            <text x="80" y="195" fill="#64748B" font-size="11" font-family="Inter,sans-serif" text-anchor="middle">Oct</text>
-            <text x="224" y="195" fill="#64748B" font-size="11" font-family="Inter,sans-serif" text-anchor="middle">Nov</text>
-            <text x="368" y="195" fill="#64748B" font-size="11" font-family="Inter,sans-serif" text-anchor="middle">Dec</text>
-            <text x="512" y="195" fill="#64748B" font-size="11" font-family="Inter,sans-serif" text-anchor="middle">Jan</text>
-            <text x="656" y="195" fill="#64748B" font-size="11" font-family="Inter,sans-serif" text-anchor="middle">Feb</text>
-            <text x="780" y="195" fill="#64748B" font-size="11" font-family="Inter,sans-serif" text-anchor="middle">Mar</text>
-            <!-- Target area (dashed) -->
-            <path d="M80,160 L224,140 L368,120 L512,100 L656,80 L780,60 L780,180 L80,180 Z" fill="url(#anTargetGrad)"/>
-            <path d="M80,160 L224,140 L368,120 L512,100 L656,80 L780,60" fill="none" stroke="#10B981" stroke-width="2" stroke-dasharray="6 4"/>
-            <!-- Revenue area -->
-            <path d="M80,152 L224,132 L368,108 L512,84 L656,62 L780,30 L780,180 L80,180 Z" fill="url(#anRevGrad)"/>
-            <path d="M80,152 L224,132 L368,108 L512,84 L656,62 L780,30" fill="none" stroke="#2563EB" stroke-width="2.5"/>
-            <!-- Data points -->
-            <circle cx="80" cy="152" r="4" fill="#2563EB"/><circle cx="224" cy="132" r="4" fill="#2563EB"/>
-            <circle cx="368" cy="108" r="4" fill="#2563EB"/><circle cx="512" cy="84" r="4" fill="#2563EB"/>
-            <circle cx="656" cy="62" r="4" fill="#2563EB"/><circle cx="780" cy="30" r="4" fill="#2563EB"/>
-          </svg>
-        </div>
-        <div class="an-legend">
-          <div class="an-legend-item"><div class="an-legend-dot" style="background:#2563EB;"></div>Actual Revenue</div>
-          <div class="an-legend-item"><div class="an-legend-dot" style="background:#10B981;"></div>Target</div>
+        <div id="anRevTrendBody" style="padding:40px 0;text-align:center;color:#94A3B8;font-size:14px;">
+          No revenue data yet. Complete appointments to see trends.
         </div>
       </div>
 
@@ -1392,51 +1356,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
           <div class="an-card-head">
             <div>
               <div class="an-card-title">AI Performance & Conversion</div>
-              <div class="an-card-sub">Weekly call capture and booking conversion rates</div>
+              <div class="an-card-sub">Conversation capture and booking conversion</div>
             </div>
           </div>
-          <div style="height:220px;display:flex;align-items:flex-end;gap:0;padding:0 8px;">
-            <!-- Week 1 -->
-            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
-              <div style="display:flex;align-items:flex-end;gap:3px;height:180px;">
-                <div class="an-bar" style="width:16px;height:75%;background:#F59E0B;opacity:.85;"></div>
-                <div class="an-bar" style="width:16px;height:70%;background:#2563EB;"></div>
-                <div class="an-bar" style="width:16px;height:63%;background:#10B981;"></div>
-              </div>
-              <span style="font-size:11px;color:#64748B;">Week 1</span>
-            </div>
-            <!-- Week 2 -->
-            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
-              <div style="display:flex;align-items:flex-end;gap:3px;height:180px;">
-                <div class="an-bar" style="width:16px;height:87%;background:#F59E0B;opacity:.85;"></div>
-                <div class="an-bar" style="width:16px;height:82%;background:#2563EB;"></div>
-                <div class="an-bar" style="width:16px;height:73%;background:#10B981;"></div>
-              </div>
-              <span style="font-size:11px;color:#64748B;">Week 2</span>
-            </div>
-            <!-- Week 3 -->
-            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
-              <div style="display:flex;align-items:flex-end;gap:3px;height:180px;">
-                <div class="an-bar" style="width:16px;height:80%;background:#F59E0B;opacity:.85;"></div>
-                <div class="an-bar" style="width:16px;height:77%;background:#2563EB;"></div>
-                <div class="an-bar" style="width:16px;height:70%;background:#10B981;"></div>
-              </div>
-              <span style="font-size:11px;color:#64748B;">Week 3</span>
-            </div>
-            <!-- Week 4 -->
-            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
-              <div style="display:flex;align-items:flex-end;gap:3px;height:180px;">
-                <div class="an-bar" style="width:16px;height:93%;background:#F59E0B;opacity:.85;"></div>
-                <div class="an-bar" style="width:16px;height:88%;background:#2563EB;"></div>
-                <div class="an-bar" style="width:16px;height:80%;background:#10B981;"></div>
-              </div>
-              <span style="font-size:11px;color:#64748B;">Week 4</span>
-            </div>
+          <div id="anAiPerfBody" style="padding:40px 0;text-align:center;color:#94A3B8;font-size:14px;">
+            No conversation data yet. Data will appear as AI handles calls.
           </div>
           <div class="an-legend" style="margin-top:16px;">
-            <div class="an-legend-item"><div class="an-legend-dot" style="background:#F59E0B;"></div>Total Calls</div>
-            <div class="an-legend-item"><div class="an-legend-dot" style="background:#2563EB;"></div>Captured by AI</div>
-            <div class="an-legend-item"><div class="an-legend-dot" style="background:#10B981;"></div>Converted to Booking</div>
+            <div class="an-legend-item"><div class="an-legend-dot" style="background:#2563EB;"></div>Conversations</div>
+            <div class="an-legend-item"><div class="an-legend-dot" style="background:#10B981;"></div>Booked</div>
           </div>
         </div>
 
@@ -1448,44 +1376,29 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
               <div class="an-card-sub">Distribution this month</div>
             </div>
           </div>
-          <div class="an-donut-wrap">
-            <svg width="180" height="180" viewBox="0 0 180 180">
-              <circle cx="90" cy="90" r="70" fill="none" stroke="#E5E7EB" stroke-width="20"/>
-              <!-- AI Booked: 68% = 245deg, starts at -90deg -->
-              <circle cx="90" cy="90" r="70" fill="none" stroke="#2563EB" stroke-width="20"
-                stroke-dasharray="299.2 440" stroke-dashoffset="0" transform="rotate(-90 90 90)"/>
-              <!-- Phone: 22% = 96.8deg offset after AI -->
-              <circle cx="90" cy="90" r="70" fill="none" stroke="#10B981" stroke-width="20"
-                stroke-dasharray="96.8 440" stroke-dashoffset="-299.2" transform="rotate(-90 90 90)"/>
-              <!-- Manual: 10% = 44deg offset after Phone -->
-              <circle cx="90" cy="90" r="70" fill="none" stroke="#F59E0B" stroke-width="20"
-                stroke-dasharray="44 440" stroke-dashoffset="-396" transform="rotate(-90 90 90)"/>
-              <!-- Center text -->
-              <text x="90" y="86" text-anchor="middle" fill="#0F172A" font-size="22" font-weight="700" font-family="Inter,sans-serif">68%</text>
-              <text x="90" y="104" text-anchor="middle" fill="#64748B" font-size="11" font-family="Inter,sans-serif">AI Booked</text>
-            </svg>
-          </div>
-          <div class="an-source-list">
-            <div class="an-source-row">
-              <div style="display:flex;align-items:center;">
-                <div class="an-source-dot" style="background:#2563EB;"></div>
-                <span class="an-source-name">AI Booked</span>
-              </div>
-              <span class="an-source-pct">68%</span>
+          <div id="anBookingSourcesBody">
+            <div class="an-donut-wrap">
+              <svg width="180" height="180" viewBox="0 0 180 180">
+                <circle cx="90" cy="90" r="70" fill="none" stroke="#E5E7EB" stroke-width="20"/>
+                <text x="90" y="86" text-anchor="middle" fill="#94A3B8" font-size="16" font-weight="700" font-family="Inter,sans-serif">0</text>
+                <text x="90" y="104" text-anchor="middle" fill="#94A3B8" font-size="11" font-family="Inter,sans-serif">Bookings</text>
+              </svg>
             </div>
-            <div class="an-source-row">
-              <div style="display:flex;align-items:center;">
-                <div class="an-source-dot" style="background:#10B981;"></div>
-                <span class="an-source-name">Phone</span>
+            <div class="an-source-list">
+              <div class="an-source-row">
+                <div style="display:flex;align-items:center;">
+                  <div class="an-source-dot" style="background:#2563EB;"></div>
+                  <span class="an-source-name">AI Booked</span>
+                </div>
+                <span class="an-source-pct" id="anSrcAiPct">0%</span>
               </div>
-              <span class="an-source-pct">22%</span>
-            </div>
-            <div class="an-source-row">
-              <div style="display:flex;align-items:center;">
-                <div class="an-source-dot" style="background:#F59E0B;"></div>
-                <span class="an-source-name">Manual</span>
+              <div class="an-source-row">
+                <div style="display:flex;align-items:center;">
+                  <div class="an-source-dot" style="background:#10B981;"></div>
+                  <span class="an-source-name">Manual</span>
+                </div>
+                <span class="an-source-pct" id="anSrcManualPct">0%</span>
               </div>
-              <span class="an-source-pct">10%</span>
             </div>
           </div>
         </div>
@@ -1496,40 +1409,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
         <div class="an-card-head">
           <div>
             <div class="an-card-title">Conversation Volume</div>
-            <div class="an-card-sub">Daily AI conversation activity</div>
+            <div class="an-card-sub">AI conversation activity this month</div>
           </div>
-          <div class="an-vol-stat">Avg per day: <strong>40.6</strong></div>
+          <div class="an-vol-stat" id="anConvVolStat">Total: <strong id="anConvVolTotal">0</strong></div>
         </div>
-        <div class="an-chart-area" style="height:160px;">
-          <svg viewBox="0 0 800 160" preserveAspectRatio="none">
-            <!-- Grid -->
-            <line x1="0" y1="20" x2="800" y2="20" stroke="#E5E7EB" stroke-width="1"/>
-            <line x1="0" y1="60" x2="800" y2="60" stroke="#E5E7EB" stroke-width="1"/>
-            <line x1="0" y1="100" x2="800" y2="100" stroke="#E5E7EB" stroke-width="1"/>
-            <!-- Y-axis -->
-            <text x="5" y="24" fill="#64748B" font-size="10" font-family="Inter,sans-serif">55</text>
-            <text x="5" y="64" fill="#64748B" font-size="10" font-family="Inter,sans-serif">40</text>
-            <text x="5" y="104" fill="#64748B" font-size="10" font-family="Inter,sans-serif">25</text>
-            <!-- X-axis -->
-            <text x="80" y="150" fill="#64748B" font-size="10" font-family="Inter,sans-serif" text-anchor="middle">Mar 10</text>
-            <text x="200" y="150" fill="#64748B" font-size="10" font-family="Inter,sans-serif" text-anchor="middle">Mar 11</text>
-            <text x="320" y="150" fill="#64748B" font-size="10" font-family="Inter,sans-serif" text-anchor="middle">Mar 12</text>
-            <text x="440" y="150" fill="#64748B" font-size="10" font-family="Inter,sans-serif" text-anchor="middle">Mar 13</text>
-            <text x="560" y="150" fill="#64748B" font-size="10" font-family="Inter,sans-serif" text-anchor="middle">Mar 14</text>
-            <text x="680" y="150" fill="#64748B" font-size="10" font-family="Inter,sans-serif" text-anchor="middle">Mar 15</text>
-            <text x="780" y="150" fill="#64748B" font-size="10" font-family="Inter,sans-serif" text-anchor="middle">Mar 16</text>
-            <!-- Line: 28,35,42,38,51,47,43 mapped to y range 20-120 (55=20, 25=120) -->
-            <polyline points="80,110 200,87 320,64 440,77 560,37 680,50 780,63"
-              fill="none" stroke="#2563EB" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
-            <!-- Dots -->
-            <circle cx="80" cy="110" r="4" fill="#2563EB"/>
-            <circle cx="200" cy="87" r="4" fill="#2563EB"/>
-            <circle cx="320" cy="64" r="4" fill="#2563EB"/>
-            <circle cx="440" cy="77" r="4" fill="#2563EB"/>
-            <circle cx="560" cy="37" r="4" fill="#2563EB"/>
-            <circle cx="680" cy="50" r="4" fill="#2563EB"/>
-            <circle cx="780" cy="63" r="4" fill="#2563EB"/>
-          </svg>
+        <div id="anConvVolBody" style="padding:40px 0;text-align:center;color:#94A3B8;font-size:14px;">
+          No conversation data yet.
         </div>
       </div>
 
@@ -2815,8 +2700,11 @@ async function submitCompleteAppointment() {
     renderBookings();
     showToast('Appointment completed — $' + price.toFixed(2) + ' recorded.');
 
-    // Refresh KPI data if available
-    if (typeof loadKpiSummary === 'function') loadKpiSummary();
+    // Refresh KPI data and re-render all dependent blocks
+    await loadKpiData();
+    renderLiveKPIs();
+    renderLiveRevenueBlocks();
+    renderLivePipeline();
   } catch (e) {
     showToast('Network error — please try again.');
     _completeSubmitting = false;
@@ -3225,6 +3113,87 @@ function renderLiveRevenueBlocks() {
   if (akrc) akrc.textContent = k.missed_calls_captured ? (k.missed_calls_captured + ' of ' + k.missed_calls_total + ' captured') : 'No data yet';
   var drt = document.getElementById('dashRevTrendText');
   if (drt) drt.textContent = k.total_revenue ? ('$' + k.total_revenue.toLocaleString() + ' revenue (30d)') : 'No revenue data yet';
+
+  // Revenue Per Booking — real data from KPI summary
+  var anRevPerBooking = document.getElementById('anKpiRevenue');
+  if (anRevPerBooking) {
+    var totalRevAn = k.total_revenue || 0;
+    var totalBookingsAn = k.recovered_bookings || 0;
+    if (totalBookingsAn > 0) {
+      anRevPerBooking.textContent = '$' + Math.round(totalRevAn / totalBookingsAn);
+    } else {
+      anRevPerBooking.textContent = '—';
+    }
+  }
+  var anRevPerBookingChange = document.getElementById('anKpiRevenueChange');
+  if (anRevPerBookingChange) {
+    anRevPerBookingChange.textContent = (k.total_revenue || 0) > 0 ? ('$' + k.total_revenue.toLocaleString() + ' total (30d)') : 'No data yet';
+  }
+
+  // Revenue trend body — show real total if available
+  var anRevTrendBody = document.getElementById('anRevTrendBody');
+  if (anRevTrendBody) {
+    if ((k.total_revenue || 0) > 0) {
+      anRevTrendBody.innerHTML = '<div style="padding:24px;text-align:center;"><div style="font-size:32px;font-weight:700;color:#0F172A;">$' + k.total_revenue.toLocaleString() + '</div><div style="font-size:14px;color:#64748B;margin-top:4px;">Total revenue from completed appointments (30 days)</div></div>';
+    }
+  }
+  var anRevBadge = document.getElementById('anRevTrendBadge');
+  if (anRevBadge && (k.total_revenue || 0) > 0) {
+    var badgeText = document.getElementById('anRevTrendBadgeText');
+    if (badgeText) badgeText.textContent = '$' + k.total_revenue.toLocaleString() + ' earned';
+    anRevBadge.style.display = '';
+  }
+
+  // AI Performance — show real conversation vs booking counts
+  var anAiPerfBody = document.getElementById('anAiPerfBody');
+  if (anAiPerfBody) {
+    var convsAn = k.conversations_this_month || s.conversations_this_month || 0;
+    var bookedAn = k.ai_booked_this_month || s.appointments_this_month || 0;
+    if (convsAn > 0) {
+      var convPct = 100;
+      var bookedPct = convsAn > 0 ? Math.round((bookedAn / convsAn) * 100) : 0;
+      anAiPerfBody.innerHTML =
+        '<div style="display:flex;align-items:flex-end;justify-content:center;gap:24px;height:180px;padding:0 16px;">' +
+          '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">' +
+            '<div style="font-size:13px;font-weight:600;color:#0F172A;">' + convsAn + '</div>' +
+            '<div style="width:40px;height:' + Math.max(convPct, 5) + '%;background:#2563EB;border-radius:4px 4px 0 0;"></div>' +
+            '<span style="font-size:11px;color:#64748B;">Conversations</span>' +
+          '</div>' +
+          '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">' +
+            '<div style="font-size:13px;font-weight:600;color:#0F172A;">' + bookedAn + '</div>' +
+            '<div style="width:40px;height:' + Math.max(bookedPct, 5) + '%;background:#10B981;border-radius:4px 4px 0 0;"></div>' +
+            '<span style="font-size:11px;color:#64748B;">Booked (' + bookedPct + '%)</span>' +
+          '</div>' +
+        '</div>';
+    }
+  }
+
+  // Booking Sources — show real AI vs manual ratio
+  var anSrcAi = document.getElementById('anSrcAiPct');
+  var anSrcManual = document.getElementById('anSrcManualPct');
+  if (anSrcAi && anSrcManual) {
+    var totalApptsSrc = s.total_appointments || 0;
+    var aiBookedSrc = k.ai_booked_this_month || 0;
+    var manualSrc = Math.max(0, (s.appointments_this_month || 0) - aiBookedSrc);
+    var totalSrc = aiBookedSrc + manualSrc;
+    if (totalSrc > 0) {
+      anSrcAi.textContent = Math.round((aiBookedSrc / totalSrc) * 100) + '%';
+      anSrcManual.textContent = Math.round((manualSrc / totalSrc) * 100) + '%';
+    }
+  }
+
+  // Conversation volume total
+  var anConvVolTotal = document.getElementById('anConvVolTotal');
+  if (anConvVolTotal) {
+    anConvVolTotal.textContent = k.conversations_this_month || s.conversations_this_month || 0;
+  }
+  var anConvVolBody = document.getElementById('anConvVolBody');
+  if (anConvVolBody) {
+    var convVolCount = k.conversations_this_month || s.conversations_this_month || 0;
+    if (convVolCount > 0) {
+      anConvVolBody.innerHTML = '<div style="padding:24px;text-align:center;"><div style="font-size:32px;font-weight:700;color:#0F172A;">' + convVolCount + '</div><div style="font-size:14px;color:#64748B;margin-top:4px;">conversations this month</div></div>';
+    }
+  }
 }
 
 // ════════════════════════════════════════════
@@ -3533,24 +3502,36 @@ function renderTodayAppointments() {
 // ════════════════════════════════════════════
 var custPageState = { all: [], filtered: [], page: 1, perPage: 10 };
 
-function renderCustomers() {
-  // Derive customers from conversations + bookings
-  var customerMap = {};
-  conversationsData.forEach(function(c) {
-    if (!customerMap[c.phone]) customerMap[c.phone] = { phone: c.phone, name: '—', vehicle: '—', lastDate: c.date, apptCount: 0, status: c.status, issue: c.issue, totalSpent: 0 };
-    else {
-      if (c.date > customerMap[c.phone].lastDate) customerMap[c.phone].lastDate = c.date;
-    }
-  });
-  bookingsData.forEach(function(b) {
-    if (!customerMap[b.phone]) customerMap[b.phone] = { phone: b.phone, name: '—', vehicle: b.vehicle || '—', lastDate: b.date, apptCount: 1, status: 'booked', issue: b.service, totalSpent: 0 };
-    else {
-      customerMap[b.phone].apptCount = (customerMap[b.phone].apptCount || 0) + 1;
-      if (b.vehicle && b.vehicle !== '—') customerMap[b.phone].vehicle = b.vehicle;
-    }
-  });
+async function renderCustomers() {
+  // Fetch real customer data from API
+  var token = localStorage.getItem('autoshop_jwt');
+  var customers = [];
 
-  var customers = Object.values(customerMap);
+  if (token) {
+    try {
+      var res = await fetch('/tenant/customers/list', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (res.ok) {
+        var data = await res.json();
+        customers = (data.customers || []).map(function(c) {
+          return {
+            phone: c.phone || '—',
+            name: c.name || '—',
+            vehicle: '—',
+            lastDate: c.last_visit ? c.last_visit.substring(0, 10) : (c.created_at ? c.created_at.substring(0, 10) : '—'),
+            apptCount: c.appointments_count || 0,
+            status: c.appointments_count >= 2 ? 'active' : (c.appointments_count === 1 ? 'new' : 'inactive'),
+            issue: '—',
+            totalSpent: c.total_spent || 0
+          };
+        });
+      }
+    } catch (err) {
+      console.error('Customer list fetch failed:', err);
+    }
+  }
+
   custPageState.all = customers;
   custPageState.filtered = customers;
   custPageState.page = 1;
@@ -3558,7 +3539,7 @@ function renderCustomers() {
   // Stats
   var el = function(id) { return document.getElementById(id); };
   if (el('custStatTotal')) el('custStatTotal').textContent = customers.length;
-  if (el('custStatTotalSub')) el('custStatTotalSub').textContent = customers.length > 0 ? 'From AI conversations' : '—';
+  if (el('custStatTotalSub')) el('custStatTotalSub').textContent = customers.length > 0 ? 'From appointments' : '—';
 
   var activeCount = customers.filter(function(c) { return c.apptCount >= 2; }).length;
   var retPct = customers.length > 0 ? Math.round((activeCount / customers.length) * 100) : 0;
@@ -3568,7 +3549,9 @@ function renderCustomers() {
   var avgVisits = customers.length > 0 ? (customers.reduce(function(s,c){ return s + (c.apptCount||0); }, 0) / customers.length).toFixed(1) : '0';
   if (el('custStatVisits')) el('custStatVisits').textContent = avgVisits;
 
-  if (el('custStatLTV')) el('custStatLTV').textContent = '—';
+  var totalLTV = customers.reduce(function(s,c){ return s + (c.totalSpent||0); }, 0);
+  var avgLTV = customers.length > 0 ? Math.round(totalLTV / customers.length) : 0;
+  if (el('custStatLTV')) el('custStatLTV').textContent = avgLTV > 0 ? '$' + avgLTV : '—';
 
   renderCustomerPage();
 }
