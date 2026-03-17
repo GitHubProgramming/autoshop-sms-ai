@@ -38,7 +38,7 @@ function buildApp() {
 // ── GET /tenant/kpi/recovered-revenue ────────────────────────────────────────
 
 describe("GET /tenant/kpi/recovered-revenue", () => {
-  it("returns 0 when no bookings exist", async () => {
+  it("returns 0 when no appointments exist", async () => {
     mocks.query
       .mockResolvedValueOnce([{ total: "0", count: "0" }])
       .mockResolvedValueOnce([{ total: "0" }]);
@@ -53,7 +53,7 @@ describe("GET /tenant/kpi/recovered-revenue", () => {
     expect(body.change_pct).toBe(0);
   });
 
-  it("returns real revenue from completed AI bookings", async () => {
+  it("returns real revenue from completed AI appointments", async () => {
     mocks.query
       .mockResolvedValueOnce([{ total: "1250.50", count: "3" }])
       .mockResolvedValueOnce([{ total: "800.00" }]);
@@ -69,7 +69,7 @@ describe("GET /tenant/kpi/recovered-revenue", () => {
     expect(body.change_pct).toBe(56.3); // (1250.50 - 800) / 800 * 100
   });
 
-  it("queries with correct tenant_id and filters", async () => {
+  it("queries appointments table with conversation_id filter", async () => {
     mocks.query
       .mockResolvedValueOnce([{ total: "0", count: "0" }])
       .mockResolvedValueOnce([{ total: "0" }]);
@@ -79,8 +79,9 @@ describe("GET /tenant/kpi/recovered-revenue", () => {
 
     const firstCall = mocks.query.mock.calls[0];
     expect(firstCall[1]).toEqual([TENANT_ID]);
-    expect(firstCall[0]).toContain("booking_status = 'completed'");
-    expect(firstCall[0]).toContain("booking_source IN ('ai', 'sms_recovery')");
+    expect(firstCall[0]).toContain("appointments");
+    expect(firstCall[0]).toContain("completed_at IS NOT NULL");
+    expect(firstCall[0]).toContain("conversation_id IS NOT NULL");
     expect(firstCall[0]).toContain("30 days");
   });
 });
@@ -88,7 +89,7 @@ describe("GET /tenant/kpi/recovered-revenue", () => {
 // ── GET /tenant/kpi/total-revenue ────────────────────────────────────────────
 
 describe("GET /tenant/kpi/total-revenue", () => {
-  it("returns 0 when no bookings exist", async () => {
+  it("returns 0 when no appointments exist", async () => {
     mocks.query
       .mockResolvedValueOnce([{ total: "0", count: "0" }])
       .mockResolvedValueOnce([{ total: "0" }]);
@@ -188,6 +189,22 @@ describe("GET /tenant/kpi/summary", () => {
     expect(jsonStr).not.toContain("127");
     expect(jsonStr).not.toContain("43");
   });
+
+  it("queries appointments table not bookings", async () => {
+    for (let i = 0; i < 8; i++) {
+      mocks.query.mockResolvedValueOnce([{ total: "0", count: "0" }]);
+    }
+
+    const app = buildApp();
+    await app.inject({ method: "GET", url: "/tenant/kpi/summary" });
+
+    // First 4 queries should hit appointments, not bookings
+    for (let i = 0; i < 4; i++) {
+      const sql = mocks.query.mock.calls[i][0] as string;
+      expect(sql).toContain("appointments");
+      expect(sql).not.toContain("FROM bookings");
+    }
+  });
 });
 
 // ── GET /tenant/customers/list ───────────────────────────────────────────────
@@ -203,13 +220,13 @@ describe("GET /tenant/customers/list", () => {
     expect(res.json().customers).toEqual([]);
   });
 
-  it("returns real customer data with aggregated stats", async () => {
+  it("returns customer data derived from appointments", async () => {
     mocks.query.mockResolvedValueOnce([
       {
-        id: "cust-1",
+        id: "appt-1",
         name: "John Doe",
         phone: "+15125551234",
-        email: "john@test.com",
+        email: null,
         last_visit: "2026-03-10T10:00:00Z",
         appointments_count: "3",
         total_spent: "1620.00",
@@ -227,18 +244,31 @@ describe("GET /tenant/customers/list", () => {
     expect(cust.total_spent).toBe(1620);
     expect(cust.last_visit).toBe("2026-03-10T10:00:00Z");
   });
+
+  it("queries appointments table grouped by phone", async () => {
+    mocks.query.mockResolvedValueOnce([]);
+
+    const app = buildApp();
+    await app.inject({ method: "GET", url: "/tenant/customers/list" });
+
+    const sql = mocks.query.mock.calls[0][0] as string;
+    expect(sql).toContain("appointments");
+    expect(sql).toContain("customer_phone");
+    expect(sql).toContain("GROUP BY");
+    expect(sql).not.toContain("FROM customers");
+  });
 });
 
-// ── PATCH /tenant/bookings/:id/complete ──────────────────────────────────────
+// ── PATCH /tenant/appointments/:id/complete ──────────────────────────────────
 
-describe("PATCH /tenant/bookings/:id/complete", () => {
-  it("marks booking as completed with final_price", async () => {
-    mocks.query.mockResolvedValueOnce([{ id: "booking-1" }]);
+describe("PATCH /tenant/appointments/:id/complete", () => {
+  it("marks appointment as completed with final_price", async () => {
+    mocks.query.mockResolvedValueOnce([{ id: "appt-1" }]);
 
     const app = buildApp();
     const res = await app.inject({
       method: "PATCH",
-      url: "/tenant/bookings/booking-1/complete",
+      url: "/tenant/appointments/appt-1/complete",
       payload: { final_price: 540 },
     });
 
@@ -247,29 +277,30 @@ describe("PATCH /tenant/bookings/:id/complete", () => {
     expect(res.json().final_price).toBe(540);
 
     const call = mocks.query.mock.calls[0];
-    expect(call[0]).toContain("booking_status = 'completed'");
+    expect(call[0]).toContain("UPDATE appointments");
     expect(call[0]).toContain("final_price = $1");
-    expect(call[1]).toEqual([540, "booking-1", TENANT_ID]);
+    expect(call[0]).toContain("completed_at = NOW()");
+    expect(call[1]).toEqual([540, "appt-1", TENANT_ID]);
   });
 
   it("rejects negative final_price", async () => {
     const app = buildApp();
     const res = await app.inject({
       method: "PATCH",
-      url: "/tenant/bookings/booking-1/complete",
+      url: "/tenant/appointments/appt-1/complete",
       payload: { final_price: -100 },
     });
 
     expect(res.statusCode).toBe(400);
   });
 
-  it("returns 404 for non-existent booking", async () => {
+  it("returns 404 for non-existent appointment", async () => {
     mocks.query.mockResolvedValueOnce([]);
 
     const app = buildApp();
     const res = await app.inject({
       method: "PATCH",
-      url: "/tenant/bookings/nonexistent/complete",
+      url: "/tenant/appointments/nonexistent/complete",
       payload: { final_price: 100 },
     });
 
