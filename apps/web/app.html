@@ -899,10 +899,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 <nav class="topnav">
   <div class="nav-left">
     <a href="index.html" class="nav-logo">Auto<span>Shop</span> AI</a>
-    <div class="nav-divider"></div>
-    <span class="nav-shop" id="navShopName">—</span>
   </div>
   <div class="nav-right">
+    <a href="#" onclick="switchView('billing');return false;" class="btn-upgrade" style="font-size:12px;padding:6px 14px;">Upgrade</a>
     <div class="nav-account">
       <div class="nav-avatar" id="navAvatar">?</div>
       <span class="nav-account-name" id="navAccountName">—</span>
@@ -926,6 +925,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
       <div class="sidebar-brand-shop" id="sidebarShopName">Loading shop...</div>
     </div>
     <div class="sidebar-section">
+      <div class="sidebar-label">Main</div>
       <a class="sidebar-item active" href="#" onclick="switchView('dashboard');return false;">
         <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
         Dashboard
@@ -939,6 +939,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
         <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         Appointments
       </a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Customers</div>
       <a class="sidebar-item" href="#" onclick="switchView('customers');return false;">
         <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
         Customers
@@ -978,16 +981,51 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 
     <!-- ═══ DASHBOARD ═══ -->
     <div class="view active" id="view-dashboard">
-      <!-- TSX Header -->
-      <div style="margin-bottom:24px;">
-        <h1 style="font-size:22px;font-weight:600;color:#0F172A;margin-bottom:6px;">Revenue Intelligence Dashboard</h1>
-        <p style="font-size:13px;color:#64748B;">Real-time performance metrics and AI-driven customer engagement</p>
+
+      <!-- ── PAGE HEADER (page-title style) ── -->
+      <div class="page-header">
+        <div>
+          <div class="page-title" id="dashPageTitle">Dashboard</div>
+          <div class="page-subtitle" id="dashSubtitle">Real-time performance metrics and AI-driven customer engagement</div>
+        </div>
+        <div class="page-actions">
+          <button class="btn-sm" onclick="location.reload()">Refresh</button>
+        </div>
       </div>
 
-      <!-- Primary KPI row (TSX icon-box style) -->
+      <!-- ── 1. KPI ROW (4 cards) ── -->
       <div class="kpi-grid" id="kpiGrid"></div>
 
-      <!-- Middle 2/1: Live Conversations + Today's Appointments -->
+      <!-- ── 2. REVENUE INTELLIGENCE HERO (full-width) ── -->
+      <div class="chart-wrap" style="margin-bottom:24px;border-radius:var(--radius-lg);border:1px solid var(--border);box-shadow:var(--shadow-sm);">
+        <div class="chart-header" style="padding:24px 24px 0;">
+          <div>
+            <div class="chart-title" style="font-size:20px;font-weight:700;letter-spacing:-.02em;">Revenue Intelligence</div>
+            <div style="font-size:13px;color:var(--text-tertiary);margin-top:4px;">Real-time performance metrics and AI-driven customer engagement</div>
+          </div>
+          <div class="chart-trend" id="dashRevTrend">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            <span id="dashRevTrendText">+18.2% vs last week</span>
+          </div>
+        </div>
+        <div class="chart-area" style="height:200px;padding:16px 24px 0;">
+          <svg class="chart-svg" viewBox="0 0 800 180" preserveAspectRatio="none" style="height:100%;width:100%;">
+            <defs><linearGradient id="dcg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2563EB" stop-opacity="0.15"/><stop offset="100%" stop-color="#2563EB" stop-opacity="0"/></linearGradient></defs>
+            <line x1="0" y1="45" x2="800" y2="45" stroke="rgba(0,0,0,.04)" stroke-width="1"/>
+            <line x1="0" y1="90" x2="800" y2="90" stroke="rgba(0,0,0,.04)" stroke-width="1"/>
+            <line x1="0" y1="135" x2="800" y2="135" stroke="rgba(0,0,0,.04)" stroke-width="1"/>
+            <path d="M0,150 C50,140 80,115 130,95 C180,75 200,65 250,70 C300,75 320,50 380,38 C440,25 460,45 520,55 C580,70 600,32 650,25 C700,18 740,38 800,32 L800,180 L0,180 Z" fill="url(#dcg)"/>
+            <path d="M0,150 C50,140 80,115 130,95 C180,75 200,65 250,70 C300,75 320,50 380,38 C440,25 460,45 520,55 C580,70 600,32 650,25 C700,18 740,38 800,32" fill="none" stroke="#2563EB" stroke-width="2.5"/>
+            <circle cx="380" cy="38" r="4" fill="#2563EB"/><circle cx="650" cy="25" r="4" fill="#2563EB"/><circle cx="800" cy="32" r="4" fill="#2563EB"/>
+          </svg>
+        </div>
+        <div class="chart-meta" id="dashChartMeta" style="grid-template-columns:repeat(2,1fr);padding:20px 24px;border-top:1px solid var(--border);margin-top:16px;">
+          <div class="chart-meta-item"><div class="chart-meta-label">Recovered Revenue</div><div class="chart-meta-value" style="font-size:22px;font-weight:700;" id="dashRevRecovered">—</div></div>
+          <div class="chart-meta-item"><div class="chart-meta-label">Avg. Booking Value</div><div class="chart-meta-value green" style="font-size:22px;font-weight:700;" id="dashAvgBooking">—</div></div>
+        </div>
+      </div>
+
+      <!-- ── 3. LIVE CONVERSATIONS + TODAY'S APPOINTMENTS (2/1 grid) ── -->
       <div class="dash-body">
         <div class="log-wrap" style="border-radius:var(--radius-lg);">
           <div class="log-header" style="border-bottom:1px solid var(--border);padding:18px 20px;">
@@ -1002,7 +1040,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
           </div>
         </div>
 
-        <!-- Today's Appointments (TSX border-left cards) -->
+        <!-- Today's Appointments -->
         <div class="log-wrap" style="border-radius:var(--radius-lg);">
           <div class="log-header" style="border-bottom:1px solid var(--border);padding:18px 20px;">
             <div class="log-title" style="font-size:16px;font-weight:600;">Today's Appointments</div>
@@ -1013,37 +1051,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
         </div>
       </div>
 
-      <!-- Lower 2/1: Revenue Analytics + System Status -->
-      <div class="dash-lower">
-        <div class="chart-wrap" style="margin-bottom:0;border-radius:var(--radius-lg);">
-          <div class="chart-header">
-            <div class="chart-title" style="font-size:16px;font-weight:600;">Revenue Analytics</div>
-            <div class="chart-trend" id="dashRevTrend">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-              <span id="dashRevTrendText">+18.2% vs last week</span>
-            </div>
-          </div>
-          <div class="chart-area">
-            <svg class="chart-svg" viewBox="0 0 800 140" preserveAspectRatio="none">
-              <defs><linearGradient id="dcg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2563EB" stop-opacity="0.15"/><stop offset="100%" stop-color="#2563EB" stop-opacity="0"/></linearGradient></defs>
-              <line x1="0" y1="35" x2="800" y2="35" stroke="rgba(0,0,0,.04)" stroke-width="1"/>
-              <line x1="0" y1="70" x2="800" y2="70" stroke="rgba(0,0,0,.04)" stroke-width="1"/>
-              <line x1="0" y1="105" x2="800" y2="105" stroke="rgba(0,0,0,.04)" stroke-width="1"/>
-              <path d="M0,120 C50,110 80,90 130,75 C180,60 200,50 250,55 C300,60 320,40 380,30 C440,20 460,35 520,45 C580,55 600,25 650,20 C700,15 740,30 800,25 L800,140 L0,140 Z" fill="url(#dcg)"/>
-              <path d="M0,120 C50,110 80,90 130,75 C180,60 200,50 250,55 C300,60 320,40 380,30 C440,20 460,35 520,45 C580,55 600,25 650,20 C700,15 740,30 800,25" fill="none" stroke="#2563EB" stroke-width="2"/>
-              <circle cx="380" cy="30" r="3" fill="#2563EB"/><circle cx="650" cy="20" r="3" fill="#2563EB"/><circle cx="800" cy="25" r="3" fill="#2563EB"/>
-            </svg>
-          </div>
-          <div class="chart-meta" id="dashChartMeta" style="grid-template-columns:repeat(2,1fr);">
-            <div class="chart-meta-item"><div class="chart-meta-label">Recovered Revenue</div><div class="chart-meta-value" id="dashRevRecovered">—</div></div>
-            <div class="chart-meta-item"><div class="chart-meta-label">Avg. Booking Value</div><div class="chart-meta-value green" id="dashAvgBooking">—</div></div>
-          </div>
-        </div>
-
-        <!-- System Status (TSX row list) -->
-        <div class="log-wrap" style="margin-bottom:0;border-radius:var(--radius-lg);">
-          <div class="log-header" style="border-bottom:1px solid var(--border);padding:18px 20px;">
-            <div class="log-title" style="font-size:16px;font-weight:600;">System Status</div>
+      <!-- ── 4. SYSTEM STATUS (secondary, full-width) ── -->
+      <div style="margin-top:16px;">
+        <div class="log-wrap" style="border-radius:var(--radius-lg);opacity:0.85;">
+          <div class="log-header" style="border-bottom:1px solid var(--border);padding:14px 20px;">
+            <div class="log-title" style="font-size:14px;font-weight:600;color:var(--text-secondary);">System Status</div>
           </div>
           <div style="padding:4px 20px;" id="healthGrid"></div>
         </div>
@@ -2879,7 +2891,8 @@ function renderLiveRevenueBlocks() {
   var shopName = tenantState.shopName;
 
   // Update nav and subtitle with real shop name
-  document.getElementById('navShopName').textContent = shopName;
+  var navShop = document.getElementById('navShopName');
+  if (navShop) navShop.textContent = shopName;
   var now = new Date();
   var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   document.getElementById('dashSubtitle').textContent = months[now.getMonth()] + ' ' + now.getFullYear() + ' · ' + shopName;
