@@ -2886,25 +2886,25 @@ function renderLiveKPIs() {
   var activeChange = hasStrongActive ? (apptToday + ' appointments today') : '12 today';
 
   document.getElementById('kpiGrid').innerHTML =
-    '<div class="kpi-card fade-in">' +
+    '<div class="kpi-card">' +
       '<div class="kpi-icon-box green">' + iconDollar + '</div>' +
       '<div class="kpi-value">$' + recoveredRev.toLocaleString() + '</div>' +
       '<div class="kpi-label">Recovered Revenue</div>' +
       '<div class="kpi-change up">&#9650; ' + revChange + '</div>' +
     '</div>' +
-    '<div class="kpi-card fade-in">' +
+    '<div class="kpi-card">' +
       '<div class="kpi-icon-box blue">' + iconCal + '</div>' +
       '<div class="kpi-value">' + apptMonth + '</div>' +
       '<div class="kpi-label">AI Booked Appointments</div>' +
       '<div class="kpi-change up">&#9650; ' + apptChange + '</div>' +
     '</div>' +
-    '<div class="kpi-card fade-in">' +
+    '<div class="kpi-card">' +
       '<div class="kpi-icon-box amber">' + iconPhone + '</div>' +
       '<div class="kpi-value">' + captureRate + '</div>' +
       '<div class="kpi-label">Missed Calls Captured</div>' +
       '<div class="kpi-change up">&#9650; ' + captureChange + '</div>' +
     '</div>' +
-    '<div class="kpi-card fade-in">' +
+    '<div class="kpi-card">' +
       '<div class="kpi-icon-box purple">' + iconMsg + '</div>' +
       '<div class="kpi-value">' + activeConvs + '</div>' +
       '<div class="kpi-label">Active Conversations</div>' +
