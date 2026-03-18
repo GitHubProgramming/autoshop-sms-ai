@@ -146,8 +146,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 
 /* ── TSX Live Conversations (card-based) ── */
 .conv-card-list{display:flex;flex-direction:column;gap:10px}
-.conv-card-item{display:flex;align-items:flex-start;gap:14px;padding:14px 16px;background:#F8FAFC;border-radius:10px;cursor:pointer;transition:all .15s;border:1px solid transparent}
-.conv-card-item:hover{background:#EFF6FF;border-color:#DBEAFE}
+.conv-card-item{display:flex;align-items:flex-start;gap:14px;padding:14px 16px;background:var(--bg);border-radius:10px;cursor:pointer;transition:all .15s;border:1px solid transparent}
+.conv-card-item:hover{background:var(--bg-hover);border-color:var(--border)}
 .conv-avatar{width:40px;height:40px;background:linear-gradient(135deg,#2563EB,#7C3AED);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:14px;flex-shrink:0}
 .conv-card-body{flex:1;min-width:0}
 .conv-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
@@ -180,18 +180,18 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .conv-slide-meta-row svg{flex-shrink:0;color:var(--text-tertiary)}
 .conv-slide-messages{display:flex;flex-direction:column;gap:8px}
 .conv-slide-msg{padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.5;max-width:90%;word-wrap:break-word}
-.conv-slide-msg.ai{background:#EFF6FF;color:#1E40AF;align-self:flex-start;border-bottom-left-radius:4px}
-.conv-slide-msg.customer{background:#F1F5F9;color:var(--text);align-self:flex-end;border-bottom-right-radius:4px}
+.conv-slide-msg.ai{background:var(--bg-hover);color:var(--rust);align-self:flex-start;border-bottom-left-radius:4px}
+.conv-slide-msg.customer{background:var(--bg);color:var(--text);align-self:flex-end;border-bottom-right-radius:4px}
 .conv-slide-msg-sender{font-size:11px;font-weight:600;margin-bottom:4px;color:var(--text-tertiary)}
 .conv-slide-msg-time{font-size:10px;color:var(--text-tertiary);margin-top:4px}
 .conv-slide-loading{display:flex;align-items:center;justify-content:center;padding:32px;color:var(--text-tertiary);font-size:13px}
 .conv-slide-empty{text-align:center;padding:32px 20px;color:var(--text-tertiary);font-size:13px}
 .conv-slide-footer{padding:16px 24px;border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:8px}
 .conv-slide-footer .btn-sm{flex:1}
-.conv-card-item.active-conv{background:#EFF6FF;border-color:#BFDBFE}
+.conv-card-item.active-conv{background:var(--bg-hover);border-color:var(--border-mid)}
 
 /* ── Conversation Panel: Upgraded Sections ── */
-.conv-panel-status-block{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;background:#F8FAFC;border:1px solid var(--border);margin-bottom:16px}
+.conv-panel-status-block{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:16px}
 .conv-panel-status-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600}
 .conv-panel-status-badge.active{background:#DBEAFE;color:#2563EB}
 .conv-panel-status-badge.booked{background:#ECFDF5;color:#059669}
@@ -199,7 +199,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .conv-panel-status-badge.no-response{background:#FEF3C7;color:#D97706}
 .conv-panel-status-badge.resolved{background:#F3E8FF;color:#7C3AED}
 .conv-panel-outcome{font-size:12px;color:var(--text-tertiary);margin-left:auto}
-.conv-panel-info-block{padding:14px 16px;border-radius:10px;background:#F8FAFC;border:1px solid var(--border);margin-bottom:12px}
+.conv-panel-info-block{padding:14px 16px;border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:12px}
 .conv-panel-info-block .conv-panel-block-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-tertiary);margin-bottom:10px;display:flex;align-items:center;gap:6px}
 .conv-panel-info-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;font-size:13px;color:var(--text);line-height:1.4}
 .conv-panel-info-row:last-child{margin-bottom:0}
@@ -211,7 +211,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .conv-panel-booking-status.failed{background:var(--red-dim,#FEE2E2);color:var(--red,#EF4444)}
 .conv-panel-divider{height:1px;background:var(--border);margin:16px 0}
 .conv-panel-timeline{display:flex;flex-direction:column;gap:6px}
-.conv-panel-timeline-event{display:flex;align-items:center;gap:8px;padding:6px 12px;background:#F1F5F9;border-radius:8px;font-size:12px;color:var(--text-tertiary)}
+.conv-panel-timeline-event{display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--text-tertiary)}
 .conv-panel-timeline-event svg{flex-shrink:0;width:14px;height:14px}
 .conv-panel-timeline-event .event-time{font-size:10px;margin-left:auto;white-space:nowrap}
 .conv-slide-msg.customer .conv-slide-msg-sender{color:#64748B}
@@ -2813,18 +2813,12 @@ function getConvStatusInfo(conv, booking) {
   var statusLabel = {booked:'Booked', active:'AI Handling', 'no-response':'Awaiting Customer', lost:'Lost', resolved:'Completed'}[conv.status] || conv.status;
   var statusCls = conv.status;
   var outcome = '';
+  // Only show outcome when backed by real booking data
   if (booking) {
     if (booking.completedAt) outcome = 'Booking completed';
-    else if (booking.syncStatus === 'synced') outcome = 'Appointment booked';
-    else if (booking.syncStatus === 'pending') outcome = 'Booking pending confirmation';
-    else if (booking.syncStatus === 'failed') outcome = 'Booking failed';
-    else outcome = 'Appointment created';
-  } else if (conv.status === 'active') {
-    outcome = 'Conversation in progress';
-  } else if (conv.status === 'no-response') {
-    outcome = 'Awaiting customer reply';
-  } else if (conv.status === 'lost') {
-    outcome = 'No booking';
+    else if (booking.syncStatus === 'synced') outcome = 'Calendar synced';
+    else if (booking.syncStatus === 'pending') outcome = 'Pending confirmation';
+    else if (booking.syncStatus === 'failed') outcome = 'Sync failed';
   }
   return { label: statusLabel, cls: statusCls, outcome: outcome };
 }
@@ -2844,14 +2838,18 @@ function openConversationPanel(id) {
   // Update header
   var name = (conv && (conv.customerName || conv.phone)) || '?';
   document.getElementById('convSlideAvatar').textContent = name.charAt(0).toUpperCase();
-  document.getElementById('convSlideTitle').textContent = conv ? (conv.customerName || 'SMS Conversation') : 'Conversation';
-  document.getElementById('convSlidePhone').textContent = conv ? conv.phone : '';
+  document.getElementById('convSlideTitle').textContent = conv ? (conv.customerName || conv.phone) : 'Conversation';
+  document.getElementById('convSlidePhone').textContent = conv ? (conv.customerName ? conv.phone : '') : '';
 
-  // Header status badge
+  // Header status badge + last activity
   var headerStatusEl = document.getElementById('convSlideHeaderStatus');
   if (conv) {
     var si = getConvStatusInfo(conv, booking);
-    headerStatusEl.innerHTML = '<span class="conv-panel-status-badge ' + si.cls + '" style="font-size:11px;padding:2px 8px;">' + si.label + '</span>';
+    var headerHtml = '<span class="conv-panel-status-badge ' + si.cls + '" style="font-size:11px;padding:2px 8px;">' + si.label + '</span>';
+    if (conv.timeAgo) {
+      headerHtml += '<span style="font-size:11px;color:var(--text-tertiary);margin-left:8px;">' + conv.timeAgo + '</span>';
+    }
+    headerStatusEl.innerHTML = headerHtml;
   } else {
     headerStatusEl.innerHTML = '';
   }
@@ -2908,10 +2906,10 @@ async function loadConversationPanel(id, conv, booking) {
     }
 
     // ── SECTION 4: Vehicle / Service Block ──
-    var hasVehicle = conv.vehicleModel || conv.vin || conv.mileage || (conv.issue && conv.issue !== 'SMS Conversation');
+    var hasVehicle = conv.vehicleModel || conv.vin || conv.mileage;
     if (hasVehicle) {
       html += '<div class="conv-panel-info-block">' +
-        '<div class="conv-panel-block-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Vehicle / Service</div>';
+        '<div class="conv-panel-block-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Vehicle</div>';
       if (conv.vehicleModel) {
         html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Vehicle</span><span class="conv-panel-info-value">' + conv.vehicleModel + '</span></div>';
       }
@@ -2920,9 +2918,6 @@ async function loadConversationPanel(id, conv, booking) {
       }
       if (conv.mileage) {
         html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Mileage</span><span class="conv-panel-info-value">' + conv.mileage + '</span></div>';
-      }
-      if (conv.issue && conv.issue !== 'SMS Conversation') {
-        html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Issue</span><span class="conv-panel-info-value">' + conv.issue + '</span></div>';
       }
       html += '</div>';
     }
@@ -2951,13 +2946,8 @@ async function loadConversationPanel(id, conv, booking) {
         html += '<div class="conv-panel-info-row" style="color:var(--red,#EF4444);font-size:12px;">' + booking.failNote + '</div>';
       }
       html += '</div>';
-    } else if (conv.status === 'booked') {
-      // Status says booked but no booking found in loaded data
-      html += '<div class="conv-panel-info-block">' +
-        '<div class="conv-panel-block-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Appointment</div>' +
-        '<div class="conv-panel-info-row"><span class="conv-panel-info-value" style="color:var(--text-tertiary);">Appointment created</span></div>' +
-      '</div>';
     }
+    // No fabricated appointment block when booking data is missing
 
     // ── Conversation Details (started, messages count) ──
     html += '<div class="conv-panel-info-block">' +
@@ -3036,9 +3026,6 @@ function updatePanelFooter(conv, booking) {
   var footer = document.getElementById('convSlideFooter');
   var btns = '';
   btns += '<button class="btn-sm" onclick="viewFullConversation()">View Full Thread</button>';
-  if (booking) {
-    btns += '<button class="btn-sm" onclick="closeConversationPanel();switchView(\'appointments\')">Go to Appointments</button>';
-  }
   btns += '<button class="btn-sm" onclick="closeConversationPanel()">Close</button>';
   footer.innerHTML = btns;
 }
@@ -3046,10 +3033,7 @@ function updatePanelFooter(conv, booking) {
 function renderSlideMessages(container, thread, conv, booking) {
   var html = '';
 
-  // Opening event
-  if (conv && conv.date) {
-    html += '<div class="conv-panel-timeline-event"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Conversation started<span class="event-time">' + conv.date + '</span></div>';
-  }
+  // No synthetic "Conversation started" event — only real messages are shown
 
   thread.forEach(function(m) {
     if (m.ts) html += '<div class="conv-slide-msg-time" style="text-align:center;font-size:11px;color:var(--text-tertiary);padding:6px 0 2px;">' + m.ts + '</div>';
@@ -3060,17 +3044,7 @@ function renderSlideMessages(container, thread, conv, booking) {
     }
   });
 
-  // Booking event in timeline
-  if (booking) {
-    html += '<div class="conv-panel-timeline-event" style="margin-top:4px;background:#ECFDF5;color:#059669;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Appointment created — ' + booking.service + '<span class="event-time">' + booking.date + '</span></div>';
-  }
-
-  // Close reason event
-  if (conv && conv.issue && conv.issue !== 'SMS Conversation') {
-    var reasonLabels = { 'booking_completed': 'Booking completed', 'user_closed': 'Closed by user', 'inactivity_24h': 'Closed — no reply for 24h', 'system_blocked': 'System blocked', 'turn_limit': 'Turn limit reached' };
-    var reasonText = reasonLabels[conv.issue] || conv.issue;
-    html += '<div class="conv-panel-timeline-event" style="margin-top:4px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' + reasonText + '</div>';
-  }
+  // No synthetic timeline events — booking and close reason are shown in the info blocks above
 
   container.innerHTML = html;
   container.scrollTop = container.scrollHeight;
