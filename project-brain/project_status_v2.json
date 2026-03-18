@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": 2,
-    "last_updated": "2026-03-16T18:00:00Z",
+    "last_updated": "2026-03-18T21:00:00Z",
     "updated_by": "claude",
     "repo_branch": "main"
   },
@@ -9,7 +9,7 @@
     "project_name": "AutoShop AI Agent SaaS",
     "current_mission": "Full SMS pipeline production-verified — awaiting human demo run and pilot onboarding",
     "current_node_id": "calendar_reliability",
-    "overall_progress": 69,
+    "overall_progress": 71,
     "momentum": "progressing",
     "ai_can_continue_now": true,
     "human_action_required": true,
@@ -276,7 +276,7 @@
       "title": "Production Readiness",
       "weight": 15,
       "status": "in_progress",
-      "progress": 40,
+      "progress": 50,
       "owner": "ai",
       "depends_on": [
         "calendar_reliability",
@@ -312,10 +312,16 @@
           "title": "Live environment hardening (startup env validation, shutdown timeout, safe webhook enqueue)",
           "status": "done",
           "owner": "ai"
+        },
+        {
+          "id": "pipeline_error_alerting",
+          "title": "Pipeline failure alerting (alerts table, owner SMS notification, admin endpoints, dead-letter capture)",
+          "status": "done",
+          "owner": "ai"
         }
       ],
-      "next_task": "Remaining: Stripe billing live-test, error alerting",
-      "last_change": "2026-03-15"
+      "next_task": "Remaining: Stripe billing live-test",
+      "last_change": "2026-03-18"
     },
     {
       "id": "first_live_pilot",
@@ -376,6 +382,13 @@
     }
   ],
   "recent_movements": [
+    {
+      "date": "2026-03-18",
+      "type": "task_done",
+      "title": "Pipeline failure alerting — alerts table, owner SMS, admin endpoints, dead-letter capture",
+      "impact": "Pipeline failures now create persistent alerts, notify tenant owners via SMS, and surface in admin dashboard. Dead-letter jobs captured when BullMQ retries exhausted.",
+      "branch": "ai/pipeline-alerts"
+    },
     {
       "date": "2026-03-16",
       "type": "task_done",

@@ -9,6 +9,30 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: pipeline-alerts — 2026-03-18
+
+**Branch:** ai/pipeline-alerts
+**Status:** COMPLETE — Pipeline failure alerting system
+
+### Why This is BUILD Work
+Before this change, when the core pipeline failed (OpenAI down, SMS send fails, booking breaks, worker retries exhausted), the failure was silent — logged to console only. No operator or tenant owner was notified. This directly reduces execution risk in the live missed-call → SMS → AI → booking → calendar path.
+
+### Changes
+1. **Migration 021** — `pipeline_alerts` table with severity, alert_type, owner notification tracking, admin acknowledgement
+2. **Pipeline alerts service** (`services/pipeline-alerts.ts`) — `raiseAlert()`, `classifyError()`, `alertFromTraceFailure()`, `getAlerts()`, `acknowledgeAlert()`, `countUnacknowledgedAlerts()`
+3. **Route integration** — `process-sms.ts` and `missed-call-sms.ts` routes now raise alerts on pipeline failure
+4. **Worker dead-letter capture** — BullMQ sms-inbound worker raises alert when jobs exhaust all retries
+5. **Admin endpoints** — `GET /internal/admin/alerts`, `POST /internal/admin/alerts/:id/acknowledge`
+6. **Overview badge** — `unacknowledged_alerts` count added to admin overview response
+7. **Owner SMS notification** — Critical alerts send SMS to tenant `owner_phone` via Twilio
+
+### Verification
+- 417/417 tests passed (28 test files)
+- TypeScript: clean (no errors)
+- 19 new tests in pipeline-alerts.test.ts
+
+---
+
 ## TASK: dashboard-kpi-customers-analytics-fix — 2026-03-17
 
 **Branch:** ai/dashboard-kpi-customers-analytics-fix

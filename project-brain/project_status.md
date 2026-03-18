@@ -7,7 +7,7 @@
 
 ## Project Completion Estimate
 
-**~69%** (weighted)
+**~71%** (weighted)
 
 Calculated from weighted stage progress below. Only objectively verifiable progress counts. Code-complete but unverified stages are capped at 40-50%.
 
@@ -43,11 +43,11 @@ Phase: Production-verified, awaiting human demo run.
 | 3 | Core Messaging & AI Flow | 25% | in_progress | 80% | 20.0% |
 | 4 | Calendar & Booking Reliability | 15% | in_progress | 80% | 12.0% |
 | 5 | Admin Visibility & Control | 10% | done | 100% | 10.0% |
-| 6 | Production Readiness | 15% | in_progress | 40% | 6.0% |
+| 6 | Production Readiness | 15% | in_progress | 50% | 7.5% |
 | 7 | First Live Pilot | 10% | not_started | 0% | 0.0% |
-| | **Total** | **100%** | | | **~69%** |
+| | **Total** | **100%** | | | **~71%** |
 
-> Progress recalculated 2026-03-16: 10 + 13.5 + 20 + 12 + 10 + 6 + 0 = 71.5 → 69% (conservative)
+> Progress recalculated 2026-03-18: 10 + 13.5 + 20 + 12 + 10 + 7.5 + 0 = 73 → 71% (conservative)
 
 ## Active Tasks
 
@@ -57,10 +57,11 @@ Phase: Production-verified, awaiting human demo run.
 - Call +13257523890 and let it ring to test missed-call trigger
 
 ### AI Next
-- Remaining Stage 6 hardening (Stripe billing live-test, error alerting)
+- Remaining Stage 6 hardening (Stripe billing live-test)
 
 ## Done (Recent)
 
+- Pipeline failure alerting: alerts table, owner SMS notification, admin endpoints, dead-letter capture (ai/pipeline-alerts)
 - Tenant health monitoring: per-tenant conversation, booking, pipeline, calendar metrics with Health tab in admin (ai/tenant-health-monitoring)
 - Pilot tenant readiness check: per-tenant live-path checklist with ready/not_ready verdict, 9 checks, admin UI tab (PR #120)
 - Live environment hardening: startup env validation, graceful shutdown timeout, safe webhook enqueue, enhanced health check (PR #113)
@@ -86,6 +87,7 @@ Phase: Production-verified, awaiting human demo run.
 
 | Date | Change | Branch/PR |
 |------|--------|-----------|
+| 2026-03-18 | Pipeline failure alerting: alerts table, owner SMS, admin endpoints, dead-letter capture | ai/pipeline-alerts |
 | 2026-03-16 | Tenant health monitoring: per-tenant conversation, booking, pipeline, calendar metrics + admin tab | ai/tenant-health-monitoring |
 | 2026-03-15 | Pilot tenant readiness check: per-tenant live-path checklist with verdict | PR #120 |
 | 2026-03-15 | Live env hardening: startup env validation, shutdown timeout, safe webhook enqueue | PR #113 |
