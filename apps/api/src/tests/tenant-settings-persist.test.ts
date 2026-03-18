@@ -13,6 +13,18 @@ vi.mock("../db/client", () => ({
   query: mocks.query,
 }));
 
+vi.mock("../services/ai-settings", () => ({
+  mergeWithDefaults: vi.fn((input: unknown) => input || {}),
+  getTenantAiPolicy: vi.fn().mockResolvedValue({
+    requiredFields: [],
+    optionalFields: [],
+    tone: "direct",
+    greetingStyle: "short",
+    missedCallSmsEnabled: true,
+    missedCallSmsTemplate: "",
+  }),
+}));
+
 import { tenantSettingsRoute } from "../routes/tenant/settings";
 import { tenantDashboardRoute } from "../routes/tenant/dashboard";
 
@@ -66,7 +78,8 @@ describe("PUT /tenant/settings", () => {
     // Verify the DB UPDATE was called with correct params
     expect(mocks.query).toHaveBeenCalledTimes(1);
     const [sql, params] = mocks.query.mock.calls[0];
-    expect(sql).toContain("UPDATE tenants SET shop_name");
+    expect(sql).toContain("UPDATE tenants");
+    expect(sql).toContain("shop_name");
     expect(params[0]).toBe("Joe's Garage");
     expect(params[1]).toBe(TENANT_ID);
   });

@@ -2,15 +2,17 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { query } from "../../db/client";
 import { requireAuth } from "../../middleware/require-auth";
+import { mergeWithDefaults, getTenantAiPolicy } from "../../services/ai-settings";
 
 const UpdateSettingsSchema = z.object({
-  shop_name: z.string().min(1).max(200),
+  shop_name: z.string().min(1).max(200).optional(),
+  ai_settings: z.record(z.unknown()).optional(),
 });
 
 /**
  * PUT /tenant/settings
  *
- * Updates tenant settings (currently shop_name).
+ * Updates tenant settings (shop_name and/or ai_settings).
  * Protected by JWT auth — tenantId comes from the verified token.
  */
 export async function tenantSettingsRoute(app: FastifyInstance) {
@@ -25,13 +27,58 @@ export async function tenantSettingsRoute(app: FastifyInstance) {
       });
     }
 
-    const { shop_name } = parsed.data;
+    const { shop_name, ai_settings } = parsed.data;
+
+    // At least one field must be provided
+    if (!shop_name && !ai_settings) {
+      return reply.status(400).send({
+        error: "Validation failed",
+        details: ["At least shop_name or ai_settings must be provided"],
+      });
+    }
+
+    // Build dynamic UPDATE query
+    const setClauses: string[] = ["updated_at = NOW()"];
+    const params: unknown[] = [];
+    let paramIdx = 1;
+
+    if (shop_name) {
+      setClauses.push(`shop_name = $${paramIdx}`);
+      params.push(shop_name);
+      paramIdx++;
+    }
+
+    if (ai_settings) {
+      // Merge with defaults to ensure complete structure, then store
+      const merged = mergeWithDefaults(ai_settings);
+      setClauses.push(`ai_settings = $${paramIdx}`);
+      params.push(JSON.stringify(merged));
+      paramIdx++;
+    }
+
+    params.push(tenantId);
 
     await query(
-      `UPDATE tenants SET shop_name = $1, updated_at = NOW() WHERE id = $2`,
-      [shop_name, tenantId]
+      `UPDATE tenants SET ${setClauses.join(", ")} WHERE id = $${paramIdx}`,
+      params
     );
 
-    return reply.status(200).send({ success: true, shop_name });
+    const result: Record<string, unknown> = { success: true };
+    if (shop_name) result.shop_name = shop_name;
+    if (ai_settings) result.ai_settings = mergeWithDefaults(ai_settings);
+
+    return reply.status(200).send(result);
+  });
+
+  /**
+   * GET /tenant/ai-policy
+   *
+   * Returns the computed runtime AI policy for the authenticated tenant.
+   * Used by frontend to verify what settings are active.
+   */
+  app.get("/ai-policy", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { tenantId } = request.user as { tenantId: string; email: string };
+    const policy = await getTenantAiPolicy(tenantId);
+    return reply.status(200).send(policy);
   });
 }

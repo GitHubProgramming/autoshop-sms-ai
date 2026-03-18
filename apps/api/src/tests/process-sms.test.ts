@@ -33,6 +33,28 @@ vi.mock("../services/pipeline-trace", () => ({
   }),
 }));
 
+vi.mock("../services/ai-settings", () => ({
+  getTenantAiPolicy: vi.fn().mockResolvedValue({
+    requiredFields: ["customerName", "carModel", "issueDescription", "preferredTime"],
+    optionalFields: ["licensePlate", "phoneConfirmation"],
+    tone: "direct",
+    greetingStyle: "short",
+    offerEarliestSlot: true,
+    limitedSlots: true,
+    openScheduling: false,
+    suggestAdditionalServices: false,
+    escalateUncertainCases: true,
+    afterHoursBehavior: "book_next",
+    services: "",
+    restrictions: "",
+    missedCallSmsEnabled: true,
+    missedCallSmsTemplate: "",
+  }),
+  buildPromptPolicySection: vi.fn().mockReturnValue("--- BOOKING RULES ---\nBe direct and concise."),
+  getMissingRequiredFields: vi.fn().mockReturnValue([]),
+  getMissingFieldLabels: vi.fn().mockReturnValue([]),
+}));
+
 import { processSms, ProcessSmsInput } from "../services/process-sms";
 import { processSmsRoute } from "../routes/internal/process-sms";
 
