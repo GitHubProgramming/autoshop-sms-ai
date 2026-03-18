@@ -133,7 +133,7 @@
         "operation": "append",
         "documentId": {
           "__rl": true,
-          "value": "GOOGLE_SHEET_ID_PLACEHOLDER",
+          "value": "1ypxUbbPkd4l-96K8vMQgwMHv4ek6Q4p1ScbXOrd15rI",
           "mode": "id"
         },
         "sheetName": {
@@ -170,7 +170,7 @@
       "position": [2250, 500],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "id": "APKOpIYNrXjjc3U7",
           "name": "Google Sheets account"
         }
       },
@@ -202,8 +202,9 @@
       "parameters": {
         "calendar": {
           "__rl": true,
-          "value": "PROTEROS_TEST_CALENDAR_ID",
-          "mode": "id"
+          "value": "mantas.gipiskis@gmail.com",
+          "mode": "list",
+          "cachedResultName": "mantas.gipiskis@gmail.com"
         },
         "start": "={{ $json.startDateTime }}",
         "end": "={{ $json.endDateTime }}",
@@ -220,18 +221,18 @@
       "retryOnFail": true,
       "credentials": {
         "googleCalendarOAuth2Api": {
-          "id": "GOOGLE_CALENDAR_CREDENTIAL_ID",
-          "name": "Google Calendar account"
+          "id": "hriZCE0YmnVPrXid",
+          "name": "Google Calendar account 4"
         }
       },
-      "notes": "SETUP: 1) Create calendar 'Proteros Test Registracijos'. 2) Replace PROTEROS_TEST_CALENDAR_ID with the actual calendar ID. 3) Replace credential ID."
+      "notes": "Google Calendar: mantas.gipiskis@gmail.com. Credential: Google Calendar account 4."
     },
     {
       "parameters": {
         "operation": "append",
         "documentId": {
           "__rl": true,
-          "value": "GOOGLE_SHEET_ID_PLACEHOLDER",
+          "value": "1ypxUbbPkd4l-96K8vMQgwMHv4ek6Q4p1ScbXOrd15rI",
           "mode": "id"
         },
         "sheetName": {
@@ -272,7 +273,7 @@
       "position": [2500, 200],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "id": "APKOpIYNrXjjc3U7",
           "name": "Google Sheets account"
         }
       },
@@ -522,7 +523,7 @@
     "saveManualExecutions": true,
     "errorWorkflow": ""
   },
-  "active": false,
+  "active": true,
   "tags": [
     { "name": "LT_Proteros" },
     { "name": "sms-booking" },
