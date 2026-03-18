@@ -23,6 +23,8 @@ export interface CreateAppointmentInput {
   customerPhone: string;
   customerName?: string | null;
   serviceType?: string | null;
+  carModel?: string | null;
+  licensePlate?: string | null;
   scheduledAt: string; // ISO 8601
   durationMinutes?: number;
   notes?: string | null;
@@ -90,14 +92,15 @@ export async function createAppointment(
   }
 
   // 2. Validate required booking fields against tenant AI policy
+  // FAIL-CLOSED: if policy lookup fails, block booking — never allow unvalidated inserts
   try {
     const policy = await getTenantAiPolicy(input.tenantId);
     const collected: ConversationCollectedData = {
       customerName: input.customerName,
-      carModel: input.serviceType,
+      carModel: input.carModel ?? null,
       issueDescription: input.serviceType,
       preferredTime: input.scheduledAt,
-      licensePlate: null,
+      licensePlate: input.licensePlate ?? null,
       phoneConfirmation: null,
     };
     const missing = getMissingRequiredFields(policy, collected);
@@ -110,8 +113,13 @@ export async function createAppointment(
         error: `Missing required booking fields: ${labels.join(", ")}`,
       };
     }
-  } catch {
-    // Non-fatal: if policy lookup fails, allow booking (fail-open for safety)
+  } catch (err) {
+    return {
+      success: false,
+      appointment: null,
+      upserted: false,
+      error: `Policy validation failed — booking blocked for safety: ${(err as Error).message}`,
+    };
   }
 
   // 3. Insert or upsert appointment

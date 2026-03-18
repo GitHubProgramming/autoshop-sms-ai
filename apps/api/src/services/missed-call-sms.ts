@@ -16,7 +16,7 @@
 
 import { query } from "../db/client";
 import { getConfig } from "../db/app-config";
-import { getTenantAiPolicy } from "./ai-settings";
+import { getTenantAiPolicy, buildRuntimePolicy, AI_SETTINGS_DEFAULTS } from "./ai-settings";
 
 export interface MissedCallInput {
   tenantId: string;
@@ -168,14 +168,15 @@ export async function handleMissedCallSms(
   }
 
   // 2b. Check AI settings — if missed-call SMS is disabled, skip
+  // FAIL-CLOSED: always resolve to a policy (defaults on failure)
   let aiPolicy;
   try {
     aiPolicy = await getTenantAiPolicy(input.tenantId);
   } catch {
-    // Non-fatal: proceed with default behavior (SMS enabled)
+    aiPolicy = buildRuntimePolicy(AI_SETTINGS_DEFAULTS);
   }
 
-  if (aiPolicy && !aiPolicy.missedCallSmsEnabled) {
+  if (!aiPolicy.missedCallSmsEnabled) {
     return {
       success: true,
       conversationId: null,
