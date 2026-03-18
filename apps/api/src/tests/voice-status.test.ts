@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   checkIdempotency: vi.fn().mockResolvedValue(false),
   markIdempotency: vi.fn().mockResolvedValue(undefined),
   getTenantByPhoneNumber: vi.fn(),
+  getBlockReason: vi.fn((): string | null => null),
 }));
 
 vi.mock("../db/client", () => ({
@@ -24,7 +25,7 @@ vi.mock("../queues/redis", () => ({
 
 vi.mock("../db/tenants", () => ({
   getTenantByPhoneNumber: mocks.getTenantByPhoneNumber,
-  getBlockReason: vi.fn(() => null),
+  getBlockReason: mocks.getBlockReason,
 }));
 
 vi.mock("../services/pipeline-trace", () => ({
@@ -396,6 +397,39 @@ describe("POST /webhooks/twilio/voice-status", () => {
       expect.objectContaining({ callStatus: "busy" }),
       expect.anything()
     );
+    await app.close();
+  });
+
+  it("does not enqueue when tenant is blocked (canceled)", async () => {
+    mocks.getBlockReason.mockReturnValueOnce("service_canceled");
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/webhooks/twilio/voice-status",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: voicePayload({ CallStatus: "no-answer" }),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toContain("<Response");
+    expect(mocks.add).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("does not enqueue when tenant is blocked (trial_expired)", async () => {
+    mocks.getBlockReason.mockReturnValueOnce("trial_expired");
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/webhooks/twilio/voice-status",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: voicePayload({ DialCallStatus: "no-answer" }),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(mocks.add).not.toHaveBeenCalled();
     await app.close();
   });
 });

@@ -1,14 +1,16 @@
 import { describe, it, expect, vi } from "vitest";
 
+const mockQuery = vi.fn().mockResolvedValue([]);
+
 // db/client throws at module level when DATABASE_URL is missing.
 // getBlockReason is a pure function; no real DB connection needed.
 vi.mock("../db/client", () => ({
   db: { end: vi.fn() },
-  query: vi.fn(),
+  query: (...args: unknown[]) => mockQuery(...args),
   withTenant: vi.fn(),
 }));
 
-import { getBlockReason } from "../db/tenants";
+import { getBlockReason, getTenantByPhoneNumber } from "../db/tenants";
 import type { Tenant, BillingStatus } from "../db/tenants";
 
 function makeTenant(overrides: Partial<Tenant> = {}): Tenant {
@@ -83,5 +85,31 @@ describe("getBlockReason", () => {
     });
     // Paid plans: soft block only (AI sends upgrade message, no hard block)
     expect(getBlockReason(tenant)).toBeNull();
+  });
+});
+
+describe("getTenantByPhoneNumber", () => {
+  it("queries for both active and suspended phone numbers", async () => {
+    mockQuery.mockResolvedValueOnce([]);
+    await getTenantByPhoneNumber("+15551234567");
+
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    const sql = mockQuery.mock.calls[0][0] as string;
+    expect(sql).toContain("'active'");
+    expect(sql).toContain("'suspended'");
+    expect(mockQuery.mock.calls[0][1]).toEqual(["+15551234567"]);
+  });
+
+  it("returns tenant when found", async () => {
+    const tenant = makeTenant();
+    mockQuery.mockResolvedValueOnce([tenant]);
+    const result = await getTenantByPhoneNumber("+15551234567");
+    expect(result).toEqual(tenant);
+  });
+
+  it("returns null when no matching number", async () => {
+    mockQuery.mockResolvedValueOnce([]);
+    const result = await getTenantByPhoneNumber("+15559999999");
+    expect(result).toBeNull();
   });
 });

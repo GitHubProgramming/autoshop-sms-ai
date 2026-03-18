@@ -155,7 +155,8 @@ export async function handleMissedCallSms(
   }
 
   // 2. Check billing — don't send SMS if tenant is blocked
-  if (billingStatus === "blocked") {
+  const BLOCKED_STATUSES = ["canceled", "paused", "past_due_blocked", "trial_expired"];
+  if (BLOCKED_STATUSES.includes(billingStatus)) {
     return {
       success: false,
       conversationId: null,

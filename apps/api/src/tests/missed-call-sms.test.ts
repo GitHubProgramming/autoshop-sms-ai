@@ -183,9 +183,18 @@ describe("handleMissedCallSms", () => {
     expect(result.error).toBe("Tenant not found");
   });
 
-  it("returns error when tenant billing is blocked", async () => {
+  it("returns error when tenant billing is canceled", async () => {
     mocks.query.mockResolvedValueOnce([
-      { id: TENANT_ID, shop_name: "Joe's Auto", billing_status: "blocked" },
+      { id: TENANT_ID, shop_name: "Joe's Auto", billing_status: "canceled" },
+    ]);
+    const result = await handleMissedCallSms(validInput(), mockFetchSuccess());
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("Tenant billing is blocked");
+  });
+
+  it("returns error when tenant billing is past_due_blocked", async () => {
+    mocks.query.mockResolvedValueOnce([
+      { id: TENANT_ID, shop_name: "Joe's Auto", billing_status: "past_due_blocked" },
     ]);
     const result = await handleMissedCallSms(validInput(), mockFetchSuccess());
     expect(result.success).toBe(false);
@@ -379,7 +388,7 @@ describe("POST /internal/missed-call-sms — route", () => {
 
   it("returns 402 when tenant billing is blocked", async () => {
     mocks.query.mockResolvedValueOnce([
-      { id: TENANT_ID, shop_name: "Test Shop", billing_status: "blocked" },
+      { id: TENANT_ID, shop_name: "Test Shop", billing_status: "canceled" },
     ]);
 
     const app = await buildApp();
