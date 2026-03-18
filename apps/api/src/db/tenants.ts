@@ -25,6 +25,12 @@ export interface Tenant {
 /**
  * Look up tenant by their Twilio inbound phone number.
  * Used in webhook handler — no tenant context needed (lookup only).
+ *
+ * Matches both 'active' and 'suspended' numbers so that:
+ *   - Active tenants proceed to normal AI pipeline
+ *   - Canceled/blocked tenants (with suspended numbers) still reach the
+ *     billing enforcement check, which sends a polite auto-reply instead
+ *     of silently dropping the customer's message
  */
 export async function getTenantByPhoneNumber(
   phoneNumber: string
@@ -34,7 +40,7 @@ export async function getTenantByPhoneNumber(
      FROM tenants t
      JOIN tenant_phone_numbers tpn ON tpn.tenant_id = t.id
      WHERE tpn.phone_number = $1
-       AND tpn.status = 'active'
+       AND tpn.status IN ('active', 'suspended')
      LIMIT 1`,
     [phoneNumber]
   );

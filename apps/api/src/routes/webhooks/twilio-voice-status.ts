@@ -1,7 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { validateTwilioSignature } from "../../middleware/twilio-validate";
-import { getTenantByPhoneNumber } from "../../db/tenants";
+import { getTenantByPhoneNumber, getBlockReason } from "../../db/tenants";
 import { smsInboundQueue, checkIdempotency, markIdempotency } from "../../queues/redis";
 import { startTrace, resumeTrace } from "../../services/pipeline-trace";
 
@@ -83,6 +83,24 @@ export async function twilioVoiceStatusRoute(app: FastifyInstance) {
           await t.setTenant(tenant.id);
           await t.step("tenant_resolved", "ok", `${tenant.shop_name ?? "unknown"} (${tenant.id.slice(0, 8)})`);
         } catch { /* non-fatal */ }
+      }
+
+      // ── Billing enforcement ────────────────────────────────────────────
+      // Don't send missed-call SMS for blocked tenants (canceled, paused, etc.)
+      const blockReason = getBlockReason(tenant);
+      if (blockReason) {
+        request.log.info(
+          { tenantId: tenant.id, blockReason },
+          "Tenant blocked — skipping missed-call SMS"
+        );
+        if (traceId) {
+          try {
+            const t = await resumeTrace(traceId);
+            await t.step("billing_check", "fail", `Blocked: ${blockReason}`);
+            await t.fail(`Tenant blocked: ${blockReason}`);
+          } catch { /* non-fatal */ }
+        }
+        return reply.status(200).type("text/xml").send("<Response/>");
       }
 
       // Enqueue missed-call SMS trigger
