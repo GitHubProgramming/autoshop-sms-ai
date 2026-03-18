@@ -1628,44 +1628,98 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 
           <!-- AI Behavior -->
           <div class="settings-panel" id="sp-ai">
-            <div class="settings-card">
-              <div class="settings-card-title">AI Behavior Settings</div>
-              <div class="settings-card-sub">Configure how your AI receptionist responds to customers</div>
+            <!-- Section 1: AI Behavior -->
+            <div class="settings-card" style="margin-bottom:20px;">
+              <div class="settings-card-title">AI Behavior</div>
+              <div class="settings-card-sub">Control the tone and style of your AI receptionist</div>
               <div class="settings-field">
-                <label>AI Personality</label>
-                <select>
-                  <option>Professional &amp; Friendly</option>
-                  <option>Casual &amp; Conversational</option>
-                  <option>Formal &amp; Business-like</option>
+                <label>Response Tone</label>
+                <select id="ai-tone">
+                  <option value="professional">Professional</option>
+                  <option value="friendly">Friendly</option>
+                  <option value="direct">Direct</option>
                 </select>
               </div>
               <div class="settings-field">
-                <label>Custom Instructions</label>
-                <textarea rows="4" placeholder="Provide custom instructions for the AI receptionist..."></textarea>
+                <label>Greeting Style</label>
+                <input type="text" id="ai-greeting" placeholder="e.g. Hi! Thanks for contacting Mike's Auto — how can we help?">
               </div>
-              <hr class="settings-divider">
-              <div class="settings-section-title">Automation Level</div>
-              <div class="settings-radio-item">
-                <input type="radio" name="automation" checked>
-                <div><div class="settings-radio-label">Full Automation</div><div class="settings-radio-desc">AI handles everything including booking appointments</div></div>
+              <div class="settings-field">
+                <label>Business Style</label>
+                <select id="ai-style">
+                  <option value="helpful">Helpful</option>
+                  <option value="premium">Premium</option>
+                  <option value="fast">Fast / Efficient</option>
+                  <option value="local">Local / Friendly</option>
+                </select>
               </div>
-              <div class="settings-radio-item">
-                <input type="radio" name="automation">
-                <div><div class="settings-radio-label">Assisted Mode</div><div class="settings-radio-desc">AI helps but requires confirmation for bookings</div></div>
+            </div>
+
+            <!-- Section 2: Booking Logic -->
+            <div class="settings-card" style="margin-bottom:20px;">
+              <div class="settings-card-title">Booking Logic</div>
+              <div class="settings-card-sub">Configure how the AI handles scheduling and escalation</div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-row-label">Offer earliest available slot first</div>
+                  <div class="settings-row-sub">AI will suggest the next open time slot automatically</div>
+                </div>
+                <div class="s-toggle on" id="ai-toggle-earliest" onclick="this.classList.toggle('on');aiUpdatePreview()"></div>
               </div>
-              <div class="settings-radio-item">
-                <input type="radio" name="automation">
-                <div><div class="settings-radio-label">Information Only</div><div class="settings-radio-desc">AI answers questions but doesn't book appointments</div></div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-row-label">Suggest additional services</div>
+                  <div class="settings-row-sub">AI may recommend related services during conversation</div>
+                </div>
+                <div class="s-toggle" id="ai-toggle-upsell" onclick="this.classList.toggle('on');aiUpdatePreview()"></div>
               </div>
-              <hr class="settings-divider">
-              <div class="settings-section-title">Escalation Rules</div>
-              <div class="settings-check-row"><input type="checkbox" checked><span>Escalate when customer requests human operator</span></div>
-              <div class="settings-check-row"><input type="checkbox" checked><span>Escalate for complex diagnostic questions</span></div>
-              <div class="settings-check-row"><input type="checkbox"><span>Escalate if customer seems frustrated</span></div>
-              <button class="settings-save-btn" onclick="showToast('AI settings saved.')" style="margin-top:20px;">
+              <div class="settings-row">
+                <div>
+                  <div class="settings-row-label">Escalate uncertain cases to staff</div>
+                  <div class="settings-row-sub">Hand off conversations the AI cannot resolve confidently</div>
+                </div>
+                <div class="s-toggle on" id="ai-toggle-escalation" onclick="this.classList.toggle('on');aiUpdatePreview()"></div>
+              </div>
+              <div class="settings-field" style="padding:12px 18px 18px;">
+                <label>After-Hours Behavior</label>
+                <select id="ai-afterhours">
+                  <option value="book_next">Collect request and book next available slot</option>
+                  <option value="promise_callback">Collect request and promise callback</option>
+                  <option value="ask_urgent">Ask if issue is urgent</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Section 3: Shop Context -->
+            <div class="settings-card" style="margin-bottom:20px;">
+              <div class="settings-card-title">Shop Context</div>
+              <div class="settings-card-sub">Help the AI understand what your shop offers</div>
+              <div class="settings-field">
+                <label>Services the AI can talk about</label>
+                <textarea id="ai-services" rows="3" placeholder="e.g. Oil changes, brake repair, tire rotation, A/C service, engine diagnostics..."></textarea>
+              </div>
+              <div class="settings-field">
+                <label>Things the AI should avoid saying</label>
+                <textarea id="ai-restrictions" rows="3" placeholder="e.g. Don't quote exact prices, don't promise same-day for engine work..."></textarea>
+              </div>
+            </div>
+
+            <!-- Section 4: AI Summary Preview -->
+            <div class="settings-card" style="margin-bottom:20px;background:var(--bg);border:1px solid var(--border);">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--rust)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/></svg>
+                <div class="settings-card-title" style="margin-bottom:0;">AI Configuration Summary</div>
+              </div>
+              <div id="ai-summary-preview" style="font-size:13px;color:var(--text-secondary);line-height:1.8;"></div>
+            </div>
+
+            <!-- Section 5: Footer Actions -->
+            <div style="display:flex;gap:8px;">
+              <button class="settings-save-btn" id="ai-save-btn">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                 Save AI Settings
               </button>
+              <button class="btn-sm" id="ai-reset-btn" type="button">Reset to Defaults</button>
             </div>
           </div>
 
@@ -4220,6 +4274,127 @@ function updateSidebarBadge() {
     badge.style.display = active > 0 ? '' : 'none';
   }
 }
+
+// ════════════════════════════════════════════
+// AI SETTINGS — structured config, persistence, live preview
+// ════════════════════════════════════════════
+var AI_SETTINGS_KEY = 'autoshop_ai_settings';
+var AI_DEFAULTS = {
+  tone: 'professional',
+  greeting: '',
+  style: 'helpful',
+  offerEarliest: true,
+  upsellEnabled: false,
+  escalationEnabled: true,
+  afterHours: 'book_next',
+  services: '',
+  restrictions: ''
+};
+
+function aiEsc(str) {
+  var d = document.createElement('div');
+  d.appendChild(document.createTextNode(str));
+  return d.innerHTML;
+}
+
+function aiGetSettings() {
+  try {
+    var saved = localStorage.getItem(AI_SETTINGS_KEY);
+    if (saved) {
+      var parsed = JSON.parse(saved);
+      var result = {};
+      for (var k in AI_DEFAULTS) result[k] = AI_DEFAULTS[k];
+      for (var k in parsed) { if (AI_DEFAULTS.hasOwnProperty(k)) result[k] = parsed[k]; }
+      return result;
+    }
+  } catch (e) { /* ignore corrupted data */ }
+  return JSON.parse(JSON.stringify(AI_DEFAULTS));
+}
+
+function aiReadForm() {
+  var v = function(id) { var el = document.getElementById(id); return el ? el.value : ''; };
+  var tog = function(id) { var el = document.getElementById(id); return el ? el.classList.contains('on') : false; };
+  return {
+    tone: v('ai-tone') || AI_DEFAULTS.tone,
+    greeting: v('ai-greeting'),
+    style: v('ai-style') || AI_DEFAULTS.style,
+    offerEarliest: tog('ai-toggle-earliest'),
+    upsellEnabled: tog('ai-toggle-upsell'),
+    escalationEnabled: tog('ai-toggle-escalation'),
+    afterHours: v('ai-afterhours') || AI_DEFAULTS.afterHours,
+    services: v('ai-services'),
+    restrictions: v('ai-restrictions')
+  };
+}
+
+function aiSaveSettings() {
+  var settings = aiReadForm();
+  localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(settings));
+  showToast('AI settings saved.');
+}
+
+function aiLoadSettings() {
+  var s = aiGetSettings();
+  var set = function(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; };
+  var setTog = function(id, on) { var el = document.getElementById(id); if (el) { if (on) el.classList.add('on'); else el.classList.remove('on'); } };
+  set('ai-tone', s.tone);
+  set('ai-greeting', s.greeting);
+  set('ai-style', s.style);
+  setTog('ai-toggle-earliest', s.offerEarliest);
+  setTog('ai-toggle-upsell', s.upsellEnabled);
+  setTog('ai-toggle-escalation', s.escalationEnabled);
+  set('ai-afterhours', s.afterHours);
+  set('ai-services', s.services);
+  set('ai-restrictions', s.restrictions);
+  aiUpdatePreview();
+}
+
+function aiResetSettings() {
+  localStorage.removeItem(AI_SETTINGS_KEY);
+  aiLoadSettings();
+  showToast('AI settings reset to defaults.');
+}
+
+function aiUpdatePreview() {
+  var el = document.getElementById('ai-summary-preview');
+  if (!el) return;
+  var s = aiReadForm();
+
+  var toneLabels = { professional: 'Professional', friendly: 'Friendly', direct: 'Direct' };
+  var styleLabels = { helpful: 'Helpful', premium: 'Premium', fast: 'Fast / Efficient', local: 'Local / Friendly' };
+  var afterLabels = { book_next: 'Book next available slot', promise_callback: 'Promise callback', ask_urgent: 'Ask if urgent' };
+
+  var lines = [];
+  lines.push('<div style="display:grid;grid-template-columns:140px 1fr;gap:6px 12px;">');
+  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Tone</span><span>' + aiEsc(toneLabels[s.tone] || s.tone) + '</span>');
+  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Greeting</span><span>' + (s.greeting ? aiEsc(s.greeting) : '<span style="color:var(--text-tertiary);font-style:italic;">Default</span>') + '</span>');
+  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Style</span><span>' + aiEsc(styleLabels[s.style] || s.style) + '</span>');
+  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Earliest slot</span><span>' + (s.offerEarliest ? '<span style="color:var(--green);font-weight:600;">On</span>' : '<span style="color:var(--text-tertiary);">Off</span>') + '</span>');
+  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Upsell</span><span>' + (s.upsellEnabled ? '<span style="color:var(--green);font-weight:600;">On</span>' : '<span style="color:var(--text-tertiary);">Off</span>') + '</span>');
+  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Escalation</span><span>' + (s.escalationEnabled ? '<span style="color:var(--green);font-weight:600;">On</span>' : '<span style="color:var(--text-tertiary);">Off</span>') + '</span>');
+  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">After-hours</span><span>' + aiEsc(afterLabels[s.afterHours] || s.afterHours) + '</span>');
+  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Services</span><span>' + (s.services ? aiEsc(s.services) : '<span style="color:var(--text-tertiary);font-style:italic;">Not configured</span>') + '</span>');
+  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Restrictions</span><span>' + (s.restrictions ? aiEsc(s.restrictions) : '<span style="color:var(--text-tertiary);font-style:italic;">None</span>') + '</span>');
+  lines.push('</div>');
+
+  el.innerHTML = lines.join('');
+}
+
+// Wire up AI settings on DOMContentLoaded
+document.addEventListener('DOMContentLoaded', function() {
+  aiLoadSettings();
+  // Live preview on every input change
+  var aiInputIds = ['ai-tone', 'ai-greeting', 'ai-style', 'ai-afterhours', 'ai-services', 'ai-restrictions'];
+  aiInputIds.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('input', aiUpdatePreview);
+    if (el && el.tagName === 'SELECT') el.addEventListener('change', aiUpdatePreview);
+  });
+  var saveBtn = document.getElementById('ai-save-btn');
+  if (saveBtn) saveBtn.addEventListener('click', aiSaveSettings);
+  var resetBtn = document.getElementById('ai-reset-btn');
+  if (resetBtn) resetBtn.addEventListener('click', aiResetSettings);
+});
 </script>
 
 <!-- ── AUTH GUARD ── -->
