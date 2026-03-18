@@ -82,7 +82,7 @@ export async function twilioSmsRoute(app: FastifyInstance) {
       if (blockReason) {
         request.log.info(
           { tenantId: tenant.id, blockReason },
-          "Tenant blocked — queuing block-response job"
+          "Tenant blocked — sending auto-reply"
         );
         if (traceId) {
           try {
@@ -92,9 +92,10 @@ export async function twilioSmsRoute(app: FastifyInstance) {
             await t.fail(`Tenant blocked: ${blockReason}`);
           } catch { /* non-fatal */ }
         }
-        // TODO: enqueue a job to send a "service unavailable" SMS reply
-        // This keeps the response fast and moves SMS sending to worker
-        return reply.status(200).type("text/xml").send("<Response/>");
+        // Send polite auto-reply via TwiML so the customer isn't left hanging
+        const autoReply = getBlockedAutoReply(blockReason, tenant.shop_name);
+        const twiml = `<Response><Message>${escapeXml(autoReply)}</Message></Response>`;
+        return reply.status(200).type("text/xml").send(twiml);
       }
 
       // ── 4. Check if active plan is at soft limit (paid, 100% used) ─────────
@@ -153,4 +154,57 @@ export async function twilioSmsRoute(app: FastifyInstance) {
       return reply.status(200).type("text/xml").send("<Response/>");
     }
   );
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Returns a polite auto-reply message for blocked tenants.
+ * The customer should never get silence — that damages the shop's reputation.
+ */
+export function getBlockedAutoReply(
+  blockReason: string,
+  shopName: string | null
+): string {
+  const name = shopName ?? "this business";
+
+  switch (blockReason) {
+    case "trial_expired":
+    case "trial_limit_reached":
+      return (
+        `Thank you for reaching out! ${name}'s automated messaging ` +
+        `service is temporarily unavailable. Please call them directly ` +
+        `for assistance.`
+      );
+    case "service_canceled":
+      return (
+        `Thank you for your message. ${name}'s automated messaging ` +
+        `is no longer active. Please call them directly.`
+      );
+    case "payment_failed":
+      return (
+        `Thank you for reaching out! ${name}'s messaging service is ` +
+        `temporarily unavailable. Please call them directly for assistance.`
+      );
+    case "service_paused":
+      return (
+        `Thank you for your message. ${name}'s messaging service is ` +
+        `temporarily paused. Please call them directly.`
+      );
+    default:
+      return (
+        `Thank you for reaching out! ${name} is currently unavailable ` +
+        `via text. Please call them directly for assistance.`
+      );
+  }
+}
+
+/** Escape special XML characters for TwiML body. */
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 }

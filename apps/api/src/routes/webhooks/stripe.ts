@@ -181,13 +181,33 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
 
     case "customer.subscription.deleted": {
       await updateBillingStatus(tenantId, "canceled");
-      // TODO: suspend Twilio number (async job)
+      // Suspend Twilio number(s) so inbound messages stop routing to this tenant.
+      // Number is NOT released from Twilio (reversible if tenant resubscribes).
+      await query(
+        `UPDATE tenant_phone_numbers SET status = 'suspended', updated_at = NOW()
+         WHERE tenant_id = $1 AND status = 'active'`,
+        [tenantId]
+      );
+      console.info(`[stripe] Suspended Twilio number(s) for canceled tenant ${tenantId}`);
       break;
     }
 
     case "charge.dispute.created": {
       await updateBillingStatus(tenantId, "paused");
-      // TODO: alert admin channel
+      // Alert admin via pipeline alerts system
+      try {
+        const { raiseAlert } = await import("../../services/pipeline-alerts");
+        await raiseAlert({
+          tenantId,
+          traceId: null,
+          severity: "critical",
+          alertType: "pipeline_failed",
+          summary: `Chargeback/dispute filed — tenant paused`,
+          details: `Stripe event: charge.dispute.created. Tenant ${tenantId} billing set to paused. Requires admin review.`,
+        });
+      } catch {
+        // Non-fatal: billing state change already applied
+      }
       break;
     }
 

@@ -9,6 +9,29 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: billing-hardening — 2026-03-18
+
+**Branch:** ai/billing-hardening
+**Status:** COMPLETE — Three billing gaps closed: blocked tenant auto-reply, Twilio suspension on cancel, chargeback admin alert
+
+### Why This is BUILD Work
+All three changes reduce real execution risk in the live pipeline:
+1. Blocked tenants' customers were getting silent drops — now they get a polite reply directing them to call
+2. Canceled tenants kept active Twilio numbers routing messages to a dead account
+3. Chargebacks required admin action but generated no alert
+
+### Changes
+1. **Blocked tenant auto-reply SMS** — TwiML `<Message>` response for each block reason (trial_expired, canceled, payment_failed, paused) with shop name. Customer is never left hanging.
+2. **Twilio number suspension on cancel** — `subscription.deleted` webhook now sets phone number status to `suspended`. Reversible (number not released from Twilio).
+3. **Chargeback admin alert** — `charge.dispute.created` webhook now raises a critical pipeline alert via the alerting system (PR #174).
+
+### Verification
+- 425/425 tests passed (28 test files)
+- TypeScript: clean (no errors)
+- 8 new tests (auto-reply variants, phone suspension, chargeback alert)
+
+---
+
 ## TASK: pipeline-alerts — 2026-03-18
 
 **Branch:** ai/pipeline-alerts

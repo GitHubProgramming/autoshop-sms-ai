@@ -57,10 +57,11 @@ Phase: Production-verified, awaiting human demo run.
 - Call +13257523890 and let it ring to test missed-call trigger
 
 ### AI Next
-- Remaining Stage 6 hardening (Stripe billing live-test)
+- Stage 6 billing code complete — Stripe live-test requires real credentials (human)
 
 ## Done (Recent)
 
+- Billing hardening: blocked tenant auto-reply, Twilio suspension on cancel, chargeback admin alert (ai/billing-hardening)
 - Pipeline failure alerting: alerts table, owner SMS notification, admin endpoints, dead-letter capture (ai/pipeline-alerts)
 - Tenant health monitoring: per-tenant conversation, booking, pipeline, calendar metrics with Health tab in admin (ai/tenant-health-monitoring)
 - Pilot tenant readiness check: per-tenant live-path checklist with ready/not_ready verdict, 9 checks, admin UI tab (PR #120)
@@ -87,6 +88,7 @@ Phase: Production-verified, awaiting human demo run.
 
 | Date | Change | Branch/PR |
 |------|--------|-----------|
+| 2026-03-18 | Billing hardening: blocked tenant auto-reply, Twilio suspension on cancel, chargeback alert | ai/billing-hardening |
 | 2026-03-18 | Pipeline failure alerting: alerts table, owner SMS, admin endpoints, dead-letter capture | ai/pipeline-alerts |
 | 2026-03-16 | Tenant health monitoring: per-tenant conversation, booking, pipeline, calendar metrics + admin tab | ai/tenant-health-monitoring |
 | 2026-03-15 | Pilot tenant readiness check: per-tenant live-path checklist with verdict | PR #120 |

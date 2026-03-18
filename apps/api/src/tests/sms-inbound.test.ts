@@ -46,7 +46,7 @@ vi.mock("../services/pipeline-trace", () => ({
   }),
 }));
 
-import { twilioSmsRoute } from "../routes/webhooks/twilio-sms";
+import { twilioSmsRoute, getBlockedAutoReply } from "../routes/webhooks/twilio-sms";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -215,7 +215,7 @@ describe("POST /webhooks/twilio/sms", () => {
     await app.close();
   });
 
-  it("returns 200 without enqueueing when tenant is blocked", async () => {
+  it("returns 200 with auto-reply TwiML when tenant is blocked", async () => {
     mocks.getBlockReason.mockReturnValueOnce("trial_limit_reached");
 
     const app = await buildApp();
@@ -227,7 +227,27 @@ describe("POST /webhooks/twilio/sms", () => {
     });
 
     expect(res.statusCode).toBe(200);
-    expect(res.body).toContain("<Response");
+    expect(res.body).toContain("<Message>");
+    expect(res.body).toContain("Test Shop");
+    expect(res.body).toContain("temporarily unavailable");
+    expect(mocks.add).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("returns canceled auto-reply for canceled tenant", async () => {
+    mocks.getBlockReason.mockReturnValueOnce("service_canceled");
+
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/webhooks/twilio/sms",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: smsPayload(),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toContain("<Message>");
+    expect(res.body).toContain("no longer active");
     expect(mocks.add).not.toHaveBeenCalled();
     await app.close();
   });
@@ -304,5 +324,44 @@ describe("POST /webhooks/twilio/sms", () => {
       expect.anything()
     );
     await app.close();
+  });
+});
+
+describe("getBlockedAutoReply", () => {
+  it("returns trial message for trial_expired", () => {
+    const msg = getBlockedAutoReply("trial_expired", "Bob's Auto");
+    expect(msg).toContain("Bob's Auto");
+    expect(msg).toContain("temporarily unavailable");
+    expect(msg).toContain("call them directly");
+  });
+
+  it("returns trial message for trial_limit_reached", () => {
+    const msg = getBlockedAutoReply("trial_limit_reached", "Bob's Auto");
+    expect(msg).toContain("temporarily unavailable");
+  });
+
+  it("returns canceled message for service_canceled", () => {
+    const msg = getBlockedAutoReply("service_canceled", "Bob's Auto");
+    expect(msg).toContain("no longer active");
+  });
+
+  it("returns payment message for payment_failed", () => {
+    const msg = getBlockedAutoReply("payment_failed", "Bob's Auto");
+    expect(msg).toContain("temporarily unavailable");
+  });
+
+  it("returns paused message for service_paused", () => {
+    const msg = getBlockedAutoReply("service_paused", "Bob's Auto");
+    expect(msg).toContain("temporarily paused");
+  });
+
+  it("uses fallback name when shopName is null", () => {
+    const msg = getBlockedAutoReply("trial_expired", null);
+    expect(msg).toContain("this business");
+  });
+
+  it("returns generic fallback for unknown block reason", () => {
+    const msg = getBlockedAutoReply("some_future_reason", "Bob's Auto");
+    expect(msg).toContain("currently unavailable");
   });
 });

@@ -30,6 +30,11 @@ vi.mock("../db/tenants", () => ({
   updateBillingStatus: mocks.updateBillingStatus,
 }));
 
+const mockRaiseAlert = vi.fn().mockResolvedValue("alert-id");
+vi.mock("../services/pipeline-alerts", () => ({
+  raiseAlert: (...args: unknown[]) => mockRaiseAlert(...args),
+}));
+
 // Mock Stripe constructor so constructEvent is controllable
 vi.mock("stripe", () => {
   return {
@@ -376,7 +381,7 @@ describe("POST /webhooks/stripe", () => {
 
   // ── Event: customer.subscription.deleted ──────────────────────────────────
 
-  it("sets canceled on subscription.deleted", async () => {
+  it("sets canceled on subscription.deleted and suspends phone number", async () => {
     const sub = subscriptionObject();
     const evt = makeEvent("customer.subscription.deleted", sub);
     mocks.constructEvent.mockReturnValue(evt);
@@ -385,12 +390,18 @@ describe("POST /webhooks/stripe", () => {
     await postStripe(app);
 
     expect(mocks.updateBillingStatus).toHaveBeenCalledWith(TEST_TENANT_ID, "canceled");
+    // Should suspend tenant phone numbers
+    const suspendCalls = mocks.query.mock.calls.filter(
+      (c: unknown[]) => typeof c[0] === "string" && (c[0] as string).includes("tenant_phone_numbers") && (c[0] as string).includes("suspended")
+    );
+    expect(suspendCalls).toHaveLength(1);
+    expect(suspendCalls[0][1]).toEqual([TEST_TENANT_ID]);
     await app.close();
   });
 
   // ── Event: charge.dispute.created ─────────────────────────────────────────
 
-  it("pauses tenant on charge.dispute.created", async () => {
+  it("pauses tenant on charge.dispute.created and raises admin alert", async () => {
     const obj = { id: "dp_test_001", metadata: { tenant_id: TEST_TENANT_ID } };
     const evt = makeEvent("charge.dispute.created", obj);
     mocks.constructEvent.mockReturnValue(evt);
@@ -399,6 +410,13 @@ describe("POST /webhooks/stripe", () => {
     await postStripe(app);
 
     expect(mocks.updateBillingStatus).toHaveBeenCalledWith(TEST_TENANT_ID, "paused");
+    expect(mockRaiseAlert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: TEST_TENANT_ID,
+        severity: "critical",
+        summary: expect.stringContaining("Chargeback"),
+      })
+    );
     await app.close();
   });
 
