@@ -12,6 +12,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Create CI env file
+        run: |
+          printf '%s\n' \
+            'JWT_SECRET=ci_smoke_test_jwt_secret_not_for_production' \
+            'OPENAI_API_KEY=sk-ci-placeholder' \
+            'TWILIO_ACCOUNT_SID=AC_ci_placeholder' \
+            'TWILIO_AUTH_TOKEN=ci_placeholder_token' \
+            > .env
+
       - name: Build containers
         run: docker compose -f infra/docker-compose.yml build
 
