@@ -101,7 +101,7 @@
         "operation": "append",
         "documentId": {
           "__rl": true,
-          "value": "GOOGLE_SHEET_ID_PLACEHOLDER",
+          "value": "1ypxUbbPkd4l-96K8vMQgwMHv4ek6Q4p1ScbXOrd15rI",
           "mode": "id"
         },
         "sheetName": {
@@ -136,11 +136,11 @@
       "position": [1500, 200],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "id": "APKOpIYNrXjjc3U7",
           "name": "Google Sheets account"
         }
       },
-      "notes": "SETUP: 1) Create Google Sheet with columns: Call ID, Caller Phone, Timestamp, SMS Sent, Status. 2) Replace GOOGLE_SHEET_ID_PLACEHOLDER with the actual sheet ID. 3) Replace credential ID."
+      "notes": "Logs missed calls to Google Sheet: 1ypxUbbPkd4l-96K8vMQgwMHv4ek6Q4p1ScbXOrd15rI, tab 'Missed Calls'."
     },
     {
       "parameters": {
@@ -342,7 +342,7 @@
     "saveManualExecutions": true,
     "errorWorkflow": ""
   },
-  "active": false,
+  "active": true,
   "tags": [
     { "name": "LT_Proteros" },
     { "name": "missed-call" },
