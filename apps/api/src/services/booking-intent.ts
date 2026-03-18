@@ -12,6 +12,8 @@ export interface BookingIntentResult {
   scheduledAt: string;
   scheduledAtExtracted: boolean;
   customerName: string | null;
+  carModel: string | null;
+  licensePlate: string | null;
   userWantsClose: boolean;
   matchedPatterns: string[];
 }
@@ -132,6 +134,80 @@ const NAME_AFTER_HI =
 // Match customer saying "my name is John" or "I'm John Smith" or "this is John"
 const NAME_SELF_INTRO =
   /(?:my name is|i'm|i am|this is|call me)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i;
+
+// ── Car make/model extraction ────────────────────────────────────────────────
+
+const CAR_MAKES = [
+  "acura", "alfa romeo", "audi", "bmw", "buick", "cadillac", "chevrolet", "chevy",
+  "chrysler", "dodge", "fiat", "ford", "gmc", "honda", "hyundai", "infiniti",
+  "jaguar", "jeep", "kia", "land rover", "lexus", "lincoln", "mazda",
+  "mercedes", "mercedes-benz", "mini", "mitsubishi", "nissan", "pontiac",
+  "porsche", "ram", "saturn", "scion", "subaru", "suzuki", "tesla", "toyota",
+  "volkswagen", "vw", "volvo",
+];
+
+// Match patterns like "2019 Honda Civic", "Honda Civic", "my Civic", "'19 Accord"
+// Searches both customer message and AI response
+function extractCarModel(customerMessage: string, aiResponse: string): string | null {
+  const combined = customerMessage + " " + aiResponse;
+
+  // Check against known makes (case-insensitive)
+  const lower = combined.toLowerCase();
+  for (const make of CAR_MAKES) {
+    const idx = lower.indexOf(make);
+    if (idx === -1) continue;
+
+    // Extract from the original text starting a bit before the make
+    const start = Math.max(0, idx - 6);
+    const snippet = combined.substring(start, idx + make.length + 30);
+
+    // Try "year make model" — e.g., "2019 Honda Civic"
+    const full = snippet.match(
+      /(?:(?:19|20)\d{2}|'\d{2})\s+\w+(?:\s+\w+)?/i
+    );
+    if (full) return full[0].trim();
+
+    // Try "make model" — e.g., "Honda Civic" (grab next word after make)
+    const makeModel = snippet.match(
+      new RegExp(`(${make})\\s+([a-z]\\w+)`, "i")
+    );
+    if (makeModel) return makeModel[0].trim();
+
+    // Just the make alone
+    return combined.substring(idx, idx + make.length).trim();
+  }
+
+  return null;
+}
+
+// ── License plate extraction ────────────────────────────────────────────────
+
+// Common US plate formats: ABC 1234, ABC-1234, ABC1234, 123 ABC, 123-ABC
+const PLATE_PATTERNS = [
+  /\b([A-Z]{2,3}[\s-]?\d{3,4})\b/,       // ABC 1234, AB-123
+  /\b(\d{3,4}[\s-]?[A-Z]{2,3})\b/,       // 1234 ABC
+  /\b([A-Z]{1,3}\d{1,2}[\s-]?[A-Z]{1,3})\b/, // vanity-style
+];
+
+function extractLicensePlate(customerMessage: string, aiResponse: string): string | null {
+  const combined = customerMessage + " " + aiResponse;
+  // Only look for plates if contextual keywords are nearby
+  const lower = combined.toLowerCase();
+  if (
+    !lower.includes("plate") &&
+    !lower.includes("tag") &&
+    !lower.includes("license") &&
+    !lower.includes("registration")
+  ) {
+    return null;
+  }
+
+  for (const regex of PLATE_PATTERNS) {
+    const match = combined.match(regex);
+    if (match) return match[1].trim();
+  }
+  return null;
+}
 
 // ── Natural date parsing ────────────────────────────────────────────────────
 
@@ -308,6 +384,10 @@ export function detectBookingIntent(
     }
   }
 
+  // Extract car model and license plate
+  const carModel = extractCarModel(customerMessage, aiResponse);
+  const licensePlate = extractLicensePlate(customerMessage, aiResponse);
+
   return {
     isBooked,
     confidence,
@@ -315,6 +395,8 @@ export function detectBookingIntent(
     scheduledAt,
     scheduledAtExtracted,
     customerName,
+    carModel,
+    licensePlate,
     userWantsClose,
     matchedPatterns,
   };

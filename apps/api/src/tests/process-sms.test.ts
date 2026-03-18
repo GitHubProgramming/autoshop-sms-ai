@@ -33,8 +33,8 @@ vi.mock("../services/pipeline-trace", () => ({
   }),
 }));
 
-vi.mock("../services/ai-settings", () => ({
-  getTenantAiPolicy: vi.fn().mockResolvedValue({
+const aiSettingsMocks = vi.hoisted(() => {
+  const DEFAULT_POLICY = {
     requiredFields: ["customerName", "carModel", "issueDescription", "preferredTime"],
     optionalFields: ["licensePlate", "phoneConfirmation"],
     tone: "direct",
@@ -49,11 +49,19 @@ vi.mock("../services/ai-settings", () => ({
     restrictions: "",
     missedCallSmsEnabled: true,
     missedCallSmsTemplate: "",
-  }),
-  buildPromptPolicySection: vi.fn().mockReturnValue("--- BOOKING RULES ---\nBe direct and concise."),
-  getMissingRequiredFields: vi.fn().mockReturnValue([]),
-  getMissingFieldLabels: vi.fn().mockReturnValue([]),
-}));
+  };
+  return {
+    DEFAULT_POLICY,
+    getTenantAiPolicy: vi.fn().mockResolvedValue(DEFAULT_POLICY),
+    buildPromptPolicySection: vi.fn().mockReturnValue("--- BOOKING RULES ---\nBe direct and concise."),
+    buildRuntimePolicy: vi.fn().mockReturnValue(DEFAULT_POLICY),
+    AI_SETTINGS_DEFAULTS: {},
+    getMissingRequiredFields: vi.fn().mockReturnValue([]),
+    getMissingFieldLabels: vi.fn().mockReturnValue([]),
+  };
+});
+
+vi.mock("../services/ai-settings", () => aiSettingsMocks);
 
 import { processSms, ProcessSmsInput } from "../services/process-sms";
 import { processSmsRoute } from "../routes/internal/process-sms";
