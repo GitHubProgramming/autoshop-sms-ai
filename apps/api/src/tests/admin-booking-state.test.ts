@@ -126,7 +126,7 @@ describe("GET /internal/admin/overview — booking_state counts", () => {
   });
 
   it("returns pending_manual_bookings and failed_bookings counts", async () => {
-    // The overview endpoint runs 16 parallel queries
+    // The overview endpoint runs 17 parallel queries
     // We need to mock all of them in order
     const overviewMocks = [
       [{ billing_status: "active", count: "2" }], // statusCountsRows
@@ -145,6 +145,7 @@ describe("GET /internal/admin/overview — booking_state counts", () => {
       [],               // recentConversationsRows
       [{ count: 4 }],  // pendingManualRows
       [{ count: 2 }],  // failedBookingsRows
+      [{ count: 0 }],  // unackedAlertsRows
     ];
     for (const mock of overviewMocks) {
       mocks.query.mockResolvedValueOnce(mock);

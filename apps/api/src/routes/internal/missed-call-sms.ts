@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { handleMissedCallSms } from "../../services/missed-call-sms";
 import { resumeTrace } from "../../services/pipeline-trace";
+import { alertFromTraceFailure } from "../../services/pipeline-alerts";
 
 const BodySchema = z.object({
   tenantId: z.string().uuid(),
@@ -76,6 +77,16 @@ export async function missedCallSmsRoute(app: FastifyInstance) {
     );
 
     if (!result.success) {
+      // Raise pipeline alert (non-fatal)
+      try {
+        await alertFromTraceFailure(
+          parsed.data.tenantId,
+          traceId ?? null,
+          result.error,
+          parsed.data.customerPhone
+        );
+      } catch { /* non-fatal */ }
+
       const status =
         result.error === "Tenant not found"
           ? 404

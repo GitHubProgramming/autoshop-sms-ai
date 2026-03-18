@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { processSms } from "../../services/process-sms";
 import { resumeTrace } from "../../services/pipeline-trace";
+import { alertFromTraceFailure } from "../../services/pipeline-alerts";
 
 const BodySchema = z.object({
   tenantId: z.string().uuid(),
@@ -94,6 +95,16 @@ export async function processSmsRoute(app: FastifyInstance) {
     );
 
     if (!result.success) {
+      // Raise pipeline alert (non-fatal)
+      try {
+        await alertFromTraceFailure(
+          parsed.data.tenantId,
+          traceId ?? null,
+          result.error,
+          parsed.data.customerPhone
+        );
+      } catch { /* non-fatal */ }
+
       return reply.status(500).send(result);
     }
 

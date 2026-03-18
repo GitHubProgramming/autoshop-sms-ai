@@ -1,5 +1,6 @@
 import { Worker, Job } from "bullmq";
 import { bullmqConnection as connection } from "../queues/redis";
+import { raiseAlert } from "../services/pipeline-alerts";
 
 const API_INTERNAL_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
 const MISSED_CALL_ENDPOINT = `${API_INTERNAL_URL}/internal/missed-call-sms`;
@@ -53,6 +54,25 @@ export function startSmsInboundWorker(): Worker {
     console.error(
       `[sms-worker] job ${job?.id} (${job?.name}) failed: ${err.message}`
     );
+
+    // Raise alert when job exhausts all retries (dead letter)
+    const attempts = job?.attemptsMade ?? 0;
+    const maxAttempts = (job?.opts?.attempts ?? 3);
+    if (attempts >= maxAttempts) {
+      const tenantId = job?.data?.tenantId ?? null;
+      const customerPhone = job?.data?.customerPhone ?? null;
+      const traceId = job?.data?.traceId ?? null;
+      const phoneSuffix = customerPhone ? ` (customer: ${customerPhone.slice(-4)})` : "";
+
+      raiseAlert({
+        tenantId,
+        traceId,
+        severity: "critical",
+        alertType: "worker_exhausted",
+        summary: `Job ${job?.name ?? "unknown"} exhausted all ${maxAttempts} retries${phoneSuffix}`,
+        details: err.message,
+      }).catch(() => { /* non-fatal */ });
+    }
   });
 
   return worker;

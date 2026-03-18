@@ -6,6 +6,7 @@ import { adminGuard } from "../../middleware/admin-guard";
 import { fetchTwilioNumberConfig, verifyWebhookUrls } from "../../services/twilio-verify";
 import { getConfig } from "../../db/app-config";
 import { getRecentTraces, getTraceById } from "../../services/pipeline-trace";
+import { getAlerts, acknowledgeAlert, countUnacknowledgedAlerts } from "../../services/pipeline-alerts";
 
 /**
  * Internal Admin API
@@ -116,6 +117,7 @@ export async function adminRoute(app: FastifyInstance) {
       recentConversationsRows,
       pendingManualRows,
       failedBookingsRows,
+      unackedAlertsRows,
     ] = await Promise.all([
       query(`SELECT billing_status, COUNT(*) as count FROM tenants WHERE is_test = FALSE GROUP BY billing_status`),
       query(`SELECT COUNT(*)::int FROM tenants WHERE created_at > NOW() - INTERVAL '7 days' AND is_test = FALSE`),
@@ -148,6 +150,7 @@ export async function adminRoute(app: FastifyInstance) {
          ORDER BY c.opened_at DESC LIMIT 5`),
       query(`SELECT COUNT(*)::int FROM appointments a JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE WHERE a.booking_state = 'PENDING_MANUAL_CONFIRMATION'`),
       query(`SELECT COUNT(*)::int FROM appointments a JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE WHERE a.booking_state = 'FAILED'`),
+      query(`SELECT COUNT(*)::int FROM pipeline_alerts WHERE acknowledged = FALSE`),
     ]);
 
     // Build status map
@@ -176,6 +179,7 @@ export async function adminRoute(app: FastifyInstance) {
       recent_conversations: recentConversationsRows,
       pending_manual_bookings: (pendingManualRows as any[])[0]?.count ?? 0,
       failed_bookings: (failedBookingsRows as any[])[0]?.count ?? 0,
+      unacknowledged_alerts: (unackedAlertsRows as any[])[0]?.count ?? 0,
     });
   });
 
@@ -1326,5 +1330,24 @@ export async function adminRoute(app: FastifyInstance) {
     const trace = await getTraceById(id);
     if (!trace) return reply.status(404).send({ error: "Trace not found" });
     return reply.send(trace);
+  });
+
+  // ── GET /internal/admin/alerts ──────────────────────────────────────────────
+  // Returns pipeline failure alerts. Default: unacknowledged only.
+  app.get("/admin/alerts", { preHandler: [adminGuard] }, async (req, reply) => {
+    const q = req.query as { acknowledged?: string };
+    const acknowledged = q.acknowledged === "1";
+    const alerts = await getAlerts({ acknowledged, limit: 50 });
+    const unacknowledgedCount = acknowledged ? await countUnacknowledgedAlerts() : alerts.length;
+    return reply.send({ alerts, unacknowledged_count: unacknowledgedCount });
+  });
+
+  // ── POST /internal/admin/alerts/:id/acknowledge ────────────────────────────
+  app.post("/admin/alerts/:id/acknowledge", { preHandler: [adminGuard] }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const adminEmail = (req as any).adminEmail ?? "unknown";
+    const updated = await acknowledgeAlert(id, adminEmail);
+    if (!updated) return reply.status(404).send({ error: "Alert not found or already acknowledged" });
+    return reply.send({ acknowledged: true });
   });
 }
