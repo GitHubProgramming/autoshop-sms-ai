@@ -3907,20 +3907,35 @@ function updateSidebarBadge() {
     // Apply tenant name on load
     applyTenantName();
 
-    // Settings: save tenant name
+    // Settings: save tenant name (persists to backend DB)
     var saveBtn = document.getElementById('save-settings-btn');
     var nameInput = document.getElementById('shop-name-input');
     if (saveBtn) {
-      saveBtn.addEventListener('click', function() {
-        if (nameInput) {
-          var val = nameInput.value.trim();
-          if (val) {
-            localStorage.setItem('tenant_name', val);
-            tenantState.shopName = val;
-            applyTenantName();
-          }
+      saveBtn.addEventListener('click', async function() {
+        var val = nameInput ? nameInput.value.trim() : '';
+        if (!val) { showToast('Shop name cannot be empty.', 'error'); return; }
+
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+        try {
+          var token = localStorage.getItem('autoshop_jwt') || '';
+          var res = await fetch('/tenant/settings', {
+            method: 'PUT',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ shop_name: val })
+          });
+          if (!res.ok) { var err = await res.text().catch(function() { return ''; }); throw new Error(err || res.statusText); }
+          // Success — update local state
+          localStorage.setItem('tenant_name', val);
+          tenantState.shopName = val;
+          applyTenantName();
+          showToast('Shop name saved.');
+        } catch (e) {
+          showToast('Failed to save: ' + (e.message || 'unknown error'), 'error');
+        } finally {
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save Changes';
         }
-        showToast('Shop profile saved.');
       });
     }
   });
