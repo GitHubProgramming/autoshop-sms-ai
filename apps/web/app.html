@@ -1628,43 +1628,100 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 
           <!-- AI Behavior -->
           <div class="settings-panel" id="sp-ai">
-            <!-- Section 1: AI Behavior -->
+            <!-- Section 1: Booking Data Requirements -->
             <div class="settings-card" style="margin-bottom:20px;">
-              <div class="settings-card-title">AI Behavior</div>
-              <div class="settings-card-sub">Control the tone and style of your AI receptionist</div>
+              <div class="settings-card-title">Booking Data Requirements</div>
+              <div class="settings-card-sub">AI will not confirm booking until all required fields are collected.</div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-row-label">Customer Name</div>
+                  <div class="settings-row-sub">Collect the customer's name before booking</div>
+                </div>
+                <div class="s-toggle on" id="ai-toggle-req-name" onclick="this.classList.toggle('on');aiUpdatePreview()"></div>
+              </div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-row-label">Car Model</div>
+                  <div class="settings-row-sub">Collect vehicle make and model</div>
+                </div>
+                <div class="s-toggle on" id="ai-toggle-req-car" onclick="this.classList.toggle('on');aiUpdatePreview()"></div>
+              </div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-row-label">Issue Description</div>
+                  <div class="settings-row-sub">Collect description of the problem or service needed</div>
+                </div>
+                <div class="s-toggle on" id="ai-toggle-req-issue" onclick="this.classList.toggle('on');aiUpdatePreview()"></div>
+              </div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-row-label">Preferred Time</div>
+                  <div class="settings-row-sub">Collect customer's preferred appointment time</div>
+                </div>
+                <div class="s-toggle on" id="ai-toggle-req-time" onclick="this.classList.toggle('on');aiUpdatePreview()"></div>
+              </div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-row-label">License Plate</div>
+                  <div class="settings-row-sub">Optional but recommended for returning customers</div>
+                </div>
+                <div class="s-toggle" id="ai-toggle-req-plate" onclick="this.classList.toggle('on');aiUpdatePreview()"></div>
+              </div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-row-label">Phone Confirmation</div>
+                  <div class="settings-row-sub">Verify the customer's phone number during conversation</div>
+                </div>
+                <div class="s-toggle" id="ai-toggle-req-phone" onclick="this.classList.toggle('on');aiUpdatePreview()"></div>
+              </div>
+            </div>
+
+            <!-- Section 2: Conversation Style -->
+            <div class="settings-card" style="margin-bottom:20px;">
+              <div class="settings-card-title">Conversation Style</div>
+              <div class="settings-card-sub">Control the tone and format of AI responses</div>
               <div class="settings-field">
-                <label>Response Tone</label>
-                <select id="ai-tone">
+                <label>Tone</label>
+                <select id="ai-tone" onchange="aiUpdatePreview()">
                   <option value="professional">Professional</option>
                   <option value="friendly">Friendly</option>
-                  <option value="direct">Direct</option>
+                  <option value="direct" selected>Direct (recommended)</option>
                 </select>
               </div>
               <div class="settings-field">
                 <label>Greeting Style</label>
-                <input type="text" id="ai-greeting" placeholder="e.g. Hi! Thanks for contacting Mike's Auto — how can we help?">
-              </div>
-              <div class="settings-field">
-                <label>Business Style</label>
-                <select id="ai-style">
-                  <option value="helpful">Helpful</option>
-                  <option value="premium">Premium</option>
-                  <option value="fast">Fast / Efficient</option>
-                  <option value="local">Local / Friendly</option>
+                <select id="ai-greeting-style" onchange="aiUpdatePreview()">
+                  <option value="short" selected>Short (recommended)</option>
+                  <option value="standard">Standard</option>
+                  <option value="none">None</option>
                 </select>
               </div>
             </div>
 
-            <!-- Section 2: Booking Logic -->
+            <!-- Section 3: Booking Strategy -->
             <div class="settings-card" style="margin-bottom:20px;">
-              <div class="settings-card-title">Booking Logic</div>
-              <div class="settings-card-sub">Configure how the AI handles scheduling and escalation</div>
+              <div class="settings-card-title">Booking Strategy</div>
+              <div class="settings-card-sub">Control how the AI schedules appointments</div>
               <div class="settings-row">
                 <div>
-                  <div class="settings-row-label">Offer earliest available slot first</div>
+                  <div class="settings-row-label">Offer earliest available slot</div>
                   <div class="settings-row-sub">AI will suggest the next open time slot automatically</div>
                 </div>
                 <div class="s-toggle on" id="ai-toggle-earliest" onclick="this.classList.toggle('on');aiUpdatePreview()"></div>
+              </div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-row-label">Show 2-3 options max</div>
+                  <div class="settings-row-sub">Limit time slot choices to reduce decision fatigue</div>
+                </div>
+                <div class="s-toggle on" id="ai-toggle-limited-slots" onclick="this.classList.toggle('on');aiUpdatePreview()"></div>
+              </div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-row-label">Allow open-ended scheduling</div>
+                  <div class="settings-row-sub">Let customers request any time (not recommended)</div>
+                </div>
+                <div class="s-toggle" id="ai-toggle-open-sched" onclick="this.classList.toggle('on');aiUpdatePreview()"></div>
               </div>
               <div class="settings-row">
                 <div>
@@ -1690,7 +1747,34 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
               </div>
             </div>
 
-            <!-- Section 3: Shop Context -->
+            <!-- Section 4: Missed Call Auto SMS -->
+            <div class="settings-card" style="margin-bottom:20px;">
+              <div class="settings-card-title">Missed Call Auto SMS</div>
+              <div class="settings-card-sub">Automatically reply when a call is missed</div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-row-label">Enable instant SMS reply</div>
+                  <div class="settings-row-sub">Send an automatic text when a call goes unanswered</div>
+                </div>
+                <div class="s-toggle on" id="ai-toggle-missed-sms" onclick="this.classList.toggle('on');aiUpdatePreview()"></div>
+              </div>
+              <div class="settings-field" style="padding:12px 18px 0;">
+                <label>SMS Template</label>
+                <select id="ai-sms-preset" onchange="aiApplyPreset()">
+                  <option value="1">Preset 1 - High conversion (default)</option>
+                  <option value="2">Preset 2 - Branded</option>
+                  <option value="3">Preset 3 - Shortest</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </div>
+              <div class="settings-field" style="padding:12px 18px 18px;">
+                <label>Message <span id="ai-sms-charcount" style="font-weight:400;color:var(--text-tertiary);font-size:12px;">(0/160)</span></label>
+                <textarea id="ai-sms-template" rows="2" maxlength="160" oninput="aiSmsCharCount();aiUpdatePreview()" placeholder="Keep under 160 characters">Hi, we missed your call. Reply with: issue + car model + preferred time.</textarea>
+                <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px;">No emojis. No fluff. Max 160 characters.</div>
+              </div>
+            </div>
+
+            <!-- Section 5: Shop Context -->
             <div class="settings-card" style="margin-bottom:20px;">
               <div class="settings-card-title">Shop Context</div>
               <div class="settings-card-sub">Help the AI understand what your shop offers</div>
@@ -1704,7 +1788,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
               </div>
             </div>
 
-            <!-- Section 4: AI Summary Preview -->
+            <!-- Section 6: AI Configuration Summary -->
             <div class="settings-card" style="margin-bottom:20px;background:var(--bg);border:1px solid var(--border);">
               <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--rust)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/></svg>
@@ -1713,7 +1797,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
               <div id="ai-summary-preview" style="font-size:13px;color:var(--text-secondary);line-height:1.8;"></div>
             </div>
 
-            <!-- Section 5: Footer Actions -->
+            <!-- Section 7: Footer Actions -->
             <div style="display:flex;gap:8px;">
               <button class="settings-save-btn" id="ai-save-btn">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -4280,15 +4364,35 @@ function updateSidebarBadge() {
 // ════════════════════════════════════════════
 var AI_SETTINGS_KEY = 'autoshop_ai_settings';
 var AI_DEFAULTS = {
-  tone: 'professional',
-  greeting: '',
-  style: 'helpful',
+  tone: 'direct',
+  greetingStyle: 'short',
+  // Booking data requirements
+  reqName: true,
+  reqCar: true,
+  reqIssue: true,
+  reqTime: true,
+  reqPlate: false,
+  reqPhone: false,
+  // Booking strategy
   offerEarliest: true,
+  limitedSlots: true,
+  openScheduling: false,
   upsellEnabled: false,
   escalationEnabled: true,
   afterHours: 'book_next',
+  // Missed call SMS
+  missedSmsEnabled: true,
+  smsPreset: '1',
+  smsTemplate: 'Hi, we missed your call. Reply with: issue + car model + preferred time.',
+  // Shop context
   services: '',
   restrictions: ''
+};
+
+var AI_SMS_PRESETS = {
+  '1': 'Hi, we missed your call. Reply with: issue + car model + preferred time.',
+  '2': 'AutoShop here. Text your issue, car model, and when you\'d like to come in.',
+  '3': 'Missed your call. Send issue + car + time.'
 };
 
 function aiEsc(str) {
@@ -4316,12 +4420,22 @@ function aiReadForm() {
   var tog = function(id) { var el = document.getElementById(id); return el ? el.classList.contains('on') : false; };
   return {
     tone: v('ai-tone') || AI_DEFAULTS.tone,
-    greeting: v('ai-greeting'),
-    style: v('ai-style') || AI_DEFAULTS.style,
+    greetingStyle: v('ai-greeting-style') || AI_DEFAULTS.greetingStyle,
+    reqName: tog('ai-toggle-req-name'),
+    reqCar: tog('ai-toggle-req-car'),
+    reqIssue: tog('ai-toggle-req-issue'),
+    reqTime: tog('ai-toggle-req-time'),
+    reqPlate: tog('ai-toggle-req-plate'),
+    reqPhone: tog('ai-toggle-req-phone'),
     offerEarliest: tog('ai-toggle-earliest'),
+    limitedSlots: tog('ai-toggle-limited-slots'),
+    openScheduling: tog('ai-toggle-open-sched'),
     upsellEnabled: tog('ai-toggle-upsell'),
     escalationEnabled: tog('ai-toggle-escalation'),
     afterHours: v('ai-afterhours') || AI_DEFAULTS.afterHours,
+    missedSmsEnabled: tog('ai-toggle-missed-sms'),
+    smsPreset: v('ai-sms-preset') || AI_DEFAULTS.smsPreset,
+    smsTemplate: v('ai-sms-template') || AI_DEFAULTS.smsTemplate,
     services: v('ai-services'),
     restrictions: v('ai-restrictions')
   };
@@ -4338,14 +4452,25 @@ function aiLoadSettings() {
   var set = function(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; };
   var setTog = function(id, on) { var el = document.getElementById(id); if (el) { if (on) el.classList.add('on'); else el.classList.remove('on'); } };
   set('ai-tone', s.tone);
-  set('ai-greeting', s.greeting);
-  set('ai-style', s.style);
+  set('ai-greeting-style', s.greetingStyle);
+  setTog('ai-toggle-req-name', s.reqName);
+  setTog('ai-toggle-req-car', s.reqCar);
+  setTog('ai-toggle-req-issue', s.reqIssue);
+  setTog('ai-toggle-req-time', s.reqTime);
+  setTog('ai-toggle-req-plate', s.reqPlate);
+  setTog('ai-toggle-req-phone', s.reqPhone);
   setTog('ai-toggle-earliest', s.offerEarliest);
+  setTog('ai-toggle-limited-slots', s.limitedSlots);
+  setTog('ai-toggle-open-sched', s.openScheduling);
   setTog('ai-toggle-upsell', s.upsellEnabled);
   setTog('ai-toggle-escalation', s.escalationEnabled);
   set('ai-afterhours', s.afterHours);
+  setTog('ai-toggle-missed-sms', s.missedSmsEnabled);
+  set('ai-sms-preset', s.smsPreset);
+  set('ai-sms-template', s.smsTemplate);
   set('ai-services', s.services);
   set('ai-restrictions', s.restrictions);
+  aiSmsCharCount();
   aiUpdatePreview();
 }
 
@@ -4355,26 +4480,65 @@ function aiResetSettings() {
   showToast('AI settings reset to defaults.');
 }
 
+function aiApplyPreset() {
+  var sel = document.getElementById('ai-sms-preset');
+  var tpl = document.getElementById('ai-sms-template');
+  if (!sel || !tpl) return;
+  var preset = AI_SMS_PRESETS[sel.value];
+  if (preset) tpl.value = preset;
+  aiSmsCharCount();
+  aiUpdatePreview();
+}
+
+function aiSmsCharCount() {
+  var tpl = document.getElementById('ai-sms-template');
+  var counter = document.getElementById('ai-sms-charcount');
+  if (!tpl || !counter) return;
+  var len = tpl.value.length;
+  counter.textContent = '(' + len + '/160)';
+  counter.style.color = len > 160 ? 'var(--red)' : 'var(--text-tertiary)';
+}
+
 function aiUpdatePreview() {
   var el = document.getElementById('ai-summary-preview');
   if (!el) return;
   var s = aiReadForm();
 
   var toneLabels = { professional: 'Professional', friendly: 'Friendly', direct: 'Direct' };
-  var styleLabels = { helpful: 'Helpful', premium: 'Premium', fast: 'Fast / Efficient', local: 'Local / Friendly' };
+  var greetLabels = { short: 'Short', standard: 'Standard', none: 'None' };
   var afterLabels = { book_next: 'Book next available slot', promise_callback: 'Promise callback', ask_urgent: 'Ask if urgent' };
 
+  var chk = function(on) { return on ? '<span style="color:var(--green);font-weight:600;">&#10004;</span>' : '<span style="color:var(--text-tertiary);">&#10006;</span>'; };
+
   var lines = [];
-  lines.push('<div style="display:grid;grid-template-columns:140px 1fr;gap:6px 12px;">');
+  lines.push('<div style="display:grid;grid-template-columns:160px 1fr;gap:6px 12px;">');
+
+  // Required Fields
+  lines.push('<span style="color:var(--text-tertiary);font-weight:600;grid-column:1/-1;margin-top:4px;margin-bottom:2px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;">Required Fields</span>');
+  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Name</span><span>' + chk(s.reqName) + '</span>');
+  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Car Model</span><span>' + chk(s.reqCar) + '</span>');
+  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Issue</span><span>' + chk(s.reqIssue) + '</span>');
+  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Time</span><span>' + chk(s.reqTime) + '</span>');
+  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">License Plate</span><span>' + chk(s.reqPlate) + '</span>');
+  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Phone Confirm</span><span>' + chk(s.reqPhone) + '</span>');
+
+  // Conversation
+  lines.push('<span style="color:var(--text-tertiary);font-weight:600;grid-column:1/-1;margin-top:12px;margin-bottom:2px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;">Conversation</span>');
   lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Tone</span><span>' + aiEsc(toneLabels[s.tone] || s.tone) + '</span>');
-  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Greeting</span><span>' + (s.greeting ? aiEsc(s.greeting) : '<span style="color:var(--text-tertiary);font-style:italic;">Default</span>') + '</span>');
-  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Style</span><span>' + aiEsc(styleLabels[s.style] || s.style) + '</span>');
-  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Earliest slot</span><span>' + (s.offerEarliest ? '<span style="color:var(--green);font-weight:600;">On</span>' : '<span style="color:var(--text-tertiary);">Off</span>') + '</span>');
-  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Upsell</span><span>' + (s.upsellEnabled ? '<span style="color:var(--green);font-weight:600;">On</span>' : '<span style="color:var(--text-tertiary);">Off</span>') + '</span>');
-  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Escalation</span><span>' + (s.escalationEnabled ? '<span style="color:var(--green);font-weight:600;">On</span>' : '<span style="color:var(--text-tertiary);">Off</span>') + '</span>');
+  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Greeting</span><span>' + aiEsc(greetLabels[s.greetingStyle] || s.greetingStyle) + '</span>');
+
+  // SMS Mode
+  lines.push('<span style="color:var(--text-tertiary);font-weight:600;grid-column:1/-1;margin-top:12px;margin-bottom:2px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;">SMS Mode</span>');
+  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Missed Call SMS</span><span>' + (s.missedSmsEnabled ? '<span style="color:var(--green);font-weight:600;">Enabled</span>' : '<span style="color:var(--text-tertiary);">Disabled</span>') + '</span>');
+
+  // Booking Mode
+  lines.push('<span style="color:var(--text-tertiary);font-weight:600;grid-column:1/-1;margin-top:12px;margin-bottom:2px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;">Booking Mode</span>');
+  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Structured</span><span>' + chk(!s.openScheduling) + '</span>');
+  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Earliest Slot</span><span>' + chk(s.offerEarliest) + '</span>');
+  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Limited Options</span><span>' + chk(s.limitedSlots) + '</span>');
+  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Escalation</span><span>' + chk(s.escalationEnabled) + '</span>');
   lines.push('<span style="color:var(--text-tertiary);font-weight:500;">After-hours</span><span>' + aiEsc(afterLabels[s.afterHours] || s.afterHours) + '</span>');
-  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Services</span><span>' + (s.services ? aiEsc(s.services) : '<span style="color:var(--text-tertiary);font-style:italic;">Not configured</span>') + '</span>');
-  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Restrictions</span><span>' + (s.restrictions ? aiEsc(s.restrictions) : '<span style="color:var(--text-tertiary);font-style:italic;">None</span>') + '</span>');
+
   lines.push('</div>');
 
   el.innerHTML = lines.join('');
@@ -4384,7 +4548,7 @@ function aiUpdatePreview() {
 document.addEventListener('DOMContentLoaded', function() {
   aiLoadSettings();
   // Live preview on every input change
-  var aiInputIds = ['ai-tone', 'ai-greeting', 'ai-style', 'ai-afterhours', 'ai-services', 'ai-restrictions'];
+  var aiInputIds = ['ai-tone', 'ai-greeting-style', 'ai-afterhours', 'ai-sms-preset', 'ai-sms-template', 'ai-services', 'ai-restrictions'];
   aiInputIds.forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.addEventListener('input', aiUpdatePreview);
