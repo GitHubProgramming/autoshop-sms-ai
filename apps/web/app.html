@@ -2862,7 +2862,7 @@ async function loadConversationPanel(id, conv) {
   // Try fetching from tenant API
   try {
     var token = localStorage.getItem('autoshop_jwt');
-    var res = await fetch('/api/conversations/' + id, {
+    var res = await fetch('/tenant/conversations/' + id, {
       headers: token ? { 'Authorization': 'Bearer ' + token } : {}
     });
     if (res.ok) {
