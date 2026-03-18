@@ -12,6 +12,27 @@ vi.mock("../db/client", () => ({
   query: mocks.query,
 }));
 
+vi.mock("../services/ai-settings", () => ({
+  getTenantAiPolicy: vi.fn().mockResolvedValue({
+    requiredFields: ["customerName", "carModel", "issueDescription", "preferredTime"],
+    optionalFields: ["licensePlate", "phoneConfirmation"],
+    tone: "direct",
+    greetingStyle: "short",
+    offerEarliestSlot: true,
+    limitedSlots: true,
+    openScheduling: false,
+    suggestAdditionalServices: false,
+    escalateUncertainCases: true,
+    afterHoursBehavior: "book_next",
+    services: "",
+    restrictions: "",
+    missedCallSmsEnabled: true,
+    missedCallSmsTemplate: "",
+  }),
+  getMissingRequiredFields: vi.fn().mockReturnValue([]),
+  getMissingFieldLabels: vi.fn().mockReturnValue([]),
+}));
+
 import { appointmentsRoute } from "../routes/internal/appointments";
 import { createAppointment } from "../services/appointments";
 

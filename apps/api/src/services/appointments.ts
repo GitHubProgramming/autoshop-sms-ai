@@ -8,6 +8,12 @@
  */
 
 import { query } from "../db/client";
+import {
+  getTenantAiPolicy,
+  getMissingRequiredFields,
+  getMissingFieldLabels,
+  type ConversationCollectedData,
+} from "./ai-settings";
 
 export type BookingState = "CONFIRMED_CALENDAR" | "PENDING_MANUAL_CONFIRMATION" | "FAILED" | "CONFIRMED_MANUAL" | "RESOLVED";
 
@@ -83,7 +89,32 @@ export async function createAppointment(
     };
   }
 
-  // 2. Insert or upsert appointment
+  // 2. Validate required booking fields against tenant AI policy
+  try {
+    const policy = await getTenantAiPolicy(input.tenantId);
+    const collected: ConversationCollectedData = {
+      customerName: input.customerName,
+      carModel: input.serviceType,
+      issueDescription: input.serviceType,
+      preferredTime: input.scheduledAt,
+      licensePlate: null,
+      phoneConfirmation: null,
+    };
+    const missing = getMissingRequiredFields(policy, collected);
+    if (missing.length > 0) {
+      const labels = getMissingFieldLabels(missing);
+      return {
+        success: false,
+        appointment: null,
+        upserted: false,
+        error: `Missing required booking fields: ${labels.join(", ")}`,
+      };
+    }
+  } catch {
+    // Non-fatal: if policy lookup fails, allow booking (fail-open for safety)
+  }
+
+  // 3. Insert or upsert appointment
   const duration = input.durationMinutes ?? 60;
   const bookingState = input.bookingState ?? "CONFIRMED_CALENDAR";
 

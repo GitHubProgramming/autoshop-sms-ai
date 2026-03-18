@@ -16,6 +16,7 @@
 
 import { query } from "../db/client";
 import { getConfig } from "../db/app-config";
+import { getTenantAiPolicy } from "./ai-settings";
 
 export interface MissedCallInput {
   tenantId: string;
@@ -166,6 +167,24 @@ export async function handleMissedCallSms(
     };
   }
 
+  // 2b. Check AI settings — if missed-call SMS is disabled, skip
+  let aiPolicy;
+  try {
+    aiPolicy = await getTenantAiPolicy(input.tenantId);
+  } catch {
+    // Non-fatal: proceed with default behavior (SMS enabled)
+  }
+
+  if (aiPolicy && !aiPolicy.missedCallSmsEnabled) {
+    return {
+      success: true,
+      conversationId: null,
+      smsSent: false,
+      twilioSid: null,
+      error: null,
+    };
+  }
+
   // 3. Get or create conversation
   let conversationId: string | null = null;
   let isNew = false;
@@ -212,8 +231,15 @@ export async function handleMissedCallSms(
     // Non-fatal — continue with SMS even if logging fails
   }
 
-  // 5. Send the initial outbound SMS (use tenant template if configured)
-  const smsBody = buildMissedCallSms(shopName, missedCallTemplate);
+  // 5. Send the initial outbound SMS
+  // Priority: tenant DB template (admin override) > AI settings template > default
+  // The AI settings template is the dashboard-configured preset/custom message.
+  // The DB column (missed_call_sms_template) allows admin override via API.
+  let effectiveTemplate = missedCallTemplate; // DB column first (admin override)
+  if (!effectiveTemplate && aiPolicy?.missedCallSmsTemplate) {
+    effectiveTemplate = aiPolicy.missedCallSmsTemplate;
+  }
+  const smsBody = buildMissedCallSms(shopName, effectiveTemplate);
   const twilioResult = await sendTwilioSms(
     input.customerPhone,
     smsBody,

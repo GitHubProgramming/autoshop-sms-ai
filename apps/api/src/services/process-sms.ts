@@ -16,6 +16,14 @@ import { detectBookingIntent } from "./booking-intent";
 import { createAppointment, type BookingState } from "./appointments";
 import { createCalendarEvent } from "./google-calendar";
 import { sendTwilioSms } from "./missed-call-sms";
+import {
+  getTenantAiPolicy,
+  buildPromptPolicySection,
+  getMissingRequiredFields,
+  getMissingFieldLabels,
+  type AiRuntimePolicy,
+  type ConversationCollectedData,
+} from "./ai-settings";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -166,7 +174,14 @@ export async function processSms(
     return result;
   }
 
-  // ── 5. Fetch system prompt + tenant context ────────────────────────────
+  // ── 5. Fetch AI runtime policy + system prompt + tenant context ─────────
+  let aiPolicy: AiRuntimePolicy | null = null;
+  try {
+    aiPolicy = await getTenantAiPolicy(input.tenantId);
+  } catch {
+    // Non-fatal: will use default prompt without policy injection
+  }
+
   let systemPrompt = DEFAULT_SYSTEM_PROMPT;
   try {
     const rows = await query<{ prompt_text: string }>(
@@ -180,6 +195,12 @@ export async function processSms(
     }
   } catch {
     // Use default prompt if lookup fails
+  }
+
+  // Inject AI policy rules into the system prompt
+  if (aiPolicy) {
+    const policySection = buildPromptPolicySection(aiPolicy);
+    systemPrompt += "\n\n--- BOOKING RULES ---\n" + policySection;
   }
 
   // Inject tenant shop context (business_hours, services_description) into prompt
@@ -204,6 +225,10 @@ export async function processSms(
       if (t.shop_name) contextParts.push(`Shop name: ${t.shop_name}`);
       if (t.business_hours) contextParts.push(`Business hours: ${t.business_hours}`);
       if (t.services_description) contextParts.push(`Services offered: ${t.services_description}`);
+      // Inject services from AI settings if tenant-level is empty
+      if (!t.services_description && aiPolicy?.services) {
+        contextParts.push(`Services offered: ${aiPolicy.services}`);
+      }
       if (contextParts.length > 0) {
         systemPrompt += "\n\n" + contextParts.join("\n");
       }
@@ -276,6 +301,46 @@ export async function processSms(
   let smsBody = aiResponse; // default: send AI response as-is
 
   if (intent.isBooked) {
+    // ── Validate required fields before allowing booking ──────────────────
+    if (aiPolicy) {
+      const collected: ConversationCollectedData = {
+        customerName: intent.customerName,
+        carModel: intent.serviceType, // serviceType often contains car model info
+        issueDescription: intent.serviceType,
+        preferredTime: intent.scheduledAt,
+        // licensePlate and phoneConfirmation not extracted by current intent detector
+        licensePlate: null,
+        phoneConfirmation: null,
+      };
+      const missing = getMissingRequiredFields(aiPolicy, collected);
+      if (missing.length > 0) {
+        // Required fields missing — do NOT create booking.
+        // The AI response already went out; on next turn the policy prompt
+        // will guide the AI to ask for missing fields.
+        // Skip booking creation entirely for this turn.
+        result.success = true;
+        result.aiResponse = smsBody;
+
+        // Log outbound and send SMS as normal (AI response without booking)
+        try {
+          await query(
+            `INSERT INTO messages (tenant_id, conversation_id, direction, body, tokens_used, model_version)
+             VALUES ($1, $2, 'outbound', $3, $4, $5)`,
+            [input.tenantId, result.conversationId, smsBody, tokensUsed, OPENAI_MODEL]
+          );
+        } catch { /* Non-fatal */ }
+
+        const smsResult = await sendTwilioSms(input.customerPhone, smsBody, fetchFn);
+        result.smsSent = !!smsResult.sid;
+
+        try {
+          await query(`SELECT touch_conversation($1, $2)`, [result.conversationId, input.tenantId]);
+        } catch { /* Non-fatal */ }
+
+        return result;
+      }
+    }
+
     result.isBooked = true;
 
     // Create appointment (initially as PENDING until calendar confirms)
