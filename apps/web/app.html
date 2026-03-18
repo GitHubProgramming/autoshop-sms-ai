@@ -161,6 +161,35 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .conv-active-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:#ECFDF5;color:#10B981;border-radius:20px;font-size:11px;font-weight:600}
 .conv-active-dot{width:8px;height:8px;background:#10B981;border-radius:50%;animation:pulse-g 2s infinite}
 
+/* ── Conversation Slide Panel (Dashboard) ── */
+.conv-slide-panel{position:fixed;top:0;right:0;width:400px;height:100vh;background:var(--bg-panel);box-shadow:-4px 0 24px rgba(0,0,0,.12);z-index:1000;transform:translateX(100%);transition:transform .25s ease;display:flex;flex-direction:column;overflow:hidden}
+.conv-slide-panel.open{transform:translateX(0)}
+.conv-slide-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.2);z-index:999;opacity:0;pointer-events:none;transition:opacity .25s ease}
+.conv-slide-backdrop.open{opacity:1;pointer-events:auto}
+.conv-slide-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.conv-slide-header-info{display:flex;align-items:center;gap:12px}
+.conv-slide-avatar{width:40px;height:40px;background:linear-gradient(135deg,#2563EB,#7C3AED);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:14px;flex-shrink:0}
+.conv-slide-title{font-size:14px;font-weight:600;color:var(--text)}
+.conv-slide-phone{font-size:12px;color:var(--text-tertiary)}
+.conv-slide-close{width:32px;height:32px;border-radius:8px;border:none;background:none;cursor:pointer;color:var(--text-tertiary);display:flex;align-items:center;justify-content:center;transition:background .15s}
+.conv-slide-close:hover{background:var(--bg)}
+.conv-slide-body{flex:1;overflow-y:auto;padding:20px 24px}
+.conv-slide-section{margin-bottom:20px}
+.conv-slide-section-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-tertiary);margin-bottom:10px}
+.conv-slide-meta-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:13px;color:var(--text)}
+.conv-slide-meta-row svg{flex-shrink:0;color:var(--text-tertiary)}
+.conv-slide-messages{display:flex;flex-direction:column;gap:8px}
+.conv-slide-msg{padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.5;max-width:90%;word-wrap:break-word}
+.conv-slide-msg.ai{background:#EFF6FF;color:#1E40AF;align-self:flex-start;border-bottom-left-radius:4px}
+.conv-slide-msg.customer{background:#F1F5F9;color:var(--text);align-self:flex-end;border-bottom-right-radius:4px}
+.conv-slide-msg-sender{font-size:11px;font-weight:600;margin-bottom:4px;color:var(--text-tertiary)}
+.conv-slide-msg-time{font-size:10px;color:var(--text-tertiary);margin-top:4px}
+.conv-slide-loading{display:flex;align-items:center;justify-content:center;padding:32px;color:var(--text-tertiary);font-size:13px}
+.conv-slide-empty{text-align:center;padding:32px 20px;color:var(--text-tertiary);font-size:13px}
+.conv-slide-footer{padding:16px 24px;border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:8px}
+.conv-slide-footer .btn-sm{flex:1}
+.conv-card-item.active-conv{background:#EFF6FF;border-color:#BFDBFE}
+
 /* ── TSX Today's Appointments (border-left cards) ── */
 .appt-card-list{display:flex;flex-direction:column;gap:10px}
 .appt-card-item{border-left:2px solid #2563EB;padding:8px 0 8px 12px}
@@ -1715,6 +1744,28 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
   </div>
 </div>
 
+<!-- CONVERSATION SLIDE PANEL (Dashboard) -->
+<div class="conv-slide-backdrop" id="convSlideBackdrop" onclick="closeConversationPanel()"></div>
+<div class="conv-slide-panel" id="convSlidePanel">
+  <div class="conv-slide-header">
+    <div class="conv-slide-header-info">
+      <div class="conv-slide-avatar" id="convSlideAvatar">?</div>
+      <div>
+        <div class="conv-slide-title" id="convSlideTitle">Conversation</div>
+        <div class="conv-slide-phone" id="convSlidePhone"></div>
+      </div>
+    </div>
+    <button class="conv-slide-close" onclick="closeConversationPanel()">&#10005;</button>
+  </div>
+  <div class="conv-slide-body" id="convSlideBody">
+    <div class="conv-slide-loading">Loading conversation...</div>
+  </div>
+  <div class="conv-slide-footer">
+    <button class="btn-sm" onclick="viewFullConversation()">View Full Thread</button>
+    <button class="btn-sm" onclick="closeConversationPanel()">Close</button>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toastEl"></div>
 
@@ -2359,7 +2410,7 @@ function renderDashConvTable(data) {
     var badgeCls = c.status === 'booked' ? 'conv-card-badge booking' : (c.status === 'lost' ? 'conv-card-badge lost' : 'conv-card-badge');
     var statusLabel = {booked:'Booked', active:'AI Handling', 'no-response':'No Response', lost:'Lost', resolved:'Resolved'}[c.status] || c.status;
     var timeAgo = c.date || '';
-    return '<div class="conv-card-item" onclick="openModal(\'' + c.id + '\')">' +
+    return '<div class="conv-card-item" data-conv-id="' + c.id + '" onclick="openConversationPanel(\'' + c.id + '\')">' +
       '<div class="conv-avatar">' + initial + '</div>' +
       '<div class="conv-card-body">' +
         '<div class="conv-card-top"><div class="conv-card-name">' + (c.issue || 'Customer') + '</div><div class="conv-card-time">' + timeAgo + '</div></div>' +
@@ -2714,7 +2765,161 @@ function openModal(id) {
   document.getElementById('convModal').classList.add('open');
 }
 function closeModal() { document.getElementById('convModal').classList.remove('open'); }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeCompleteModal(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeCompleteModal(); closeConversationPanel(); } });
+
+// ════════════════════════════════════════════
+// CONVERSATION SLIDE PANEL (Dashboard)
+// ════════════════════════════════════════════
+let activeConversationId = null;
+
+function openConversationPanel(id) {
+  activeConversationId = id;
+
+  // Highlight active card
+  document.querySelectorAll('.conv-card-item').forEach(function(el) { el.classList.remove('active-conv'); });
+  var activeCard = document.querySelector('.conv-card-item[data-conv-id="' + id + '"]');
+  if (activeCard) activeCard.classList.add('active-conv');
+
+  // Find conversation data from loaded data
+  var conv = conversationsData.find(function(c) { return c.id === id; });
+
+  // Update header
+  var name = (conv && (conv.customerName || conv.phone)) || '?';
+  document.getElementById('convSlideAvatar').textContent = name.charAt(0).toUpperCase();
+  document.getElementById('convSlideTitle').textContent = conv ? (conv.customerName || conv.issue || 'SMS Conversation') : 'Conversation';
+  document.getElementById('convSlidePhone').textContent = conv ? conv.phone : '';
+
+  // Show loading state
+  document.getElementById('convSlideBody').innerHTML = '<div class="conv-slide-loading">Loading conversation...</div>';
+
+  // Open panel
+  document.getElementById('convSlidePanel').classList.add('open');
+  document.getElementById('convSlideBackdrop').classList.add('open');
+
+  // Load conversation details
+  loadConversationPanel(id, conv);
+}
+
+function closeConversationPanel() {
+  activeConversationId = null;
+  document.getElementById('convSlidePanel').classList.remove('open');
+  document.getElementById('convSlideBackdrop').classList.remove('open');
+  document.querySelectorAll('.conv-card-item').forEach(function(el) { el.classList.remove('active-conv'); });
+}
+
+async function loadConversationPanel(id, conv) {
+  var body = document.getElementById('convSlideBody');
+  var html = '';
+
+  // Status section
+  if (conv) {
+    var statusLabel = {booked:'Booked', active:'AI Handling', 'no-response':'No Response', lost:'Lost', resolved:'Resolved'}[conv.status] || conv.status;
+    var statusCls = conv.status === 'booked' ? 'conv-card-badge booking' : (conv.status === 'lost' ? 'conv-card-badge lost' : 'conv-card-badge');
+
+    html += '<div class="conv-slide-section">' +
+      '<div class="conv-slide-section-label">Status</div>' +
+      '<span class="' + statusCls + '" style="font-size:12px;">' + statusLabel + '</span>' +
+    '</div>';
+
+    // Contact info
+    html += '<div class="conv-slide-section">' +
+      '<div class="conv-slide-section-label">Contact</div>' +
+      '<div class="conv-slide-meta-row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg><span>' + conv.phone + '</span></div>';
+    if (conv.customerName) {
+      html += '<div class="conv-slide-meta-row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>' + conv.customerName + '</span></div>';
+    }
+    if (conv.email) {
+      html += '<div class="conv-slide-meta-row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><span>' + conv.email + '</span></div>';
+    }
+    html += '</div>';
+
+    // Conversation info
+    html += '<div class="conv-slide-section">' +
+      '<div class="conv-slide-section-label">Details</div>' +
+      '<div class="conv-slide-meta-row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>' + (conv.date || '—') + '</span></div>' +
+      '<div class="conv-slide-meta-row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><span>' + (conv.duration || '—') + '</span></div>' +
+      '<div class="conv-slide-meta-row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>' + (conv.issue || 'SMS Conversation') + '</span></div>' +
+    '</div>';
+  }
+
+  // Try to load messages from API
+  html += '<div class="conv-slide-section">' +
+    '<div class="conv-slide-section-label">Messages</div>' +
+    '<div id="convSlideMessages" class="conv-slide-messages"><div class="conv-slide-loading">Loading messages...</div></div>' +
+  '</div>';
+
+  body.innerHTML = html;
+
+  // Fetch messages — try convThreads first (local cache), then API
+  var messagesContainer = document.getElementById('convSlideMessages');
+  var threadData = convThreads[id];
+
+  if (threadData && threadData.thread && threadData.thread.length > 0) {
+    renderSlideMessages(messagesContainer, threadData.thread);
+    return;
+  }
+
+  // Try fetching from tenant API
+  try {
+    var token = localStorage.getItem('autoshop_jwt');
+    var res = await fetch('/api/conversations/' + id, {
+      headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+    });
+    if (res.ok) {
+      var data = await res.json();
+      if (data.messages && data.messages.length > 0) {
+        // Cache in convThreads
+        convThreads[id] = {
+          title: conv ? (conv.customerName || conv.phone) : 'Conversation',
+          meta: conv ? conv.phone : '',
+          thread: data.messages.map(function(m) {
+            return {
+              d: m.direction === 'outbound' ? 'ai' : 'customer',
+              t: m.body,
+              ts: m.sent_at ? fmtDate(m.sent_at) : ''
+            };
+          }),
+          result: null,
+          info: []
+        };
+        renderSlideMessages(messagesContainer, convThreads[id].thread);
+        return;
+      }
+    }
+  } catch (e) {
+    console.log('Conversation messages API not available:', e.message);
+  }
+
+  // Fallback: show available info
+  if (conv && conv.lastMessage && conv.lastMessage !== 'SMS Conversation') {
+    messagesContainer.innerHTML = '<div class="conv-slide-msg ai"><div class="conv-slide-msg-sender">Last Activity</div>' + conv.lastMessage + '</div>';
+  } else {
+    messagesContainer.innerHTML = '<div class="conv-slide-empty">Message history will appear here as conversations progress.</div>';
+  }
+}
+
+function renderSlideMessages(container, thread) {
+  var html = '';
+  thread.forEach(function(m) {
+    if (m.ts) html += '<div class="conv-slide-msg-time" style="text-align:center;font-size:11px;color:var(--text-tertiary);padding:4px 0;">' + m.ts + '</div>';
+    if (m.d === 'ai') {
+      html += '<div class="conv-slide-msg ai"><div class="conv-slide-msg-sender">AutoShop AI</div>' + m.t + '</div>';
+    } else {
+      html += '<div class="conv-slide-msg customer">' + m.t + '</div>';
+    }
+  });
+  container.innerHTML = html;
+  container.scrollTop = container.scrollHeight;
+}
+
+function viewFullConversation() {
+  var id = activeConversationId;
+  closeConversationPanel();
+  if (id) {
+    switchView('conversations');
+    setTimeout(function() { selectConversation(null, id); }, 100);
+  }
+}
 
 // ════════════════════════════════════════════
 // COMPLETE APPOINTMENT MODAL
