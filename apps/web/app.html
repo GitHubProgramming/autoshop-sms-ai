@@ -974,7 +974,21 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .settings-panel{display:none}
 .settings-panel.active{display:block}
 @media(max-width:768px){.settings-layout{flex-direction:column}.settings-sidebar{width:100%;position:static}}
+
+/* ── Revenue Chart Upgrade ── */
+.rev-summary{display:flex;gap:16px;padding:16px 24px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.rev-metric{flex:1;min-width:120px}
+.rev-metric-label{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:4px}
+.rev-metric-value{font-size:22px;font-weight:700;color:var(--text);line-height:1.2}
+.rev-metric-change{font-size:11px;font-weight:600;margin-top:2px}
+.rev-metric-change.up{color:#10B981}
+.rev-metric-change.down{color:#EF4444}
+.rev-metric-change.neutral{color:var(--text-tertiary)}
+.rev-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;padding:40px 20px;text-align:center}
+.rev-empty-title{font-size:18px;font-weight:700;color:var(--text)}
+.rev-empty-text{font-size:14px;color:var(--text-tertiary);max-width:320px;line-height:1.5}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -1144,6 +1158,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
               <span id="dashRevTrendText">No revenue data yet</span>
             </div>
           </div>
+          <div id="revSummaryBar" class="rev-summary" style="display:none;"></div>
           <div id="revenueChartContainer" style="height:280px;padding:20px 24px 30px;position:relative;overflow:visible;">
             <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-tertiary);font-size:14px;">Loading chart…</div>
           </div>
@@ -2212,10 +2227,47 @@ async function loadKpiData() {
 }
 
 // ════════════════════════════════════════════
-// REVENUE CHART — real daily data
+// REVENUE CHART — interactive Chart.js
 // ════════════════════════════════════════════
+function formatCurrency(v) {
+  return '$' + v.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+function formatCompactCurrency(v) {
+  if (v >= 1000) return '$' + (v / 1000).toFixed(v % 1000 === 0 ? 0 : 1) + 'k';
+  return '$' + v;
+}
+function hasSparseRevenueData(days) {
+  return days.filter(function(d) { return d.total > 0; }).length <= 3;
+}
+function shouldShowEmptyState(days) {
+  return days.every(function(d) { return d.total === 0; });
+}
+
+var _revenueChartInstance = null;
+
+// Vertical hover line plugin
+var verticalLinePlugin = {
+  id: 'verticalHoverLine',
+  afterDraw: function(chart) {
+    if (chart.tooltip && chart.tooltip._active && chart.tooltip._active.length) {
+      var x = chart.tooltip._active[0].element.x;
+      var yAxis = chart.scales.y;
+      var ctx = chart.ctx;
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(x, yAxis.top);
+      ctx.lineTo(x, yAxis.bottom);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(37, 99, 235, 0.15)';
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+};
+
 async function loadRevenueChart() {
   var container = document.getElementById('revenueChartContainer');
+  var summaryBar = document.getElementById('revSummaryBar');
   if (!container) return;
   var token = localStorage.getItem('autoshop_jwt');
   if (!token) return;
@@ -2228,82 +2280,161 @@ async function loadRevenueChart() {
     var data = await res.json();
     var days = data.days || [];
 
-    // Check if there is any revenue at all
-    var hasRevenue = days.some(function(d) { return d.total > 0; });
-    if (!hasRevenue) {
-      container.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-tertiary);gap:8px;">' +
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:32px;height:32px;opacity:0.4;"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 5-5"/></svg>' +
-        '<div style="font-size:14px;">No revenue chart data yet</div>' +
-        '<div style="font-size:12px;opacity:0.7;">Complete appointments to build trends</div>' +
+    // Empty state — no revenue at all
+    if (shouldShowEmptyState(days)) {
+      container.innerHTML = '<div class="rev-empty">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="1.5" style="width:40px;height:40px;"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 5-5"/></svg>' +
+        '<div class="rev-empty-title">No revenue yet</div>' +
+        '<div class="rev-empty-text">Your AI receptionist hasn\'t booked any jobs yet.</div>' +
       '</div>';
+      if (summaryBar) summaryBar.style.display = 'none';
       return;
     }
 
-    // Build chart from real data
-    var maxVal = Math.max.apply(null, days.map(function(d) { return d.total; }));
-    if (maxVal === 0) maxVal = 1;
-    var chartH = 200;
-    var chartW = 800;
-    var padTop = 10;
-    var usable = chartH - padTop;
+    // Compute summary metrics
+    var totalRev = 0;
+    var totalBookings = 0;
+    for (var i = 0; i < days.length; i++) {
+      totalRev += days[i].total;
+      if (days[i].total > 0) totalBookings++;
+    }
+    var avgTicket = totalBookings > 0 ? Math.round(totalRev / totalBookings) : 0;
 
-    // Y-axis labels (5 ticks from 0 to maxVal)
-    var yLabels = '';
-    for (var i = 4; i >= 0; i--) {
-      var val = Math.round((maxVal * i) / 4);
-      var label = val >= 1000 ? ('$' + Math.round(val / 1000) + 'k') : ('$' + val);
-      yLabels += '<span style="font-size:11px;color:var(--text-tertiary);text-align:right;padding-right:8px;">' + label + '</span>';
+    // Growth: compare first half vs second half
+    var mid = Math.floor(days.length / 2);
+    var firstHalf = 0, secondHalf = 0;
+    for (var h = 0; h < days.length; h++) {
+      if (h < mid) firstHalf += days[h].total;
+      else secondHalf += days[h].total;
+    }
+    var growthPct = firstHalf > 0 ? Math.round(((secondHalf - firstHalf) / firstHalf) * 100) : (secondHalf > 0 ? 100 : 0);
+    var growthClass = growthPct > 0 ? 'up' : (growthPct < 0 ? 'down' : 'neutral');
+    var growthSign = growthPct > 0 ? '+' : '';
+
+    // Render summary bar
+    if (summaryBar) {
+      summaryBar.style.display = 'flex';
+      summaryBar.innerHTML =
+        '<div class="rev-metric"><div class="rev-metric-label">Total Revenue</div><div class="rev-metric-value">' + formatCurrency(totalRev) + '</div></div>' +
+        '<div class="rev-metric"><div class="rev-metric-label">Bookings</div><div class="rev-metric-value">' + totalBookings + '</div></div>' +
+        '<div class="rev-metric"><div class="rev-metric-label">Avg Ticket</div><div class="rev-metric-value">' + formatCurrency(avgTicket) + '</div></div>' +
+        '<div class="rev-metric"><div class="rev-metric-label">Period Growth</div><div class="rev-metric-value">' + growthSign + growthPct + '%</div><div class="rev-metric-change ' + growthClass + '">' + (growthPct >= 0 ? 'vs prior period' : 'vs prior period') + '</div></div>';
     }
 
-    // SVG points
-    var points = [];
-    for (var j = 0; j < days.length; j++) {
-      var x = days.length > 1 ? (j / (days.length - 1)) * chartW : chartW / 2;
-      var y = padTop + usable - (days[j].total / maxVal) * usable;
-      points.push({ x: x, y: y });
-    }
-
-    // Build line path
-    var linePath = 'M' + points[0].x + ',' + points[0].y;
-    for (var p = 1; p < points.length; p++) {
-      linePath += ' L' + points[p].x + ',' + points[p].y;
-    }
-    // Area path (close to bottom)
-    var areaPath = linePath + ' L' + points[points.length - 1].x + ',' + chartH + ' L' + points[0].x + ',' + chartH + ' Z';
-
-    // Grid lines
-    var gridLines = '';
-    for (var g = 1; g <= 4; g++) {
-      var gy = padTop + (usable * g) / 4;
-      gridLines += '<line x1="0" y1="' + gy + '" x2="' + chartW + '" y2="' + gy + '" stroke="rgba(0,0,0,.03)" stroke-width="1"/>';
-    }
-
-    // X-axis date labels
-    var xLabels = '';
+    // Prepare labels and data
     var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    for (var d = 0; d < days.length; d++) {
-      var parts = days[d].date.split('-');
-      var mon = parseInt(parts[1], 10) - 1;
-      var day = parseInt(parts[2], 10);
-      xLabels += '<span style="font-size:11px;color:var(--text-tertiary);">' + monthNames[mon] + ' ' + day + '</span>';
+    var labels = days.map(function(d) {
+      var parts = d.date.split('-');
+      return monthNames[parseInt(parts[1], 10) - 1] + ' ' + parseInt(parts[2], 10);
+    });
+    var values = days.map(function(d) { return d.total; });
+
+    // Determine chart type: bar for sparse data, line for normal
+    var useBars = hasSparseRevenueData(days);
+
+    // Destroy previous instance
+    if (_revenueChartInstance) {
+      _revenueChartInstance.destroy();
+      _revenueChartInstance = null;
     }
 
-    // Dot markers
-    var dots = '';
-    for (var m = 0; m < points.length; m++) {
-      dots += '<circle cx="' + points[m].x + '" cy="' + points[m].y + '" r="3" fill="#2563EB"/>';
-    }
+    // Set up canvas
+    container.innerHTML = '<canvas id="revenueChartCanvas" style="width:100%;height:100%;"></canvas>';
+    var canvas = document.getElementById('revenueChartCanvas');
+    var ctx = canvas.getContext('2d');
 
-    container.innerHTML =
-      '<div style="position:absolute;left:0;top:20px;bottom:30px;width:44px;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none;">' + yLabels + '</div>' +
-      '<svg viewBox="0 0 ' + chartW + ' ' + chartH + '" preserveAspectRatio="none" style="height:100%;width:100%;margin-left:20px;">' +
-        '<defs><linearGradient id="dcg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2563EB" stop-opacity="0.18"/><stop offset="100%" stop-color="#2563EB" stop-opacity="0.01"/></linearGradient></defs>' +
-        gridLines +
-        '<path d="' + areaPath + '" fill="url(#dcg)"/>' +
-        '<path d="' + linePath + '" fill="none" stroke="#2563EB" stroke-width="2.5"/>' +
-        dots +
-      '</svg>' +
-      '<div style="display:flex;justify-content:space-between;padding:6px 0 0 44px;">' + xLabels + '</div>';
+    // Gradient fill for line chart
+    var gradient = ctx.createLinearGradient(0, 0, 0, canvas.parentElement.offsetHeight || 280);
+    gradient.addColorStop(0, 'rgba(37, 99, 235, 0.18)');
+    gradient.addColorStop(1, 'rgba(37, 99, 235, 0.01)');
+
+    var chartConfig = {
+      type: useBars ? 'bar' : 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Revenue',
+          data: values,
+          borderColor: '#2563EB',
+          backgroundColor: useBars ? 'rgba(37, 99, 235, 0.7)' : gradient,
+          borderWidth: useBars ? 0 : 2.5,
+          fill: !useBars,
+          tension: 0.38,
+          pointRadius: useBars ? 0 : 4,
+          pointBackgroundColor: '#2563EB',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointHoverRadius: 7,
+          pointHoverBackgroundColor: '#2563EB',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 3,
+          borderRadius: useBars ? 6 : 0,
+          maxBarThickness: 40
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            enabled: true,
+            backgroundColor: '#1E293B',
+            titleColor: '#F8FAFC',
+            bodyColor: '#CBD5E1',
+            titleFont: { family: 'Inter', size: 13, weight: '600' },
+            bodyFont: { family: 'Inter', size: 12 },
+            padding: { top: 10, right: 14, bottom: 10, left: 14 },
+            cornerRadius: 8,
+            displayColors: false,
+            caretSize: 6,
+            caretPadding: 8,
+            callbacks: {
+              title: function(items) { return items[0].label; },
+              label: function(item) {
+                var idx = item.dataIndex;
+                var rev = values[idx];
+                var bk = rev > 0 ? 1 : 0;
+                var avg = bk > 0 ? formatCurrency(rev) : '$0';
+                return [
+                  'Revenue: ' + formatCurrency(rev),
+                  'Bookings: ' + bk,
+                  'Avg Ticket: ' + avg
+                ];
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(0, 0, 0, 0.04)', drawBorder: false },
+            border: { display: false },
+            ticks: {
+              font: { family: 'Inter', size: 11 },
+              color: '#94A3B8',
+              maxTicksLimit: 5,
+              callback: function(v) { return formatCompactCurrency(v); }
+            }
+          },
+          x: {
+            grid: { display: false },
+            border: { display: false },
+            ticks: {
+              font: { family: 'Inter', size: 11 },
+              color: '#94A3B8'
+            }
+          }
+        }
+      },
+      plugins: useBars ? [] : [verticalLinePlugin]
+    };
+
+    _revenueChartInstance = new Chart(ctx, chartConfig);
   } catch (err) {
     console.error('Revenue chart load failed:', err);
     container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-tertiary);font-size:14px;">Unable to load chart data</div>';
