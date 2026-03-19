@@ -288,6 +288,170 @@ export function parseNaturalDate(dateStr: string): string | null {
 
 // ── Core detection function ─────────────────────────────────────────────────
 
+// ── Cumulative extraction helpers ─────────────────────────────────────────
+
+/**
+ * Fields extracted from a single message turn (no booking detection logic).
+ */
+export interface ExtractedFields {
+  customerName: string | null;
+  carModel: string | null;
+  issueDescription: string | null;
+  serviceType: string;
+  licensePlate: string | null;
+}
+
+/**
+ * Extract booking-relevant fields from a single customer message + AI response pair.
+ * Does NOT detect booking intent — just extracts field values.
+ */
+export function extractFieldsFromMessage(
+  customerMessage: string,
+  aiResponse: string
+): ExtractedFields {
+  const lowerCustomer = customerMessage.toLowerCase();
+  const lowerAi = aiResponse.toLowerCase();
+  const combined = lowerCustomer + " " + lowerAi;
+
+  // serviceType
+  let serviceType = "general service";
+  for (const { pattern, label } of SERVICE_KEYWORDS) {
+    if (combined.includes(pattern)) {
+      serviceType = label;
+      break;
+    }
+  }
+
+  // customerName (same logic as detectBookingIntent)
+  let customerName: string | null = null;
+  const nameComma = aiResponse.match(NAME_AFTER_COMMA);
+  if (nameComma) {
+    customerName = nameComma[1];
+  } else {
+    const nameFor = aiResponse.match(NAME_AFTER_FOR);
+    if (nameFor) {
+      customerName = nameFor[1];
+    } else {
+      const nameHi = aiResponse.match(NAME_AFTER_HI);
+      if (nameHi) {
+        customerName = nameHi[1];
+      } else {
+        const nameSelf = customerMessage.match(NAME_SELF_INTRO);
+        if (nameSelf) {
+          customerName = nameSelf[1];
+        }
+      }
+    }
+  }
+
+  const carModel = extractCarModel(customerMessage, aiResponse);
+  const licensePlate = extractLicensePlate(customerMessage, aiResponse);
+  const issueDescription = customerMessage.trim() || null;
+
+  return { customerName, carModel, issueDescription, serviceType, licensePlate };
+}
+
+/**
+ * Determines whether a customer message is a substantive issue description
+ * (i.e., describes a vehicle problem or service request) vs. a non-issue
+ * message like a license plate number, time confirmation, or short acknowledgement.
+ */
+export function isSubstantiveIssue(text: string): boolean {
+  if (!text || text.trim().length < 5) return false;
+  const lower = text.toLowerCase().trim();
+  // License plate messages are NOT issue descriptions
+  if (/^(my )?(license )?plate/i.test(lower)) return false;
+  // Time-only confirmations
+  if (/^\d{1,2}\s*(am|pm)\b/i.test(lower)) return false;
+  // Short acknowledgements
+  if (/^(yes|yeah|yep|ok|okay|sure|sounds good|that works|perfect|great|let'?s? (do|book)|book it)/i.test(lower) && lower.length < 40) return false;
+  // Must contain a service/problem keyword to count as issue description
+  const issueKeywords = [
+    "brake", "oil", "tire", "engine", "check", "repair", "service", "fix",
+    "noise", "problem", "issue", "inspect", "replace", "change", "tune",
+    "align", "transmission", "ac ", "a/c", "battery", "coolant", "radiator",
+    "diagnostic", "light", "leak", "squeak", "vibrat", "pull", "stall",
+    "overheat", "smoke", "smell", "need", "broken", "damage", "grind",
+    "worn", "fluid", "steering", "suspen", "exhaust", "muffler", "belt",
+    "hose", "filter", "spark", "starter", "alternator", "window", "door",
+    "lock", "heat", "cool", "air", "conditioning",
+  ];
+  return issueKeywords.some((k) => lower.includes(k));
+}
+
+/**
+ * Merge cumulative fields from conversation history into the current booking intent.
+ *
+ * Rules:
+ * - customerName: keep first credible name; current wins only if prior is absent
+ * - carModel: keep longest/most specific; prior wins if current is null or shorter
+ * - issueDescription: keep first substantive issue; NEVER overwrite with non-issue text
+ * - serviceType: never downgrade from specific to "general service"
+ * - licensePlate: keep first captured plate; later fills if absent
+ * - preferredTime/scheduledAt: NOT merged here (current turn's time is authoritative)
+ */
+export function mergeBookingFields(
+  currentIntent: BookingIntentResult,
+  priorExtractions: ExtractedFields[]
+): BookingIntentResult {
+  const merged = { ...currentIntent };
+
+  // Accumulate best values from prior turns (oldest first)
+  let bestName: string | null = null;
+  let bestCarModel: string | null = null;
+  let bestIssue: string | null = null;
+  let bestService: string = "general service";
+  let bestPlate: string | null = null;
+
+  for (const prior of priorExtractions) {
+    // Name: first credible name wins
+    if (prior.customerName && !bestName) bestName = prior.customerName;
+    // Car model: longest (most specific) wins
+    if (prior.carModel && (!bestCarModel || prior.carModel.length > bestCarModel.length)) {
+      bestCarModel = prior.carModel;
+    }
+    // Issue: first substantive issue wins
+    if (prior.issueDescription && !bestIssue && isSubstantiveIssue(prior.issueDescription)) {
+      bestIssue = prior.issueDescription;
+    }
+    // Service type: first specific classification wins
+    if (prior.serviceType !== "general service" && bestService === "general service") {
+      bestService = prior.serviceType;
+    }
+    // Plate: first captured plate wins
+    if (prior.licensePlate && !bestPlate) bestPlate = prior.licensePlate;
+  }
+
+  // customerName: prefer prior if current is absent
+  if (!merged.customerName && bestName) merged.customerName = bestName;
+
+  // carModel: prefer prior if current is absent or shorter
+  if (!merged.carModel && bestCarModel) {
+    merged.carModel = bestCarModel;
+  } else if (merged.carModel && bestCarModel && bestCarModel.length > merged.carModel.length) {
+    merged.carModel = bestCarModel;
+  }
+
+  // issueDescription: NEVER overwrite substantive prior issue with non-issue text
+  if (bestIssue) {
+    if (!merged.issueDescription || !isSubstantiveIssue(merged.issueDescription)) {
+      merged.issueDescription = bestIssue;
+    }
+  }
+
+  // serviceType: never downgrade from specific to "general service"
+  if (merged.serviceType === "general service" && bestService !== "general service") {
+    merged.serviceType = bestService;
+  }
+
+  // licensePlate: fill if missing
+  if (!merged.licensePlate && bestPlate) merged.licensePlate = bestPlate;
+
+  return merged;
+}
+
+// ── Core detection function ─────────────────────────────────────────────────
+
 export function detectBookingIntent(
   aiResponse: string,
   customerMessage: string
