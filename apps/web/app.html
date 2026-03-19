@@ -1057,6 +1057,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 
       <!-- ── 1. KPI ROW (4 cards) ── -->
       <div class="kpi-grid" id="kpiGrid"></div>
+      <div id="pendingCompletionBanner" style="display:none;margin:12px 0 0;padding:10px 16px;background:#FEF3C7;border:1px solid #F59E0B;border-radius:8px;color:#92400E;font-size:14px;font-weight:500;"></div>
 
       <!-- ── 2. LIVE CONVERSATIONS + TODAY'S APPOINTMENTS (2/3 + 1/3 grid) ── -->
       <div class="dash-body">
@@ -1328,9 +1329,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
           <div class="an-kpi-icon green">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
           </div>
-          <div class="an-kpi-val" id="anKpiRecovery">0%</div>
+          <div class="an-kpi-val" id="anKpiRecovery">—</div>
           <div class="an-kpi-label">Missed Call Recovery</div>
-          <div class="an-kpi-change" id="anKpiRecoveryChange">No data yet</div>
+          <div class="an-kpi-change" id="anKpiRecoveryChange">Unavailable — requires call attribution</div>
         </div>
         <div class="an-kpi fade-in">
           <div class="an-kpi-icon blue">
@@ -3494,7 +3495,6 @@ function renderLiveKPIs() {
 
   var recoveredRev = k.recovered_revenue || 0;
   var aiBooked = k.ai_booked_this_month || 0;
-  var captureRate = k.capture_rate_pct || 0;
   var activeConvs = k.active_conversations || s.active_conversations || 0;
   var apptToday = k.appointments_today || s.appointments_today || 0;
   var convsMonth = k.conversations_this_month || s.conversations_this_month || 0;
@@ -3508,13 +3508,11 @@ function renderLiveKPIs() {
   // Real change metrics — no fake percentages
   var revChange = totalRev > 0 ? ('+$' + totalRev.toLocaleString() + ' total (30d)') : 'No completed bookings yet';
   var apptChange = aiBooked > 0 ? (aiBooked + ' this month') : 'No AI bookings yet';
-  var captureChange = convsMonth > 0 ? (convsMonth + ' conversations this month') : 'No conversations yet';
   var activeChange = apptToday > 0 ? (apptToday + ' appointments today') : 'No appointments today';
 
   // Determine change arrow direction
   var revDir = recoveredRev > 0 ? 'up' : 'neutral';
   var apptDir = aiBooked > 0 ? 'up' : 'neutral';
-  var captureDir = captureRate > 0 ? 'up' : 'neutral';
 
   document.getElementById('kpiGrid').innerHTML =
     '<div class="kpi-card">' +
@@ -3531,9 +3529,9 @@ function renderLiveKPIs() {
     '</div>' +
     '<div class="kpi-card">' +
       '<div class="kpi-icon-box amber">' + iconPhone + '</div>' +
-      '<div class="kpi-value">' + captureRate + '%</div>' +
-      '<div class="kpi-label">Missed Calls Captured</div>' +
-      '<div class="kpi-change ' + captureDir + '">' + (captureDir === 'up' ? '&#9650; ' : '') + captureChange + '</div>' +
+      '<div class="kpi-value">' + convsMonth + '</div>' +
+      '<div class="kpi-label">Conversations This Month</div>' +
+      '<div class="kpi-change neutral">' + (convsMonth > 0 ? convsMonth + ' conversations' : 'No conversations yet') + '</div>' +
     '</div>' +
     '<div class="kpi-card">' +
       '<div class="kpi-icon-box purple">' + iconMsg + '</div>' +
@@ -3542,11 +3540,23 @@ function renderLiveKPIs() {
       '<div class="kpi-change neutral">' + activeChange + '</div>' +
     '</div>';
 
+  // Pending completion warning — revenue integrity signal
+  var pendingBanner = document.getElementById('pendingCompletionBanner');
+  if (pendingBanner) {
+    var pendingCount = k.pending_completion_count || 0;
+    if (pendingCount > 0) {
+      pendingBanner.style.display = 'block';
+      pendingBanner.textContent = pendingCount + ' past appointment' + (pendingCount > 1 ? 's need' : ' needs') + ' completion to count revenue';
+    } else {
+      pendingBanner.style.display = 'none';
+    }
+  }
+
   // Dashboard chart meta — real values only
   var drr = document.getElementById('dashRevRecovered');
   if (drr) drr.textContent = '$' + recoveredRev.toLocaleString();
   var dab = document.getElementById('dashAvgBooking');
-  if (dab) dab.textContent = totalRev > 0 && (k.recovered_bookings || 0) > 0 ? '$' + Math.round(totalRev / k.recovered_bookings).toLocaleString() : '$0';
+  if (dab) dab.textContent = totalRev > 0 && (k.total_completed_bookings || 0) > 0 ? '$' + Math.round(totalRev / k.total_completed_bookings).toLocaleString() : '$0';
 }
 
 function renderLiveTodayActivity() {
@@ -3676,9 +3686,9 @@ function renderLiveRevenueBlocks() {
   // Update analytics KPIs with real data from KPI summary
   var k = kpiSummary || {};
   var akr = document.getElementById('anKpiRecovery');
-  if (akr) akr.textContent = (k.capture_rate_pct || 0) + '%';
+  if (akr) akr.textContent = '—';
   var akrc = document.getElementById('anKpiRecoveryChange');
-  if (akrc) akrc.textContent = k.missed_calls_captured ? (k.missed_calls_captured + ' of ' + k.missed_calls_total + ' captured') : 'No data yet';
+  if (akrc) akrc.textContent = 'Unavailable — requires call attribution';
   var drt = document.getElementById('dashRevTrendText');
   var drtParent = document.getElementById('dashRevTrend');
   if (drt && drtParent) {
@@ -3692,11 +3702,11 @@ function renderLiveRevenueBlocks() {
     }
   }
 
-  // Revenue Per Booking — real data from KPI summary
+  // Revenue Per Booking — total_revenue / total_completed_bookings (all sources, aligned)
   var anRevPerBooking = document.getElementById('anKpiRevenue');
   if (anRevPerBooking) {
     var totalRevAn = k.total_revenue || 0;
-    var totalBookingsAn = k.recovered_bookings || 0;
+    var totalBookingsAn = k.total_completed_bookings || 0;
     if (totalBookingsAn > 0) {
       anRevPerBooking.textContent = '$' + Math.round(totalRevAn / totalBookingsAn);
     } else {
