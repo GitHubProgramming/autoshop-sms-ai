@@ -2,6 +2,15 @@
   "trailingSlash": false,
   "headers": [
     {
+      "source": "/app/:path*",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" },
+        { "key": "Vercel-CDN-Cache-Control", "value": "max-age=0, must-revalidate" },
+        { "key": "Pragma", "value": "no-cache" },
+        { "key": "Expires", "value": "0" }
+      ]
+    },
+    {
       "source": "/app.html",
       "headers": [
         { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" },
@@ -20,7 +29,7 @@
       ]
     },
     {
-      "source": "/login.html",
+      "source": "/login",
       "headers": [
         { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" },
         { "key": "Vercel-CDN-Cache-Control", "value": "max-age=0, must-revalidate" },
@@ -29,7 +38,7 @@
       ]
     },
     {
-      "source": "/signup.html",
+      "source": "/signup",
       "headers": [
         { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" },
         { "key": "Vercel-CDN-Cache-Control", "value": "max-age=0, must-revalidate" },
@@ -47,7 +56,19 @@
       ]
     }
   ],
+  "redirects": [
+    { "source": "/app.html", "destination": "/app/dashboard", "permanent": false },
+    { "source": "/app", "destination": "/app/dashboard", "permanent": false },
+    { "source": "/dashboard", "destination": "/app/dashboard", "permanent": false },
+    { "source": "/login.html", "destination": "/login", "permanent": false },
+    { "source": "/signup.html", "destination": "/signup", "permanent": false },
+    { "source": "/onboarding.html", "destination": "/onboarding/business", "permanent": false }
+  ],
   "rewrites": [
+    { "source": "/app/:view", "destination": "/app.html" },
+    { "source": "/login", "destination": "/login.html" },
+    { "source": "/signup", "destination": "/signup.html" },
+    { "source": "/onboarding/:step", "destination": "/onboarding.html" },
     { "source": "/admin.html", "destination": "https://autoshop-api-7ek9.onrender.com/admin.html" },
     { "source": "/health", "destination": "https://autoshop-api-7ek9.onrender.com/health" },
     { "source": "/auth/:path*", "destination": "https://autoshop-api-7ek9.onrender.com/auth/:path*" },

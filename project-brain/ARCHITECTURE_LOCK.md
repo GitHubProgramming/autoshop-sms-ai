@@ -11,6 +11,8 @@ Strict rules of what must NEVER be changed without explicit human instruction.
 - **Do NOT** move the canonical dashboard file from `apps/web/app.html`
 - **Do NOT** split `app.html` into multiple page files
 - All UI improvements must happen inside `apps/web/app.html`
+- The dashboard is served via `/app/:view` Vercel rewrites (e.g. `/app/dashboard`, `/app/conversations`, etc.)
+- Auth pages are served at `/login`, `/signup`, `/onboarding/business`
 
 ## Backend Rules
 

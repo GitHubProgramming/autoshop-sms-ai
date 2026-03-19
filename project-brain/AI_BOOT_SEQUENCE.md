@@ -34,8 +34,9 @@ Read these files in this exact order:
 
 After reading, the agent must confirm these facts internally before proceeding:
 
-- **Canonical dashboard file:** `apps/web/app.html`
+- **Canonical dashboard file:** `apps/web/app.html` (served via `/app/:view` Vercel rewrites)
 - **Frontend architecture type:** Static single-page application (vanilla HTML/CSS/JS)
+- **Route architecture:** `/app/dashboard`, `/app/conversations`, `/app/appointments`, `/app/settings`, `/app/billing`, `/app/analytics`, `/app/customers`, `/login`, `/signup`, `/onboarding/business`
 - **Deployment architecture:** GitHub main → Render build → Docker container → Fastify API → Admin dashboard
 - **Target market:** Texas, USA
 - **Pricing tiers:** Starter $199/mo, Pro $299/mo, Premium $499/mo
@@ -67,7 +68,7 @@ Only after completing Steps 1–3 may the agent search the repository or modify 
 Hard constraints that must never be violated:
 
 - The dashboard is a **static admin app** — not a framework-based SPA
-- **Canonical file:** `apps/web/app.html` — all UI lives here
+- **Canonical file:** `apps/web/app.html` — all UI lives here, served via `/app/:view` Vercel rewrites
 - **React/Vite conversion is forbidden** — no frontend framework introduction
 - UI refinement must happen **inside the existing dashboard file**
 - **GitHub is the canonical deployment source** — not n8n, not external systems

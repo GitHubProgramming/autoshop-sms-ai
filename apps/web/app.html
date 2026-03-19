@@ -968,16 +968,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
     </div>
   </div>
   <div class="nav-right">
-    <a href="#" id="headerUpgradeBtn" onclick="switchView('billing');return false;" class="btn-upgrade" style="font-size:12px;padding:7px 18px;border-radius:8px;background:linear-gradient(135deg,#2563EB,#7C3AED);box-shadow:0 2px 8px rgba(37,99,235,.25);">Upgrade Plan</a>
+    <a href="/app/billing" id="headerUpgradeBtn" onclick="switchView('billing');return false;" class="btn-upgrade" style="font-size:12px;padding:7px 18px;border-radius:8px;background:linear-gradient(135deg,#2563EB,#7C3AED);box-shadow:0 2px 8px rgba(37,99,235,.25);">Upgrade Plan</a>
     <div class="nav-account">
       <div class="nav-avatar" id="navAvatar">?</div>
       <span class="nav-account-name" id="navAccountName" data-tenant-name></span>
       <span style="font-size:10px;color:var(--text-tertiary);margin-left:2px;">&#9662;</span>
       <div class="nav-dropdown">
-        <a href="#" onclick="switchView('billing');return false;">Billing</a>
-        <a href="#" onclick="switchView('settings');return false;">Settings</a>
+        <a href="/app/billing" onclick="switchView('billing');return false;">Billing</a>
+        <a href="/app/settings" onclick="switchView('settings');return false;">Settings</a>
         <a href="index.html">Back to Website</a>
-        <a href="login.html" class="danger">Log Out</a>
+        <a href="/login" class="danger">Log Out</a>
       </div>
     </div>
   </div>
@@ -993,41 +993,41 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
     </div>
     <div class="sidebar-section">
       <div class="sidebar-label">Main</div>
-      <a class="sidebar-item active" href="#" onclick="switchView('dashboard');return false;">
+      <a class="sidebar-item active" href="/app/dashboard" onclick="switchView('dashboard');return false;">
         <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
         Dashboard
       </a>
-      <a class="sidebar-item" href="#" onclick="switchView('conversations');return false;">
+      <a class="sidebar-item" href="/app/conversations" onclick="switchView('conversations');return false;">
         <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
         Conversations
         <span class="sidebar-badge" id="sidebarConvBadge">0</span>
       </a>
-      <a class="sidebar-item" href="#" onclick="switchView('appointments');return false;">
+      <a class="sidebar-item" href="/app/appointments" onclick="switchView('appointments');return false;">
         <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         Appointments
       </a>
     </div>
     <div class="sidebar-section">
       <div class="sidebar-label">Customers</div>
-      <a class="sidebar-item" href="#" onclick="switchView('customers');return false;">
+      <a class="sidebar-item" href="/app/customers" onclick="switchView('customers');return false;">
         <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
         Customers
       </a>
     </div>
     <div class="sidebar-section">
       <div class="sidebar-label">Insights</div>
-      <a class="sidebar-item" href="#" onclick="switchView('analytics');return false;">
+      <a class="sidebar-item" href="/app/analytics" onclick="switchView('analytics');return false;">
         <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
         Analytics
       </a>
     </div>
     <div class="sidebar-section">
       <div class="sidebar-label">Account</div>
-      <a class="sidebar-item" href="#" onclick="switchView('billing');return false;">
+      <a class="sidebar-item" href="/app/billing" onclick="switchView('billing');return false;">
         <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
         Billing
       </a>
-      <a class="sidebar-item" href="#" onclick="switchView('settings');return false;">
+      <a class="sidebar-item" href="/app/settings" onclick="switchView('settings');return false;">
         <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
         Settings
       </a>
@@ -2043,7 +2043,7 @@ async function loadDashboardData() {
     if (res.status === 401 || res.status === 403) {
       localStorage.removeItem('autoshop_jwt');
       localStorage.removeItem('autoshop_session');
-      window.location.replace('login.html?next=app.html');
+      window.location.replace('/login?next=/app/dashboard');
       return false;
     }
     if (!res.ok) return false;
@@ -2292,6 +2292,14 @@ document.addEventListener('DOMContentLoaded', async function() {
   renderCustomers();
   renderAppointmentsPage();
   updateSidebarBadge();
+
+  // ── Route-based view switch on initial load ──
+  var initialView = getViewFromPath();
+  if (initialView !== 'dashboard') {
+    switchView(initialView, { skipPush: true });
+  }
+  // Set initial history state
+  history.replaceState({ view: initialView }, '', window.location.pathname + window.location.search);
 
   // Handle Google Calendar OAuth return
   var calParam = new URLSearchParams(window.location.search).get('calendar');
@@ -2877,8 +2885,8 @@ async function startCheckout(plan) {
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({
         plan: plan,
-        successUrl: window.location.origin + '/app.html?billing=success',
-        cancelUrl: window.location.origin + '/app.html?billing=canceled'
+        successUrl: window.location.origin + '/app/billing?billing=success',
+        cancelUrl: window.location.origin + '/app/billing?billing=canceled'
       })
     });
     if (res.status === 401) { showToast('Session expired — please log in again.'); return; }
@@ -3310,7 +3318,7 @@ async function connectGoogleCalendar() {
   var token = localStorage.getItem('autoshop_jwt');
   if (!token) {
     showToast('Session expired — please log in again.');
-    setTimeout(function() { window.location.href = 'login.html'; }, 1500);
+    setTimeout(function() { window.location.href = '/login'; }, 1500);
     return;
   }
   try {
@@ -3320,7 +3328,7 @@ async function connectGoogleCalendar() {
     });
     if (res.status === 401) {
       showToast('Session expired — please log in again.');
-      setTimeout(function() { window.location.href = 'login.html'; }, 1500);
+      setTimeout(function() { window.location.href = '/login'; }, 1500);
       return;
     }
     var data = await res.json();
@@ -3340,7 +3348,7 @@ async function disconnectGoogleCalendar() {
   var token = localStorage.getItem('autoshop_jwt');
   if (!token) {
     showToast('Session expired — please log in again.');
-    setTimeout(function() { window.location.href = 'login.html'; }, 1500);
+    setTimeout(function() { window.location.href = '/login'; }, 1500);
     return;
   }
   try {
@@ -3350,7 +3358,7 @@ async function disconnectGoogleCalendar() {
     });
     if (res.status === 401) {
       showToast('Session expired — please log in again.');
-      setTimeout(function() { window.location.href = 'login.html'; }, 1500);
+      setTimeout(function() { window.location.href = '/login'; }, 1500);
       return;
     }
     if (!res.ok) {
@@ -3370,10 +3378,22 @@ async function disconnectGoogleCalendar() {
 // ════════════════════════════════════════════
 // NAVIGATION
 // ════════════════════════════════════════════
-function switchView(view) {
+// ── Route constants ──
+var VALID_VIEWS = ['dashboard','conversations','appointments','customers','analytics','billing','settings'];
+var VIEW_ALIASES = { bookings:'appointments', revenue:'analytics' };
+
+function getViewFromPath() {
+  var path = window.location.pathname;
+  var match = path.match(/^\/app\/([a-z]+)/);
+  if (match && VALID_VIEWS.indexOf(match[1]) !== -1) return match[1];
+  if (match && VIEW_ALIASES[match[1]]) return VIEW_ALIASES[match[1]];
+  return 'dashboard';
+}
+
+function switchView(view, opts) {
   // Backward compat aliases
-  var aliases = { bookings:'appointments', revenue:'analytics' };
-  if (aliases[view]) view = aliases[view];
+  if (VIEW_ALIASES[view]) view = VIEW_ALIASES[view];
+  if (VALID_VIEWS.indexOf(view) === -1) view = 'dashboard';
 
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
@@ -3390,7 +3410,21 @@ function switchView(view) {
   var navSub = document.getElementById('navPageSubtitle');
   if (navTitle) navTitle.textContent = t[0];
   if (navSub) navSub.textContent = t[1];
+
+  // Update URL without reload (skip on popstate or initial load)
+  if (!(opts && opts.skipPush)) {
+    var newPath = '/app/' + view;
+    if (window.location.pathname !== newPath) {
+      history.pushState({ view: view }, '', newPath + window.location.search);
+    }
+  }
 }
+
+// Handle browser back/forward
+window.addEventListener('popstate', function(e) {
+  var view = (e.state && e.state.view) ? e.state.view : getViewFromPath();
+  switchView(view, { skipPush: true });
+});
 
 // ════════════════════════════════════════════
 // SETTINGS TABS
@@ -4635,7 +4669,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Replaces the forgeable autoshop_demo_login localStorage check.
   var token = localStorage.getItem('autoshop_jwt');
   if (!token) {
-    window.location.replace('login.html?next=app.html');
+    window.location.replace('/login?next=/app/dashboard');
     return;
   }
   // Verify token with server. If invalid/expired, redirect to login.
@@ -4644,18 +4678,18 @@ document.addEventListener('DOMContentLoaded', function() {
       if (!res.ok) {
         localStorage.removeItem('autoshop_jwt');
         localStorage.removeItem('autoshop_session');
-        window.location.replace('login.html?next=app.html');
+        window.location.replace('/login?next=/app/dashboard');
       }
     })
     .catch(function() { /* network error — allow dashboard to render */ });
   // Wire logout
   document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('a[href="login.html"].danger').forEach(function(el) {
+    document.querySelectorAll('a[href="/login"].danger, a.danger').forEach(function(el) {
       el.addEventListener('click', function(e) {
         e.preventDefault();
         localStorage.removeItem('autoshop_jwt');
         localStorage.removeItem('autoshop_session');
-        window.location.href = 'login.html';
+        window.location.href = '/login';
       });
     });
     // Apply tenant name on load

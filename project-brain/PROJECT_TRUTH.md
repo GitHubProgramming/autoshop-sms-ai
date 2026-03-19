@@ -21,7 +21,9 @@ Immutable project facts. Do not re-evaluate unless explicitly instructed.
 ## Frontend Architecture
 
 - The AutoShop admin UI is a **static single-page application**
-- **Canonical dashboard file:** `apps/web/app.html`
+- **Canonical dashboard file:** `apps/web/app.html` (served via `/app/:view` Vercel rewrites)
+- **Dashboard routes:** `/app/dashboard`, `/app/conversations`, `/app/appointments`, `/app/customers`, `/app/analytics`, `/app/billing`, `/app/settings`
+- **Auth routes:** `/login`, `/signup`, `/onboarding/business`
 - The dashboard must **NOT** be rewritten into React, Vite, or any SPA framework
 - All UI improvements happen inside `apps/web/app.html`
 
@@ -40,7 +42,7 @@ GitHub main
     → Docker container
       → Fastify API (runtime)
         → Runtime JSON config
-          → Admin dashboard (apps/web/app.html)
+          → Admin dashboard (apps/web/app.html → served at /app/:view)
 ```
 
 - n8n workflows deploy via GitHub Actions (`n8n-deploy.yml`) on push to `main`

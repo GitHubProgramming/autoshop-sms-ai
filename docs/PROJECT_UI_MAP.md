@@ -11,10 +11,25 @@
 |----------|-------|
 | **File** | `apps/web/app.html` |
 | **Type** | Single-page HTML application (no framework, no build step) |
-| **Navigation** | Client-side view switching via `switchView(name)` |
+| **Navigation** | URL-based routing via `/app/:view` routes + client-side `switchView(name)` |
 | **Design system** | Premium Light SaaS theme, CSS custom properties in `:root` |
 
-All pages, styles, and scripts live in this single file.
+All pages, styles, and scripts live in `apps/web/app.html`, which is served via `/app/:view` routes.
+
+### Route Architecture
+
+| Route | Purpose | Source File |
+|-------|---------|-------------|
+| `/app/dashboard` | Main dashboard (default) | `apps/web/app.html` |
+| `/app/conversations` | Conversation inbox | `apps/web/app.html` |
+| `/app/appointments` | Appointments / bookings | `apps/web/app.html` |
+| `/app/customers` | Customer list | `apps/web/app.html` |
+| `/app/analytics` | Analytics / revenue | `apps/web/app.html` |
+| `/app/billing` | Billing & plan | `apps/web/app.html` |
+| `/app/settings` | Shop settings | `apps/web/app.html` |
+| `/login` | Login (was `login.html`) | `apps/web/login.html` |
+| `/signup` | Signup (was `signup.html`) | `apps/web/signup.html` |
+| `/onboarding/business` | Onboarding (was `onboarding.html`) | `apps/web/onboarding.html` |
 
 ---
 
@@ -35,7 +50,10 @@ Navigation is handled by `switchView(name)` (line ~1915), which:
 - Hides all `.view` elements
 - Shows the matching `#view-{name}`
 - Updates sidebar active state
+- Updates the browser URL to `/app/{name}`
 - Supports aliases: `bookings` → `appointments`, `revenue` → `analytics`
+
+Direct URL access (e.g. `/app/conversations`) loads `app.html` and auto-switches to the correct view.
 
 ---
 
@@ -173,10 +191,15 @@ Before making **any** UI change, Claude must:
 ```
 apps/web/
   app.html          ← THE frontend (all pages, styles, scripts)
+                       Served via /app/:view routes (e.g. /app/dashboard)
+  login.html        ← Login page, served via /login
+  signup.html       ← Signup page, served via /signup
+  onboarding.html   ← Onboarding page, served via /onboarding/business
 
 docs/
   PROJECT_UI_MAP.md ← THIS file (UI structure reference)
 ```
 
 There is no separate CSS file, no JS bundle, no component tree.
-Everything is in `apps/web/app.html`.
+Everything is in `apps/web/app.html`. The server maps `/app/:view` routes
+to this file, and the client-side JS reads the URL to show the correct view.

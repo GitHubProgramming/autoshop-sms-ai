@@ -286,8 +286,8 @@
 <body>
 
 <nav class="topnav">
-  <a href="index.html" class="nav-logo">AutoShop <span>SMS</span> AI</a>
-  <a href="login.html" class="nav-back">Already have an account? Sign in →</a>
+  <a href="/" class="nav-logo">AutoShop <span>SMS</span> AI</a>
+  <a href="/login" class="nav-back">Already have an account? Sign in →</a>
 </nav>
 
 <main class="main">
@@ -364,7 +364,7 @@
 
     <div class="login-link">
       Already have an account?
-      <a href="login.html">Sign in →</a>
+      <a href="/login">Sign in →</a>
     </div>
   </div>
 </main>
@@ -383,7 +383,7 @@
   if (!token) return;
   fetch('/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
     .then(function(res) {
-      if (res.ok) window.location.replace('app.html');
+      if (res.ok) window.location.replace('/app/dashboard');
     })
     .catch(function() {});
 })();
@@ -470,7 +470,7 @@ async function handleSignup(e) {
       document.getElementById('signupForm').style.display = 'none';
       document.getElementById('successCard').style.display = 'block';
       setTimeout(function() {
-        window.location.href = 'onboarding.html';
+        window.location.href = '/onboarding/business';
       }, 1200);
     } else if (res.status === 409) {
       showError(data.error || 'An account with this email already exists.');
