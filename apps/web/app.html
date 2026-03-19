@@ -2069,8 +2069,8 @@ let tenantState = {
   health: {
     twilioWebhooks: { status: 'healthy',  lastAt: '—' },
     calendarSync:   { status: 'healthy',  lastAt: '—' },
-    aiEngine:       { status: 'healthy',  lastMs: 0 },
-    queue:          { status: 'healthy',  queuedJobs: 0 }
+    aiEngine:       { status: 'unknown',  lastMs: null },
+    queue:          { status: 'unknown',  queuedJobs: 0 }
   }
 };
 
@@ -2789,9 +2789,10 @@ function renderHealthGrid() {
   let html = '<div style="display:flex;flex-direction:column;gap:0;">';
   cells.forEach(function(cell, i) {
     var isOk = cell.status === 'ok' || cell.status === 'connected' || cell.status === 'operational' || cell.status === 'healthy';
-    var dotColor = isOk ? '#10B981' : '#F59E0B';
-    var statusText = isOk ? 'Operational' : 'Degraded';
-    var statusColor = isOk ? '#10B981' : '#F59E0B';
+    var isUnknown = cell.status === 'unknown';
+    var dotColor = isOk ? '#10B981' : (isUnknown ? '#94A3B8' : '#F59E0B');
+    var statusText = isOk ? 'Operational' : (isUnknown ? 'No data yet' : 'Degraded');
+    var statusColor = isOk ? '#10B981' : (isUnknown ? '#94A3B8' : '#F59E0B');
     var borderBottom = i < cells.length - 1 ? 'border-bottom:1px solid var(--border);' : '';
     html += '<div style="padding:14px 0;' + borderBottom + '">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">' +
@@ -3101,16 +3102,12 @@ function renderBillingPage() {
       <div class="billing-card">
         <div class="billing-card-title" style="margin-bottom:24px;">Payment Method</div>
         <div class="billing-payment-box">
-          <div class="billing-payment-row">
-            <div class="billing-payment-icon">${svgCard}</div>
-            <div>
-              <div class="billing-payment-card">Visa ending in 4242</div>
-              <div class="billing-payment-exp">Expires 12/2027</div>
-            </div>
+          <div style="padding:8px 0;text-align:center;">
+            <div style="font-size:13px;color:var(--text-tertiary);margin-bottom:4px;">Payment method managed via Stripe</div>
+            <div style="font-size:12px;color:var(--text-tertiary);">Use the billing portal to view or update your card.</div>
           </div>
-          <div class="billing-payment-default">${svgCheck} Default payment method</div>
         </div>
-        <button class="billing-btn-outline" onclick="openBillingPortal()">Update Payment Method</button>
+        <button class="billing-btn-outline" onclick="openBillingPortal()">Manage Payment Method</button>
       </div>
     </div>
 
@@ -3785,13 +3782,14 @@ function renderSystemHero() {
     label.className = 'hero-status red';
     label.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> AI Engine Degraded';
     desc.textContent = 'Response times elevated. Conversations continue but may be slower.';
-    metr.innerHTML = `Last response: <span style="color:var(--amber);">${h.aiEngine.lastMs}ms</span>`;
+    metr.innerHTML = h.aiEngine.lastMs != null ? `Last response: <span style="color:var(--amber);">${h.aiEngine.lastMs}ms</span>` : '';
   } else {
     strip.className = 'system-hero success';
     label.className = 'hero-status green';
     label.innerHTML = '<span class="status-dot green" style="width:8px;height:8px;"></span> System Active';
     desc.textContent = 'Recovering missed calls in real time.';
-    metr.innerHTML = `Avg AI response: <span style="color:var(--green);">${h.aiEngine.lastMs}ms</span> &nbsp;·&nbsp; Last SMS: ${h.twilioWebhooks.lastAt}`;
+    var aiLatency = h.aiEngine.lastMs != null ? ('Avg AI response: <span style="color:var(--green);">' + h.aiEngine.lastMs + 'ms</span> &nbsp;·&nbsp; ') : '';
+    metr.innerHTML = aiLatency + 'Last SMS: ' + h.twilioWebhooks.lastAt;
   }
 }
 
