@@ -16,6 +16,7 @@ import { detectBookingIntent, extractFieldsFromMessage, mergeBookingFields } fro
 import { createAppointment, type BookingState } from "./appointments";
 import { createCalendarEvent } from "./google-calendar";
 import { sendTwilioSms } from "./missed-call-sms";
+import { calendarQueue } from "../queues/redis";
 import {
   getTenantAiPolicy,
   buildPromptPolicySection,
@@ -435,6 +436,35 @@ export async function processSms(
               await sendTwilioSms(ownerPhone, alertBody, fetchFn);
             } catch {
               // Non-fatal: best-effort alert
+            }
+          }
+
+          // Enqueue automatic retry (exponential backoff: 30s, 60s, 120s, 240s)
+          // Skip retry if no tokens configured — retry won't help until OAuth is done
+          if (!calResult.error.includes("No calendar tokens")) {
+            try {
+              await calendarQueue.add(
+                "calendar-sync-retry",
+                {
+                  tenantId: input.tenantId,
+                  appointmentId: apptResult.appointment.id,
+                  customerPhone: input.customerPhone,
+                  customerName: intent.customerName,
+                  serviceType: intent.serviceType,
+                  carModel: intent.carModel,
+                  licensePlate: intent.licensePlate,
+                  issueDescription: intent.issueDescription,
+                  scheduledAt: intent.scheduledAt,
+                },
+                {
+                  attempts: 4,
+                  backoff: { type: "exponential", delay: 30_000 },
+                  removeOnComplete: 50,
+                  removeOnFail: 200,
+                }
+              );
+            } catch {
+              // Non-fatal: retry enqueue failure doesn't break the flow
             }
           }
         }
