@@ -19,6 +19,9 @@ export interface CalendarEventInput {
   customerPhone: string;
   customerName?: string | null;
   serviceType: string;
+  carModel?: string | null;
+  licensePlate?: string | null;
+  issueDescription?: string | null;
   scheduledAt: string; // ISO 8601
   durationMinutes?: number;
   timeZone?: string;
@@ -82,9 +85,15 @@ export function buildEventBody(input: CalendarEventInput) {
     ? ` — ${input.customerName}`
     : "";
 
+  const descParts = [`AutoShop AI booking.`, `Service: ${input.serviceType}`, `Phone: ${input.customerPhone}`];
+  if (input.customerName) descParts.push(`Name: ${input.customerName}`);
+  if (input.carModel) descParts.push(`Vehicle: ${input.carModel}`);
+  if (input.licensePlate) descParts.push(`Plate: ${input.licensePlate}`);
+  if (input.issueDescription) descParts.push(`Issue: ${input.issueDescription}`);
+
   return {
     summary: `${input.serviceType}${namePart} — ${input.customerPhone}`,
-    description: `AutoShop AI booking.\nService: ${input.serviceType}\nPhone: ${input.customerPhone}${input.customerName ? `\nName: ${input.customerName}` : ""}`,
+    description: descParts.join("\n"),
     start: {
       dateTime: startDate.toISOString(),
       timeZone: tz,

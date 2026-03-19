@@ -9,6 +9,63 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: data-model-hardening — 2026-03-19
+
+**Branch:** ai/data-model-hardening
+**Status:** COMPLETE — Critical booking fields stored as first-class data + full smoke test
+
+### Data Model Weaknesses Found
+1. `car_model` extracted from SMS but never persisted to `appointments` table
+2. `license_plate` extracted from SMS but never persisted to `appointments` table
+3. `issue_description` conflated with `service_type` — raw customer text lost
+4. Calendar event body missing vehicle/plate/issue data
+
+### Schema Hardening Applied
+1. Migration 023: added `car_model`, `license_plate`, `issue_description` columns to appointments (nullable, backward-compatible)
+2. `createAppointment()` SQL INSERT/UPSERT now persists all three new fields
+3. `AppointmentRecord` interface includes new fields
+4. `BookingIntentResult` now returns `issueDescription` (raw customer text) separate from `serviceType` (classified label)
+5. Calendar event body includes vehicle, plate, and issue in description
+6. Route Zod schema accepts new fields via API
+
+### Smoke Test — Step-by-Step Result
+| Step | What | Result |
+|------|------|--------|
+| 1 | AI settings with licensePlate=ON produce correct 5-field policy | PASS |
+| 2 | Missed call triggers auto SMS via Twilio | PASS (mocked Twilio) |
+| 3 | Customer msg "Need brakes checked. 2019 Honda Civic. Tomorrow morning works. My name is John." — plate missing → booking BLOCKED | PASS |
+| 4 | Corrective SMS sent: "Almost there! I still need: license plate number" | PASS |
+| 5 | Customer provides "My license plate is ABC 1234" → plate extracted | PASS |
+| 6 | All 5 fields satisfied → booking proceeds | PASS |
+| 7 | Appointment SQL INSERT includes car_model, license_plate, issue_description | PASS |
+| 8 | Calendar event body contains Vehicle, Plate, Issue | PASS |
+| 9 | issueDescription ≠ serviceType (distinct values) | PASS |
+| 10 | Backward compat: old rows with null new fields still work | PASS |
+| 11 | Full end-to-end trace: all 9 steps in sequence | PASS |
+
+### What Was Proven Directly
+- AI settings → runtime policy → prompt injection → field validation → booking block/allow
+- Missed call SMS flow with Twilio mock
+- Booking intent extraction (name, carModel, serviceType, issueDescription, licensePlate, scheduledAt)
+- Fail-closed enforcement: missing plate blocks booking, corrective SMS replaces false confirmation
+- Appointment creation with all hardened fields persisted to SQL
+- Calendar event body construction with all fields
+- Backward compatibility with old rows
+
+### What Remains Only Manually Provable
+- Real Twilio SMS delivery (requires live phone test)
+- Real OpenAI API response (requires live API key in env)
+- Real Google Calendar event creation (requires OAuth consent)
+- Real PostgreSQL migration execution (requires live DB)
+
+### Verification
+- 506/506 tests passed (31 test files)
+- 18 new smoke test assertions
+- TypeScript: clean
+- All existing e2e enforcement tests still pass (27/27)
+
+---
+
 ## TASK: billing-hardening — 2026-03-18
 
 **Branch:** ai/billing-hardening

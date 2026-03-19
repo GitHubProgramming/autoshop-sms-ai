@@ -9,6 +9,7 @@ export interface BookingIntentResult {
   isBooked: boolean;
   confidence: "high" | "medium" | "low" | "none";
   serviceType: string;
+  issueDescription: string | null;
   scheduledAt: string;
   scheduledAtExtracted: boolean;
   customerName: string | null;
@@ -388,10 +389,16 @@ export function detectBookingIntent(
   const carModel = extractCarModel(customerMessage, aiResponse);
   const licensePlate = extractLicensePlate(customerMessage, aiResponse);
 
+  // issueDescription = the raw customer text about the problem.
+  // serviceType = the classified label (e.g. "brake service").
+  // They must remain separate: one is what the customer said, the other is system classification.
+  const issueDescription = customerMessage.trim() || null;
+
   return {
     isBooked,
     confidence,
     serviceType,
+    issueDescription,
     scheduledAt,
     scheduledAtExtracted,
     customerName,
