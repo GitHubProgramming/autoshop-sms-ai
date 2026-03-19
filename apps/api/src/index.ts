@@ -158,7 +158,7 @@ async function bootstrap() {
   await app.register(fastifyStatic, {
     root: staticDir,
     prefix: "/",
-    decorateReply: false,
+    decorateReply: true,
     setHeaders: (res, filePath) => {
       // Prevent caching of all HTML pages so users always see fresh content
       if (typeof filePath === "string" && filePath.endsWith(".html")) {
@@ -167,6 +167,37 @@ async function bootstrap() {
         res.setHeader("Expires", "0");
       }
     },
+  });
+
+  // ── SPA route handlers (mirrors vercel.json rewrites for local dev / Docker) ──
+  // Vercel rewrites /app/:view → /app.html, /login → /login.html, etc.
+  // Fastify needs explicit handlers so these clean URLs resolve locally.
+  app.get("/app/:view", (_req, reply) => {
+    reply.header("Cache-Control", "no-store, no-cache, must-revalidate");
+    reply.header("Pragma", "no-cache");
+    reply.header("Expires", "0");
+    void reply.sendFile("app.html");
+  });
+
+  app.get("/login", (_req, reply) => {
+    reply.header("Cache-Control", "no-store, no-cache, must-revalidate");
+    reply.header("Pragma", "no-cache");
+    reply.header("Expires", "0");
+    void reply.sendFile("login.html");
+  });
+
+  app.get("/signup", (_req, reply) => {
+    reply.header("Cache-Control", "no-store, no-cache, must-revalidate");
+    reply.header("Pragma", "no-cache");
+    reply.header("Expires", "0");
+    void reply.sendFile("signup.html");
+  });
+
+  app.get("/onboarding/:step", (_req, reply) => {
+    reply.header("Cache-Control", "no-store, no-cache, must-revalidate");
+    reply.header("Pragma", "no-cache");
+    reply.header("Expires", "0");
+    void reply.sendFile("onboarding.html");
   });
 
   // ── Graceful shutdown ─────────────────────────────────────
