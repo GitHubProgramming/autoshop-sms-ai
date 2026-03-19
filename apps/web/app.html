@@ -2156,6 +2156,9 @@ async function loadDashboardData() {
     tenantState._calendarId = cal.calendar_id || null;
     tenantState.created_at = t.created_at;
 
+    // Server-side onboarding state (single source of truth)
+    tenantState.onboarding = data.onboarding || {};
+
     // Health — derive from integration status
     tenantState.health.calendarSync.status = cal.status === 'connected' ? 'healthy' : (cal.status === 'token_expired' ? 'token_expired' : 'failing');
     tenantState.health.calendarSync.lastAt = cal.connected_at ? fmtDate(cal.connected_at) : '—';
@@ -2621,22 +2624,13 @@ function renderNav() {
 // ════════════════════════════════════════════
 function renderChecklist() {
   var s = tenantState;
-  var phoneConnected = s.integrations.twilioNumber === 'active';
-  var hasHours = true; // Business hours have defaults (Mon-Sat 8-5), so consider set
-  var hasConversations = conversationsData.length > 0;
+  var ob = s.onboarding || {};
+  // All onboarding booleans come from server — single source of truth
+  var phoneConnected = !!ob.phone_connected;
+  var hasHours = !!ob.hours_configured;
+  var hasConversations = !!ob.has_activity;
   var hasBookings = bookingsData.length > 0;
   var twilioPhone = s._twilioPhone || '';
-
-  // Check business hours from settings — if all days are closed or no hours saved, mark incomplete
-  var hoursRows = document.querySelectorAll('#hoursRows .hours-row');
-  if (hoursRows.length > 0) {
-    var openDays = 0;
-    hoursRows.forEach(function(row) {
-      var cb = row.querySelector('input[type="checkbox"]');
-      if (!cb || !cb.checked) openDays++;
-    });
-    hasHours = openDays > 0;
-  }
 
   var steps = [
     {
@@ -2692,8 +2686,9 @@ function renderChecklist() {
   var guide = document.getElementById('onboardingGuide');
   if (!guide) return;
 
-  // Always show if not all done; hide if dismissed and all done
-  if (doneCount === 4) {
+  // Server decides onboarding completion — hide when server says complete and user dismissed
+  var serverComplete = !!ob.onboarding_complete;
+  if (serverComplete) {
     if (localStorage.getItem('onboarding_dismissed') === '1') {
       guide.style.display = 'none';
       renderOnboardingWarnings(steps);
@@ -2715,7 +2710,7 @@ function renderChecklist() {
   // Title update
   var titleEl = document.getElementById('onboardingTitle');
   var subEl = document.getElementById('onboardingSub');
-  if (doneCount === 4) {
+  if (serverComplete) {
     if (titleEl) titleEl.textContent = 'You\'re all set!';
     if (subEl) subEl.textContent = 'Your AI receptionist is live and ready to book appointments.';
   } else if (doneCount >= 2) {

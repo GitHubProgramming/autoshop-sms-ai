@@ -27,12 +27,13 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
       recentConvRows,
       recentBookingRows,
     ] = await Promise.all([
-      // Tenant identity + billing
+      // Tenant identity + billing + business hours (for onboarding check)
       query(
         `SELECT id, shop_name, owner_email, billing_status, plan_id,
                 conv_used_this_cycle, conv_limit_this_cycle,
                 trial_started_at, trial_ends_at,
-                warned_80pct, warned_100pct, created_at
+                warned_80pct, warned_100pct, created_at,
+                business_hours
          FROM tenants WHERE id = $1`,
         [tenantId]
       ),
@@ -142,6 +143,19 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
       }
     }
 
+    // ── Compute server-side onboarding state ──
+    const phoneConnected = phone?.status === "active";
+    // business_hours is free-form TEXT; consider "configured" if non-empty/non-null
+    const hoursConfigured = !!(tenant.business_hours && tenant.business_hours.trim().length > 0);
+    const calendarConnected = calendarStatus === "connected";
+    const totalConvs = (totalConvsRows as any[])[0]?.count ?? 0;
+    const totalAppts = (totalAppointmentsRows as any[])[0]?.count ?? 0;
+    const hasActivity = totalConvs > 0 || totalAppts > 0;
+    // Onboarding complete when phone is active AND system has received real activity.
+    // Calendar and hours are important but not blocking — a shop can operate
+    // with default hours and manual calendar. Phone + activity = system is live.
+    const onboardingComplete = phoneConnected && hasActivity;
+
     return reply.status(200).send({
       tenant: {
         id: tenant.id,
@@ -177,6 +191,13 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
         appointments_this_month: (appointmentsThisMonthRows as any[])[0]?.count ?? 0,
         total_conversations: (totalConvsRows as any[])[0]?.count ?? 0,
         total_appointments: (totalAppointmentsRows as any[])[0]?.count ?? 0,
+      },
+      onboarding: {
+        phone_connected: phoneConnected,
+        hours_configured: hoursConfigured,
+        calendar_connected: calendarConnected,
+        has_activity: hasActivity,
+        onboarding_complete: onboardingComplete,
       },
       recent_conversations: recentConvRows,
       recent_bookings: recentBookingRows,
