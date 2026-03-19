@@ -991,6 +991,23 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
+<!-- ── EARLY AUTH GATE + LOADING SCREEN ── -->
+<div id="appLoadingScreen" style="position:fixed;inset:0;background:#F1F5F9;display:flex;align-items:center;justify-content:center;z-index:9999;">
+  <div style="text-align:center">
+    <div style="font-size:20px;font-weight:700;color:#0F172A;letter-spacing:-.02em">Auto<span style="color:#2563EB">Shop</span> AI</div>
+    <div style="margin-top:12px;font-size:13px;color:#94A3B8">Loading&hellip;</div>
+  </div>
+</div>
+<script>
+// Sync auth gate — runs before any dashboard HTML is parsed/painted.
+// If no JWT, redirect immediately; the loading screen covers everything.
+(function(){
+  var token = localStorage.getItem('autoshop_jwt');
+  if (!token) {
+    window.location.replace('/login?next=/app/dashboard');
+  }
+})();
+</script>
 
 <!-- BANNERS -->
 <div id="bannerContainer"></div>
@@ -1030,7 +1047,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
     </div>
     <div class="sidebar-section">
       <div class="sidebar-label">Main</div>
-      <a class="sidebar-item active" href="/app/dashboard" onclick="switchView('dashboard');return false;">
+      <a class="sidebar-item" href="/app/dashboard" onclick="switchView('dashboard');return false;">
         <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
         Dashboard
       </a>
@@ -1084,7 +1101,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
   <main class="main">
 
     <!-- ═══ DASHBOARD ═══ -->
-    <div class="view active" id="view-dashboard">
+    <div class="view" id="view-dashboard">
 
       <!-- ── PAGE HEADER (page-title style) ── -->
       <div class="dash-welcome">
@@ -2448,9 +2465,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   // ── Route-based view switch on initial load ──
   var initialView = getViewFromPath();
-  if (initialView !== 'dashboard') {
-    switchView(initialView, { skipPush: true });
-  }
+  switchView(initialView, { skipPush: true });
   // Set initial history state
   history.replaceState({ view: initialView }, '', window.location.pathname + window.location.search);
 
@@ -2475,6 +2490,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     switchView('billing');
     window.history.replaceState({}, '', window.location.pathname);
   }
+
+  // ── Remove loading screen — auth confirmed, data loaded, views ready ──
+  var loadingScreen = document.getElementById('appLoadingScreen');
+  if (loadingScreen) loadingScreen.remove();
 });
 
 // ════════════════════════════════════════════
@@ -4913,26 +4932,29 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<!-- ── AUTH GUARD ── -->
+<!-- ── AUTH GUARD (async verification + logout wiring) ── -->
 <script>
 (function() {
-  // ── Auth guard — verify JWT with server ─────────────────────────────────
-  // Replaces the forgeable autoshop_demo_login localStorage check.
+  // Sync redirect already handled by early gate at top of <body>.
+  // Async server-side verification — runs behind the loading screen.
   var token = localStorage.getItem('autoshop_jwt');
-  if (!token) {
-    window.location.replace('/login?next=/app/dashboard');
-    return;
+  if (token) {
+    fetch('/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+      .then(function(res) {
+        if (!res.ok) {
+          localStorage.removeItem('autoshop_jwt');
+          localStorage.removeItem('autoshop_session');
+          window.location.replace('/login?next=/app/dashboard');
+        }
+      })
+      .catch(function() {
+        // Fail-open on network error is intentional: if the network is down,
+        // redirecting to /login would also fail (login POST needs network),
+        // creating an infinite redirect loop. The JWT in localStorage is
+        // structurally valid; /tenant/dashboard will also fail gracefully
+        // and the user sees an empty dashboard, which is the least-bad UX.
+      });
   }
-  // Verify token with server. If invalid/expired, redirect to login.
-  fetch('/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
-    .then(function(res) {
-      if (!res.ok) {
-        localStorage.removeItem('autoshop_jwt');
-        localStorage.removeItem('autoshop_session');
-        window.location.replace('/login?next=/app/dashboard');
-      }
-    })
-    .catch(function() { /* network error — allow dashboard to render */ });
   // Wire logout
   document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('a[href="/login"].danger, a.danger').forEach(function(el) {

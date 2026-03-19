@@ -359,7 +359,8 @@ async function handleLogin(e) {
         shopName: data.shopName,
         loginAt:  Date.now()
       }));
-      window.location.href = getNextTarget();
+      if (data.shopName) localStorage.setItem('tenant_name', data.shopName);
+      window.location.replace(getNextTarget());
     } else {
       errorEl.textContent = data.error || 'Invalid credentials';
       errorEl.classList.add('visible');
