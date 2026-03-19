@@ -180,7 +180,7 @@ export function mergeWithDefaults(stored: unknown): AiSettings {
       suggestAdditionalServices: bs.suggestAdditionalServices === true,
       escalateUncertainCases: bs.escalateUncertainCases !== false,
       afterHoursBehavior:
-        (bs.afterHoursBehavior as string) || d.bookingStrategy.afterHoursBehavior,
+        ((bs.afterHoursBehavior as string) || d.bookingStrategy.afterHoursBehavior) as AiSettings["bookingStrategy"]["afterHoursBehavior"],
     };
   } else if ("offerEarliest" in legacyReq || "limitedSlots" in legacyReq) {
     bookingStrategy = {
@@ -190,7 +190,7 @@ export function mergeWithDefaults(stored: unknown): AiSettings {
       suggestAdditionalServices: legacyReq.upsellEnabled === true,
       escalateUncertainCases: legacyReq.escalationEnabled !== false,
       afterHoursBehavior:
-        (legacyReq.afterHours as string) || d.bookingStrategy.afterHoursBehavior,
+        ((legacyReq.afterHours as string) || d.bookingStrategy.afterHoursBehavior) as AiSettings["bookingStrategy"]["afterHoursBehavior"],
     };
   }
 
@@ -199,13 +199,13 @@ export function mergeWithDefaults(stored: unknown): AiSettings {
     const mc = s.missedCallSms as Record<string, unknown>;
     missedCallSms = {
       enabled: mc.enabled !== false,
-      preset: (mc.preset as string) || d.missedCallSms.preset,
+      preset: ((mc.preset as string) || d.missedCallSms.preset) as AiSettings["missedCallSms"]["preset"],
       template: (mc.template as string) || d.missedCallSms.template,
     };
   } else if ("missedSmsEnabled" in legacyReq) {
     missedCallSms = {
       enabled: legacyReq.missedSmsEnabled !== false,
-      preset: (legacyReq.smsPreset as string) || d.missedCallSms.preset,
+      preset: ((legacyReq.smsPreset as string) || d.missedCallSms.preset) as AiSettings["missedCallSms"]["preset"],
       template: (legacyReq.smsTemplate as string) || d.missedCallSms.template,
     };
   }
