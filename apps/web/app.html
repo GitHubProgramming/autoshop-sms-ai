@@ -1280,9 +1280,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
           <div class="cust-toolbar-right">
             <select class="cust-filter-select" id="customerFilterSelect" onchange="filterCustomers(this.value)">
               <option value="all">All Customers</option>
-              <option value="active">Active</option>
-              <option value="new">New</option>
-              <option value="inactive">Inactive</option>
+              <option value="active">Returning</option>
+              <option value="new">First-time</option>
+              <option value="inactive">No bookings</option>
             </select>
             <button class="cust-add-btn" onclick="showToast('Add customer coming soon.')">Add Customer</button>
           </div>
@@ -4107,12 +4107,12 @@ async function renderCustomers() {
           return {
             phone: c.phone || '—',
             name: c.name || '—',
-            vehicle: '—',
-            lastDate: c.last_visit ? c.last_visit.substring(0, 10) : (c.created_at ? c.created_at.substring(0, 10) : '—'),
+            vehicle: null,
+            lastDate: c.last_visit ? c.last_visit.substring(0, 10) : null,
             apptCount: c.appointments_count || 0,
             status: c.appointments_count >= 2 ? 'active' : (c.appointments_count === 1 ? 'new' : 'inactive'),
-            issue: '—',
-            totalSpent: c.total_spent || 0
+            issue: null,
+            totalSpent: c.total_spent != null ? c.total_spent : null
           };
         });
       }
@@ -4138,9 +4138,10 @@ async function renderCustomers() {
   var avgVisits = customers.length > 0 ? (customers.reduce(function(s,c){ return s + (c.apptCount||0); }, 0) / customers.length).toFixed(1) : '0';
   if (el('custStatVisits')) el('custStatVisits').textContent = avgVisits;
 
-  var totalLTV = customers.reduce(function(s,c){ return s + (c.totalSpent||0); }, 0);
-  var avgLTV = customers.length > 0 ? Math.round(totalLTV / customers.length) : 0;
-  if (el('custStatLTV')) el('custStatLTV').textContent = avgLTV > 0 ? '$' + avgLTV : '—';
+  var custsWithSpent = customers.filter(function(c){ return c.totalSpent != null; });
+  var totalLTV = custsWithSpent.reduce(function(s,c){ return s + c.totalSpent; }, 0);
+  var avgLTV = custsWithSpent.length > 0 ? Math.round(totalLTV / custsWithSpent.length) : 0;
+  if (el('custStatLTV')) el('custStatLTV').textContent = custsWithSpent.length > 0 ? '$' + avgLTV : '—';
 
   renderCustomerPage();
 }
@@ -4164,13 +4165,14 @@ function renderCustomerPage() {
       var initial = (c.name && c.name !== '—') ? c.name.charAt(0).toUpperCase() : (c.phone ? c.phone.charAt(c.phone.length - 1) : '?');
       var displayName = (c.name && c.name !== '—') ? c.name : 'Customer';
       var statusClass = (c.apptCount >= 2) ? 'active' : (c.apptCount === 1 ? 'new' : 'inactive');
-      var statusLabel = statusClass === 'active' ? 'Active' : (statusClass === 'new' ? 'New' : 'Inactive');
-      var vehicle = (c.vehicle && c.vehicle !== '—') ? c.vehicle : '—';
-      var spent = c.totalSpent ? '$' + c.totalSpent : '—';
+      var statusLabel = statusClass === 'active' ? 'Returning' : (statusClass === 'new' ? 'First-time' : 'No bookings');
+      var vehicle = c.vehicle ? c.vehicle : 'Not collected';
+      var spent = c.totalSpent != null ? '$' + c.totalSpent : 'No completed jobs yet';
+      var lastDateDisplay = c.lastDate ? c.lastDate : 'No visits yet';
       return '<tr data-phone="' + c.phone + '" data-status="' + statusClass + '">' +
         '<td><div class="cust-name-cell"><div class="cust-avatar">' + initial + '</div><div><div class="cust-name">' + displayName + '</div><div class="cust-phone">' + c.phone + '</div></div></div></td>' +
         '<td><div class="cust-icon-cell"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.8 3.8 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>' + vehicle + '</div></td>' +
-        '<td><div class="cust-icon-cell"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>' + c.lastDate + '</div></td>' +
+        '<td><div class="cust-icon-cell"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>' + lastDateDisplay + '</div></td>' +
         '<td><div class="cust-icon-cell"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22z"/></svg>' + (c.apptCount || 0) + '</div></td>' +
         '<td><span class="cust-spent">' + spent + '</span></td>' +
         '<td><span class="cust-status ' + statusClass + '">' + statusLabel + '</span></td>' +
