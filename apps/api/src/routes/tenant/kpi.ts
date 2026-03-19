@@ -121,6 +121,7 @@ export async function tenantKpiRoute(app: FastifyInstance) {
       convsMonthRows,
       missedCallRows,
       capturedCallRows,
+      pendingCompletionRows,
     ] = await Promise.all([
       // Recovered revenue (AI-sourced completed appointments, last 30d)
       query<{ total: string; count: string }>(
@@ -133,20 +134,22 @@ export async function tenantKpiRoute(app: FastifyInstance) {
         [tenantId]
       ),
       // Total revenue (all completed appointments, last 30d)
-      query<{ total: string }>(
-        `SELECT COALESCE(SUM(final_price), 0)::text AS total
+      query<{ total: string; count: string }>(
+        `SELECT COALESCE(SUM(final_price), 0)::text AS total,
+                COUNT(*)::text AS count
          FROM appointments
          WHERE tenant_id = $1
            AND completed_at IS NOT NULL
            AND completed_at >= NOW() - INTERVAL '30 days'`,
         [tenantId]
       ),
-      // AI-booked appointments this month (have conversation_id)
+      // AI-booked appointments this month (have conversation_id, exclude FAILED)
       query<{ count: string }>(
         `SELECT COUNT(*)::text AS count
          FROM appointments
          WHERE tenant_id = $1
            AND conversation_id IS NOT NULL
+           AND booking_state NOT IN ('FAILED')
            AND created_at >= date_trunc('month', CURRENT_DATE)`,
         [tenantId]
       ),
@@ -191,6 +194,16 @@ export async function tenantKpiRoute(app: FastifyInstance) {
            AND opened_at >= date_trunc('month', CURRENT_DATE)`,
         [tenantId]
       ),
+      // Past appointments not yet marked complete (revenue loss risk)
+      query<{ count: string }>(
+        `SELECT COUNT(*)::text AS count
+         FROM appointments
+         WHERE tenant_id = $1
+           AND scheduled_at < NOW()
+           AND completed_at IS NULL
+           AND booking_state IN ('CONFIRMED_CALENDAR', 'CONFIRMED_MANUAL')`,
+        [tenantId]
+      ),
     ]);
 
     const missedTotal = parseInt(missedCallRows[0]?.count ?? "0", 10);
@@ -201,6 +214,7 @@ export async function tenantKpiRoute(app: FastifyInstance) {
       recovered_revenue: parseFloat(recoveredRows[0]?.total ?? "0"),
       recovered_bookings: parseInt(recoveredRows[0]?.count ?? "0", 10),
       total_revenue: parseFloat(totalRevRows[0]?.total ?? "0"),
+      total_completed_bookings: parseInt(totalRevRows[0]?.count ?? "0", 10),
       ai_booked_this_month: parseInt(apptMonthRows[0]?.count ?? "0", 10),
       appointments_today: parseInt(apptTodayRows[0]?.count ?? "0", 10),
       active_conversations: parseInt(activeConvRows[0]?.count ?? "0", 10),
@@ -208,6 +222,7 @@ export async function tenantKpiRoute(app: FastifyInstance) {
       missed_calls_total: missedTotal,
       missed_calls_captured: captured,
       capture_rate_pct: captureRate,
+      pending_completion_count: parseInt(pendingCompletionRows[0]?.count ?? "0", 10),
     });
   });
 
