@@ -1067,7 +1067,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
             </div>
             <div class="conv-active-badge" id="dashConvActiveBadge" style="padding:5px 12px;border-radius:20px;">
               <div class="conv-active-dot"></div>
-              <span id="dashConvActiveCount">3 Active</span>
+              <span id="dashConvActiveCount">—</span>
             </div>
           </div>
           <div style="padding:16px 24px;" id="dashConvCards">
@@ -1093,9 +1093,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
         <div class="log-wrap">
           <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
             <div class="log-title" style="font-size:16px;font-weight:700;">Revenue Analytics</div>
-            <div class="chart-trend" id="dashRevTrend" style="padding:6px 14px;background:#ECFDF5;border-radius:8px;">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-              <span id="dashRevTrendText">Revenue trend</span>
+            <div class="chart-trend" id="dashRevTrend" style="padding:6px 14px;background:#F1F5F9;border-radius:8px;color:var(--text-tertiary);">
+              <span id="dashRevTrendText">No revenue data yet</span>
             </div>
           </div>
           <div id="revenueChartContainer" style="height:280px;padding:20px 24px 30px;position:relative;overflow:visible;">
@@ -2508,10 +2507,10 @@ function renderChecklist() {
 function renderHealthGrid() {
   const h = tenantState.health;
   const cells = [
-    { name: 'AI Receptionist', label: 'AI Receptionist', status: h.aiEngine.status, uptime: '99.8%' },
-    { name: 'SMS Gateway', label: 'SMS Gateway', status: h.twilioWebhooks.status, uptime: '100%' },
-    { name: 'Calendar Sync', label: 'Calendar Sync', status: h.calendarSync.status, uptime: '99.9%' },
-    { name: 'Analytics Engine', label: 'Analytics Engine', status: h.queue.status, uptime: '100%' }
+    { name: 'AI Receptionist', label: 'AI Receptionist', status: h.aiEngine.status },
+    { name: 'SMS Gateway', label: 'SMS Gateway', status: h.twilioWebhooks.status },
+    { name: 'Calendar Sync', label: 'Calendar Sync', status: h.calendarSync.status },
+    { name: 'Analytics Engine', label: 'Analytics Engine', status: h.queue.status }
   ];
 
   let html = '<div style="display:flex;flex-direction:column;gap:0;">';
@@ -2528,7 +2527,6 @@ function renderHealthGrid() {
       '</div>' +
       '<div style="display:flex;align-items:center;justify-content:space-between;">' +
         '<span style="font-size:11px;color:' + statusColor + ';font-weight:500;">' + statusText + '</span>' +
-        '<span style="font-size:11px;color:var(--text-tertiary);">' + cell.uptime + ' uptime</span>' +
       '</div>' +
     '</div>';
   });
@@ -2739,12 +2737,8 @@ function renderBillingPage() {
     { key:'premium', name:'Enterprise', price:499, convos:2500, features:['2,500 AI conversations/month','Enterprise automation','Dedicated account manager','Full API access','White-label options','Custom integrations','Advanced reporting'] }
   ];
 
-  // Invoice history — placeholder data (would come from Stripe in production)
-  const invoices = [
-    { id:'INV-2026-003', period:'Mar 1 – Mar 31, 2026', date:'Mar 1, 2026', amount:currentPrice, status:'Paid' },
-    { id:'INV-2026-002', period:'Feb 1 – Feb 28, 2026', date:'Feb 1, 2026', amount:currentPrice, status:'Paid' },
-    { id:'INV-2026-001', period:'Jan 1 – Jan 31, 2026', date:'Jan 1, 2026', amount:currentPrice, status:'Paid' }
-  ];
+  // Invoice history — no real Stripe data wired yet
+  const invoices = [];
 
   let plansHtml = plans.map(p => {
     const isCurrent = p.key === s.plan;
@@ -2767,8 +2761,11 @@ function renderBillingPage() {
     </div>`;
   }).join('');
 
-  const invoiceRows = isTrial ? `<tr><td colspan="6" style="text-align:center;color:var(--text-tertiary);padding:32px 20px;">No invoices yet — upgrade to start your subscription</td></tr>` :
-    invoices.map(inv => `<tr>
+  const invoiceRows = isTrial
+    ? `<tr><td colspan="6" style="text-align:center;color:var(--text-tertiary);padding:32px 20px;">No invoices yet — upgrade to start your subscription</td></tr>`
+    : invoices.length === 0
+      ? `<tr><td colspan="6" style="text-align:center;color:var(--text-tertiary);padding:32px 20px;">No invoice history available yet — invoices will appear here once billing is processed</td></tr>`
+      : invoices.map(inv => `<tr>
       <td><span style="font-weight:500;color:var(--text);">${inv.id}</span></td>
       <td><span style="color:var(--text-tertiary);">${inv.period}</span></td>
       <td>${inv.date}</td>
@@ -3683,7 +3680,17 @@ function renderLiveRevenueBlocks() {
   var akrc = document.getElementById('anKpiRecoveryChange');
   if (akrc) akrc.textContent = k.missed_calls_captured ? (k.missed_calls_captured + ' of ' + k.missed_calls_total + ' captured') : 'No data yet';
   var drt = document.getElementById('dashRevTrendText');
-  if (drt) drt.textContent = k.total_revenue ? ('$' + k.total_revenue.toLocaleString() + ' revenue (30d)') : 'No revenue data yet';
+  var drtParent = document.getElementById('dashRevTrend');
+  if (drt && drtParent) {
+    if (k.total_revenue > 0) {
+      drt.textContent = '$' + k.total_revenue.toLocaleString() + ' revenue (30d)';
+      drtParent.style.background = '#ECFDF5';
+      drtParent.style.color = '#10B981';
+      drtParent.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg><span id="dashRevTrendText">$' + k.total_revenue.toLocaleString() + ' revenue (30d)</span>';
+    } else {
+      drt.textContent = 'No revenue data yet';
+    }
+  }
 
   // Revenue Per Booking — real data from KPI summary
   var anRevPerBooking = document.getElementById('anKpiRevenue');
@@ -4039,8 +4046,9 @@ function renderActionNeeded() {
 function renderTodayAppointments() {
   var today = new Date().toDateString();
   var todayAppts = bookingsData.filter(function(b) {
-    var d = new Date(b.date);
-    return d.toDateString() === today;
+    if (!b.rawScheduledAt) return false;
+    var d = new Date(b.rawScheduledAt);
+    return !isNaN(d.getTime()) && d.toDateString() === today;
   });
 
   var body = document.getElementById('todayApptsBody');
@@ -4057,7 +4065,7 @@ function renderTodayAppointments() {
   body.innerHTML = '<div class="appt-card-list">' + todayAppts.slice(0, 6).map(function(b) {
     var statusCls = (b.syncStatus === 'synced' || b.syncStatus === 'confirmed') ? 'confirmed' : 'pending';
     var statusLabel = (b.syncStatus === 'synced' || b.syncStatus === 'confirmed') ? 'confirmed' : (b.syncLabel || b.syncStatus || 'pending');
-    var timeStr = b.date ? new Date(b.date).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}) : '';
+    var timeStr = b.rawScheduledAt ? new Date(b.rawScheduledAt).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}) : '';
     var source = b.source || 'AI';
     return '<div class="appt-card-item">' +
       '<div class="appt-card-top"><div class="appt-card-time">' + timeStr + '</div><span class="appt-card-status ' + statusCls + '">' + statusLabel + '</span></div>' +
@@ -4217,20 +4225,22 @@ function renderAppointmentsPage() {
   var today = new Date();
   var todayStr = today.toDateString();
   var todayAppts = bookingsData.filter(function(b) {
-    var d = new Date(b.date);
-    return d.toDateString() === todayStr;
+    if (!b.rawScheduledAt) return false;
+    var d = new Date(b.rawScheduledAt);
+    return !isNaN(d.getTime()) && d.toDateString() === todayStr;
   });
 
   // Upcoming = future, not today
   var upcomingAppts = bookingsData.filter(function(b) {
-    var d = new Date(b.date);
-    return d > today && d.toDateString() !== todayStr;
-  }).sort(function(a, b) { return new Date(a.date) - new Date(b.date); });
+    if (!b.rawScheduledAt) return false;
+    var d = new Date(b.rawScheduledAt);
+    return !isNaN(d.getTime()) && d > today && d.toDateString() !== todayStr;
+  }).sort(function(a, b) { return new Date(a.rawScheduledAt) - new Date(b.rawScheduledAt); });
 
   // Stats
   var todayCount = todayAppts.length || (dashboardStats.appointments_today || 0);
   var weekStart = new Date(today); weekStart.setDate(today.getDate() - today.getDay());
-  var weekAppts = bookingsData.filter(function(b) { return new Date(b.date) >= weekStart; });
+  var weekAppts = bookingsData.filter(function(b) { return b.rawScheduledAt && new Date(b.rawScheduledAt) >= weekStart; });
   var weekCount = weekAppts.length || todayCount;
   var aiCount = bookingsData.filter(function(b) { return (b.source || 'AI').toLowerCase() === 'ai'; }).length;
   var aiPct = bookingsData.length > 0 ? Math.round((aiCount / bookingsData.length) * 100) : 0;
@@ -4280,7 +4290,7 @@ function renderAppointmentsPage() {
       todayContainer.innerHTML = '<div style="padding:24px 0;text-align:center;font-size:13px;color:var(--text-tertiary);">' + todayCount + ' appointment(s) today — details syncing</div>';
     } else {
       todayContainer.innerHTML = todayAppts.map(function(b) {
-        var d = new Date(b.date);
+        var d = new Date(b.rawScheduledAt);
         var hour = d.getHours();
         var ampm = hour >= 12 ? 'PM' : 'AM';
         var h = hour % 12 || 12;
