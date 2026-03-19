@@ -12,7 +12,7 @@
  */
 
 import { query } from "../db/client";
-import { detectBookingIntent } from "./booking-intent";
+import { detectBookingIntent, extractFieldsFromMessage, mergeBookingFields } from "./booking-intent";
 import { createAppointment, type BookingState } from "./appointments";
 import { createCalendarEvent } from "./google-calendar";
 import { sendTwilioSms } from "./missed-call-sms";
@@ -294,7 +294,23 @@ export async function processSms(
   }
 
   // ── 7. Detect booking intent ─────────────────────────────────────────────
-  const intent = detectBookingIntent(aiResponse, input.body);
+  const rawIntent = detectBookingIntent(aiResponse, input.body);
+
+  // ── 7b. Cumulative field extraction from conversation history ───────────
+  // Extract fields from each prior turn, then merge with current intent
+  // so that earlier strong values (issue, service type, name, car) survive
+  // when the latest message is just a plate number or time confirmation.
+  const priorExtractions = [];
+  for (let i = 0; i < history.length; i++) {
+    if (history[i].role === "user") {
+      const aiReply =
+        i + 1 < history.length && history[i + 1].role === "assistant"
+          ? history[i + 1].content
+          : "";
+      priorExtractions.push(extractFieldsFromMessage(history[i].content, aiReply));
+    }
+  }
+  const intent = mergeBookingFields(rawIntent, priorExtractions);
 
   // ── 8. If booking detected, attempt calendar sync BEFORE sending SMS ────
   // This prevents false confirmations: the customer must not receive
