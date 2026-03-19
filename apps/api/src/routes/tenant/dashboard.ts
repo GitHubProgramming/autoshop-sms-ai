@@ -56,10 +56,12 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
          WHERE tenant_id = $1 AND opened_at >= CURRENT_DATE`,
         [tenantId]
       ),
-      // Appointments today
+      // Appointments scheduled for today
       query(
         `SELECT COUNT(*)::int AS count FROM appointments
-         WHERE tenant_id = $1 AND created_at >= CURRENT_DATE`,
+         WHERE tenant_id = $1
+           AND scheduled_at >= CURRENT_DATE
+           AND scheduled_at < CURRENT_DATE + INTERVAL '1 day'`,
         [tenantId]
       ),
       // Active conversations
