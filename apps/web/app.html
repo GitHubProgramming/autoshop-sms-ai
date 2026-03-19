@@ -2291,34 +2291,21 @@ async function loadRevenueChart() {
       return;
     }
 
-    // Compute summary metrics
+    // Compute summary metrics — only real data, no inferred values
     var totalRev = 0;
-    var totalBookings = 0;
     for (var i = 0; i < days.length; i++) {
       totalRev += days[i].total;
-      if (days[i].total > 0) totalBookings++;
     }
-    var avgTicket = totalBookings > 0 ? Math.round(totalRev / totalBookings) : 0;
 
-    // Growth: compare first half vs second half
-    var mid = Math.floor(days.length / 2);
-    var firstHalf = 0, secondHalf = 0;
-    for (var h = 0; h < days.length; h++) {
-      if (h < mid) firstHalf += days[h].total;
-      else secondHalf += days[h].total;
-    }
-    var growthPct = firstHalf > 0 ? Math.round(((secondHalf - firstHalf) / firstHalf) * 100) : (secondHalf > 0 ? 100 : 0);
-    var growthClass = growthPct > 0 ? 'up' : (growthPct < 0 ? 'down' : 'neutral');
-    var growthSign = growthPct > 0 ? '+' : '';
-
-    // Render summary bar
+    // Render summary bar — only total revenue (real data)
+    // Bookings, avg ticket, and growth require real data sources that don't exist yet
     if (summaryBar) {
       summaryBar.style.display = 'flex';
       summaryBar.innerHTML =
         '<div class="rev-metric"><div class="rev-metric-label">Total Revenue</div><div class="rev-metric-value">' + formatCurrency(totalRev) + '</div></div>' +
-        '<div class="rev-metric"><div class="rev-metric-label">Bookings</div><div class="rev-metric-value">' + totalBookings + '</div></div>' +
-        '<div class="rev-metric"><div class="rev-metric-label">Avg Ticket</div><div class="rev-metric-value">' + formatCurrency(avgTicket) + '</div></div>' +
-        '<div class="rev-metric"><div class="rev-metric-label">Period Growth</div><div class="rev-metric-value">' + growthSign + growthPct + '%</div><div class="rev-metric-change ' + growthClass + '">' + (growthPct >= 0 ? 'vs prior period' : 'vs prior period') + '</div></div>';
+        '<div class="rev-metric"><div class="rev-metric-label">Bookings</div><div class="rev-metric-value">\u2014</div></div>' +
+        '<div class="rev-metric"><div class="rev-metric-label">Avg Ticket</div><div class="rev-metric-value">\u2014</div></div>' +
+        '<div class="rev-metric"><div class="rev-metric-label">Period Growth</div><div class="rev-metric-value">\u2014</div></div>';
     }
 
     // Prepare labels and data
@@ -2396,15 +2383,8 @@ async function loadRevenueChart() {
             callbacks: {
               title: function(items) { return items[0].label; },
               label: function(item) {
-                var idx = item.dataIndex;
-                var rev = values[idx];
-                var bk = rev > 0 ? 1 : 0;
-                var avg = bk > 0 ? formatCurrency(rev) : '$0';
-                return [
-                  'Revenue: ' + formatCurrency(rev),
-                  'Bookings: ' + bk,
-                  'Avg Ticket: ' + avg
-                ];
+                var rev = values[item.dataIndex];
+                return 'Revenue: ' + formatCurrency(rev);
               }
             }
           }
