@@ -356,6 +356,7 @@ export async function processSms(
       serviceType: intent.serviceType,
       carModel: intent.carModel,
       licensePlate: intent.licensePlate,
+      issueDescription: intent.issueDescription,
       scheduledAt: intent.scheduledAt,
       bookingState: "PENDING_MANUAL_CONFIRMATION",
     });
@@ -371,6 +372,9 @@ export async function processSms(
           customerPhone: input.customerPhone,
           customerName: intent.customerName,
           serviceType: intent.serviceType,
+          carModel: intent.carModel,
+          licensePlate: intent.licensePlate,
+          issueDescription: intent.issueDescription,
           scheduledAt: intent.scheduledAt,
         },
         fetchFn

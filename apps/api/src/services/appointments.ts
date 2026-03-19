@@ -25,6 +25,7 @@ export interface CreateAppointmentInput {
   serviceType?: string | null;
   carModel?: string | null;
   licensePlate?: string | null;
+  issueDescription?: string | null;
   scheduledAt: string; // ISO 8601
   durationMinutes?: number;
   notes?: string | null;
@@ -38,6 +39,9 @@ export interface AppointmentRecord {
   customerPhone: string;
   customerName: string | null;
   serviceType: string | null;
+  carModel: string | null;
+  licensePlate: string | null;
+  issueDescription: string | null;
   scheduledAt: string;
   durationMinutes: number;
   notes: string | null;
@@ -134,6 +138,9 @@ export async function createAppointment(
       customer_phone: string;
       customer_name: string | null;
       service_type: string | null;
+      car_model: string | null;
+      license_plate: string | null;
+      issue_description: string | null;
       scheduled_at: string;
       duration_minutes: number;
       notes: string | null;
@@ -149,12 +156,16 @@ export async function createAppointment(
       rows = await query(
         `INSERT INTO appointments
            (tenant_id, conversation_id, customer_phone, customer_name,
-            service_type, scheduled_at, duration_minutes, notes, booking_state)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            service_type, car_model, license_plate, issue_description,
+            scheduled_at, duration_minutes, notes, booking_state)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
          ON CONFLICT (conversation_id) DO UPDATE SET
            customer_phone = EXCLUDED.customer_phone,
            customer_name = EXCLUDED.customer_name,
            service_type = EXCLUDED.service_type,
+           car_model = EXCLUDED.car_model,
+           license_plate = EXCLUDED.license_plate,
+           issue_description = EXCLUDED.issue_description,
            scheduled_at = EXCLUDED.scheduled_at,
            duration_minutes = EXCLUDED.duration_minutes,
            notes = EXCLUDED.notes,
@@ -166,6 +177,9 @@ export async function createAppointment(
           input.customerPhone,
           input.customerName ?? null,
           input.serviceType ?? null,
+          input.carModel ?? null,
+          input.licensePlate ?? null,
+          input.issueDescription ?? null,
           input.scheduledAt,
           duration,
           input.notes ?? null,
@@ -177,14 +191,18 @@ export async function createAppointment(
       rows = await query(
         `INSERT INTO appointments
            (tenant_id, customer_phone, customer_name,
-            service_type, scheduled_at, duration_minutes, notes, booking_state)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            service_type, car_model, license_plate, issue_description,
+            scheduled_at, duration_minutes, notes, booking_state)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          RETURNING *, 0::text AS xmax`,
         [
           input.tenantId,
           input.customerPhone,
           input.customerName ?? null,
           input.serviceType ?? null,
+          input.carModel ?? null,
+          input.licensePlate ?? null,
+          input.issueDescription ?? null,
           input.scheduledAt,
           duration,
           input.notes ?? null,
@@ -215,6 +233,9 @@ export async function createAppointment(
         customerPhone: row.customer_phone,
         customerName: row.customer_name,
         serviceType: row.service_type,
+        carModel: row.car_model,
+        licensePlate: row.license_plate,
+        issueDescription: row.issue_description,
         scheduledAt: row.scheduled_at,
         durationMinutes: row.duration_minutes,
         notes: row.notes,
