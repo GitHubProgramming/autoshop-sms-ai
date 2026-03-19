@@ -5,8 +5,7 @@ import formbody from "@fastify/formbody";
 // vi.hoisted ensures mocks are available inside vi.mock factories
 const mocks = vi.hoisted(() => ({
   add: vi.fn().mockResolvedValue({ id: "job-1" }),
-  checkIdempotency: vi.fn().mockResolvedValue(false),
-  markIdempotency: vi.fn().mockResolvedValue(undefined),
+  deduplicateWebhook: vi.fn().mockResolvedValue({ isDuplicate: false, source: "twilio_voice_status", eventSid: "" }),
   getTenantByPhoneNumber: vi.fn(),
   getBlockReason: vi.fn((): string | null => null),
 }));
@@ -19,8 +18,10 @@ vi.mock("../db/client", () => ({
 
 vi.mock("../queues/redis", () => ({
   smsInboundQueue: { add: mocks.add },
-  checkIdempotency: mocks.checkIdempotency,
-  markIdempotency: mocks.markIdempotency,
+}));
+
+vi.mock("../db/webhook-events", () => ({
+  deduplicateWebhook: mocks.deduplicateWebhook,
 }));
 
 vi.mock("../db/tenants", () => ({
@@ -98,7 +99,7 @@ describe("POST /webhooks/twilio/voice-status", () => {
     process.env.SKIP_TWILIO_VALIDATION = "true";
 
     mocks.getTenantByPhoneNumber.mockResolvedValue(MOCK_TENANT);
-    mocks.checkIdempotency.mockResolvedValue(false);
+    mocks.deduplicateWebhook.mockResolvedValue({ isDuplicate: false, source: "twilio_voice_status", eventSid: "" });
     mocks.add.mockResolvedValue({ id: "job-1" });
   });
 
@@ -180,7 +181,7 @@ describe("POST /webhooks/twilio/voice-status", () => {
   });
 
   it("returns 200 and skips enqueue on duplicate CallSid (idempotency)", async () => {
-    mocks.checkIdempotency.mockResolvedValueOnce(true); // already seen
+    mocks.deduplicateWebhook.mockResolvedValueOnce({ isDuplicate: true, source: "twilio_voice_status", eventSid: TEST_CALL_SID });
 
     const app = await buildApp();
     const res = await app.inject({
@@ -232,7 +233,7 @@ describe("POST /webhooks/twilio/voice-status", () => {
     for (const status of ["ringing", "in-progress", "queued"]) {
       vi.clearAllMocks();
       mocks.getTenantByPhoneNumber.mockResolvedValue(MOCK_TENANT);
-      mocks.checkIdempotency.mockResolvedValue(false);
+      mocks.deduplicateWebhook.mockResolvedValue({ isDuplicate: false, source: "twilio_voice_status", eventSid: "" });
 
       const res = await app.inject({
         method: "POST",
@@ -247,7 +248,7 @@ describe("POST /webhooks/twilio/voice-status", () => {
     await app.close();
   });
 
-  it("writes idempotency key to Redis for missed calls", async () => {
+  it("calls deduplicateWebhook with correct source and sid for missed calls", async () => {
     const app = await buildApp();
 
     await app.inject({
@@ -257,12 +258,12 @@ describe("POST /webhooks/twilio/voice-status", () => {
       payload: voicePayload({ CallStatus: "no-answer" }),
     });
 
-    expect(mocks.markIdempotency).toHaveBeenCalledWith(`voice:${TEST_CALL_SID}`);
+    expect(mocks.deduplicateWebhook).toHaveBeenCalledWith("twilio_voice_status", TEST_CALL_SID);
     await app.close();
   });
 
-  it("does not write idempotency key on duplicate", async () => {
-    mocks.checkIdempotency.mockResolvedValueOnce(true);
+  it("does not process on duplicate", async () => {
+    mocks.deduplicateWebhook.mockResolvedValueOnce({ isDuplicate: true, source: "twilio_voice_status", eventSid: TEST_CALL_SID });
 
     const app = await buildApp();
     await app.inject({
@@ -272,7 +273,7 @@ describe("POST /webhooks/twilio/voice-status", () => {
       payload: voicePayload({ CallStatus: "no-answer" }),
     });
 
-    expect(mocks.markIdempotency).not.toHaveBeenCalled();
+    expect(mocks.getTenantByPhoneNumber).not.toHaveBeenCalled();
     await app.close();
   });
 

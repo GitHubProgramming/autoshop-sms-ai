@@ -9,6 +9,41 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: idempotency-hardening — 2026-03-19
+
+**Branch:** ai/idempotency-hardening
+**Status:** COMPLETE — Full production idempotency layer for all webhooks
+
+### Why This is P0 Production Safety
+
+Twilio retries webhooks on timeout. Network glitches cause replays. Queue retries re-process events. Without persistent idempotency, this causes duplicate conversations, double bookings, SMS spam, and incorrect billing counts — all trust-destroying for paying customers.
+
+### Changes
+
+1. **Migration 024: `webhook_events` table** — Persistent idempotency source of truth with `UNIQUE(source, event_sid)`. Survives Redis flush/TTL expiry.
+2. **Two-tier dedup module** (`db/webhook-events.ts`) — `deduplicateWebhook()`: Redis fast check (24h TTL) + PostgreSQL permanent check. Graceful degradation if either tier is down.
+3. **Twilio SMS webhook** — Replaced Redis-only `checkIdempotency`/`markIdempotency` with `deduplicateWebhook("twilio_sms", MessageSid)`.
+4. **Twilio Voice webhook** — Added idempotency on `CallSid` (previously had ZERO dedup). `deduplicateWebhook("twilio_voice", CallSid)`.
+5. **Twilio Voice Status webhook** — Upgraded from Redis-only to two-tier `deduplicateWebhook("twilio_voice_status", CallSid)`.
+6. **Stripe webhook** — Upgraded from Redis-only to two-tier `deduplicateWebhook("stripe", event.id)`. DB `billing_events` UNIQUE constraint preserved as additional safety.
+7. **SMS send dedup** (`services/process-sms.ts`) — Before sending outbound SMS, checks if identical message was sent in the same conversation within 30 seconds. Blocks duplicate sends from queue retries.
+8. **Booking duplicate logging** (`services/appointments.ts`) — Structured `booking_duplicate_blocked` log when appointment upsert detects existing record.
+9. **Structured logging** — All duplicate detection emits structured JSON with `event`, `tenant_id`, `conversation_id`/`event_sid` for monitoring.
+10. **10 new idempotency tests** — Covers: first encounter, Redis hit, DB conflict, Redis down, DB down, all source types, correct insert values.
+
+### What This Fixes
+- Before: Redis flush or 24h TTL expiry → duplicate processing on webhook replays
+- Before: Voice webhook had no idempotency at all
+- Before: Queue retry could send identical SMS twice
+- After: Permanent DB-backed dedup for all webhooks + SMS send dedup + structured logging
+
+### Verification
+- 548 tests passed, 0 failed
+- TypeScript compiles clean
+- Lint: 0 errors on changed files
+
+---
+
 ## TASK: calendar-sync-retry — 2026-03-19
 
 **Branch:** ai/calendar-sync-retry

@@ -5,8 +5,7 @@ import Fastify from "fastify";
 
 const mocks = vi.hoisted(() => ({
   query: vi.fn().mockResolvedValue([]),
-  checkIdempotency: vi.fn().mockResolvedValue(false),
-  markIdempotency: vi.fn().mockResolvedValue(undefined),
+  deduplicateWebhook: vi.fn().mockResolvedValue({ isDuplicate: false, source: "stripe", eventSid: "" }),
   billingQueueAdd: vi.fn().mockResolvedValue({ id: "job-1" }),
   provisionQueueAdd: vi.fn().mockResolvedValue({ id: "job-2" }),
   updateBillingStatus: vi.fn().mockResolvedValue(undefined),
@@ -22,8 +21,10 @@ vi.mock("../db/client", () => ({
 vi.mock("../queues/redis", () => ({
   billingQueue: { add: mocks.billingQueueAdd },
   provisionNumberQueue: { add: mocks.provisionQueueAdd },
-  checkIdempotency: mocks.checkIdempotency,
-  markIdempotency: mocks.markIdempotency,
+}));
+
+vi.mock("../db/webhook-events", () => ({
+  deduplicateWebhook: mocks.deduplicateWebhook,
 }));
 
 vi.mock("../db/tenants", () => ({
@@ -119,7 +120,7 @@ describe("POST /webhooks/stripe", () => {
     process.env.STRIPE_PRICE_PRO = "price_pro_test";
     process.env.STRIPE_PRICE_PREMIUM = "price_premium_test";
 
-    mocks.checkIdempotency.mockResolvedValue(false);
+    mocks.deduplicateWebhook.mockResolvedValue({ isDuplicate: false, source: "stripe", eventSid: "" });
     mocks.query.mockResolvedValue([]);
   });
 
@@ -171,7 +172,7 @@ describe("POST /webhooks/stripe", () => {
   // ── Idempotency ───────────────────────────────────────────────────────────
 
   it("skips processing on duplicate event (idempotency)", async () => {
-    mocks.checkIdempotency.mockResolvedValueOnce(true);
+    mocks.deduplicateWebhook.mockResolvedValueOnce({ isDuplicate: true, source: "stripe", eventSid: TEST_EVENT_ID });
     const evt = makeEvent("customer.subscription.created", subscriptionObject());
     mocks.constructEvent.mockReturnValue(evt);
     const app = await buildApp();
@@ -180,18 +181,17 @@ describe("POST /webhooks/stripe", () => {
 
     expect(res.statusCode).toBe(200);
     expect(mocks.query).not.toHaveBeenCalled(); // no DB write
-    expect(mocks.markIdempotency).not.toHaveBeenCalled();
     await app.close();
   });
 
-  it("marks idempotency key after first processing", async () => {
+  it("calls deduplicateWebhook with correct source and event id", async () => {
     const evt = makeEvent("customer.subscription.created", subscriptionObject());
     mocks.constructEvent.mockReturnValue(evt);
     const app = await buildApp();
 
     await postStripe(app);
 
-    expect(mocks.markIdempotency).toHaveBeenCalledWith(`stripe:${TEST_EVENT_ID}`);
+    expect(mocks.deduplicateWebhook).toHaveBeenCalledWith("stripe", TEST_EVENT_ID);
     await app.close();
   });
 

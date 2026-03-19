@@ -5,8 +5,7 @@ import formbody from "@fastify/formbody";
 // vi.hoisted ensures these are available inside vi.mock factories (hoisted before imports)
 const mocks = vi.hoisted(() => ({
   add: vi.fn().mockResolvedValue({ id: "job-1" }),
-  checkIdempotency: vi.fn().mockResolvedValue(false),
-  markIdempotency: vi.fn().mockResolvedValue(undefined),
+  deduplicateWebhook: vi.fn().mockResolvedValue({ isDuplicate: false, source: "twilio_sms", eventSid: "" }),
   getTenantByPhoneNumber: vi.fn(),
   getBlockReason: vi.fn((): string | null => null),
 }));
@@ -20,8 +19,10 @@ vi.mock("../db/client", () => ({
 
 vi.mock("../queues/redis", () => ({
   smsInboundQueue: { add: mocks.add },
-  checkIdempotency: mocks.checkIdempotency,
-  markIdempotency: mocks.markIdempotency,
+}));
+
+vi.mock("../db/webhook-events", () => ({
+  deduplicateWebhook: mocks.deduplicateWebhook,
 }));
 
 vi.mock("../db/tenants", () => ({
@@ -100,7 +101,7 @@ describe("POST /webhooks/twilio/sms", () => {
 
     mocks.getTenantByPhoneNumber.mockResolvedValue(MOCK_TENANT);
     mocks.getBlockReason.mockReturnValue(null);
-    mocks.checkIdempotency.mockResolvedValue(false);
+    mocks.deduplicateWebhook.mockResolvedValue({ isDuplicate: false, source: "twilio_sms", eventSid: "" });
     mocks.add.mockResolvedValue({ id: "job-1" });
   });
 
@@ -150,7 +151,7 @@ describe("POST /webhooks/twilio/sms", () => {
     await app.close();
   });
 
-  it("writes idempotency key to Redis", async () => {
+  it("calls deduplicateWebhook with correct source and sid", async () => {
     const app = await buildApp();
 
     await app.inject({
@@ -160,14 +161,15 @@ describe("POST /webhooks/twilio/sms", () => {
       payload: smsPayload(),
     });
 
-    expect(mocks.markIdempotency).toHaveBeenCalledWith(
-      `twilio:${TEST_MESSAGE_SID}`
+    expect(mocks.deduplicateWebhook).toHaveBeenCalledWith(
+      "twilio_sms",
+      TEST_MESSAGE_SID
     );
     await app.close();
   });
 
   it("returns 200 and skips enqueue on duplicate MessageSid", async () => {
-    mocks.checkIdempotency.mockResolvedValueOnce(true); // already seen
+    mocks.deduplicateWebhook.mockResolvedValueOnce({ isDuplicate: true, source: "twilio_sms", eventSid: TEST_MESSAGE_SID });
 
     const app = await buildApp();
     const res = await app.inject({
@@ -183,8 +185,8 @@ describe("POST /webhooks/twilio/sms", () => {
     await app.close();
   });
 
-  it("does not write idempotency key on duplicate", async () => {
-    mocks.checkIdempotency.mockResolvedValueOnce(true);
+  it("does not process on duplicate", async () => {
+    mocks.deduplicateWebhook.mockResolvedValueOnce({ isDuplicate: true, source: "twilio_sms", eventSid: TEST_MESSAGE_SID });
 
     const app = await buildApp();
     await app.inject({
@@ -194,7 +196,7 @@ describe("POST /webhooks/twilio/sms", () => {
       payload: smsPayload(),
     });
 
-    expect(mocks.markIdempotency).not.toHaveBeenCalled();
+    expect(mocks.getTenantByPhoneNumber).not.toHaveBeenCalled();
     await app.close();
   });
 

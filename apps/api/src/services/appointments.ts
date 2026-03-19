@@ -224,6 +224,17 @@ export async function createAppointment(
     // xmax > 0 means the row was updated (upsert), not inserted
     const upserted = row.xmax !== "0";
 
+    if (upserted) {
+      console.info(
+        JSON.stringify({
+          event: "booking_duplicate_blocked",
+          tenant_id: input.tenantId,
+          conversation_id: input.conversationId,
+          appointment_id: row.id,
+        })
+      );
+    }
+
     return {
       success: true,
       appointment: {

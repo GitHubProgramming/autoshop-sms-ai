@@ -4,12 +4,17 @@ import formbody from "@fastify/formbody";
 
 const mocks = vi.hoisted(() => ({
   query: vi.fn(),
+  deduplicateWebhook: vi.fn().mockResolvedValue({ isDuplicate: false, source: "twilio_voice", eventSid: "" }),
 }));
 
 vi.mock("../db/client", () => ({
   db: { end: vi.fn() },
   query: mocks.query,
   withTenant: vi.fn(),
+}));
+
+vi.mock("../db/webhook-events", () => ({
+  deduplicateWebhook: mocks.deduplicateWebhook,
 }));
 
 import { twilioVoiceRoute } from "../routes/webhooks/twilio-voice";
@@ -52,6 +57,7 @@ describe("POST /webhooks/twilio/voice", () => {
     process.env.SKIP_TWILIO_VALIDATION = "true";
     process.env.API_BASE_URL = "https://autoshop-api.example.com";
 
+    mocks.deduplicateWebhook.mockResolvedValue({ isDuplicate: false, source: "twilio_voice", eventSid: "" });
     mocks.query.mockResolvedValue([
       { forward_to: TEST_FORWARD, shop_name: "Test Auto Shop" },
     ]);
