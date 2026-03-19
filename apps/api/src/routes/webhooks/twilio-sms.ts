@@ -2,11 +2,8 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { validateTwilioSignature } from "../../middleware/twilio-validate";
 import { getTenantByPhoneNumber, getBlockReason } from "../../db/tenants";
-import {
-  smsInboundQueue,
-  checkIdempotency,
-  markIdempotency,
-} from "../../queues/redis";
+import { smsInboundQueue } from "../../queues/redis";
+import { deduplicateWebhook } from "../../db/webhook-events";
 import { startTrace } from "../../services/pipeline-trace";
 
 // Twilio sends form-encoded body
@@ -47,12 +44,15 @@ export async function twilioSmsRoute(app: FastifyInstance) {
       }
 
       // ── 1. Idempotency (Twilio retries if no 200 within 15s) ──────────────
-      const alreadyProcessed = await checkIdempotency(`twilio:${MessageSid}`);
-      if (alreadyProcessed) {
-        request.log.info({ MessageSid }, "Duplicate webhook — skipping");
+      // Two-tier: Redis (fast) + PostgreSQL webhook_events (persistent)
+      const dedup = await deduplicateWebhook("twilio_sms", MessageSid);
+      if (dedup.isDuplicate) {
+        request.log.info(
+          { MessageSid, source: "twilio_sms", event: "webhook_duplicate_detected" },
+          "Duplicate SMS webhook — skipping"
+        );
         return reply.status(200).type("text/xml").send("<Response/>");
       }
-      await markIdempotency(`twilio:${MessageSid}`);
 
       // ── 2. Tenant lookup by inbound phone number ───────────────────────────
       const tenant = await getTenantByPhoneNumber(To);

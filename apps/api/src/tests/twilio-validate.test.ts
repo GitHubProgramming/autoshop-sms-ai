@@ -6,8 +6,7 @@ import twilio from "twilio";
 // Mock DB and Redis to isolate middleware tests
 const mocks = vi.hoisted(() => ({
   add: vi.fn().mockResolvedValue({ id: "job-1" }),
-  checkIdempotency: vi.fn().mockResolvedValue(false),
-  markIdempotency: vi.fn().mockResolvedValue(undefined),
+  deduplicateWebhook: vi.fn().mockResolvedValue({ isDuplicate: false, source: "twilio_sms", eventSid: "" }),
   getTenantByPhoneNumber: vi.fn(),
   getBlockReason: vi.fn((): string | null => null),
 }));
@@ -20,8 +19,10 @@ vi.mock("../db/client", () => ({
 
 vi.mock("../queues/redis", () => ({
   smsInboundQueue: { add: mocks.add },
-  checkIdempotency: mocks.checkIdempotency,
-  markIdempotency: mocks.markIdempotency,
+}));
+
+vi.mock("../db/webhook-events", () => ({
+  deduplicateWebhook: mocks.deduplicateWebhook,
 }));
 
 vi.mock("../db/tenants", () => ({
@@ -96,7 +97,7 @@ describe("Twilio webhook signature validation", () => {
 
     mocks.getTenantByPhoneNumber.mockResolvedValue(MOCK_TENANT);
     mocks.getBlockReason.mockReturnValue(null);
-    mocks.checkIdempotency.mockResolvedValue(false);
+    mocks.deduplicateWebhook.mockResolvedValue({ isDuplicate: false, source: "twilio_sms", eventSid: "" });
   });
 
   afterEach(() => {
@@ -158,7 +159,7 @@ describe("Twilio webhook signature validation", () => {
     expect(res.json().error).toBe("Missing Twilio signature");
     // Handler should NOT have been reached
     expect(mocks.add).not.toHaveBeenCalled();
-    expect(mocks.checkIdempotency).not.toHaveBeenCalled();
+    expect(mocks.deduplicateWebhook).not.toHaveBeenCalled();
     await app.close();
   });
 
@@ -294,8 +295,7 @@ describe("Twilio webhook signature validation", () => {
 
     // Full flow executed
     expect(res.statusCode).toBe(200);
-    expect(mocks.checkIdempotency).toHaveBeenCalledWith(`twilio:${TEST_MESSAGE_SID}`);
-    expect(mocks.markIdempotency).toHaveBeenCalledWith(`twilio:${TEST_MESSAGE_SID}`);
+    expect(mocks.deduplicateWebhook).toHaveBeenCalledWith("twilio_sms", TEST_MESSAGE_SID);
     expect(mocks.getTenantByPhoneNumber).toHaveBeenCalledWith(TEST_TO);
     expect(mocks.add).toHaveBeenCalledWith(
       "process-sms",

@@ -2,7 +2,8 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { validateTwilioSignature } from "../../middleware/twilio-validate";
 import { getTenantByPhoneNumber, getBlockReason } from "../../db/tenants";
-import { smsInboundQueue, checkIdempotency, markIdempotency } from "../../queues/redis";
+import { smsInboundQueue } from "../../queues/redis";
+import { deduplicateWebhook } from "../../db/webhook-events";
 import { startTrace, resumeTrace } from "../../services/pipeline-trace";
 
 const TwilioVoiceStatusBody = z.object({
@@ -57,12 +58,15 @@ export async function twilioVoiceStatusRoute(app: FastifyInstance) {
         // Non-fatal
       }
 
-      // Idempotency
-      const key = `voice:${CallSid}`;
-      if (await checkIdempotency(key)) {
+      // ── Idempotency (two-tier: Redis + PostgreSQL) ────────────────────────
+      const dedup = await deduplicateWebhook("twilio_voice_status", CallSid);
+      if (dedup.isDuplicate) {
+        request.log.info(
+          { CallSid, source: "twilio_voice_status", event: "webhook_duplicate_detected" },
+          "Duplicate voice-status webhook — skipping"
+        );
         return reply.status(200).type("text/xml").send("<Response/>");
       }
-      await markIdempotency(key);
 
       const tenant = await getTenantByPhoneNumber(To);
       if (!tenant) {

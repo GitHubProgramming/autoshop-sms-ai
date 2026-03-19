@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { validateTwilioSignature } from "../../middleware/twilio-validate";
 import { query } from "../../db/client";
+import { deduplicateWebhook } from "../../db/webhook-events";
 
 const TwilioVoiceBody = z.object({
   CallSid: z.string(),
@@ -31,7 +32,17 @@ export async function twilioVoiceRoute(app: FastifyInstance) {
         return reply.status(400).send({ error: "Invalid body" });
       }
 
-      const { To, From } = parsed.data;
+      const { CallSid, To, From } = parsed.data;
+
+      // ── Idempotency (Twilio retries voice webhooks on timeout) ────────────
+      const dedup = await deduplicateWebhook("twilio_voice", CallSid);
+      if (dedup.isDuplicate) {
+        request.log.info(
+          { CallSid, source: "twilio_voice", event: "webhook_duplicate_detected" },
+          "Duplicate voice webhook — skipping"
+        );
+        return reply.status(200).type("text/xml").send("<Response/>");
+      }
 
       // Look up the forwarding number for this Twilio number
       let forwardTo: string | null = null;

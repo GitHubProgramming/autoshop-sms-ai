@@ -494,8 +494,40 @@ export async function processSms(
     // Non-fatal
   }
 
-  // ── 10. Send SMS reply ─────────────────────────────────────────────────
-  const smsResult = await sendTwilioSms(input.customerPhone, smsBody, fetchFn);
+  // ── 10. Send SMS reply (with dedup protection) ────────────────────────
+  // Check if identical message was sent in this conversation within the last 30s.
+  // Prevents double-sends from queue retries or race conditions.
+  let smsDuplicate = false;
+  try {
+    const dupeCheck = await query<{ id: string }>(
+      `SELECT id FROM messages
+       WHERE conversation_id = $1 AND tenant_id = $2
+         AND direction = 'outbound' AND body = $3
+         AND sent_at > NOW() - INTERVAL '30 seconds'
+       LIMIT 1`,
+      [result.conversationId, input.tenantId, smsBody]
+    );
+    if (dupeCheck.length > 0) {
+      smsDuplicate = true;
+      console.info(
+        JSON.stringify({
+          event: "sms_duplicate_blocked",
+          tenant_id: input.tenantId,
+          conversation_id: result.conversationId,
+          message_preview: smsBody.slice(0, 50),
+        })
+      );
+    }
+  } catch {
+    // Non-fatal: if check fails, send anyway (better to double-send than not send)
+  }
+
+  let smsResult: { sid: string | null; error: string | null };
+  if (smsDuplicate) {
+    smsResult = { sid: "skipped-duplicate", error: null };
+  } else {
+    smsResult = await sendTwilioSms(input.customerPhone, smsBody, fetchFn);
+  }
   result.smsSent = !!smsResult.sid;
   result.aiResponse = smsBody;
 

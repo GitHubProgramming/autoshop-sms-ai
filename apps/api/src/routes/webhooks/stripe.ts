@@ -2,12 +2,8 @@ import { FastifyInstance, FastifyRequest } from "fastify";
 import Stripe from "stripe";
 import { query } from "../../db/client";
 import { updateBillingStatus } from "../../db/tenants";
-import {
-  billingQueue,
-  provisionNumberQueue,
-  checkIdempotency,
-  markIdempotency,
-} from "../../queues/redis";
+import { billingQueue, provisionNumberQueue } from "../../queues/redis";
+import { deduplicateWebhook } from "../../db/webhook-events";
 
 type BillingStatus =
   | "trial" | "trial_expired" | "active"
@@ -63,12 +59,15 @@ export async function stripeRoute(app: FastifyInstance) {
       return reply.status(400).send({ error: `Webhook error: ${message}` });
     }
 
-    // ── Idempotency ──────────────────────────────────────────────────────────
-    const alreadyProcessed = await checkIdempotency(`stripe:${event.id}`);
-    if (alreadyProcessed) {
+    // ── Idempotency (two-tier: Redis + PostgreSQL) ──────────────────────────
+    const dedup = await deduplicateWebhook("stripe", event.id);
+    if (dedup.isDuplicate) {
+      app.log.info(
+        { eventId: event.id, source: "stripe", event: "webhook_duplicate_detected" },
+        "Duplicate Stripe webhook — skipping"
+      );
       return reply.status(200).send({ received: true });
     }
-    await markIdempotency(`stripe:${event.id}`);
 
     // ── Log to billing_events ────────────────────────────────────────────────
     // TODO: extract tenantId from event metadata
