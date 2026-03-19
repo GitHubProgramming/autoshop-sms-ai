@@ -2297,15 +2297,11 @@ async function loadRevenueChart() {
       totalRev += days[i].total;
     }
 
-    // Render summary bar — only total revenue (real data)
-    // Bookings, avg ticket, and growth require real data sources that don't exist yet
+    // Render summary bar — only metrics backed by real data
     if (summaryBar) {
       summaryBar.style.display = 'flex';
       summaryBar.innerHTML =
-        '<div class="rev-metric"><div class="rev-metric-label">Total Revenue</div><div class="rev-metric-value">' + formatCurrency(totalRev) + '</div></div>' +
-        '<div class="rev-metric"><div class="rev-metric-label">Bookings</div><div class="rev-metric-value">\u2014</div></div>' +
-        '<div class="rev-metric"><div class="rev-metric-label">Avg Ticket</div><div class="rev-metric-value">\u2014</div></div>' +
-        '<div class="rev-metric"><div class="rev-metric-label">Period Growth</div><div class="rev-metric-value">\u2014</div></div>';
+        '<div class="rev-metric"><div class="rev-metric-label">Total Revenue</div><div class="rev-metric-value">' + formatCurrency(totalRev) + '</div></div>';
     }
 
     // Prepare labels and data
