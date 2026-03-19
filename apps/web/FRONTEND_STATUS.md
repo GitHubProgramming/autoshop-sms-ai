@@ -2,22 +2,31 @@
 
 ## FRONTEND CONNECTED
 
-Three-page app wired and functional:
+Multi-page app with URL-based routing:
 
-| File | Route | Purpose |
-|------|-------|---------|
+| File | Route(s) | Purpose |
+|------|----------|---------|
 | `apps/web/index.html` | `/` | Landing page |
-| `apps/web/login.html` | `/login.html` | Login page |
-| `apps/web/app.html` | `/app.html` | Shop dashboard |
+| `apps/web/login.html` | `/login` | Login page |
+| `apps/web/signup.html` | `/signup` | Signup page |
+| `apps/web/onboarding.html` | `/onboarding/business` | Onboarding flow |
+| `apps/web/app.html` | `/app/dashboard` | Shop dashboard (default view) |
+| `apps/web/app.html` | `/app/conversations` | Conversation inbox |
+| `apps/web/app.html` | `/app/appointments` | Appointments / bookings |
+| `apps/web/app.html` | `/app/customers` | Customer list |
+| `apps/web/app.html` | `/app/analytics` | Analytics / revenue |
+| `apps/web/app.html` | `/app/billing` | Billing & plan |
+| `apps/web/app.html` | `/app/settings` | Shop settings |
 
 ## ROUTES WORKING
 
-- Landing → Login: all CTA buttons, nav Login link, footer link → `login.html`
-- Landing → Signup (demo): "Start Free Trial" pricing buttons → `login.html` (demo only)
-- Login → Dashboard: on successful auth → `app.html`
-- Dashboard → Landing: logo + "Back to Website" → `index.html`
-- Dashboard → Logout: "Log Out" clears session → `login.html`
-- Dashboard sidebar navigation: all `switchView()` calls work (conversations, bookings, revenue, billing, settings)
+- Landing → Login: all CTA buttons, nav Login link, footer link → `/login`
+- Landing → Signup: "Start Free Trial" pricing buttons → `/signup`
+- Signup → Onboarding: after account creation → `/onboarding/business`
+- Login → Dashboard: on successful auth → `/app/dashboard`
+- Dashboard → Landing: logo + "Back to Website" → `/`
+- Dashboard → Logout: "Log Out" clears session → `/login`
+- Dashboard sidebar navigation: all views accessible via `/app/:view` routes (conversations, appointments, analytics, billing, settings, customers)
 
 ## LOGIN STATUS
 
@@ -25,9 +34,9 @@ Three-page app wired and functional:
 
 - Demo credentials: `demo@autoshop.ai` / `autoshop2024`
 - On login: stores JSON session in `localStorage.autoshop_session`
-- Dashboard auth guard: checks localStorage on load, redirects to `login.html` if no session
-- Logout: clears localStorage, redirects to `login.html`
-- Already-logged-in redirect: `login.html` redirects straight to `app.html` if session exists
+- Dashboard auth guard: checks localStorage on load, redirects to `/login` if no session
+- Logout: clears localStorage, redirects to `/login`
+- Already-logged-in redirect: `/login` redirects straight to `/app/dashboard` if session exists
 - Session stores: email, name, initials, shopName, plan, loginAt
 
 **What this is NOT:** Not a real auth system. No server-side session. No JWT. Password is hardcoded in client-side JS. Demo/pilot use only.
@@ -62,7 +71,7 @@ npx serve . -p 8080
    - `GET /api/appointments` — bookings
    - `GET /api/stats` — usage metrics
 
-3. **Signup flow** — "Start Free Trial" should POST to `/auth/signup` or redirect to Stripe checkout, not to login
+3. **Signup flow** — `/signup` page exists; wire to POST `/auth/signup` or redirect to Stripe checkout for production
 
 4. **Google OAuth** — "Connect Calendar" buttons call `showToast()` — wire to `GET /auth/google/connect?tenantId=...`
 
@@ -106,3 +115,4 @@ Surgical edits applied to existing files (no pages created, no redesign):
 6. **app.html — frontend auth guard updated**
    - Guard now checks `localStorage.getItem('autoshop_demo_login') !== 'true'` (was checking `autoshop_session`)
    - Logout handler now also clears `autoshop_demo_login` from localStorage
+   - Auth guard redirects to `/login` (not `login.html`)

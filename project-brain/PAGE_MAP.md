@@ -1,6 +1,17 @@
 # Page Map
 
-Dashboard UI map for `apps/web/app.html`. All 7 views are rendered client-side via `switchView()`.
+Dashboard UI map for `apps/web/app.html`. All 7 views are served via `/app/:view` Vercel rewrites and rendered client-side.
+
+**Routes:**
+- `/app/dashboard` — Dashboard
+- `/app/conversations` — Conversations
+- `/app/appointments` — Appointments
+- `/app/customers` — Customers
+- `/app/analytics` — Analytics
+- `/app/billing` — Billing
+- `/app/settings` — Settings
+
+**Auth routes:** `/login`, `/signup`, `/onboarding/business`
 
 Single data source: `fetch('/tenant/dashboard')` populates all views.
 

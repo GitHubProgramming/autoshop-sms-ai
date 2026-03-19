@@ -89,7 +89,9 @@ Inbound Call → Twilio webhook → /webhooks/twilio-voice
 
 - **Location:** `apps/web/app.html`
 - **Type:** Static single-page application (vanilla HTML/CSS/JS)
-- **Served by:** Render (Vercel headers for no-cache)
+- **Served at:** `/app/:view` via Vercel rewrites (`/app/dashboard`, `/app/conversations`, `/app/appointments`, `/app/customers`, `/app/analytics`, `/app/billing`, `/app/settings`)
+- **Auth pages:** `/login`, `/signup`, `/onboarding/business`
+- **Served by:** Vercel (with no-cache headers)
 - **Auth:** JWT token-based, stored in localStorage
 - **Data:** Single API call to `/tenant/dashboard`
 

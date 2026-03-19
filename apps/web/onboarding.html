@@ -220,7 +220,7 @@
 <body>
 
 <nav class="topnav">
-  <a href="index.html" class="nav-logo">AutoShop <span>SMS</span> AI</a>
+  <a href="/" class="nav-logo">AutoShop <span>SMS</span> AI</a>
   <div class="trial-pill">Trial Active — 14 days free</div>
 </nav>
 
@@ -282,7 +282,7 @@
     </div>
 
     <div class="skip-link">
-      <a href="app.html" onclick="skipOnboarding()">Skip for now — I'll finish this later →</a>
+      <a href="/app/dashboard" onclick="skipOnboarding()">Skip for now — I'll finish this later →</a>
     </div>
   </div>
 </main>
@@ -318,7 +318,7 @@
   // Redirect to login if no session
   var jwt = localStorage.getItem('autoshop_jwt');
   if (!jwt) {
-    window.location.replace('signup.html');
+    window.location.replace('/signup');
   }
 
   // Pre-fill shop name from session if not already filled
@@ -370,19 +370,19 @@ async function handleOnboarding(e) {
       // Update local session with new shop name
       session.shopName = shopName;
       localStorage.setItem('autoshop_session', JSON.stringify(session));
-      window.location.href = 'app.html';
+      window.location.href = '/app/dashboard';
     } else {
       // If endpoint doesn't exist yet, just redirect to dashboard
       // (onboarding is non-blocking for MVP)
       session.shopName = shopName;
       localStorage.setItem('autoshop_session', JSON.stringify(session));
-      window.location.href = 'app.html';
+      window.location.href = '/app/dashboard';
     }
   } catch {
     // Network error — save locally and redirect anyway (non-blocking for MVP)
     session.shopName = shopName;
     localStorage.setItem('autoshop_session', JSON.stringify(session));
-    window.location.href = 'app.html';
+    window.location.href = '/app/dashboard';
   }
 }
 </script>

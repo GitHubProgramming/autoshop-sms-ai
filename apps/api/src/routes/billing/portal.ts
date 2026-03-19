@@ -34,7 +34,7 @@ export async function billingPortalRoute(app: FastifyInstance) {
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
 
     const returnUrl =
-      (process.env.PUBLIC_ORIGIN || "https://autoshopsmsai.com") + "/app.html";
+      (process.env.PUBLIC_ORIGIN || "https://autoshopsmsai.com") + "/app/billing";
 
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,

@@ -240,8 +240,8 @@
 <body>
 
 <nav class="topnav">
-  <a href="index.html" class="nav-logo">AutoShop <span>SMS</span> AI</a>
-  <a href="index.html" class="nav-back">← Back to site</a>
+  <a href="/" class="nav-logo">AutoShop <span>SMS</span> AI</a>
+  <a href="/" class="nav-back">← Back to site</a>
 </nav>
 
 <main class="main">
@@ -303,15 +303,13 @@
 
 <script>
 // ── Return-to-target helper ──────────────────────────────────────────────────
-// Reads ?next= query param and validates against an exact allowlist of local
-// pages. Rejects anything with path separators, protocols, or query strings.
-// Defaults to app.html — no open redirect possible.
-var ALLOWED_NEXT = { 'app.html': true, 'admin.html': true };
+// Reads ?next= query param and validates against an allowlist of local
+// routes. Defaults to /app/dashboard — no open redirect possible.
+var ALLOWED_NEXT = { '/app/dashboard': true, '/app/conversations': true, '/app/appointments': true, '/app/settings': true, '/app/billing': true, '/app/analytics': true, '/app/customers': true, 'admin.html': true };
 function getNextTarget() {
   var param = new URLSearchParams(window.location.search).get('next') || '';
-  // Strip query/fragment, then strip any leading path components
-  var filename = param.replace(/[?#].*$/, '').replace(/^.*[/\\]/, '');
-  return ALLOWED_NEXT[filename] ? filename : 'app.html';
+  // Exact match against allowlist — no path traversal possible
+  return ALLOWED_NEXT[param] ? param : '/app/dashboard';
 }
 
 // ── Auth check ──────────────────────────────────────────────────────────────

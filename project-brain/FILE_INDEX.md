@@ -44,14 +44,15 @@ For architecture rules and constraints, see `PROJECT_TRUTH.md` and `ARCHITECTURE
 - **Path:** `apps/web/`
 - **Responsibility:** Shop owner dashboard UI, login, signup, onboarding, marketing pages
 - **Key files:**
-  - `app.html` — canonical dashboard (all 7 views)
-  - `login.html` — tenant login page
-  - `signup.html` — tenant signup page
-  - `onboarding.html` — onboarding flow
+  - `app.html` — canonical dashboard (all 7 views), served via `/app/:view` Vercel rewrites
+  - `login.html` — tenant login page (served at `/login`)
+  - `signup.html` — tenant signup page (served at `/signup`)
+  - `onboarding.html` — onboarding flow (served at `/onboarding/business`)
   - `admin.html` — internal admin dashboard
   - `index.html` — marketing/landing page
   - `demo.html` — demo funnel page
   - `privacy.html`, `terms.html` — legal pages
+- **Route architecture:** Dashboard views are accessed via `/app/dashboard`, `/app/conversations`, `/app/appointments`, `/app/customers`, `/app/analytics`, `/app/billing`, `/app/settings`
 - **Edit safety:** Safe for UI-only edits. All dashboard work stays in `app.html`.
 
 ### 3.2 API / Backend
@@ -148,19 +149,19 @@ For architecture rules and constraints, see `PROJECT_TRUTH.md` and `ARCHITECTURE
 
 ## 4 — UI Page Ownership
 
-All 7 dashboard pages live in `apps/web/app.html`. Views are switched client-side via `switchView()`. Single data source: `GET /tenant/dashboard`.
+All 7 dashboard pages live in `apps/web/app.html`, served via `/app/:view` Vercel rewrites. Single data source: `GET /tenant/dashboard`.
 
-| Page | Section in app.html | Backend Endpoint(s) |
-|------|--------------------|--------------------|
-| Dashboard | `#view-dashboard` | `GET /tenant/dashboard` |
-| Conversations | `#view-conversations` | `GET /tenant/dashboard` → `recent_conversations` |
-| Appointments | `#view-appointments` | `GET /tenant/dashboard` → `recent_bookings` |
-| Customers | `#view-customers` | Derived client-side from conversations + bookings |
-| Analytics | `#view-analytics` | `GET /tenant/dashboard` → `stats` |
-| Billing | `#view-billing` | `POST /billing/checkout`, `POST /billing/portal` |
-| Settings | `#view-settings` | `POST /auth/google/url`, `POST /auth/google/disconnect` |
+| Page | Route | Section in app.html | Backend Endpoint(s) |
+|------|-------|--------------------|--------------------|
+| Dashboard | `/app/dashboard` | `#view-dashboard` | `GET /tenant/dashboard` |
+| Conversations | `/app/conversations` | `#view-conversations` | `GET /tenant/dashboard` → `recent_conversations` |
+| Appointments | `/app/appointments` | `#view-appointments` | `GET /tenant/dashboard` → `recent_bookings` |
+| Customers | `/app/customers` | `#view-customers` | Derived client-side from conversations + bookings |
+| Analytics | `/app/analytics` | `#view-analytics` | `GET /tenant/dashboard` → `stats` |
+| Billing | `/app/billing` | `#view-billing` | `POST /billing/checkout`, `POST /billing/portal` |
+| Settings | `/app/settings` | `#view-settings` | `POST /auth/google/url`, `POST /auth/google/disconnect` |
 
-**Agent note:** For any dashboard UI edit, open `apps/web/app.html`, search for the relevant `#view-*` section. See `PAGE_MAP.md` for detailed component breakdowns.
+**Agent note:** For any dashboard UI edit, open `apps/web/app.html`, search for the relevant `#view-*` section. Routes are defined in `vercel.json` as rewrites from `/app/:view` to `app.html`. See `PAGE_MAP.md` for detailed component breakdowns.
 
 ---
 
@@ -201,7 +202,7 @@ All 7 dashboard pages live in `apps/web/app.html`. Views are switched client-sid
 
 | Task Type | Inspect First |
 |-----------|--------------|
-| Dashboard visual bug | `apps/web/app.html` → relevant `#view-*` section |
+| Dashboard visual bug | `apps/web/app.html` → relevant `#view-*` section (route: `/app/:view`) |
 | Dashboard data issue | `apps/api/src/routes/tenant/dashboard.ts` |
 | Login / auth issue | `apps/api/src/routes/auth/login.ts`, `apps/web/login.html` |
 | Admin auth issue | `apps/api/src/middleware/admin-guard.ts`, `apps/web/admin.html` |
@@ -213,7 +214,7 @@ All 7 dashboard pages live in `apps/web/app.html`. Views are switched client-sid
 | Deployment mismatch | `render.yaml`, `apps/api/Dockerfile`, `.github/workflows/ci.yml` |
 | n8n workflow deploy | `scripts/n8n-deploy.sh`, `.github/workflows/n8n-deploy.yml` |
 | Project status update | `project-brain/project_status_v2.json` (JSON first, then MD mirror) |
-| Settings page issue | `apps/web/app.html` → `#view-settings`, settings tab sections |
+| Settings page issue | `apps/web/app.html` → `#view-settings` (route: `/app/settings`), settings tab sections |
 
 ---
 

@@ -18,13 +18,14 @@ UPDATED LANDING CTAS
   - ROI calculator CTA → "See Live Demo" → demo.html
   - Integrations section CTA → "See Live Demo" → demo.html
   - Final CTA section → "See Live Demo Dashboard" → demo.html
-  - Pricing card buttons kept as login.html (trial entry after demo)
-  - "Already a customer? Login" footer link kept as login.html
+  - Pricing card buttons → /signup (trial entry after demo)
+  - "Already a customer? Login" footer link → /login
 
 TRIAL ENTRY POINT
-  - demo.html nav bar: "Start Free Trial" and "Log In" both → login.html
-  - demo.html bottom CTA: "Start Free Trial", "Connect Your Shop" → login.html
-  - Flow: Landing → demo.html → login.html → app.html
+  - demo.html nav bar: "Start Free Trial" → /signup, "Log In" → /login
+  - demo.html bottom CTA: "Start Free Trial" → /signup, "Connect Your Shop" → /onboarding/business
+  - Flow: Landing → demo.html → /signup → /onboarding/business → /app/dashboard
+  - Existing users: Landing → /login → /app/dashboard
 
 REMAINING FRONTEND TASKS
   - Add a real "Book Strategy Call" link (Calendly or similar) in demo.html CTA

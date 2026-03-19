@@ -151,7 +151,7 @@ export async function googleAuthRoute(app: FastifyInstance) {
 
     if (error || !code) {
       request.log.warn({ tenantId, error }, "Google OAuth denied by user");
-      return reply.redirect(`${publicOrigin}/app.html?calendar=denied`);
+      return reply.redirect(`${publicOrigin}/app/dashboard?calendar=denied`);
     }
 
     if (!clientId || !clientSecret || !redirectUri) {
@@ -212,7 +212,7 @@ export async function googleAuthRoute(app: FastifyInstance) {
     request.log.info({ tenantId, googleEmail }, "Google Calendar connected for tenant");
 
     // Redirect back to the app dashboard with a success flag
-    return reply.redirect(`${publicOrigin}/app.html?calendar=connected`);
+    return reply.redirect(`${publicOrigin}/app/dashboard?calendar=connected`);
   });
 
   /**
