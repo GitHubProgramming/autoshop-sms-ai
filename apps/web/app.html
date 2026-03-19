@@ -343,26 +343,49 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .pipeline-stage.lost .pipeline-stage-inner{border-color:rgba(239,68,68,.15);background:rgba(239,68,68,.02)}
 .pipeline-stage.lost .p-stage-count{color:var(--red)}
 
-/* ── ACTIVATION CHECKLIST ── */
-.activation-summary{background:#F0FDF4;border:1px solid #DCFCE7;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px;border-radius:var(--radius)}
-.activation-summary.hidden{display:none}
-.activation-summary-left{display:flex;align-items:center;gap:12px}
-.activation-summary-icon{width:32px;height:32px;background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
-.activation-summary-title{font-size:14px;font-weight:600;color:#15803D}
-.activation-summary-sub{font-size:12px;color:var(--text-tertiary);margin-top:2px}
-.checklist-card{background:var(--bg-panel);border:1px solid var(--border);margin-bottom:16px;overflow:hidden;border-radius:var(--radius)}
-.checklist-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;background:var(--bg);border-bottom:1px solid var(--border)}
-.checklist-title{font-size:14px;font-weight:600;color:var(--text)}
-.checklist-sub{font-size:12px;color:var(--text-tertiary);margin-top:2px}
-.checklist-progress{font-family:var(--mono);font-size:12px;color:var(--text-tertiary)}
-.checklist-progress strong{color:var(--green)}
-.checklist-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:0;background:var(--border)}
-.checklist-step{background:var(--bg-panel);padding:16px 18px;border-right:1px solid var(--border);transition:background .15s}
-.checklist-step:last-child{border-right:none}
-.checklist-step:hover{background:var(--bg-hover)}
-.checklist-step.complete{border-top:3px solid var(--green)}
-.checklist-step.pending{border-top:3px solid var(--amber)}
-.checklist-step.failed{border-top:3px solid var(--red)}
+/* ── ONBOARDING SETUP GUIDE ── */
+.onboarding-guide{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:24px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+.onboarding-guide.all-done{border-color:rgba(22,163,74,.3);background:linear-gradient(135deg,#F0FDF4,#ECFDF5)}
+.onboarding-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.onboarding-header-left{display:flex;align-items:center;gap:14px}
+.onboarding-icon{width:44px;height:44px;background:linear-gradient(135deg,#2563EB,#7C3AED);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;flex-shrink:0}
+.onboarding-title{font-size:18px;font-weight:700;color:var(--text);letter-spacing:-.02em}
+.onboarding-subtitle{font-size:13px;color:var(--text-tertiary);margin-top:2px}
+.onboarding-progress-bar{width:120px;height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+.onboarding-progress-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#2563EB,#7C3AED);transition:width .4s ease}
+.onboarding-progress-text{font-size:12px;font-weight:600;color:var(--text-tertiary);margin-top:4px;text-align:right}
+.onboarding-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
+.onboarding-step{padding:20px 20px 18px;border-right:1px solid var(--border);cursor:pointer;transition:all .15s;position:relative}
+.onboarding-step:last-child{border-right:none}
+.onboarding-step:hover{background:var(--bg-hover)}
+.onboarding-step-num{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.onboarding-step-circle{width:28px;height:28px;border-radius:50%;border:2px solid var(--border-mid);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--text-tertiary);flex-shrink:0;transition:all .2s}
+.onboarding-step.done .onboarding-step-circle{background:var(--green);border-color:var(--green);color:#fff}
+.onboarding-step.active-step .onboarding-step-circle{border-color:var(--rust);color:var(--rust);box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+.onboarding-step-label{font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px}
+.onboarding-step-desc{font-size:12px;color:var(--text-tertiary);line-height:1.4;margin-bottom:10px;min-height:34px}
+.onboarding-step-status{font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px}
+.onboarding-step-status.done{color:#059669;background:#ECFDF5}
+.onboarding-step-status.warning{color:var(--amber);background:#FEF3C7}
+.onboarding-step-status.action{color:var(--rust);background:#EFF6FF;cursor:pointer}
+.onboarding-step-status.action:hover{background:#DBEAFE}
+.onboarding-step-cta{margin-top:8px}
+.onboarding-step-cta .btn-sm{font-size:12px;padding:6px 14px}
+.onboarding-dismiss{font-size:12px;color:var(--text-tertiary);cursor:pointer;border:none;background:none;padding:4px 8px;border-radius:6px;transition:all .15s}
+.onboarding-dismiss:hover{background:var(--bg);color:var(--text-secondary)}
+/* Warning banners for onboarding context */
+.onboarding-warning{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:500;margin-bottom:12px}
+.onboarding-warning.red{background:#FEF2F2;border:1px solid #FEE2E2;color:#991B1B}
+.onboarding-warning.amber{background:#FEF3C7;border:1px solid #FDE68A;color:#92400E}
+.onboarding-warning.blue{background:#EFF6FF;border:1px solid #DBEAFE;color:#1E40AF}
+.onboarding-warning svg{flex-shrink:0}
+/* Test AI modal */
+.test-ai-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-top:8px}
+.test-ai-number{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--text);margin:8px 0}
+.test-ai-hint{font-size:12px;color:var(--text-tertiary);line-height:1.5}
+/* Responsive onboarding */
+@media(max-width:900px){.onboarding-steps{grid-template-columns:1fr 1fr}.onboarding-step:nth-child(2){border-right:none}}
+@media(max-width:600px){.onboarding-steps{grid-template-columns:1fr}.onboarding-step{border-right:none;border-bottom:1px solid var(--border)}.onboarding-step:last-child{border-bottom:none}}
 .step-num{font-family:var(--mono);font-size:10px;color:var(--text-tertiary);margin-bottom:8px}
 .step-label{font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;line-height:1.3}
 .step-pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;margin-bottom:10px}
@@ -1054,6 +1077,29 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
         <h2 id="dashPageTitle">Revenue Intelligence Dashboard</h2>
         <p id="dashSubtitle">Real-time performance metrics and AI-driven customer engagement</p>
       </div>
+
+      <!-- ── ONBOARDING SETUP GUIDE ── -->
+      <div class="onboarding-guide" id="onboardingGuide" style="display:none;">
+        <div class="onboarding-header">
+          <div class="onboarding-header-left">
+            <div class="onboarding-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <div>
+              <div class="onboarding-title" id="onboardingTitle">Get your AI receptionist live</div>
+              <div class="onboarding-subtitle" id="onboardingSub">Complete these steps to start receiving bookings automatically</div>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div class="onboarding-progress-bar"><div class="onboarding-progress-fill" id="onboardingProgressFill" style="width:0%"></div></div>
+            <div class="onboarding-progress-text" id="onboardingProgressText">0 of 4 complete</div>
+          </div>
+        </div>
+        <div class="onboarding-steps" id="onboardingSteps"></div>
+      </div>
+
+      <!-- ── CONTEXTUAL WARNINGS (shown during onboarding) ── -->
+      <div id="onboardingWarnings"></div>
 
       <!-- ── 1. KPI ROW (4 cards) ── -->
       <div class="kpi-grid" id="kpiGrid"></div>
@@ -2448,66 +2494,163 @@ function renderNav() {
 // CHECKLIST
 // ════════════════════════════════════════════
 function renderChecklist() {
-  const s = tenantState;
-  const steps = [
+  var s = tenantState;
+  var phoneConnected = s.integrations.twilioNumber === 'active';
+  var hasHours = true; // Business hours have defaults (Mon-Sat 8-5), so consider set
+  var hasConversations = conversationsData.length > 0;
+  var hasBookings = bookingsData.length > 0;
+  var twilioPhone = s._twilioPhone || '';
+
+  // Check business hours from settings — if all days are closed or no hours saved, mark incomplete
+  var hoursRows = document.querySelectorAll('#hoursRows .hours-row');
+  if (hoursRows.length > 0) {
+    var openDays = 0;
+    hoursRows.forEach(function(row) {
+      var cb = row.querySelector('input[type="checkbox"]');
+      if (!cb || !cb.checked) openDays++;
+    });
+    hasHours = openDays > 0;
+  }
+
+  var steps = [
     {
-      num: '01',
-      label: 'Connect Google Calendar',
-      status: s.integrations.googleCalendar,
-      pills: { connected:{cls:'done',text:'Connected'}, token_expired:{cls:'warn',text:'Needs Reconnect'}, revoked:{cls:'fail',text:'Revoked'}, failed:{cls:'fail',text:'Failed'} },
-      ctas:  { connected:'<button class="btn-sm" onclick="switchView(\'settings\');switchTab(document.querySelector(\'[onclick*=tab-integrations]\'),\'tab-integrations\')">Manage</button>', token_expired:'<button class="btn-sm amber-btn" onclick="connectGoogleCalendar()">Reconnect</button>', revoked:'<button class="btn-sm red-btn" onclick="connectGoogleCalendar()">Reconnect</button>', failed:'<button class="btn-sm red-btn" onclick="connectGoogleCalendar()">Reconnect</button>' },
-      defaultCta: '<button class="btn-sm primary" onclick="connectGoogleCalendar()">Connect</button>'
+      num: 1,
+      label: 'Connect your phone number',
+      desc: 'Your AI receptionist needs a phone number to send and receive SMS messages.',
+      done: phoneConnected,
+      statusDone: 'Connected',
+      statusPending: phoneConnected ? 'Connected' : 'Not connected',
+      action: phoneConnected ? null : function() { switchView('settings'); setTimeout(function(){ var btn = document.querySelector('[onclick*="sp-sms"]'); if(btn) switchSettingsTab(btn,'sp-sms'); }, 100); },
+      actionLabel: 'Connect SMS number'
     },
     {
-      num: '02',
-      label: 'Provision Twilio Number',
-      status: s.integrations.twilioNumber,
-      pills: { active:{cls:'done',text:'Active'}, provisioning:{cls:'warn',text:'Provisioning...'}, released:{cls:'fail',text:'Released'} },
-      ctas:  { active:'', provisioning:'<button class="btn-sm amber-btn" disabled>Provisioning...</button>', released:'<button class="btn-sm red-btn" onclick="showToast(\'Requesting new number...\')">Re-provision</button>' },
-      defaultCta: '<button class="btn-sm primary" onclick="showToast(\'Requesting number...\')">Provision Number</button>'
+      num: 2,
+      label: 'Set your business hours',
+      desc: 'AI needs your hours to schedule appointments at the right times.',
+      done: hasHours,
+      statusDone: 'Hours set',
+      statusPending: 'AI cannot book without hours',
+      action: function() { switchView('settings'); setTimeout(function(){ var btn = document.querySelector('[onclick*="sp-hours"]'); if(btn) switchSettingsTab(btn,'sp-hours'); }, 100); },
+      actionLabel: hasHours ? 'Edit hours' : 'Set hours now'
     },
     {
-      num: '03',
-      label: 'Set Call Forwarding',
-      status: s.integrations.callForwarding,
-      pills: { verified:{cls:'done',text:'Verified'}, not_verified:{cls:'warn',text:'Not Verified'} },
-      ctas:  { verified:'', not_verified:'<button class="btn-sm amber-btn" onclick="showToast(\'Opening call forwarding instructions...\')">View Instructions</button>' },
-      defaultCta: '<button class="btn-sm" onclick="showToast(\'Opening call forwarding instructions...\')">View Instructions</button>'
+      num: 3,
+      label: 'Test your AI receptionist',
+      desc: phoneConnected && twilioPhone
+        ? 'Send a message to ' + twilioPhone + ' like: "I need an oil change tomorrow"'
+        : 'Once your phone is connected, send a test message to try the AI.',
+      done: hasConversations,
+      statusDone: hasConversations ? conversationsData.length + ' conversation' + (conversationsData.length > 1 ? 's' : '') : 'Tested',
+      statusPending: 'No messages yet',
+      action: hasConversations ? null : (phoneConnected ? function() {
+        showToast('Send an SMS to ' + (twilioPhone || 'your connected number') + ' to test the AI.');
+      } : null),
+      actionLabel: 'How to test'
     },
     {
-      num: '04',
-      label: 'Send Test SMS',
-      status: s.integrations.testSms,
-      pills: { passed:{cls:'done',text:'Passed'}, failed:{cls:'fail',text:'Failed'} },
-      ctas:  { passed:'', failed:'<button class="btn-sm red-btn" onclick="showToast(\'Sending test SMS...\')">Retry Test</button>' },
-      defaultCta: '<button class="btn-sm primary" onclick="showToast(\'Sending test SMS to your shop number...\')">Send Test SMS</button>'
+      num: 4,
+      label: 'Get your first booking',
+      desc: hasBookings ? 'Bookings are coming in. Your AI receptionist is working.' : 'Share your number with customers or let missed calls auto-trigger the AI.',
+      done: hasBookings,
+      statusDone: bookingsData.length + ' booking' + (bookingsData.length > 1 ? 's' : ''),
+      statusPending: 'Waiting for first booking',
+      action: null,
+      actionLabel: ''
     }
   ];
 
-  let done = 0;
-  let html = '';
-  steps.forEach(step => {
-    const p = step.pills[step.status] || {cls:'info', text:'Pending'};
-    const isComplete = p.cls === 'done';
-    if (isComplete) done++;
-    const stateClass = isComplete ? 'complete' : (p.cls === 'fail' ? 'failed' : 'pending');
-    const cta = step.ctas[step.status] !== undefined ? step.ctas[step.status] : step.defaultCta;
-    html += `<div class="checklist-step ${stateClass}">
-      <div class="step-num">STEP ${step.num}</div>
-      <div class="step-label">${step.label}</div>
-      <div class="step-pill ${p.cls}">${p.text}</div>
-      ${cta ? `<div>${cta}</div>` : ''}
-    </div>`;
-  });
+  var doneCount = steps.filter(function(st) { return st.done; }).length;
+  var firstIncomplete = steps.findIndex(function(st) { return !st.done; });
 
-  var elSteps = document.getElementById('checklistSteps');
-  var elDone = document.getElementById('checklistDone');
-  var elCard = document.getElementById('checklistCard');
-  if (elSteps) elSteps.innerHTML = html;
-  if (elDone) elDone.textContent = done;
-  if (done === 4 && elCard) {
-    elCard.style.borderColor = 'rgba(34,197,94,0.3)';
+  // Show/hide guide
+  var guide = document.getElementById('onboardingGuide');
+  if (!guide) return;
+
+  // Always show if not all done; hide if dismissed and all done
+  if (doneCount === 4) {
+    if (localStorage.getItem('onboarding_dismissed') === '1') {
+      guide.style.display = 'none';
+      renderOnboardingWarnings(steps);
+      return;
+    }
+    guide.classList.add('all-done');
+  } else {
+    guide.classList.remove('all-done');
+    localStorage.removeItem('onboarding_dismissed');
   }
+  guide.style.display = '';
+
+  // Progress
+  var pctFill = document.getElementById('onboardingProgressFill');
+  var pctText = document.getElementById('onboardingProgressText');
+  if (pctFill) pctFill.style.width = (doneCount / 4 * 100) + '%';
+  if (pctText) pctText.textContent = doneCount + ' of 4 complete';
+
+  // Title update
+  var titleEl = document.getElementById('onboardingTitle');
+  var subEl = document.getElementById('onboardingSub');
+  if (doneCount === 4) {
+    if (titleEl) titleEl.textContent = 'You\'re all set!';
+    if (subEl) subEl.textContent = 'Your AI receptionist is live and ready to book appointments.';
+  } else if (doneCount >= 2) {
+    if (titleEl) titleEl.textContent = 'Almost there \u2014 ' + (4 - doneCount) + ' step' + (4 - doneCount > 1 ? 's' : '') + ' left';
+  }
+
+  // Render steps
+  var stepsEl = document.getElementById('onboardingSteps');
+  if (!stepsEl) return;
+  var html = '';
+  steps.forEach(function(step, idx) {
+    var cls = step.done ? 'done' : (idx === firstIncomplete ? 'active-step' : '');
+    var circleContent = step.done
+      ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>'
+      : step.num;
+    var statusHtml = step.done
+      ? '<span class="onboarding-step-status done">' + step.statusDone + '</span>'
+      : '<span class="onboarding-step-status warning">' + step.statusPending + '</span>';
+    var ctaHtml = '';
+    if (!step.done && step.action) {
+      ctaHtml = '<div class="onboarding-step-cta"><button class="btn-sm primary" onclick="onboardingStepAction(' + idx + ')">' + step.actionLabel + '</button></div>';
+    } else if (step.done && step.action) {
+      ctaHtml = '<div class="onboarding-step-cta"><button class="btn-sm" onclick="onboardingStepAction(' + idx + ')">' + step.actionLabel + '</button></div>';
+    }
+    html += '<div class="onboarding-step ' + cls + '">' +
+      '<div class="onboarding-step-num">' +
+        '<div class="onboarding-step-circle">' + circleContent + '</div>' +
+      '</div>' +
+      '<div class="onboarding-step-label">' + step.label + '</div>' +
+      '<div class="onboarding-step-desc">' + step.desc + '</div>' +
+      statusHtml + ctaHtml +
+    '</div>';
+  });
+  stepsEl.innerHTML = html;
+
+  // Store step actions for onclick
+  window._onboardingSteps = steps;
+
+  renderOnboardingWarnings(steps);
+}
+
+function onboardingStepAction(idx) {
+  var steps = window._onboardingSteps;
+  if (steps && steps[idx] && steps[idx].action) {
+    steps[idx].action();
+  }
+}
+
+function renderOnboardingWarnings(steps) {
+  var container = document.getElementById('onboardingWarnings');
+  if (!container) return;
+  var warnings = [];
+  var warnIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+
+  if (!steps[0].done) {
+    warnings.push('<div class="onboarding-warning red">' + warnIcon + 'AI is not active \u2014 no phone number connected. <a style="color:#991B1B;font-weight:600;cursor:pointer;text-decoration:underline;" onclick="onboardingStepAction(0)">Connect now</a></div>');
+  }
+  if (steps[0].done && !steps[2].done && conversationsData.length === 0) {
+    warnings.push('<div class="onboarding-warning blue">' + warnIcon + 'No customer activity yet \u2014 <a style="color:#1E40AF;font-weight:600;cursor:pointer;text-decoration:underline;" onclick="onboardingStepAction(2)">test your AI receptionist</a> to see it in action.</div>');
+  }
+  container.innerHTML = warnings.join('');
 }
 
 // ════════════════════════════════════════════
@@ -2575,12 +2718,17 @@ function renderDashConvTable(data) {
 
   var container = document.getElementById('dashConvBody');
   if (!data.length) {
+    var phoneConnected = tenantState.integrations.twilioNumber === 'active';
+    var twilioPhone = tenantState._twilioPhone || '';
+    var emptyMsg = phoneConnected
+      ? '<div style="font-weight:600;margin-bottom:4px;">No conversations yet</div>' +
+        '<div style="font-size:13px;margin-bottom:12px;">Test your AI by sending an SMS to <strong>' + (twilioPhone || 'your connected number') + '</strong></div>' +
+        '<div style="font-size:12px;color:var(--text-tertiary);">Try: "I need an oil change tomorrow at 2pm"</div>'
+      : '<div style="font-weight:600;margin-bottom:4px;">No conversations yet</div>' +
+        '<div style="font-size:13px;margin-bottom:12px;">Complete setup to start receiving AI conversations.</div>' +
+        '<button class="btn-sm primary" onclick="onboardingStepAction(0)" style="font-size:12px;">Connect phone number</button>';
     container.innerHTML =
-      '<div style="padding:32px 20px;text-align:center;color:var(--text-secondary);">' +
-        '<div style="font-size:28px;margin-bottom:8px;">📱</div>' +
-        '<div style="font-weight:600;margin-bottom:4px;">No conversations yet</div>' +
-        '<div style="font-size:13px;">Conversations will appear here when customers respond to missed call SMS.</div>' +
-      '</div>';
+      '<div style="padding:32px 20px;text-align:center;color:var(--text-secondary);">' + emptyMsg + '</div>';
     return;
   }
   container.innerHTML = data.slice(0, 5).map(function(c) {
@@ -2610,16 +2758,25 @@ function renderFullConvTable(data) {
 }
 
 function emptyConvState() {
+  var phoneConnected = tenantState.integrations.twilioNumber === 'active';
+  var twilioPhone = tenantState._twilioPhone || 'your shop number';
+  if (phoneConnected) {
+    return `<div class="empty-state">
+      <div class="empty-icon" style="font-size:32px;">&#128172;</div>
+      <div class="empty-title">Ready for conversations</div>
+      <div class="empty-sub">Your AI receptionist is active. Test it now:</div>
+      <div class="empty-steps">
+        <div class="empty-step"><span>01</span>Send an SMS to <strong>${twilioPhone}</strong></div>
+        <div class="empty-step"><span>02</span>Try: "I need an oil change tomorrow at 2pm"</div>
+        <div class="empty-step"><span>03</span>Watch the AI conversation appear here</div>
+      </div>
+    </div>`;
+  }
   return `<div class="empty-state">
-    <div class="empty-icon">📱</div>
+    <div class="empty-icon" style="font-size:32px;">&#128242;</div>
     <div class="empty-title">No Conversations Yet</div>
-    <div class="empty-sub">Once your setup is complete, every missed call will trigger an AI SMS conversation. Here's how to get your first one:</div>
-    <div class="empty-steps">
-      <div class="empty-step"><span>01</span>Enable call forwarding on your shop phone</div>
-      <div class="empty-step"><span>02</span>Call your shop number and let it ring through</div>
-      <div class="empty-step"><span>03</span>Watch the first AI SMS conversation appear here</div>
-    </div>
-    <button class="btn-sm primary" onclick="showToast('Sending test missed call to ' + (tenantState._twilioPhone || 'your shop number') + '...')">Send Test Missed Call</button>
+    <div class="empty-sub">Connect your phone number to start receiving AI-powered SMS conversations from missed calls.</div>
+    <button class="btn-sm primary" onclick="switchView('dashboard')">Go to Setup Guide</button>
   </div>`;
 }
 
@@ -3822,36 +3979,21 @@ function renderLiveRevenueBlocks() {
 // ACTIVATION COMPLETE CHECK
 // ════════════════════════════════════════════
 function checkActivationState() {
-  const s = tenantState.integrations;
-  const steps = [
-    s.googleCalendar === 'connected',
-    s.twilioNumber   === 'active',
-    s.callForwarding === 'verified',
-    s.testSms        === 'passed'
-  ];
-  const completed = steps.filter(Boolean).length;
-  var elWrapper = document.getElementById('checklistWrapper');
-  var elComplete = document.getElementById('activationComplete');
-  if (completed === 4) {
-    if (elWrapper) elWrapper.style.display = 'none';
-    if (elComplete) elComplete.classList.remove('hidden');
-  } else {
-    if (elWrapper) elWrapper.style.display = '';
-    if (elComplete) elComplete.classList.add('hidden');
-  }
-}
+  // Activation check now driven by onboarding guide (renderChecklist)
+  // Update dashboard title based on setup completeness
+  var phoneConnected = tenantState.integrations.twilioNumber === 'active';
+  var hasConversations = conversationsData.length > 0;
+  var titleEl = document.getElementById('dashPageTitle');
+  var subEl = document.getElementById('dashSubtitle');
 
-function toggleChecklist() {
-  const w = document.getElementById('checklistWrapper');
-  const btn = document.querySelector('#activationComplete .btn-sm');
-  if (!w) return;
-  if (w.style.display === 'none') {
-    w.style.display = '';
-    if (btn) btn.textContent = 'Hide Checklist';
-  } else {
-    w.style.display = 'none';
-    if (btn) btn.textContent = 'View Setup Checklist';
+  if (!phoneConnected) {
+    if (titleEl) titleEl.textContent = 'Welcome to AutoShop AI';
+    if (subEl) subEl.textContent = 'Complete setup below to start receiving bookings automatically';
+  } else if (!hasConversations) {
+    if (titleEl) titleEl.textContent = 'Your AI Receptionist is Ready';
+    if (subEl) subEl.textContent = 'Send a test message to see it in action';
   }
+  // else keep the default "Revenue Intelligence Dashboard" title
 }
 
 </script>
@@ -3876,7 +4018,7 @@ function renderConvInbox() {
   var list = document.getElementById('convInboxList');
   if (!list) return;
   if (!conversationsData.length) {
-    list.innerHTML = '<div class="conv-empty-state" style="padding:40px 16px;"><div style="font-size:13px;">No conversations yet</div></div>';
+    list.innerHTML = '<div class="conv-empty-state" style="padding:40px 16px;"><div style="font-size:13px;">No conversations yet \u2014 complete onboarding to start</div></div>';
     return;
   }
   var html = '';
@@ -4098,12 +4240,14 @@ function renderTodayAppointments() {
   var body = document.getElementById('todayApptsBody');
   if (!body) return;
   if (!todayAppts.length) {
+    var hasAnyBookings = bookingsData.length > 0;
+    var emptyApptMsg = hasAnyBookings
+      ? '<div style="font-weight:600;margin-bottom:4px;">No appointments today</div>' +
+        '<div style="font-size:13px;">Your next appointment will show up here.</div>'
+      : '<div style="font-weight:600;margin-bottom:4px;">No appointments yet</div>' +
+        '<div style="font-size:13px;">Complete onboarding to start receiving bookings from your AI receptionist.</div>';
     body.innerHTML =
-      '<div style="padding:32px 16px;text-align:center;color:var(--text-secondary);">' +
-        '<div style="font-size:28px;margin-bottom:8px;">📅</div>' +
-        '<div style="font-weight:600;margin-bottom:4px;">No appointments today</div>' +
-        '<div style="font-size:13px;">Appointments will appear here when bookings are created.</div>' +
-      '</div>';
+      '<div style="padding:32px 16px;text-align:center;color:var(--text-secondary);">' + emptyApptMsg + '</div>';
     return;
   }
   body.innerHTML = '<div class="appt-card-list">' + todayAppts.slice(0, 6).map(function(b) {
