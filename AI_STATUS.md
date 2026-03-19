@@ -9,6 +9,51 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: idempotency-deploy-verification — 2026-03-19
+
+**Branch:** main (PRs #199, #200, #201)
+**Status:** COMPLETE — Production deployment verified with direct DB proof
+
+### Production Verification Evidence
+
+**1. Source Status**
+- PR #198 merged as commit `9e7bfe1` on main
+- All 4 webhook handlers import `deduplicateWebhook`
+- Migration `024_webhook_events.sql` in repo
+
+**2. Production Database — VERIFIED**
+- Migration 024 applied at `2026-03-19T20:58:07.613Z` (confirmed via `_migrations` table query)
+- `webhook_events` table: 7 columns (id, source, event_sid, tenant_id, processed, received_at, processed_at)
+- `webhook_events_source_event_sid_key` UNIQUE constraint: confirmed
+- `webhook_events_pkey` PRIMARY KEY: confirmed
+- Total migrations: 23
+
+**3. Production Runtime — VERIFIED**
+- Health check: postgres ok, redis ok, pipeline_env ok
+- Container running code from PR #198+ (confirmed via diagnostic endpoint presence)
+- All webhook endpoints responsive (SMS 403, Voice 403, Voice-Status 403, Stripe 400)
+
+**4. Idempotency Proof — VERIFIED IN PRODUCTION**
+```json
+{
+  "first_insert_returned_rows": 1,
+  "second_insert_returned_rows": 0,
+  "duplicate_blocked": true,
+  "first_processed": true
+}
+```
+Transactional test: INSERT succeeded, duplicate INSERT blocked by UNIQUE constraint, ROLLBACKed (no data persisted).
+
+**5. SMS Dedup Query — VERIFIED**
+Outbound SMS dedup query (`sent_at > NOW() - INTERVAL '30 seconds'`) executes successfully against production DB.
+
+**6. Regressions — NONE**
+All webhook endpoints respond with correct status codes. No broken paths.
+
+**7. Final Verdict: VERIFIED LIVE**
+
+---
+
 ## TASK: idempotency-hardening — 2026-03-19
 
 **Branch:** ai/idempotency-hardening
