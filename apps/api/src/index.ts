@@ -38,6 +38,7 @@ import { redis } from "./queues/redis";
 import { startSmsInboundWorker } from "./workers/sms-inbound.worker";
 import { startProvisionNumberWorker } from "./workers/provision-number.worker";
 import { startBillingEventsWorker } from "./workers/billing-events.worker";
+import { startCalendarSyncWorker } from "./workers/calendar-sync.worker";
 
 const app = Fastify({
   logger: {
@@ -90,6 +91,7 @@ async function bootstrap() {
   const smsWorker = startSmsInboundWorker();
   const provisionWorker = startProvisionNumberWorker();
   const billingWorker = startBillingEventsWorker();
+  const calendarSyncWorker = startCalendarSyncWorker();
 
   // ── Security ──────────────────────────────────────────────
   await app.register(helmet, {
@@ -219,6 +221,7 @@ async function bootstrap() {
         await smsWorker.close();
         await provisionWorker.close();
         await billingWorker.close();
+        await calendarSyncWorker.close();
         await db.end();
         redis.disconnect();
       } catch (err) {

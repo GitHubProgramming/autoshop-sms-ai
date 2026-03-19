@@ -63,6 +63,17 @@ const aiSettingsMocks = vi.hoisted(() => {
 
 vi.mock("../services/ai-settings", () => aiSettingsMocks);
 
+vi.mock("../queues/redis", () => ({
+  calendarQueue: { add: vi.fn().mockResolvedValue({ id: "mock-job" }) },
+  redis: { exists: vi.fn(), setex: vi.fn(), disconnect: vi.fn() },
+  bullmqConnection: {},
+  smsInboundQueue: { add: vi.fn() },
+  provisionNumberQueue: { add: vi.fn() },
+  billingQueue: { add: vi.fn() },
+  checkIdempotency: vi.fn().mockResolvedValue(false),
+  markIdempotency: vi.fn(),
+}));
+
 import { processSms, ProcessSmsInput } from "../services/process-sms";
 import { processSmsRoute } from "../routes/internal/process-sms";
 

@@ -9,6 +9,31 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: calendar-sync-retry — 2026-03-19
+
+**Branch:** ai/calendar-sync-retry
+**Status:** COMPLETE — Automatic retry worker for failed Google Calendar syncs
+
+### Why This is BUILD Work
+When calendar sync fails (Google API transient error, token refresh race), the appointment is created but the shop never sees it in Google Calendar. The owner gets an SMS alert but must manually add the event. For a pilot shop, this means missed appointments and manual work on every transient failure. This hardens the last critical step of the core pipeline: booking → calendar.
+
+### Changes
+1. **Calendar sync retry worker** (`workers/calendar-sync.worker.ts`) — BullMQ worker consuming `calendar-sync` queue. Calls `createCalendarEvent()` with full idempotency (skips if already synced). On success, upgrades appointment to `CONFIRMED_CALENDAR`. On final failure (4 retries exhausted), raises critical pipeline alert.
+2. **Retry enqueue on failure** (`services/process-sms.ts`) — When calendar sync fails with a transient error, enqueues a retry job with exponential backoff (30s, 60s, 120s, 240s). Skips retry when error is "No calendar tokens" (OAuth not configured — retry won't help).
+3. **Worker wired into server** (`index.ts`) — Worker starts on boot and shuts down gracefully.
+4. **process-sms.test.ts** — Added redis queue mock so existing test suite works with new import.
+
+### What This Fixes
+- Before: Calendar sync failure → PENDING_MANUAL_CONFIRMATION → owner SMS alert → manual calendar entry
+- After: Calendar sync failure → automatic retry (4 attempts, exponential backoff) → auto-upgrade to CONFIRMED_CALENDAR on success → critical alert only if all retries exhausted
+
+### Verification
+- 538/538 tests passed (33 test files)
+- 7 new tests (idempotency, retry success, transient failure, no tokens, 401 refresh, partial success, queue definition)
+- TypeScript: clean (no errors)
+
+---
+
 ## TASK: data-model-hardening — 2026-03-19
 
 **Branch:** ai/data-model-hardening
