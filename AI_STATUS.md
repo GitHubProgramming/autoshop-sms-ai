@@ -9,6 +9,34 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: credential-hardening-cleanup — 2026-03-20
+
+**Status:** CLEANED AND SAFE — Static password hashes rotated, bootstrap flow documented as permanent access model
+
+### What Was Done
+1. Migration 026 rotates admin password to a random unknown hash, invalidating the static hashes from migrations 011 and 025
+2. Verification playbook updated to document the secure bootstrap flow (requires Render Dashboard access to obtain INTERNAL_API_KEY)
+3. No code changes to auth logic — existing bootstrap endpoint is the permanent access model
+
+### Security Risk Addressed
+- Migrations 011 and 025 contained static bcrypt hashes in committed files
+- The plaintext for migration 025 was used in a prior session's curl commands
+- After migration 026, neither hash is valid — admin must use the bootstrap endpoint with a server-side secret
+
+### Permanent Access Model
+1. Operator opens Render Dashboard → copies INTERNAL_API_KEY
+2. Calls `POST /auth/admin-bootstrap` with the key + new password + `force:true`
+3. Calls `POST /auth/login` to get JWT
+4. Uses JWT for all admin/verification endpoints
+
+### Verification Endpoints — Still Usable
+All 4 endpoints remain deployed and functional. Only the password changed — after bootstrap, the JWT flow works identically.
+
+### Action Required (Human)
+After deploy of migration 026, the operator must run the bootstrap endpoint to set a new password before admin access works again. See `docs/verification-playbook.md` for exact steps.
+
+---
+
 ## TASK: observability-access-hardening — 2026-03-20
 
 **Status:** ACTIVE AND USABLE — All 4 verification endpoints deployed, authenticated, and returning real production data

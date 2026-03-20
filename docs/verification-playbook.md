@@ -28,17 +28,35 @@ Strict operator playbook for proving each duplicate-protection path works in pro
 
 ### Obtaining Admin JWT
 
-```bash
-# 1. If no admin account exists, bootstrap one (requires ADMIN_BOOTSTRAP_KEY):
-curl -X POST https://autoshopsmsai.com/auth/bootstrap \
-  -H "Content-Type: application/json" \
-  -d '{"email":"<admin-email>","password":"<password>","bootstrapKey":"<ADMIN_BOOTSTRAP_KEY>"}'
+**Step 1: Set admin password (one-time, requires Render Dashboard access)**
 
-# 2. Login to get JWT:
+The admin password is not stored in code or git. To set or reset it:
+
+1. Open Render Dashboard → `autoshop-api` → Environment
+2. Copy the value of `INTERNAL_API_KEY` (or set `ADMIN_BOOTSTRAP_KEY` if preferred)
+3. Run the bootstrap endpoint:
+
+```bash
+# Set/reset admin password via bootstrap (requires INTERNAL_API_KEY or ADMIN_BOOTSTRAP_KEY):
+curl -X POST https://autoshopsmsai.com/auth/admin-bootstrap \
+  -H "Content-Type: application/json" \
+  -H "x-internal-key: <KEY_FROM_RENDER_DASHBOARD>" \
+  -d '{"email":"mantas.gipiskis@gmail.com","password":"<choose-a-strong-password>","force":true}'
+```
+
+**Step 2: Login to get JWT**
+
+```bash
 TOKEN=$(curl -s -X POST https://autoshopsmsai.com/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"<admin-email>","password":"<password>"}' | jq -r '.token')
+  -d '{"email":"mantas.gipiskis@gmail.com","password":"<your-password>"}' | jq -r '.token')
 ```
+
+**Security notes:**
+- Never commit passwords or plaintext credentials to the repository
+- The bootstrap endpoint requires a server-side secret not available in git
+- Admin email must be in the `ADMIN_EMAILS` env var allowlist
+- JWTs expire after 24 hours
 
 ---
 
