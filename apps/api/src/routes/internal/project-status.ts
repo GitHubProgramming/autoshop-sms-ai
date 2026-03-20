@@ -1,203 +1,49 @@
 import { FastifyInstance } from "fastify";
-import { readFile, access } from "fs/promises";
-import { join, resolve } from "path";
-import { createHash } from "crypto";
 import { adminGuard } from "../../middleware/admin-guard";
 
-// ── Canonical source: project_status_v2.json ──────────────────────────────
-// v2 is the single source of truth. The v1 endpoint derives its response
-// from v2 data so there is only one file to maintain (no drift possible).
-const REPO_STATUS_V2_FILE = join("project-brain", "project_status_v2.json");
-const API_LOCAL_V2_FILE = join("project-status", "project_status_v2.json");
-
-const REPO_MOVEMENT_LOG = join("project-brain", "movement_log.json");
-const API_LOCAL_MOVEMENT_LOG = join("project-status", "movement_log.json");
-
 /**
- * Build an ordered list of candidate paths for a given file.
- * The first accessible path wins.
+ * Project Ops endpoints — DEPRECATED.
  *
- * Priority:
- *   1. Env override (if provided)
- *   2. Canonical repo-root project-brain/ (always current in dev and CI)
- *   3. API-local deploy-safe copy (fallback inside container)
- */
-function getCandidatePaths(
-  repoRelative: string,
-  apiLocalRelative: string,
-  envOverride?: string,
-): string[] {
-  const candidates: string[] = [];
-
-  // 1. Explicit env var override (highest priority)
-  if (envOverride) {
-    candidates.push(resolve(envOverride));
-  }
-
-  // 2. Canonical repo-root project-brain/ (always up-to-date in dev and CI)
-  candidates.push(resolve(process.cwd(), repoRelative));
-  candidates.push(resolve(__dirname, "..", "..", "..", "..", "..", repoRelative));
-  candidates.push(resolve(__dirname, "..", "..", "..", repoRelative));
-
-  // 3. API-local deploy-safe copy (fallback inside container where repo root is absent)
-  //    In container: /app/project-status/project_status_v2.json
-  candidates.push(resolve(process.cwd(), apiLocalRelative));
-  candidates.push(resolve(__dirname, "..", "..", "..", apiLocalRelative));
-
-  return candidates;
-}
-
-/** Try each candidate path in order; return parsed JSON from the first accessible one. */
-async function readFirstAccessible(candidates: string[]): Promise<unknown | null> {
-  for (const filePath of candidates) {
-    try {
-      await access(filePath);
-      const raw = await readFile(filePath, "utf-8");
-      return JSON.parse(raw);
-    } catch {
-      // This candidate didn't work — try next
-    }
-  }
-  return null;
-}
-
-/** Try each candidate; return the resolved path, raw content, and parsed JSON. */
-async function readFirstAccessibleWithMeta(
-  candidates: string[],
-): Promise<{ path: string; raw: string; data: unknown } | null> {
-  for (const filePath of candidates) {
-    try {
-      await access(filePath);
-      const raw = await readFile(filePath, "utf-8");
-      return { path: filePath, raw, data: JSON.parse(raw) };
-    } catch {
-      // try next
-    }
-  }
-  return null;
-}
-
-/**
- * GET /internal/admin/project-status
- * GET /internal/admin/project-status-v2
- * GET /internal/admin/movement-log
- *
- * Read-only endpoints for the Project Ops dashboard.
+ * The project status JSON files were removed as part of the Project Brain
+ * cleanup (project-brain is now a context system, not a progress tracker).
+ * These endpoints return deprecation notices instead of 500 errors.
  */
 export async function projectStatusRoute(app: FastifyInstance) {
-  // ── v1 (legacy — derived from v2) ────────────────────────────────────────
-  app.get("/admin/project-status", { preHandler: [adminGuard] }, async (_req, reply) => {
-    reply.header("Cache-Control", "no-store");
-    const candidates = getCandidatePaths(
-      REPO_STATUS_V2_FILE,
-      API_LOCAL_V2_FILE,
-      process.env.PROJECT_STATUS_V2_JSON_PATH,
-    );
-    const v2 = await readFirstAccessible(candidates) as Record<string, unknown> | null;
+  const deprecated = {
+    deprecated: true,
+    message:
+      "Project Ops has been deprecated. Use GitHub Projects for task tracking.",
+  };
 
-    if (v2 !== null) {
-      const exec = v2.executive as Record<string, unknown> | undefined;
-      const stages = (v2.stages as Array<Record<string, unknown>> | undefined) ?? [];
-      // Transform v2 → v1 shape for backward compatibility
-      const v1 = {
-        overall_progress: exec?.overall_progress ?? 0,
-        current_phase: exec?.current_mission ?? "",
-        current_focus: exec?.current_blocker_summary ?? "",
-        stages: stages.map((s, i) => ({
-          id: i + 1,
-          name: s.title ?? s.id,
-          weight: s.weight ?? 0,
-          status: s.status ?? "todo",
-          progress: s.progress ?? 0,
-        })),
-      };
-      return reply.status(200).send(v1);
-    }
+  app.get(
+    "/admin/project-status",
+    { preHandler: [adminGuard] },
+    async (_req, reply) => {
+      reply.header("Cache-Control", "no-store");
+      return reply.status(200).send(deprecated);
+    },
+  );
 
-    app.log.error(
-      { attemptedPaths: candidates },
-      "Failed to read project_status_v2.json for v1 derivation",
-    );
-    return reply.status(500).send({
-      error: "Failed to read project status file",
-      detail: `None of the candidate paths were accessible: ${candidates.join(", ")}`,
-    });
-  });
+  app.get(
+    "/admin/project-status-v2",
+    { preHandler: [adminGuard] },
+    async (_req, reply) => {
+      reply.header("Cache-Control", "no-store");
+      return reply.status(200).send(deprecated);
+    },
+  );
 
-  // ── v2 ────────────────────────────────────────────────────────────────────
-  app.get("/admin/project-status-v2", { preHandler: [adminGuard] }, async (_req, reply) => {
-    reply.header("Cache-Control", "no-store");
-    const candidates = getCandidatePaths(
-      REPO_STATUS_V2_FILE,
-      API_LOCAL_V2_FILE,
-      process.env.PROJECT_STATUS_V2_JSON_PATH,
-    );
-    const data = await readFirstAccessible(candidates);
+  app.get(
+    "/admin/movement-log",
+    { preHandler: [adminGuard] },
+    async (_req, reply) => {
+      reply.header("Cache-Control", "no-store");
+      return reply.status(200).send([]);
+    },
+  );
 
-    if (data !== null) {
-      return reply.status(200).send(data);
-    }
-
-    app.log.error(
-      { attemptedPaths: candidates },
-      "Failed to read project_status_v2.json — none of the candidate paths exist",
-    );
-    return reply.status(500).send({
-      error: "Failed to read project status v2 file",
-      detail: `None of the candidate paths were accessible: ${candidates.join(", ")}`,
-    });
-  });
-
-  // ── movement log ──────────────────────────────────────────────────────────
-  app.get("/admin/movement-log", { preHandler: [adminGuard] }, async (_req, reply) => {
-    reply.header("Cache-Control", "no-store");
-    const candidates = getCandidatePaths(
-      REPO_MOVEMENT_LOG,
-      API_LOCAL_MOVEMENT_LOG,
-      process.env.MOVEMENT_LOG_JSON_PATH,
-    );
-    const data = await readFirstAccessible(candidates);
-
-    if (data !== null) {
-      return reply.status(200).send(data);
-    }
-
-    // Movement log is optional — return empty array instead of 500
-    return reply.status(200).send([]);
-  });
-
-  // ── diagnostic (no auth) ─────────────────────────────────────────────────
-  // Returns file metadata (resolved path, sha256, key fields) but NOT full data.
-  // Used for deploy verification without requiring admin credentials.
   app.get("/admin/project-status-check", async (_req, reply) => {
     reply.header("Cache-Control", "no-store");
-
-    const check = async (label: string, repo: string, local: string, envKey?: string) => {
-      const candidates = getCandidatePaths(repo, local, envKey);
-      const result = await readFirstAccessibleWithMeta(candidates);
-      if (!result) {
-        return { label, found: false, candidatesChecked: candidates.length };
-      }
-      const sha256 = createHash("sha256").update(result.raw).digest("hex");
-      const meta = (result.data as Record<string, unknown>)?.meta as
-        | Record<string, unknown>
-        | undefined;
-      return {
-        label,
-        found: true,
-        resolvedPath: result.path,
-        sha256,
-        bytes: result.raw.length,
-        metaVersion: meta?.version ?? null,
-        lastUpdated: meta?.last_updated ?? null,
-      };
-    };
-
-    const [v2, ml] = await Promise.all([
-      check("project_status_v2.json (canonical)", REPO_STATUS_V2_FILE, API_LOCAL_V2_FILE, process.env.PROJECT_STATUS_V2_JSON_PATH),
-      check("movement_log.json", REPO_MOVEMENT_LOG, API_LOCAL_MOVEMENT_LOG, process.env.MOVEMENT_LOG_JSON_PATH),
-    ]);
-
-    return reply.status(200).send({ cwd: process.cwd(), canonical: "project_status_v2.json", files: [v2, ml] });
+    return reply.status(200).send(deprecated);
   });
 }
