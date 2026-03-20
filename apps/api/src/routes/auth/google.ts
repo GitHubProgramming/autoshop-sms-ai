@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypto";
 import { query } from "../../db/client";
 import { requireAuth } from "../../middleware/require-auth";
+import { writeAuditEvent } from "../../db/audit";
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -143,6 +144,16 @@ function isLoginState(state: string): boolean {
   return state.startsWith("login:");
 }
 
+/** Signup state: "signup:<random-nonce>" — Google OAuth for new account creation. */
+function isSignupState(state: string): boolean {
+  return state.startsWith("signup:");
+}
+
+/** Either login or signup Google auth flow (not calendar). */
+function isAuthState(state: string): boolean {
+  return isLoginState(state) || isSignupState(state);
+}
+
 // ── Routes ────────────────────────────────────────────────────────────────────
 
 // Relaxed schema: state can be UUID (calendar) or "login:<nonce>" (login)
@@ -164,7 +175,7 @@ export async function googleAuthRoute(app: FastifyInstance) {
    * Redirects browser to Google consent screen.
    * State nonce is persisted server-side for validation on callback.
    */
-  app.get("/login/start", async (_request, reply) => {
+  app.get("/login/start", async (request, reply) => {
     if (!clientId || !redirectUri) {
       return reply.status(503).send({ error: "Google OAuth not configured" });
     }
@@ -173,6 +184,10 @@ export async function googleAuthRoute(app: FastifyInstance) {
     const nonce = randomBytes(16).toString("hex");
     oauthStateStore.set(nonce, { createdAt: Date.now() });
 
+    // Support ?intent=signup to route through account creation on callback
+    const intentQuery = (request.query as Record<string, string>)?.intent;
+    const statePrefix = intentQuery === "signup" ? "signup" : "login";
+
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri,
@@ -180,7 +195,7 @@ export async function googleAuthRoute(app: FastifyInstance) {
       scope: LOGIN_SCOPES,
       access_type: "online", // login doesn't need offline/refresh
       prompt: "select_account",
-      state: `login:${nonce}`,
+      state: `${statePrefix}:${nonce}`,
     });
 
     return reply.redirect(`${GOOGLE_AUTH_URL}?${params.toString()}`);
@@ -271,32 +286,36 @@ export async function googleAuthRoute(app: FastifyInstance) {
 
     const { code, state, error } = parsed.data;
 
-    // ── Google Login callback ─────────────────────────────────────────────────
-    if (isLoginState(state)) {
+    // ── Google Login / Signup callback ──────────────────────────────────────────
+    if (isAuthState(state)) {
+      const isSignup = isSignupState(state);
+      const prefix = isSignup ? "signup:" : "login:";
+      const errorPage = isSignup ? "/signup" : "/login";
+
       // Validate the nonce server-side — reject missing, expired, or reused
-      const nonce = state.slice("login:".length);
+      const nonce = state.slice(prefix.length);
       const storedState = oauthStateStore.get(nonce);
       // Delete immediately — single-use regardless of outcome
       oauthStateStore.delete(nonce);
 
       if (!storedState) {
-        request.log.warn({ state }, "Google login: invalid or reused OAuth state");
+        request.log.warn({ state }, "Google auth: invalid or reused OAuth state");
         return reply.redirect(
-          `${publicOrigin}/login?error=Invalid+login+session.+Please+try+again.`
+          `${publicOrigin}${errorPage}?error=Invalid+session.+Please+try+again.`
         );
       }
 
       if (Date.now() - storedState.createdAt > STATE_TTL_MS) {
-        request.log.warn({ state }, "Google login: expired OAuth state");
+        request.log.warn({ state }, "Google auth: expired OAuth state");
         return reply.redirect(
-          `${publicOrigin}/login?error=Login+session+expired.+Please+try+again.`
+          `${publicOrigin}${errorPage}?error=Session+expired.+Please+try+again.`
         );
       }
 
       if (error || !code) {
-        request.log.warn({ error }, "Google login OAuth denied by user");
+        request.log.warn({ error }, "Google OAuth denied by user");
         return reply.redirect(
-          `${publicOrigin}/login?error=Google+sign-in+was+cancelled`
+          `${publicOrigin}${errorPage}?error=Google+sign-in+was+cancelled`
         );
       }
 
@@ -321,10 +340,10 @@ export async function googleAuthRoute(app: FastifyInstance) {
         const body = await tokenRes.text().catch(() => "");
         request.log.error(
           { status: tokenRes.status, body },
-          "Google login token exchange failed"
+          "Google auth token exchange failed"
         );
         return reply.redirect(
-          `${publicOrigin}/login?error=Google+sign-in+failed.+Please+try+again.`
+          `${publicOrigin}${errorPage}?error=Google+sign-in+failed.+Please+try+again.`
         );
       }
 
@@ -334,9 +353,9 @@ export async function googleAuthRoute(app: FastifyInstance) {
       };
 
       if (!tokens.access_token) {
-        request.log.error("Missing access_token in Google login response");
+        request.log.error("Missing access_token in Google auth response");
         return reply.redirect(
-          `${publicOrigin}/login?error=Google+sign-in+failed.+Please+try+again.`
+          `${publicOrigin}${errorPage}?error=Google+sign-in+failed.+Please+try+again.`
         );
       }
 
@@ -345,16 +364,13 @@ export async function googleAuthRoute(app: FastifyInstance) {
       if (!googleEmail) {
         request.log.error("Could not retrieve email from Google");
         return reply.redirect(
-          `${publicOrigin}/login?error=Could+not+retrieve+your+Google+email.+Please+try+again.`
+          `${publicOrigin}${errorPage}?error=Could+not+retrieve+your+Google+email.+Please+try+again.`
         );
       }
 
       const normalizedEmail = googleEmail.toLowerCase().trim();
 
-      // Look up existing tenant by owner_email — LOGIN ONLY, no account creation.
-      // Identity model: this app uses owner-only login. Each tenant has exactly one
-      // owner (tenants.owner_email). Google login matches against owner_email.
-      // The users table exists for future multi-user support but is not used for login.
+      // Look up existing tenant by owner_email
       const rows = await query<{
         id: string;
         shop_name: string;
@@ -364,9 +380,54 @@ export async function googleAuthRoute(app: FastifyInstance) {
         [normalizedEmail]
       );
 
-      const tenant = rows[0];
+      let tenant = rows[0];
 
-      if (!tenant) {
+      if (!tenant && isSignup) {
+        // ── Create new tenant via Google signup ──────────────────────────────
+        try {
+          const created = await query<{ id: string }>(
+            `INSERT INTO tenants
+               (shop_name, owner_name, owner_email, timezone, billing_status,
+                trial_started_at, trial_ends_at, trial_conv_limit,
+                conv_limit_this_cycle, conv_used_this_cycle)
+             VALUES ($1, $2, $3, 'America/Chicago', 'trial',
+                     NOW(), NOW() + INTERVAL '14 days', 50,
+                     50, 0)
+             RETURNING id`,
+            ["My Shop", "", normalizedEmail]
+          );
+          const tenantId = created[0].id;
+
+          // Create user record (non-fatal if it fails)
+          try {
+            await query(
+              `INSERT INTO users (tenant_id, email, auth_provider)
+               VALUES ($1, $2, 'google')`,
+              [tenantId, normalizedEmail]
+            );
+          } catch {
+            request.log.warn({ tenantId }, "Failed to create user record after Google signup tenant creation");
+          }
+
+          await writeAuditEvent(tenantId, "account_created", normalizedEmail, {
+            auth_provider: "google",
+          });
+
+          request.log.info(
+            { tenantId, googleEmail: normalizedEmail },
+            "New tenant created via Google signup — trial started"
+          );
+
+          tenant = { id: tenantId, shop_name: "My Shop", owner_email: normalizedEmail };
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : "unknown";
+          request.log.error({ email: normalizedEmail, msg }, "Failed to create tenant during Google signup");
+          return reply.redirect(
+            `${publicOrigin}/signup?error=Account+creation+failed.+Please+try+again.`
+          );
+        }
+      } else if (!tenant) {
+        // Login flow — no account found
         request.log.info(
           { googleEmail: normalizedEmail },
           "Google login attempt — no matching account found"
@@ -384,7 +445,7 @@ export async function googleAuthRoute(app: FastifyInstance) {
 
       request.log.info(
         { tenantId: tenant.id, googleEmail: normalizedEmail },
-        "Google login successful"
+        `Google ${isSignup ? "signup" : "login"} successful`
       );
 
       // Store a one-time auth code; redirect with only the opaque code in the URL.
@@ -399,8 +460,11 @@ export async function googleAuthRoute(app: FastifyInstance) {
         createdAt: Date.now(),
       });
 
+      // Signup → redirect to signup page (which handles onboarding redirect)
+      // Login → redirect to login page (which handles dashboard redirect)
+      const redirectPage = isSignup ? "/signup" : "/login";
       return reply.redirect(
-        `${publicOrigin}/login?google_code=${encodeURIComponent(authCode)}`
+        `${publicOrigin}${redirectPage}?google_code=${encodeURIComponent(authCode)}`
       );
     }
 

@@ -107,7 +107,7 @@ describe("GET /auth/google/callback (login flow)", () => {
     expect(res.statusCode).toBe(302);
     const location = res.headers.location as string;
     expect(location).toContain("/login?error=");
-    expect(location).toContain("Invalid+login+session");
+    expect(location).toContain("Invalid+session");
   });
 
   it("rejects callback with reused state nonce", async () => {
@@ -134,7 +134,7 @@ describe("GET /auth/google/callback (login flow)", () => {
       url: "/auth/google/callback?code=authcode2&state=login:reuse_nonce",
     });
     expect(res2.statusCode).toBe(302);
-    expect((res2.headers.location as string)).toContain("Invalid+login+session");
+    expect((res2.headers.location as string)).toContain("Invalid+session");
   });
 
   it("rejects callback with expired state nonce", async () => {
