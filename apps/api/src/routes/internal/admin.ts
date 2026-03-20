@@ -1424,8 +1424,8 @@ export async function adminRoute(app: FastifyInstance) {
     const limit = Math.min(parseInt(q.limit || "20", 10) || 20, 100);
 
     let sql = `SELECT a.id, a.tenant_id, a.conversation_id, a.customer_name,
-                      a.service_type, a.status, a.created_at, a.updated_at,
-                      (a.updated_at > a.created_at + interval '1 second') AS was_updated
+                      a.service_type, a.booking_state, a.calendar_synced,
+                      a.created_at, a.scheduled_at
                FROM appointments a`;
     const params: (string | number)[] = [];
 
@@ -1448,7 +1448,7 @@ export async function adminRoute(app: FastifyInstance) {
     const limit = Math.min(parseInt(q.limit || "30", 10) || 30, 100);
 
     let sql = `SELECT m.id, m.conversation_id, m.direction, m.body,
-                      m.twilio_sid, m.sent_at, m.created_at
+                      m.twilio_sid, m.sent_at
                FROM messages m`;
     const params: (string | number)[] = [];
 
@@ -1457,7 +1457,7 @@ export async function adminRoute(app: FastifyInstance) {
       params.push(q.conversation_id);
     }
 
-    sql += ` ORDER BY m.created_at DESC LIMIT $${params.length + 1}`;
+    sql += ` ORDER BY m.sent_at DESC LIMIT $${params.length + 1}`;
     params.push(limit);
 
     const rows = await query(sql, params);
