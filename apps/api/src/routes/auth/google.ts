@@ -6,7 +6,8 @@ import { requireAuth } from "../../middleware/require-auth";
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
-const SCOPES = "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email";
+const CALENDAR_SCOPES = "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email";
+const LOGIN_SCOPES = "openid email profile";
 
 // ── Token encryption (AES-256-GCM) ───────────────────────────────────────────
 
@@ -86,11 +87,19 @@ async function fetchGoogleEmail(accessToken: string): Promise<string | undefined
   }
 }
 
+// ── State helpers ─────────────────────────────────────────────────────────────
+
+/** Login state: "login:<random-nonce>" — distinguishable from calendar state (UUID). */
+function isLoginState(state: string): boolean {
+  return state.startsWith("login:");
+}
+
 // ── Routes ────────────────────────────────────────────────────────────────────
 
+// Relaxed schema: state can be UUID (calendar) or "login:<nonce>" (login)
 const CallbackQuerySchema = z.object({
   code: z.string().min(1).optional(),
-  state: z.string().uuid(), // tenantId passed as state
+  state: z.string().min(1),
   error: z.string().optional(),
 }).passthrough(); // Google sends extra params (scope, authuser, hd, prompt)
 
@@ -99,6 +108,32 @@ export async function googleAuthRoute(app: FastifyInstance) {
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
   const redirectUri = process.env.GOOGLE_REDIRECT_URI;
   const publicOrigin = process.env.PUBLIC_ORIGIN ?? "https://autoshopsmsai.com";
+
+  /**
+   * GET /auth/google/login/start
+   * Unauthenticated — initiates Google OAuth for LOGIN.
+   * Redirects browser to Google consent screen.
+   */
+  app.get("/login/start", async (_request, reply) => {
+    if (!clientId || !redirectUri) {
+      return reply.status(503).send({ error: "Google OAuth not configured" });
+    }
+
+    // Generate a random nonce for CSRF protection on the login flow
+    const nonce = randomBytes(16).toString("hex");
+
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: "code",
+      scope: LOGIN_SCOPES,
+      access_type: "online", // login doesn't need offline/refresh
+      prompt: "select_account",
+      state: `login:${nonce}`,
+    });
+
+    return reply.redirect(`${GOOGLE_AUTH_URL}?${params.toString()}`);
+  });
 
   /**
    * GET /auth/google/url
@@ -127,7 +162,7 @@ export async function googleAuthRoute(app: FastifyInstance) {
       client_id: clientId,
       redirect_uri: redirectUri,
       response_type: "code",
-      scope: SCOPES,
+      scope: CALENDAR_SCOPES,
       access_type: "offline",
       prompt: "consent", // always get refresh_token
       state: tenantId,
@@ -137,8 +172,12 @@ export async function googleAuthRoute(app: FastifyInstance) {
   });
 
   /**
-   * GET /auth/google/callback?code=...&state=<tenantId>
-   * Google redirects here after consent. Exchanges code for tokens and persists.
+   * GET /auth/google/callback?code=...&state=...
+   * Google redirects here after consent.
+   *
+   * State routing:
+   *   - UUID → calendar token flow (existing)
+   *   - "login:<nonce>" → Google login flow
    */
   app.get("/callback", async (request, reply) => {
     const parsed = CallbackQuerySchema.safeParse(request.query);
@@ -147,7 +186,116 @@ export async function googleAuthRoute(app: FastifyInstance) {
       return reply.status(400).send({ error: "Invalid callback parameters" });
     }
 
-    const { code, state: tenantId, error } = parsed.data;
+    const { code, state, error } = parsed.data;
+
+    // ── Google Login callback ─────────────────────────────────────────────────
+    if (isLoginState(state)) {
+      if (error || !code) {
+        request.log.warn({ error }, "Google login OAuth denied by user");
+        return reply.redirect(
+          `${publicOrigin}/login?error=Google+sign-in+was+cancelled`
+        );
+      }
+
+      if (!clientId || !clientSecret || !redirectUri) {
+        return reply.status(503).send({ error: "Google OAuth not configured" });
+      }
+
+      // Exchange authorization code for tokens
+      const tokenRes = await fetch(GOOGLE_TOKEN_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          code,
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: redirectUri,
+          grant_type: "authorization_code",
+        }).toString(),
+      });
+
+      if (!tokenRes.ok) {
+        const body = await tokenRes.text().catch(() => "");
+        request.log.error(
+          { status: tokenRes.status, body },
+          "Google login token exchange failed"
+        );
+        return reply.redirect(
+          `${publicOrigin}/login?error=Google+sign-in+failed.+Please+try+again.`
+        );
+      }
+
+      const tokens = (await tokenRes.json()) as {
+        access_token: string;
+        id_token?: string;
+      };
+
+      if (!tokens.access_token) {
+        request.log.error("Missing access_token in Google login response");
+        return reply.redirect(
+          `${publicOrigin}/login?error=Google+sign-in+failed.+Please+try+again.`
+        );
+      }
+
+      // Get user's Google email
+      const googleEmail = await fetchGoogleEmail(tokens.access_token);
+      if (!googleEmail) {
+        request.log.error("Could not retrieve email from Google");
+        return reply.redirect(
+          `${publicOrigin}/login?error=Could+not+retrieve+your+Google+email.+Please+try+again.`
+        );
+      }
+
+      const normalizedEmail = googleEmail.toLowerCase().trim();
+
+      // Look up existing tenant by email — LOGIN ONLY, no account creation
+      const rows = await query<{
+        id: string;
+        shop_name: string;
+        owner_email: string;
+      }>(
+        `SELECT id, shop_name, owner_email FROM tenants WHERE owner_email = $1 LIMIT 1`,
+        [normalizedEmail]
+      );
+
+      const tenant = rows[0];
+
+      if (!tenant) {
+        request.log.info(
+          { googleEmail: normalizedEmail },
+          "Google login attempt — no matching account found"
+        );
+        return reply.redirect(
+          `${publicOrigin}/login?error=No+account+found+for+this+Google+email.+Please+sign+up+first.`
+        );
+      }
+
+      // Issue JWT — same format as email/password login
+      const jwt = app.jwt.sign(
+        { tenantId: tenant.id, email: tenant.owner_email },
+        { expiresIn: "24h" }
+      );
+
+      request.log.info(
+        { tenantId: tenant.id, googleEmail: normalizedEmail },
+        "Google login successful"
+      );
+
+      // Redirect to a small handler page that stores the JWT and redirects to dashboard
+      // Using a query param to pass the token (short-lived, HTTPS-only in production)
+      return reply.redirect(
+        `${publicOrigin}/login?google_token=${encodeURIComponent(jwt)}&tenantId=${encodeURIComponent(tenant.id)}&shopName=${encodeURIComponent(tenant.shop_name)}`
+      );
+    }
+
+    // ── Calendar token callback (existing flow) ───────────────────────────────
+    // Validate state as UUID for the calendar flow
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(state)) {
+      return reply.status(400).send({ error: "Invalid callback state" });
+    }
+
+    const tenantId = state;
 
     if (error || !code) {
       request.log.warn({ tenantId, error }, "Google OAuth denied by user");

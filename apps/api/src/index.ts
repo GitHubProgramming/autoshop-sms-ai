@@ -20,6 +20,7 @@ import { googleAuthRoute } from "./routes/auth/google";
 import { loginRoute } from "./routes/auth/login";
 import { signupRoute } from "./routes/auth/signup";
 import { adminBootstrapRoute } from "./routes/auth/admin-bootstrap";
+import { passwordResetRoute } from "./routes/auth/password-reset";
 import { billingCheckoutRoute } from "./routes/billing/checkout";
 import { billingPortalRoute } from "./routes/billing/portal";
 import { tenantDashboardRoute } from "./routes/tenant/dashboard";
@@ -142,6 +143,7 @@ async function bootstrap() {
   await app.register(loginRoute, { prefix: "/auth" });
   await app.register(signupRoute, { prefix: "/auth" });
   await app.register(adminBootstrapRoute, { prefix: "/auth" });
+  await app.register(passwordResetRoute, { prefix: "/auth" });
   await app.register(billingCheckoutRoute, { prefix: "/billing" });
   await app.register(billingPortalRoute, { prefix: "/billing" });
   await app.register(tenantDashboardRoute, { prefix: "/tenant" });
@@ -195,6 +197,20 @@ async function bootstrap() {
     reply.header("Pragma", "no-cache");
     reply.header("Expires", "0");
     void reply.sendFile("signup.html");
+  });
+
+  app.get("/forgot-password", (_req, reply) => {
+    reply.header("Cache-Control", "no-store, no-cache, must-revalidate");
+    reply.header("Pragma", "no-cache");
+    reply.header("Expires", "0");
+    void reply.sendFile("forgot-password.html");
+  });
+
+  app.get("/reset-password", (_req, reply) => {
+    reply.header("Cache-Control", "no-store, no-cache, must-revalidate");
+    reply.header("Pragma", "no-cache");
+    reply.header("Expires", "0");
+    void reply.sendFile("reset-password.html");
   });
 
   app.get("/onboarding/:step", (_req, reply) => {
