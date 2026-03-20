@@ -471,22 +471,36 @@
   /* SECTIONS — light backgrounds */
   section { padding: 100px 0; }
 
-  /* PROBLEM — light surface-alt */
+  /* PROBLEM — warm dark for visual drama, continues hero weight */
   #problem {
-    background: var(--bg-alt);
-    border-top: 1px solid var(--border-l);
-    border-bottom: 1px solid var(--border-l);
+    background: linear-gradient(170deg, #1E2D3D 0%, #162336 60%, #1A2A3A 100%);
+    border-top: none;
+    border-bottom: none;
+    color: #F8F9FA;
+    position: relative;
+  }
+  #problem::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 70% 50% at 30% 50%, rgba(201,75,31,0.06) 0%, transparent 70%);
   }
   .problem-inner {
     max-width: 720px;
     margin: 0 auto;
     text-align: center;
+    position: relative;
+    z-index: 1;
+  }
+  #problem .section-tag {
+    border-color: rgba(201,75,31,0.35);
+    background: rgba(201,75,31,0.1);
   }
   .problem-headline {
     font-size: clamp(36px, 5vw, 56px);
     font-weight: 900;
     text-transform: uppercase;
-    color: var(--text);
+    color: #F8F9FA;
     line-height: 1;
     margin-bottom: 48px;
   }
@@ -508,7 +522,7 @@
     align-items: flex-start;
     gap: 14px;
     font-size: 18px;
-    color: var(--text-sec);
+    color: #CBD5E1;
     line-height: 1.5;
   }
   .problem-list li::before {
@@ -524,7 +538,7 @@
     font-size: clamp(28px, 3.5vw, 40px);
     font-weight: 900;
     text-transform: uppercase;
-    color: var(--text);
+    color: #F8F9FA;
     line-height: 1.1;
   }
   .problem-closer em {
@@ -573,7 +587,7 @@
     border-radius: var(--radius-lg);
     padding: 48px 40px;
     position: relative;
-    box-shadow: var(--shadow-card);
+    box-shadow: 0 12px 48px rgba(13,27,42,0.10), 0 2px 8px rgba(13,27,42,0.06);
   }
   .calc-fields {
     display: grid;
@@ -721,11 +735,11 @@
     justify-content: center;
   }
 
-  /* DEMO — surface alt */
+  /* DEMO — warm stone surface for stronger contrast */
   #demo {
-    background: var(--bg-alt);
-    border-top: 1px solid var(--border-l);
-    border-bottom: 1px solid var(--border-l);
+    background: #E8E2DA;
+    border-top: 1px solid #D5CEC4;
+    border-bottom: 1px solid #D5CEC4;
   }
   .demo-header {
     text-align: center;
@@ -758,7 +772,7 @@
     align-items: center;
     justify-content: center;
     gap: 16px;
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 8px 32px rgba(13,27,42,0.10), 0 2px 6px rgba(13,27,42,0.06);
   }
   .demo-video-icon {
     width: 64px; height: 64px;
@@ -794,7 +808,7 @@
     align-items: flex-start;
     gap: 16px;
     padding: 20px 0;
-    border-bottom: 1px solid var(--border-l);
+    border-bottom: 1px solid #D5CEC4;
   }
   .demo-step:last-child { border-bottom: none; }
   .demo-step-num {
@@ -833,16 +847,17 @@
     color: var(--text-sec);
     letter-spacing: 0.04em;
     padding: 20px;
-    border: 1px solid var(--border-l);
+    border: 1px solid #D5CEC4;
     background: var(--bg-surface);
     border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 6px 24px rgba(13,27,42,0.08), 0 1px 3px rgba(13,27,42,0.04);
   }
   .demo-note strong { color: var(--text); }
 
-  /* TRUST — light page bg */
+  /* TRUST — light page bg with warmer depth */
   #trust {
     background: var(--bg-page);
+    position: relative;
   }
   .trust-inner {
     max-width: 720px;
@@ -865,7 +880,7 @@
     position: relative;
     text-align: left;
     margin-bottom: 32px;
-    box-shadow: var(--shadow-card);
+    box-shadow: 0 10px 40px rgba(13,27,42,0.10), 0 2px 6px rgba(13,27,42,0.06);
   }
   .testimonial-card::before {
     content: '\201C';
@@ -929,42 +944,55 @@
     border: 1px solid var(--border-l);
     background: var(--bg-surface);
     border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 6px 24px rgba(13,27,42,0.08), 0 1px 3px rgba(13,27,42,0.04);
   }
   .trust-proof strong { color: var(--text); }
 
-  /* PRICING — surface alt bg */
+  /* PRICING — warm dark for premium weight */
   #pricing {
-    background: var(--bg-alt);
-    border-top: 1px solid var(--border-l);
-    border-bottom: 1px solid var(--border-l);
+    background: linear-gradient(170deg, #1A2A3A 0%, #0D1B2A 50%, #162336 100%);
+    border-top: none;
+    border-bottom: none;
     position: relative;
     overflow: hidden;
+    color: #F8F9FA;
   }
   #pricing::before {
     content: '';
     position: absolute;
-    bottom: -200px; left: -100px;
-    width: 600px; height: 600px;
-    background: radial-gradient(circle, rgba(201,75,31,0.03) 0%, transparent 70%);
+    inset: 0;
+    background: radial-gradient(ellipse 80% 60% at 50% 40%, rgba(201,75,31,0.08) 0%, transparent 65%);
+  }
+  #pricing::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--rust), var(--amber), transparent);
   }
   .pricing-header {
     text-align: center;
     max-width: 640px;
     margin: 0 auto 56px;
+    position: relative;
+    z-index: 1;
+  }
+  #pricing .section-tag {
+    border-color: rgba(201,75,31,0.35);
+    background: rgba(201,75,31,0.1);
   }
   .pricing-headline {
     font-size: clamp(36px, 4.5vw, 56px);
     font-weight: 900;
     text-transform: uppercase;
-    color: var(--text);
+    color: #F8F9FA;
     line-height: 1;
     margin-bottom: 16px;
   }
   .pricing-headline em { font-style: normal; color: var(--rust); }
   .pricing-sub {
     font-size: 17px;
-    color: var(--text-sec);
+    color: #CBD5E1;
     line-height: 1.6;
   }
   .pricing-grid {
@@ -972,25 +1000,28 @@
     grid-template-columns: repeat(3, 1fr);
     gap: 24px;
     margin-bottom: 32px;
+    position: relative;
+    z-index: 1;
   }
   .price-card {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-l);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(148,163,184,0.2);
     border-radius: var(--radius-lg);
     padding: 40px 32px;
     position: relative;
     transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+    backdrop-filter: blur(8px);
   }
   .price-card:hover {
-    border-color: var(--border-l-s);
+    border-color: rgba(148,163,184,0.35);
     transform: translateY(-4px);
-    box-shadow: var(--shadow-card);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
   }
   .price-card.popular {
-    border-color: rgba(201,75,31,0.4);
-    background: linear-gradient(160deg, var(--bg-surface), var(--color-primary-soft));
-    box-shadow: var(--shadow-card);
+    border-color: rgba(201,75,31,0.5);
+    background: linear-gradient(160deg, rgba(255,255,255,0.08), rgba(201,75,31,0.12));
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25), 0 0 0 1px rgba(201,75,31,0.15);
   }
   .price-badge {
     position: absolute;
@@ -1020,7 +1051,7 @@
     font-family: var(--display);
     font-size: 60px;
     font-weight: 900;
-    color: var(--text);
+    color: #F8F9FA;
     line-height: 1;
     margin-bottom: 4px;
   }
@@ -1032,10 +1063,10 @@
   }
   .price-period {
     font-size: 14px;
-    color: var(--text-ter);
+    color: #94A3B8;
     margin-bottom: 28px;
     padding-bottom: 28px;
-    border-bottom: 1px solid var(--border-l);
+    border-bottom: 1px solid rgba(148,163,184,0.15);
     font-family: var(--mono);
   }
   .price-features {
@@ -1050,7 +1081,7 @@
     align-items: flex-start;
     gap: 10px;
     font-size: 15px;
-    color: var(--text-sec);
+    color: #CBD5E1;
   }
   .price-features li::before {
     content: '\2713';
@@ -1059,7 +1090,7 @@
     flex-shrink: 0;
     font-family: var(--mono);
   }
-  .price-features li strong { color: var(--text); }
+  .price-features li strong { color: #F8F9FA; }
   .price-cta {
     display: block;
     width: 100%;
@@ -1071,14 +1102,14 @@
     letter-spacing: 0.06em;
     text-transform: uppercase;
     background: transparent;
-    border: 1px solid var(--border-l-s);
+    border: 1px solid rgba(148,163,184,0.3);
     border-radius: var(--radius-sm);
-    color: var(--text);
+    color: #CBD5E1;
     cursor: pointer;
     text-decoration: none;
-    transition: background 0.2s, border-color 0.2s;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
   }
-  .price-cta:hover { background: var(--bg-alt); border-color: var(--text-ter); }
+  .price-cta:hover { background: rgba(255,255,255,0.06); border-color: #CBD5E1; color: #F8F9FA; }
   .price-cta.primary {
     background: var(--rust);
     border-color: var(--rust);
@@ -1091,22 +1122,27 @@
     text-align: center;
     font-family: var(--mono);
     font-size: 13px;
-    color: var(--text-ter);
+    color: #94A3B8;
     letter-spacing: 0.04em;
     margin-bottom: 20px;
+    position: relative;
+    z-index: 1;
   }
-  .pricing-note strong { color: var(--text-sec); }
+  .pricing-note strong { color: #F8F9FA; }
   .pricing-micro {
     text-align: center;
     font-family: var(--mono);
     font-size: 12px;
-    color: var(--text-ter);
+    color: #94A3B8;
     letter-spacing: 0.04em;
+    position: relative;
+    z-index: 1;
   }
 
-  /* FAQ — light page bg */
+  /* FAQ — warmer light for contrast after dark pricing */
   #faq {
-    background: var(--bg-page);
+    background: var(--bg-alt);
+    border-bottom: 1px solid var(--border-l);
   }
   .faq-inner {
     max-width: 720px;
@@ -1135,7 +1171,7 @@
     border: 1px solid var(--border-l);
     border-radius: var(--radius-md);
     overflow: hidden;
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 4px 16px rgba(13,27,42,0.06), 0 1px 3px rgba(13,27,42,0.04);
   }
   .faq-q {
     padding: 22px 28px;
