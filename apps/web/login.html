@@ -395,23 +395,38 @@ function startGoogleLogin() {
   window.location.href = '/auth/google/login/start';
 }
 
-// ── Handle Google login callback token ──────────────────────────────────────
+// ── Handle Google login callback (one-time auth code exchange) ───────────────
 (function() {
   var params = new URLSearchParams(window.location.search);
-  var googleToken = params.get('google_token');
-  if (googleToken) {
-    var tenantId = params.get('tenantId') || '';
-    var shopName = params.get('shopName') || '';
-    localStorage.setItem('autoshop_jwt', googleToken);
-    localStorage.setItem('autoshop_session', JSON.stringify({
-      email: '',
-      tenantId: tenantId,
-      shopName: shopName,
-      loginAt: Date.now()
-    }));
-    if (shopName) localStorage.setItem('tenant_name', shopName);
-    // Clean URL and redirect
-    window.location.replace('/app/dashboard');
+  var googleCode = params.get('google_code');
+  if (googleCode) {
+    // Clean the code from the URL immediately (prevent leakage via history/referrer)
+    window.history.replaceState({}, '', '/login');
+    // Exchange the one-time code for JWT via POST (token never in URL)
+    fetch('/auth/google/exchange', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: googleCode })
+    })
+    .then(function(res) { return res.json().then(function(data) { return { ok: res.ok, data: data }; }); })
+    .then(function(result) {
+      if (result.ok && result.data.token) {
+        localStorage.setItem('autoshop_jwt', result.data.token);
+        localStorage.setItem('autoshop_session', JSON.stringify({
+          email: result.data.email || '',
+          tenantId: result.data.tenantId || '',
+          shopName: result.data.shopName || '',
+          loginAt: Date.now()
+        }));
+        if (result.data.shopName) localStorage.setItem('tenant_name', result.data.shopName);
+        window.location.replace('/app/dashboard');
+      } else {
+        showError(result.data.error || 'Google sign-in failed. Please try again.');
+      }
+    })
+    .catch(function() {
+      showError('Unable to complete Google sign-in. Please try again.');
+    });
     return;
   }
 })();

@@ -143,16 +143,24 @@ export async function passwordResetRoute(app: FastifyInstance) {
         request.log.error({ err }, "Error sending password reset email");
       }
     } else {
-      // No email service configured — log the reset URL for admin retrieval
-      request.log.warn(
-        {
-          tenantId: tenant.id,
-          email: normalizedEmail,
-          resetUrl,
-          note: "RESEND_API_KEY not configured — email not sent. Set RESEND_API_KEY env var to enable email delivery.",
-        },
-        "Password reset token generated (email delivery not configured)"
-      );
+      // No email service configured — log for admin retrieval in dev only.
+      // NEVER log reset URLs/tokens in production (leak via log aggregators).
+      if (process.env.NODE_ENV !== "production") {
+        request.log.warn(
+          {
+            tenantId: tenant.id,
+            email: normalizedEmail,
+            resetUrl,
+            note: "RESEND_API_KEY not configured — email not sent. Set RESEND_API_KEY env var to enable email delivery.",
+          },
+          "Password reset token generated (email delivery not configured)"
+        );
+      } else {
+        request.log.warn(
+          { tenantId: tenant.id },
+          "Password reset requested but RESEND_API_KEY not configured — email not sent"
+        );
+      }
     }
 
     return reply.status(200).send(neutralResponse);
