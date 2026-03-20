@@ -6,7 +6,7 @@
 <title>AutoShop Admin — Internal Ops</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
   /* ── COLOR SYSTEM ── */
@@ -16,8 +16,8 @@
   --bg-hover:   #f1f5f9;
   --sidebar-hover: #1e293b;
   --sidebar-active: #334155;
-  --rust:       #2563EB;
-  --rust-light: #3B82F6;
+  --rust:       #C94B1F;
+  --rust-light: #E05A2B;
   --amber:      #f59e0b;
   --green:      #16a34a;
   --green-dim:  rgba(22,163,74,0.08);
@@ -30,13 +30,13 @@
   --sidebar-text: #e5e7eb;
   --border:     #e5e7eb;
   --border-mid: #d1d5db;
-  --mono:       'JetBrains Mono', monospace;
-  --display:    'Inter', sans-serif;
-  --body:       'Inter', sans-serif;
+  --mono:       'IBM Plex Mono', monospace;
+  --display:    'Barlow Condensed', sans-serif;
+  --body:       'Barlow', sans-serif;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html{font-size:16px;}
-body{background:var(--bg);color:var(--white);font-family:var(--body);line-height:1.6;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;min-height:100vh;font-feature-settings:'cv02','cv03','cv04','cv11';}
+body{background:var(--bg);color:var(--white);font-family:var(--body);line-height:1.6;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;min-height:100vh;}
 ::-webkit-scrollbar{width:6px;height:6px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border-mid);border-radius:3px;}
@@ -61,7 +61,7 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
 .btn-sm{font-family:var(--body);font-size:13px;font-weight:600;padding:8px 16px;border:1px solid var(--border);background:var(--bg-panel);color:var(--white);cursor:pointer;transition:all .15s;border-radius:8px;}
 .btn-sm:hover{border-color:var(--border-mid);background:var(--bg-hover);box-shadow:0 1px 3px rgba(0,0,0,.06);}
 .btn-sm.primary{background:var(--rust);border-color:var(--rust);color:#fff;border-radius:8px;}
-.btn-sm.primary:hover{background:#3B82F6;box-shadow:0 2px 8px rgba(37,99,235,.25);}
+.btn-sm.primary:hover{background:#E05A2B;box-shadow:0 2px 8px rgba(201,75,31,.25);}
 
 /* ── LAYOUT ── */
 .layout{display:flex;min-height:calc(100vh - 56px);}
@@ -105,7 +105,7 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
 .filter-tabs{display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap;}
 .filter-tab{font-family:var(--body);font-size:13px;font-weight:500;padding:7px 16px;border:1px solid var(--border);color:var(--steel);cursor:pointer;transition:all .15s;background:var(--bg-panel);border-radius:8px;}
 .filter-tab:hover{border-color:var(--border-mid);color:var(--white);background:var(--bg-hover);}
-.filter-tab.active{border-color:var(--rust);color:var(--rust);background:rgba(37,99,235,.06);font-weight:600;}
+.filter-tab.active{border-color:var(--rust);color:var(--rust);background:rgba(201,75,31,.06);font-weight:600;}
 
 /* ── DATA TABLE ── */
 .table-wrap{background:var(--bg-panel);border:1px solid var(--border);overflow:hidden;margin-bottom:24px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
@@ -113,7 +113,7 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
 .table-title{font-family:var(--body);font-size:16px;font-weight:700;color:var(--white);letter-spacing:-.01em;}
 .table-controls{display:flex;gap:8px;align-items:center;}
 .search-input{background:var(--bg);border:1px solid var(--border);color:var(--white);font-family:var(--body);font-size:14px;padding:9px 14px;outline:none;width:240px;transition:border-color .15s,box-shadow .15s;border-radius:8px;}
-.search-input:focus{border-color:var(--rust);box-shadow:0 0 0 3px rgba(37,99,235,.1);}
+.search-input:focus{border-color:var(--rust);box-shadow:0 0 0 3px rgba(201,75,31,.1);}
 .search-input::placeholder{color:var(--steel);}
 .data-table{width:100%;border-collapse:collapse;}
 .data-table th{font-family:var(--body);font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--steel);padding:14px 16px;text-align:left;border-bottom:2px solid var(--border);background:var(--bg);white-space:nowrap;}
@@ -162,10 +162,10 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
 .action-btn:hover{border-color:var(--border-mid);box-shadow:0 1px 3px rgba(0,0,0,.06);}
 .action-btn.confirm{color:#15803d;border-color:rgba(22,163,74,.3);background:rgba(22,163,74,.06);}
 .action-btn.confirm:hover{background:rgba(22,163,74,.12);}
-.action-btn.resolve{color:var(--rust);border-color:rgba(37,99,235,.3);background:rgba(37,99,235,.06);}
-.action-btn.resolve:hover{background:rgba(37,99,235,.12);}
+.action-btn.resolve{color:var(--rust);border-color:rgba(201,75,31,.3);background:rgba(201,75,31,.06);}
+.action-btn.resolve:hover{background:rgba(201,75,31,.12);}
 .action-btn:disabled{opacity:.5;cursor:not-allowed;}
-.badge.open{background:rgba(37,99,235,.06);color:var(--rust);border:1px solid rgba(37,99,235,.2);}
+.badge.open{background:rgba(201,75,31,.06);color:var(--rust);border:1px solid rgba(201,75,31,.2);}
 .badge.open::before{background:var(--rust);}
 .badge.booked{background:var(--green-dim);color:#15803d;border:1px solid rgba(22,163,74,.2);}
 .badge.booked::before{background:var(--green);}
@@ -236,7 +236,7 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
 .msg-list{display:flex;flex-direction:column;gap:10px;}
 .msg-item{padding:14px 16px;border-radius:12px;max-width:80%;}
 .msg-item.inbound{background:var(--bg);border:1px solid var(--border);align-self:flex-start;}
-.msg-item.outbound{background:rgba(37,99,235,.06);border:1px solid rgba(37,99,235,.12);align-self:flex-end;}
+.msg-item.outbound{background:rgba(201,75,31,.06);border:1px solid rgba(201,75,31,.12);align-self:flex-end;}
 .msg-body{font-size:14px;line-height:1.6;color:var(--white);margin-bottom:4px;}
 .msg-meta{font-family:var(--mono);font-size:11px;color:var(--steel);}
 
@@ -2211,7 +2211,7 @@ async function loadProjectOps() {
     const stageCards = stages.map(s => {
       const isCurrent = s.id === currentNodeId;
       const borderColor = isCurrent ? 'var(--rust)' : 'var(--border)';
-      const shadowStyle = isCurrent ? 'box-shadow:0 0 0 2px var(--rust),0 4px 16px rgba(37,99,235,.12);' : '';
+      const shadowStyle = isCurrent ? 'box-shadow:0 0 0 2px var(--rust),0 4px 16px rgba(201,75,31,.12);' : '';
       const barColor = opsStatusColor(s.status);
       const barCssMap = { green: 'green', rust: 'amber', red: 'red', steel: 'amber', amber: 'amber' };
       const childrenHtml = (s.children || []).length > 0
@@ -2308,8 +2308,8 @@ async function loadProjectOps() {
     // ── CRITICAL PATH TO MVP ──
     const cpNodesHtml = cpNodes.map((n, i) => {
       const color = opsStatusColor(n.status);
-      const bgMap = { green: 'var(--green-dim)', red: 'var(--red-dim)', amber: 'rgba(217,119,6,.08)', steel: 'rgba(107,114,128,.08)', rust: 'rgba(37,99,235,.06)' };
-      const borderMap = { green: 'rgba(22,163,74,.3)', red: 'rgba(220,38,38,.3)', amber: 'rgba(217,119,6,.25)', steel: 'rgba(107,114,128,.2)', rust: 'rgba(37,99,235,.2)' };
+      const bgMap = { green: 'var(--green-dim)', red: 'var(--red-dim)', amber: 'rgba(217,119,6,.08)', steel: 'rgba(107,114,128,.08)', rust: 'rgba(201,75,31,.06)' };
+      const borderMap = { green: 'rgba(22,163,74,.3)', red: 'rgba(220,38,38,.3)', amber: 'rgba(217,119,6,.25)', steel: 'rgba(107,114,128,.2)', rust: 'rgba(201,75,31,.2)' };
       const connector = i < cpNodes.length - 1
         ? '<div style="display:flex;align-items:center;justify-content:center;padding:0;"><svg width="24" height="8" viewBox="0 0 24 8"><path d="M0 4h18m-4-3.5l4 3.5-4 3.5" stroke="var(--border-mid)" stroke-width="1.5" fill="none"/></svg></div>'
         : '';
