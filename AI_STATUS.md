@@ -9,6 +9,37 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: auth-completion — 2026-03-20
+
+**Status:** IMPLEMENTED — forgot-password, reset-password, and Google login flows fully wired
+
+### What Was Done
+1. **Forgot password flow**: `POST /auth/forgot-password` — generates cryptographic reset token, hashes with SHA-256 before storage, sends email via Resend API if `RESEND_API_KEY` configured (logs URL if not), always returns neutral response (no account enumeration)
+2. **Reset password flow**: `POST /auth/reset-password` — validates token hash, enforces 1-hour expiry, enforces single-use, hashes new password with bcrypt (12 rounds), invalidates token after use
+3. **Google login flow**: `GET /auth/google/login/start` — initiates Google OAuth with login-only scopes. Callback handles login intent via state prefix (`login:<nonce>` vs UUID for calendar). Looks up tenant by Google email. **Does NOT create accounts** — redirects with clear error if no matching account found.
+4. **Frontend**: forgot-password.html wired to real backend. New reset-password.html page. login.html Google button triggers real OAuth flow. Google login callback auto-stores JWT and redirects.
+5. **Migration 027**: `password_reset_tokens` table with hashed token, expiry, and single-use tracking
+6. **22 new tests**: 14 for password reset (enumeration safety, expiry, single-use, hashing), 8 for Google login (account matching, no-creation enforcement, error handling, backward compatibility)
+
+### Security Properties
+- Reset tokens: 48 bytes random, SHA-256 hashed for storage, 1-hour expiry, single-use
+- No account enumeration on forgot-password
+- Google login is sign-in only — no implicit account creation
+- Existing email/password login untouched
+- No open redirect (Google callback redirects to hardcoded PUBLIC_ORIGIN paths)
+
+### Env Dependencies
+- `RESEND_API_KEY` — required for email delivery (without it, reset URLs logged to server)
+- `EMAIL_FROM` — optional, defaults to `noreply@autoshopsmsai.com`
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` — already configured for calendar OAuth
+
+### Verification
+- TypeScript: clean (0 errors)
+- Tests: 570/570 passed (548 existing + 22 new), 0 failed
+- Lint: 0 errors in new code (1 pre-existing error in unrelated file)
+
+---
+
 ## TASK: credential-hardening-cleanup — 2026-03-20
 
 **Status:** CLEANED AND SAFE — Static password hashes rotated, bootstrap flow documented as permanent access model

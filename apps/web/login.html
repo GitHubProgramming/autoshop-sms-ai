@@ -391,14 +391,30 @@ function getNextTarget() {
 })();
 
 // ── Google Sign-In ──────────────────────────────────────────────────────────
-// TODO: Wire to backend Google OAuth login endpoint when available.
-// Currently the backend supports Google OAuth for signup (/auth/google/signup/start)
-// and calendar token linking (/auth/google/url), but not yet for login.
-// When a /auth/google/login/start endpoint is added, update this function.
 function startGoogleLogin() {
-  // Placeholder: redirect to signup Google flow with login intent hint
-  showError('Google sign-in is coming soon. Please use email and password.');
+  window.location.href = '/auth/google/login/start';
 }
+
+// ── Handle Google login callback token ──────────────────────────────────────
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var googleToken = params.get('google_token');
+  if (googleToken) {
+    var tenantId = params.get('tenantId') || '';
+    var shopName = params.get('shopName') || '';
+    localStorage.setItem('autoshop_jwt', googleToken);
+    localStorage.setItem('autoshop_session', JSON.stringify({
+      email: '',
+      tenantId: tenantId,
+      shopName: shopName,
+      loginAt: Date.now()
+    }));
+    if (shopName) localStorage.setItem('tenant_name', shopName);
+    // Clean URL and redirect
+    window.location.replace('/app/dashboard');
+    return;
+  }
+})();
 
 function showError(msg) {
   var el = document.getElementById('errorMsg');
