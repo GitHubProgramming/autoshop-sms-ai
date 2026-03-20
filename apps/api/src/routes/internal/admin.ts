@@ -29,6 +29,10 @@ import { getAlerts, acknowledgeAlert, countUnacknowledgedAlerts } from "../../se
  *   GET /internal/admin/audit
  *   GET /internal/admin/metrics/conversation-health
  *   GET /internal/admin/tenants/:id/health
+ *   GET /internal/admin/verification/webhook-events
+ *   GET /internal/admin/verification/duplicate-evidence
+ *   GET /internal/admin/verification/booking-dedup
+ *   GET /internal/admin/verification/sms-dedup
  */
 export async function adminRoute(app: FastifyInstance) {
   // ── No-cache headers for all admin responses ──────────────────────────────
@@ -1349,5 +1353,114 @@ export async function adminRoute(app: FastifyInstance) {
     const updated = await acknowledgeAlert(id, adminEmail);
     if (!updated) return reply.status(404).send({ error: "Alert not found or already acknowledged" });
     return reply.send({ acknowledged: true });
+  });
+
+  // ── GET /internal/admin/verification/webhook-events ──────────────────────
+  // Readonly view of webhook_events table for duplicate-block verification.
+  app.get("/admin/verification/webhook-events", { preHandler: [adminGuard] }, async (req, reply) => {
+    const q = req.query as { source?: string; event_sid?: string; limit?: string };
+    const limit = Math.min(parseInt(q.limit || "50", 10) || 50, 200);
+
+    let sql = `SELECT id, source, event_sid, tenant_id, processed, received_at, processed_at
+               FROM webhook_events`;
+    const params: (string | number)[] = [];
+    const conditions: string[] = [];
+
+    if (q.source) {
+      conditions.push(`source = $${params.length + 1}`);
+      params.push(q.source);
+    }
+    if (q.event_sid) {
+      conditions.push(`event_sid = $${params.length + 1}`);
+      params.push(q.event_sid);
+    }
+
+    if (conditions.length > 0) {
+      sql += ` WHERE ${conditions.join(" AND ")}`;
+    }
+    sql += ` ORDER BY received_at DESC LIMIT $${params.length + 1}`;
+    params.push(limit);
+
+    const rows = await query(sql, params);
+    return reply.send({ webhook_events: rows, count: (rows as any[]).length });
+  });
+
+  // ── GET /internal/admin/verification/duplicate-evidence ──────────────────
+  // Summary: webhook event counts by source within a time window.
+  app.get("/admin/verification/duplicate-evidence", { preHandler: [adminGuard] }, async (req, reply) => {
+    const q = req.query as { hours?: string };
+    const hours = Math.min(parseInt(q.hours || "24", 10) || 24, 168);
+
+    const summary = await query(
+      `SELECT source, COUNT(*)::int AS total_events,
+              COUNT(DISTINCT event_sid)::int AS unique_sids
+       FROM webhook_events
+       WHERE received_at >= NOW() - ($1 || ' hours')::interval
+       GROUP BY source
+       ORDER BY source`,
+      [hours.toString()]
+    );
+
+    const recentEvents = await query(
+      `SELECT source, event_sid, tenant_id, received_at
+       FROM webhook_events
+       WHERE received_at >= NOW() - ($1 || ' hours')::interval
+       ORDER BY received_at DESC
+       LIMIT 100`,
+      [hours.toString()]
+    );
+
+    return reply.send({
+      window_hours: hours,
+      by_source: summary,
+      recent_events: recentEvents,
+    });
+  });
+
+  // ── GET /internal/admin/verification/booking-dedup ────────────────────────
+  // Check for booking dedup evidence via appointments table.
+  app.get("/admin/verification/booking-dedup", { preHandler: [adminGuard] }, async (req, reply) => {
+    const q = req.query as { tenant_id?: string; limit?: string };
+    const limit = Math.min(parseInt(q.limit || "20", 10) || 20, 100);
+
+    let sql = `SELECT a.id, a.tenant_id, a.conversation_id, a.customer_name,
+                      a.service_type, a.status, a.created_at, a.updated_at,
+                      (a.updated_at > a.created_at + interval '1 second') AS was_updated
+               FROM appointments a`;
+    const params: (string | number)[] = [];
+
+    if (q.tenant_id) {
+      sql += ` WHERE a.tenant_id = $1`;
+      params.push(q.tenant_id);
+    }
+
+    sql += ` ORDER BY a.created_at DESC LIMIT $${params.length + 1}`;
+    params.push(limit);
+
+    const rows = await query(sql, params);
+    return reply.send({ appointments: rows, count: (rows as any[]).length });
+  });
+
+  // ── GET /internal/admin/verification/sms-dedup ────────────────────────────
+  // Check for SMS send dedup evidence via messages table.
+  app.get("/admin/verification/sms-dedup", { preHandler: [adminGuard] }, async (req, reply) => {
+    const q = req.query as { conversation_id?: string; limit?: string };
+    const limit = Math.min(parseInt(q.limit || "30", 10) || 30, 100);
+
+    let sql = `SELECT m.id, m.conversation_id, m.direction, m.body,
+                      m.twilio_sid, m.sent_at, m.created_at
+               FROM messages m`;
+    const params: (string | number)[] = [];
+
+    if (q.conversation_id) {
+      sql += ` WHERE m.conversation_id = $1`;
+      params.push(q.conversation_id);
+    }
+
+    sql += ` ORDER BY m.created_at DESC LIMIT $${params.length + 1}`;
+    params.push(limit);
+
+    const rows = await query(sql, params);
+    return reply.send({ messages: rows, count: (rows as any[]).length });
   });
 }
