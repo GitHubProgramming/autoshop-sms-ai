@@ -78,6 +78,14 @@ services:
       - key: ADMIN_BOOTSTRAP_KEY
         sync: false
 
+      # ── Log drain (set in Render Dashboard) ───────────────────────────
+      # Configure via Render Dashboard > Service > Logs > Add Log Drain
+      # Supported: Papertrail, Datadog, Logflare, syslog endpoint
+      # Once active, structured logs (webhook_duplicate_detected,
+      # booking_duplicate_blocked, sms_duplicate_blocked) become searchable.
+      - key: LOG_LEVEL
+        value: "info"
+
   # ── Redis ───────────────────────────────────────────────────────────────────
   - type: redis
     name: autoshop-redis
