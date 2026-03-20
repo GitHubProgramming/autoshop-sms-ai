@@ -6,7 +6,7 @@
 <title>AutoShop SMS AI — Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 /* ═══════════════════════════════════════════
    DESIGN SYSTEM — Premium Light SaaS v2
@@ -20,13 +20,13 @@
   --steel:#5A6A7E;--steel-mid:#5A6A7E;
   --sidebar-text:#5A6A7E;
   --border:#E3DDD5;--border-mid:#CCC4BA;
-  --mono:'JetBrains Mono',monospace;--body:'Inter',sans-serif;--display:'Inter',sans-serif;
+  --mono:'IBM Plex Mono',monospace;--body:'Barlow',sans-serif;--display:'Barlow Condensed',sans-serif;
   --shadow-sm:0 1px 3px rgba(0,0,0,.05);--shadow-md:0 4px 16px rgba(0,0,0,.06);--shadow-lg:0 12px 40px rgba(0,0,0,.10);
   --radius:10px;--radius-lg:16px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:15px}
-body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:1.6;-webkit-font-smoothing:antialiased;min-height:100vh;font-feature-settings:'cv02','cv03','cv04','cv11'}
+body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:1.6;-webkit-font-smoothing:antialiased;min-height:100vh}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border-mid);border-radius:4px}
@@ -377,7 +377,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .onboarding-warning{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:500;margin-bottom:12px}
 .onboarding-warning.red{background:#FEF2F2;border:1px solid #FEE2E2;color:#991B1B}
 .onboarding-warning.amber{background:#FEF3C7;border:1px solid #FDE68A;color:#92400E}
-.onboarding-warning.blue{background:#FFF5EE;border:1px solid #FDE8DC;color:#1E40AF}
+.onboarding-warning.blue{background:#FFF5EE;border:1px solid #FDE8DC;color:#92400E}
 .onboarding-warning svg{flex-shrink:0}
 /* Test AI modal */
 .test-ai-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-top:8px}
@@ -2441,8 +2441,8 @@ async function loadRevenueChart() {
             bodyColor: '#3D4F65',
             borderColor: '#E3DDD5',
             borderWidth: 1,
-            titleFont: { family: 'Inter', size: 13, weight: '600' },
-            bodyFont: { family: 'Inter', size: 12 },
+            titleFont: { family: 'Barlow', size: 13, weight: '600' },
+            bodyFont: { family: 'Barlow', size: 12 },
             padding: { top: 10, right: 14, bottom: 10, left: 14 },
             cornerRadius: 8,
             displayColors: false,
@@ -2463,7 +2463,7 @@ async function loadRevenueChart() {
             grid: { color: 'rgba(0, 0, 0, 0.04)', drawBorder: false },
             border: { display: false },
             ticks: {
-              font: { family: 'Inter', size: 11 },
+              font: { family: 'Barlow', size: 11 },
               color: '#7A8A9E',
               maxTicksLimit: 5,
               callback: function(v) { return formatCompactCurrency(v); }
@@ -2473,7 +2473,7 @@ async function loadRevenueChart() {
             grid: { display: false },
             border: { display: false },
             ticks: {
-              font: { family: 'Inter', size: 11 },
+              font: { family: 'Barlow', size: 11 },
               color: '#7A8A9E'
             }
           }
@@ -2822,7 +2822,7 @@ function renderOnboardingWarnings(steps) {
     warnings.push('<div class="onboarding-warning red">' + warnIcon + 'AI is not active \u2014 no phone number connected. <a style="color:#991B1B;font-weight:600;cursor:pointer;text-decoration:underline;" onclick="onboardingStepAction(0)">Connect now</a></div>');
   }
   if (steps[0].done && !steps[2].done && conversationsData.length === 0) {
-    warnings.push('<div class="onboarding-warning blue">' + warnIcon + 'No customer activity yet \u2014 <a style="color:#1E40AF;font-weight:600;cursor:pointer;text-decoration:underline;" onclick="onboardingStepAction(2)">test your AI receptionist</a> to see it in action.</div>');
+    warnings.push('<div class="onboarding-warning blue">' + warnIcon + 'No customer activity yet \u2014 <a style="color:#C94B1F;font-weight:600;cursor:pointer;text-decoration:underline;" onclick="onboardingStepAction(2)">test your AI receptionist</a> to see it in action.</div>');
   }
   container.innerHTML = warnings.join('');
 }
