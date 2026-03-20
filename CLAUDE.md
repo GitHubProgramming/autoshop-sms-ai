@@ -40,7 +40,6 @@ Do not optimize anything that does not improve this flow.
 8. Prefer repository evidence over assumptions
 
 Docs tasks:
-- do not change stage percentages
 - do not change project reality
 - do not trim history logs
 
@@ -84,24 +83,11 @@ This ensures:
 
 ---
 
-## Status System
+## Project Brain
 
-Project state is tracked in:
+Project context is in `project-brain/README.md` — decision memory, architecture reference, and agent operating rules.
 
-- `project-brain/project_status.json` (single source of truth)
-- `project-brain/project_status.md` (human-readable mirror)
-
-Rules:
-
-- Only update status if project reality changed
-- Update JSON first, then MD to match
-- If conflict exists, JSON wins — update MD to match, then report the drift
-
-Progress discipline:
-
-- code-complete but unverified work ≤ 40–50%
-- blocked stages stay frozen
-- when uncertain, round down
+Use GitHub Projects for task tracking. Do not use project-brain for progress percentages or status tracking.
 
 ---
 
@@ -127,8 +113,7 @@ At session start:
 
 1. read `AI_WORK.md`
 2. read `AI_STATUS.md`
-3. read `project-brain/project_status.md`
-4. read `project-brain/project_status.json`
+3. read `project-brain/README.md`
 
 (Session-start notification is sent automatically by the launcher.)
 
@@ -143,13 +128,12 @@ Then:
 bash scripts/ai-verify.sh
 
 6. update AI_STATUS.md
-7. update project status if reality changed
-8. send Telegram task notification
+7. send Telegram task notification
 
 powershell -ExecutionPolicy Bypass -File scripts/notify-task-done.ps1 "<task>"
 
-9. commit
-10. push
+8. commit
+9. push
 
 ---
 
@@ -282,13 +266,7 @@ verification: uncertain
 
 ## Status Reporting Rule
 
-When updating:
-
-* `project_status.json`
-* `project_status.md`
-* `AI_STATUS.md`
-
-Claude must report **only verified facts**.
+When updating `AI_STATUS.md`, Claude must report **only verified facts**.
 
 Allowed:
 

@@ -125,12 +125,12 @@ For architecture rules and constraints, see `PROJECT_TRUTH.md` and `ARCHITECTURE
 - **Responsibility:** n8n workflow deployment, API endpoints consumed by n8n workers
 - **Edit safety:** Caution — internal routes are called by production n8n workflows.
 
-### 3.9 Project Brain / Truth Layer
+### 3.9 Project Brain / Context System
 
 - **Path:** `project-brain/`
-- **Key files:** `AI_BOOT_SEQUENCE.md`, `PROJECT_TRUTH.md`, `ARCHITECTURE_LOCK.md`, `EXECUTION_POLICY.md`, `SYSTEM_MAP.md`, `PAGE_MAP.md`, `FILE_INDEX.md`, `project_status_v2.json`, `project_status.md`
-- **Responsibility:** AI agent knowledge base, project status tracking
-- **Edit safety:** Safe to read. Updates to status files must follow JSON-first rule.
+- **Key files:** `README.md` (main entry point), `CLAUDE_RULES.md` (dashboard rules), `PAGE_MAP.md` (UI map), `FILE_INDEX.md` (this file)
+- **Responsibility:** AI agent context system — decision memory, architecture reference, operating rules
+- **Edit safety:** Safe to read. Not a progress tracker — use GitHub Projects for task tracking.
 
 ### 3.10 Scripts / Utilities
 
@@ -213,7 +213,7 @@ All 7 dashboard pages live in `apps/web/app.html`, served via `/app/:view` Verce
 | Billing/Stripe issue | `apps/api/src/routes/billing/checkout.ts`, `routes/webhooks/stripe.ts` |
 | Deployment mismatch | `render.yaml`, `apps/api/Dockerfile`, `.github/workflows/ci.yml` |
 | n8n workflow deploy | `scripts/n8n-deploy.sh`, `.github/workflows/n8n-deploy.yml` |
-| Project status update | `project-brain/project_status_v2.json` (JSON first, then MD mirror) |
+| Project context | `project-brain/README.md` (decisions, architecture, rules) |
 | Settings page issue | `apps/web/app.html` → `#view-settings` (route: `/app/settings`), settings tab sections |
 
 ---
