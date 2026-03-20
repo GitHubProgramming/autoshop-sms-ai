@@ -197,34 +197,6 @@
   }
   .login-footer a:hover { color: var(--rust-light); }
 
-  .demo-hint {
-    margin-top: 32px;
-    padding: 16px;
-    background: rgba(37,99,235,0.04);
-    border: 1px solid rgba(37,99,235,0.12);
-    border-radius: 10px;
-    font-family: var(--body);
-    font-size: 13px;
-    color: var(--steel);
-    line-height: 1.7;
-  }
-  .demo-hint strong { color: var(--rust); }
-  .btn-demo-fill {
-    display: inline-block;
-    margin-top: 12px;
-    background: transparent;
-    border: 1px solid rgba(37,99,235,0.25);
-    color: var(--rust);
-    font-family: var(--body);
-    font-size: 12px;
-    font-weight: 600;
-    padding: 8px 16px;
-    cursor: pointer;
-    transition: background 0.2s, color 0.2s;
-    border-radius: 8px;
-  }
-  .btn-demo-fill:hover { background: rgba(37,99,235,0.06); }
-
   /* ── FOOTER ── */
   .page-footer {
     padding: 24px 32px;
@@ -287,10 +259,6 @@
       <a href="index.html#pricing">View plans &amp; start your trial →</a>
     </div>
 
-    <div class="demo-hint">
-      Demo Access — Use the demo account to explore the dashboard.<br>
-      <button type="button" class="btn-demo-fill" onclick="fillDemoCredentials()">Use Demo Account</button>
-    </div>
   </div>
 </main>
 
@@ -325,11 +293,6 @@ function getNextTarget() {
     })
     .catch(function() { /* network error — stay on login */ });
 })();
-
-function fillDemoCredentials() {
-  document.getElementById('email').value = 'dev@autoshop.local';
-  document.getElementById('password').value = 'devpass2026';
-}
 
 async function handleLogin(e) {
   e.preventDefault();
