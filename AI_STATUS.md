@@ -9,6 +9,47 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: observability-access-hardening — 2026-03-20
+
+**Status:** ACTIVE AND USABLE — All 4 verification endpoints deployed, authenticated, and returning real production data
+
+### Production Verification Results
+
+| Check | Result |
+|-------|--------|
+| Deployed commit matches PR #204+#206 | ✅ `40bf838` confirmed via /health |
+| Unauthenticated → 401 | ✅ Rejected |
+| Invalid token → 401 | ✅ Rejected |
+| Admin JWT obtained via /auth/login | ✅ Token issued |
+| GET /admin/verification/webhook-events | ✅ HTTP 200, 15 events in DB |
+| GET /admin/verification/duplicate-evidence | ✅ HTTP 200, counts by source |
+| GET /admin/verification/booking-dedup | ✅ HTTP 200, 5 appointments with real data |
+| GET /admin/verification/sms-dedup | ✅ HTTP 200, messages with sent_at |
+| Filter by event_sid | ✅ Returns exactly 1 row for dedup proof SIDs |
+| Filter by source | ✅ Returns filtered results |
+
+### Dedup Evidence Already Visible
+
+- `SM_DEDUP_PROOF_1774020451709`: 1 row in webhook_events (sent 3x → only 1 recorded = dedup working)
+- `CA_DEDUP_PROOF_1774020475024`: 1 row in webhook_events (sent 2x → only 1 recorded = dedup working)
+- 13 total webhook events across twilio_sms, twilio_voice, twilio_voice_status
+
+### Observability Status
+
+| Method | Status |
+|--------|--------|
+| Admin verification endpoints (4 routes) | ✅ LIVE |
+| Render Dashboard logs | ✅ AVAILABLE (manual) |
+| Log drain (Papertrail/Datadog) | ⚠️ NOT CONFIGURED (human setup required) |
+| Production DB readonly | ✅ AVAILABLE via Render Dashboard |
+
+### PRs
+- #204: Readonly verification endpoints + playbook
+- #205: Admin password reset migration for JWT access
+- #206: Fix column names discovered during live testing
+
+---
+
 ## TASK: webhook-replay-verification — 2026-03-20
 
 **Status:** PARTIALLY VERIFIED — Application-layer dedup proven for Twilio Voice; blocked for remaining paths
