@@ -1,0 +1,72 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   AUTOSHOP SMS AI — SHARED BRAND TOKEN SYSTEM
+   Single source of truth for colors, typography, radius, and shadows.
+   Linked by every page. Page-specific overrides remain in each <style>.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Brand Accent ── */
+  --color-primary:        #C94B1F;
+  --color-primary-hover:  #E05A2B;
+  --color-primary-soft:   #FFF5EE;
+  --color-primary-border: #FDE8DC;
+  --color-primary-deep:   #A0522D;
+
+  /* ── Surfaces (Light-First) ── */
+  --color-bg-page:        #FAF8F5;
+  --color-bg-surface:     #FFFFFF;
+  --color-bg-surface-alt: #F5F2EE;
+  --color-bg-hover:       #FBF9F7;
+
+  /* ── Text ── */
+  --color-text-primary:   #0D1B2A;
+  --color-text-secondary: #3D4F65;
+  --color-text-tertiary:  #7A8A9E;
+  --color-text-on-primary:#FFFFFF;
+
+  /* ── Borders ── */
+  --color-border:         #E3DDD5;
+  --color-border-strong:  #CCC4BA;
+
+  /* ── Status: Success ── */
+  --color-success:        #16A34A;
+  --color-success-vivid:  #10B981;
+  --color-success-soft:   #ECFDF5;
+  --color-success-border: #DCFCE7;
+
+  /* ── Status: Warning ── */
+  --color-warning:        #D97706;
+  --color-warning-text:   #92400E;
+  --color-warning-soft:   #FEF3C7;
+  --color-warning-border: #FDE68A;
+
+  /* ── Status: Danger ── */
+  --color-danger:         #DC2626;
+  --color-danger-vivid:   #EF4444;
+  --color-danger-soft:    rgba(239,68,68,0.06);
+  --color-danger-border:  #FEE2E2;
+
+  /* ── Neutral / Steel ── */
+  --color-steel:          #5A6A7E;
+  --color-steel-light:    #94A3B8;
+
+  /* ── Typography ── */
+  --font-display:         'Barlow Condensed', sans-serif;
+  --font-body:            'Barlow', sans-serif;
+  --font-mono:            'IBM Plex Mono', monospace;
+
+  /* ── Radius ── */
+  --radius-xs:            4px;
+  --radius-sm:            8px;
+  --radius-md:            10px;
+  --radius-lg:            16px;
+
+  /* ── Shadows ── */
+  --shadow-sm:            0 1px 3px rgba(13,27,42,0.04);
+  --shadow-md:            0 4px 16px rgba(13,27,42,0.06);
+  --shadow-lg:            0 12px 40px rgba(13,27,42,0.10);
+  --shadow-card:          0 8px 32px rgba(13,27,42,0.06), 0 1px 3px rgba(13,27,42,0.04);
+  --shadow-primary:       0 2px 8px rgba(201,75,31,0.20);
+  --shadow-primary-hover: 0 4px 14px rgba(201,75,31,0.25);
+  --shadow-focus-primary: 0 0 0 3px rgba(201,75,31,0.08);
+}

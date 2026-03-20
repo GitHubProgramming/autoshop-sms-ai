@@ -7,21 +7,23 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="brand-tokens.css">
 <style>
   :root {
+    /* Dark theme — brand accent + fonts from shared brand-tokens.css */
     --navy:       #0D1B2A;
     --navy-mid:   #162336;
     --navy-light: #1E3048;
-    --rust:       #C94B1F;
-    --rust-light: #E05A2B;
+    --rust:       var(--color-primary);
+    --rust-light: var(--color-primary-hover);
     --steel:      #94A3B8;
     --steel-light:#CBD5E1;
     --white:      #F8F9FA;
     --border:     rgba(148,163,184,0.15);
     --border-mid: rgba(148,163,184,0.25);
-    --mono:       'IBM Plex Mono', monospace;
-    --display:    'Barlow Condensed', sans-serif;
-    --body:       'Barlow', sans-serif;
+    --mono:       var(--font-mono);
+    --display:    var(--font-display);
+    --body:       var(--font-body);
     --green:      #22C55E;
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

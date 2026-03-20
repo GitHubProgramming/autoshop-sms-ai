@@ -7,32 +7,33 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="brand-tokens.css">
 <style>
 :root {
-  /* ── COLOR SYSTEM ── */
-  --bg:         #f8fafc;
+  /* Aliases → shared brand-tokens.css */
+  --bg:         var(--color-bg-page);
   --bg-mid:     #0f172a;
-  --bg-panel:   #ffffff;
-  --bg-hover:   #f1f5f9;
+  --bg-panel:   var(--color-bg-surface);
+  --bg-hover:   var(--color-bg-hover);
   --sidebar-hover: #1e293b;
   --sidebar-active: #334155;
-  --rust:       #C94B1F;
-  --rust-light: #E05A2B;
-  --amber:      #f59e0b;
-  --green:      #16a34a;
-  --green-dim:  rgba(22,163,74,0.08);
-  --red:        #ef4444;
-  --red-dim:    rgba(239,68,68,0.06);
-  --steel:      #6b7280;
-  --steel-mid:  #6b7280;
-  --steel-light:#111827;
-  --white:      #111827;
+  --rust:       var(--color-primary);
+  --rust-light: var(--color-primary-hover);
+  --amber:      var(--color-warning);
+  --green:      var(--color-success);
+  --green-dim:  var(--color-success-soft);
+  --red:        var(--color-danger-vivid);
+  --red-dim:    var(--color-danger-soft);
+  --steel:      var(--color-steel);
+  --steel-mid:  var(--color-steel);
+  --steel-light:var(--color-text-primary);
+  --white:      var(--color-text-primary);
   --sidebar-text: #e5e7eb;
-  --border:     #e5e7eb;
-  --border-mid: #d1d5db;
-  --mono:       'IBM Plex Mono', monospace;
-  --display:    'Barlow Condensed', sans-serif;
-  --body:       'Barlow', sans-serif;
+  --border:     var(--color-border);
+  --border-mid: var(--color-border-strong);
+  --mono:       var(--font-mono);
+  --display:    var(--font-display);
+  --body:       var(--font-body);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html{font-size:16px;}
