@@ -2191,8 +2191,8 @@ async function loadDashboardData() {
     tenantState.status = t.billing_status;
     tenantState.trialEndsAt = t.trial_ends_at ? new Date(t.trial_ends_at).toISOString().slice(0,10) : '';
     tenantState.convUsed = t.conv_used_this_cycle || 0;
-    tenantState.convLimit = t.conv_limit_this_cycle || 150;
-    tenantState.trialLimit = 50;
+    tenantState.convLimit = t.conv_limit_this_cycle != null ? t.conv_limit_this_cycle : null;
+    tenantState.trialLimit = t.conv_limit_this_cycle != null ? t.conv_limit_this_cycle : null;
     tenantState.warnings = { at80: !!t.warned_80pct, at100: !!t.warned_100pct };
 
     // Integrations
@@ -2567,8 +2567,8 @@ function renderBanners() {
     // Trial states — hide header CTA, show banner CTA only
     if (headerBtn) headerBtn.style.display = 'none';
     const limit = s.trialLimit;
-    const remaining = limit - s.convUsed;
-    const pct = Math.round((s.convUsed / limit) * 100);
+    const remaining = limit != null ? limit - s.convUsed : null;
+    const pct = limit ? Math.round((s.convUsed / limit) * 100) : 0;
     // Compute days remaining from trialEndsAt
     let daysRemaining = 0;
     if (s.trialEndsAt) {
@@ -2577,10 +2577,11 @@ function renderBanners() {
     }
     if (pct >= 80) {
       // State 2: Near-limit trial (>=80% used)
-      html += `<div class="banner trial"><div class="banner-left"><span class="banner-label red">Almost out of conversations — ${s.convUsed}/${limit} used</span><span class="banner-msg red">Upgrade to keep responding to customers</span></div><a href="#" onclick="switchView('billing');return false;" class="btn-upgrade">Upgrade Plan</a></div>`;
+      html += `<div class="banner trial"><div class="banner-left"><span class="banner-label red">Almost out of conversations — ${s.convUsed}/${limit != null ? limit : '—'} used</span><span class="banner-msg red">Upgrade to keep responding to customers</span></div><a href="#" onclick="switchView('billing');return false;" class="btn-upgrade">Upgrade Plan</a></div>`;
     } else {
       // State 1: Normal trial
-      html += `<div class="banner trial"><div class="banner-left"><span class="banner-label rust">Free Trial &middot; ${remaining} conversations left</span><span class="banner-days">${daysRemaining} days remaining</span></div><a href="#" onclick="switchView('billing');return false;" class="btn-upgrade">Upgrade Now</a></div>`;
+      const remainText = remaining != null ? remaining + ' conversations left' : 'Free Trial';
+      html += `<div class="banner trial"><div class="banner-left"><span class="banner-label rust">Free Trial &middot; ${remainText}</span><span class="banner-days">${daysRemaining} days remaining</span></div><a href="#" onclick="switchView('billing');return false;" class="btn-upgrade">Upgrade Now</a></div>`;
     }
   } else if (s.status === 'past_due') {
     html += `<div class="banner warning-80"><div class="banner-left"><span class="banner-label amber">Payment Past Due</span><span class="banner-msg amber">Update your payment method to prevent service interruption.</span></div><a href="#" onclick="openBillingPortal();return false;" class="btn-upgrade amber">Update Payment</a></div>`;
@@ -2591,7 +2592,7 @@ function renderBanners() {
   }
 
   // Usage warnings (paid only)
-  if (s.status !== 'trial' && !isSuspended) {
+  if (s.status !== 'trial' && !isSuspended && s.convLimit != null) {
     const pct = (s.convUsed / s.convLimit) * 100;
     if (pct >= 100 && s.warnings.at100) {
       html += `<div class="banner warning-100"><div class="banner-left"><span class="banner-label red">Usage Limit Reached</span><span class="banner-msg red">You've used all ${s.convLimit} conversations this month. New conversations are still accepted — upgrade to increase your limit.</span></div><a href="#" onclick="switchView('billing');return false;" class="btn-upgrade red">Upgrade Plan</a></div>`;
@@ -3037,13 +3038,10 @@ function renderBillingPage() {
   const isTrial = s.status === 'trial';
   const isSuspended = ['suspended','canceled','trial_expired'].includes(s.status);
   const limit = isTrial ? s.trialLimit : s.convLimit;
-  const pct = Math.min((s.convUsed / limit) * 100, 100);
+  const pct = limit != null ? Math.min((s.convUsed / limit) * 100, 100) : 0;
   const barCls = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : '';
 
-  const planPrices = {starter:199,pro:299,premium:499,trial:0};
   const planNames = {starter:'Starter',pro:'Professional',premium:'Enterprise',trial:'Trial'};
-  const planConvos = {starter:500,pro:1000,premium:2500,trial:50};
-  const currentPrice = planPrices[s.plan] || 0;
   const currentName = planNames[s.plan] || s.plan.charAt(0).toUpperCase()+s.plan.slice(1);
 
   const svgCheck = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
@@ -3068,11 +3066,12 @@ function renderBillingPage() {
   const billingDate = isTrial ? s.trialEndsAt : (s.billingRenewalDate || '—');
   const nextLabel = isTrial ? 'Trial ends' : 'Next billing date';
 
-  // Plans definition matching TSX
+  // Plans definition — feature lists only, no hardcoded prices or conversation counts.
+  // Pricing is managed via Stripe and will be populated when Stripe integration is live.
   const plans = [
-    { key:'starter', name:'Starter', price:199, convos:500, features:['500 AI conversations/month','Basic SMS automation','Email support','Calendar integration','Basic analytics'] },
-    { key:'pro', name:'Professional', price:299, convos:1000, features:['1,000 AI conversations/month','Advanced SMS automation','Priority phone support','Calendar & CRM integration','Advanced analytics','Custom AI responses'] },
-    { key:'premium', name:'Enterprise', price:499, convos:2500, features:['2,500 AI conversations/month','Enterprise automation','Dedicated account manager','Full API access','White-label options','Custom integrations','Advanced reporting'] }
+    { key:'starter', name:'Starter', features:['AI conversations','Basic SMS automation','Email support','Calendar integration','Basic analytics'] },
+    { key:'pro', name:'Professional', features:['More AI conversations','Advanced SMS automation','Priority phone support','Calendar & CRM integration','Advanced analytics','Custom AI responses'] },
+    { key:'premium', name:'Enterprise', features:['High-volume AI conversations','Enterprise automation','Dedicated account manager','Full API access','White-label options','Custom integrations','Advanced reporting'] }
   ];
 
   // Invoice history — no real Stripe data wired yet
@@ -3084,16 +3083,13 @@ function renderBillingPage() {
     let btnHtml;
     if (isCurrent) {
       btnHtml = `<button class="billing-btn-disabled">Current Plan</button>`;
-    } else if (p.price > currentPrice) {
-      btnHtml = `<button class="billing-btn-primary" onclick="startCheckout('${p.key}')">Upgrade</button>`;
     } else {
-      btnHtml = `<button class="billing-btn-primary" onclick="startCheckout('${p.key}')">Downgrade</button>`;
+      btnHtml = `<button class="billing-btn-primary" onclick="startCheckout('${p.key}')">Upgrade</button>`;
     }
     return `<div class="billing-plan-card${isCurrent ? ' current' : ''}">
       ${isCurrent ? '<div class="plan-current-tag">Current Plan</div>' : ''}
       <div class="billing-plan-card-name">${p.name}</div>
-      <div class="billing-plan-card-price">$${p.price}<span> /month</span></div>
-      <div class="billing-plan-card-convos">${p.convos.toLocaleString()} conversations/month</div>
+      <div class="billing-plan-card-price" style="color:var(--text-secondary);font-size:14px;">Managed via Stripe</div>
       <ul class="billing-plan-features">${featuresHtml}</ul>
       ${btnHtml}
     </div>`;
@@ -3125,14 +3121,13 @@ function renderBillingPage() {
           ${statusBadge}
         </div>
         <div class="billing-price-block">
-          <div><span class="billing-price-big">$${currentPrice}</span><span class="billing-price-period">/month</span></div>
           <div class="billing-plan-name">${currentName} Plan</div>
-          <div class="billing-plan-included">Up to ${(planConvos[s.plan]||limit).toLocaleString()} conversations per month</div>
+          <div class="billing-plan-included">${limit != null ? 'Up to ' + limit.toLocaleString() + ' conversations per month' : 'Conversation limit managed by your plan'}</div>
         </div>
         <div>
           <div class="billing-usage-header">
             <div class="billing-usage-label">${svgMsg} Conversation Usage</div>
-            <div class="billing-usage-count">${s.convUsed} of ${limit} used</div>
+            <div class="billing-usage-count">${s.convUsed}${limit != null ? ' of ' + limit : ''} used</div>
           </div>
           <div class="billing-usage-bar"><div class="billing-usage-bar-fill ${barCls}" style="width:${pct}%"></div></div>
           <div class="billing-usage-pct">${pct.toFixed(1)}% of monthly quota used</div>
@@ -3145,7 +3140,7 @@ function renderBillingPage() {
               <div class="billing-next-date">${billingDate}</div>
             </div>
           </div>
-          <div class="billing-next-amount">$${currentPrice}.00</div>
+          <div class="billing-next-amount">${isTrial ? 'Free' : 'See Stripe'}</div>
         </div>
       </div>
 
@@ -4031,7 +4026,7 @@ function renderLiveRevenueBlocks() {
   var usageBody = document.getElementById('analyticsUsageBody');
   if (usageBody) {
     usageBody.innerHTML =
-      '<div class="rev-sub-row"><span class="rev-sub-label">Conversations Used</span><span class="rev-sub-value">' + tenantState.convUsed + ' / ' + (tenantState.status === 'trial' ? tenantState.trialLimit : tenantState.convLimit) + '</span></div>' +
+      '<div class="rev-sub-row"><span class="rev-sub-label">Conversations Used</span><span class="rev-sub-value">' + tenantState.convUsed + ' / ' + ((tenantState.status === 'trial' ? tenantState.trialLimit : tenantState.convLimit) != null ? (tenantState.status === 'trial' ? tenantState.trialLimit : tenantState.convLimit) : '—') + '</span></div>' +
       '<div class="rev-sub-row"><span class="rev-sub-label">Plan</span><span class="rev-sub-value">' + tenantState.plan.charAt(0).toUpperCase() + tenantState.plan.slice(1) + '</span></div>' +
       '<div class="rev-sub-row" style="border-bottom:none;"><span class="rev-sub-label">Status</span><span class="rev-sub-value" style="color:var(--green);">' + tenantState.status.replace(/_/g,' ') + '</span></div>';
   }
