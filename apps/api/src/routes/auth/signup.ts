@@ -8,7 +8,7 @@ const SignupBody = z.object({
   email:     z.string().email("Valid email required"),
   password:  z.string().min(8, "Password must be at least 8 characters"),
   shopName:  z.string().min(2, "Shop name required").max(100),
-  ownerName: z.string().min(1, "Your name is required").max(100),
+  ownerName: z.string().max(100).optional().default(""),
   timezone:  z.string().optional().default("America/Chicago"),
 });
 

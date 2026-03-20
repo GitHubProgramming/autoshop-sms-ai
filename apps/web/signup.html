@@ -9,25 +9,27 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --navy:       #0D1B2A;
-    --navy-mid:   #162336;
-    --navy-light: #1E3048;
     --rust:       #C94B1F;
     --rust-light: #E05A2B;
-    --steel:      #94A3B8;
-    --steel-light:#CBD5E1;
-    --white:      #F8F9FA;
-    --border:     rgba(148,163,184,0.15);
-    --border-mid: rgba(148,163,184,0.25);
+    --text:       #0D1B2A;
+    --text-secondary: #3D4F65;
+    --text-tertiary:  #7A8A9E;
+    --bg:         #FAF8F5;
+    --bg-card:    #FFFFFF;
+    --bg-input:   #F5F2EE;
+    --border:     #E3DDD5;
+    --border-mid: #CCC4BA;
     --mono:       'IBM Plex Mono', monospace;
     --display:    'Barlow Condensed', sans-serif;
     --body:       'Barlow', sans-serif;
-    --green:      #22C55E;
   }
+
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
   body {
-    background: var(--navy);
-    color: var(--white);
+    background: var(--bg);
+    background-image: linear-gradient(160deg, #FAF8F5 0%, #F3EDE5 50%, #FAF8F5 100%);
+    color: var(--text);
     font-family: var(--body);
     font-size: 16px;
     line-height: 1.6;
@@ -36,8 +38,10 @@
     flex-direction: column;
     -webkit-font-smoothing: antialiased;
   }
+
+  /* ── NAV ── */
   .topnav {
-    background: rgba(13,27,42,0.9);
+    background: rgba(255,255,255,0.85);
     border-bottom: 1px solid var(--border);
     padding: 0 32px;
     height: 60px;
@@ -47,7 +51,7 @@
     position: sticky;
     top: 0;
     z-index: 100;
-    backdrop-filter: blur(8px);
+    backdrop-filter: blur(12px);
   }
   .nav-logo {
     font-family: var(--display);
@@ -55,35 +59,39 @@
     font-weight: 800;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--white);
+    color: var(--text);
     text-decoration: none;
   }
   .nav-logo span { color: var(--rust); }
   .nav-back {
     font-family: var(--mono);
     font-size: 12px;
-    color: var(--steel);
+    color: var(--text-tertiary);
     text-decoration: none;
     letter-spacing: 0.08em;
     transition: color 0.2s;
   }
-  .nav-back:hover { color: var(--white); }
+  .nav-back:hover { color: var(--text); }
 
+  /* ── MAIN ── */
   .main {
     flex: 1;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
-    padding: 48px 24px 80px;
+    padding: 60px 24px 80px;
   }
+
   .card {
     width: 100%;
-    max-width: 460px;
-    background: var(--navy-mid);
-    border: 1px solid var(--border-mid);
-    padding: 48px 40px;
-    clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+    max-width: 500px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 48px 44px;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(13,27,42,0.06), 0 1px 3px rgba(13,27,42,0.04);
   }
+
   .card-tag {
     font-family: var(--mono);
     font-size: 11px;
@@ -103,35 +111,28 @@
     background: var(--rust);
     border-radius: 50%;
   }
+
   h1 {
     font-family: var(--display);
     font-size: 36px;
     font-weight: 800;
     line-height: 1.05;
     margin-bottom: 8px;
+    color: var(--text);
   }
   .sub {
-    color: var(--steel);
+    color: var(--text-tertiary);
     font-size: 15px;
+    margin-bottom: 8px;
+  }
+  .sub-detail {
+    color: var(--text-tertiary);
+    font-size: 13px;
     margin-bottom: 32px;
+    opacity: 0.8;
   }
 
-  /* Trial badge */
-  .trial-badge {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: rgba(34,197,94,0.08);
-    border: 1px solid rgba(34,197,94,0.2);
-    padding: 12px 16px;
-    margin-bottom: 28px;
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--green);
-  }
-  .trial-badge svg { flex-shrink: 0; }
-
-  /* Google button */
+  /* ── Google button ── */
   .btn-google {
     display: flex;
     align-items: center;
@@ -144,14 +145,14 @@
     font-size: 15px;
     font-weight: 600;
     padding: 13px 24px;
-    border: none;
+    border: 1px solid var(--border);
     cursor: pointer;
     text-decoration: none;
-    transition: opacity 0.2s;
-    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+    transition: all 0.2s;
+    border-radius: 10px;
     margin-bottom: 20px;
   }
-  .btn-google:hover { opacity: 0.92; }
+  .btn-google:hover { background: #FAFAFA; border-color: var(--border-mid); box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
   .btn-google.disabled { opacity: 0.45; cursor: not-allowed; }
 
   .divider {
@@ -159,7 +160,7 @@
     align-items: center;
     gap: 12px;
     margin: 4px 0 24px;
-    color: var(--steel);
+    color: var(--text-tertiary);
     font-family: var(--mono);
     font-size: 11px;
     letter-spacing: 0.08em;
@@ -169,9 +170,10 @@
     content: '';
     flex: 1;
     height: 1px;
-    background: var(--border-mid);
+    background: var(--border);
   }
 
+  /* ── Form ── */
   .form-group { margin-bottom: 18px; }
   .form-label {
     display: block;
@@ -179,28 +181,27 @@
     font-size: 11px;
     letter-spacing: 0.10em;
     text-transform: uppercase;
-    color: var(--steel);
+    color: var(--text-secondary);
     margin-bottom: 7px;
   }
-  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
   .form-input {
     width: 100%;
-    background: var(--navy);
-    border: 1px solid var(--border-mid);
-    color: var(--white);
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    color: var(--text);
     font-family: var(--body);
     font-size: 16px;
     padding: 12px 16px;
     outline: none;
-    transition: border-color 0.2s;
-    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+    transition: border-color 0.2s, box-shadow 0.2s;
+    border-radius: 10px;
   }
-  .form-input:focus { border-color: var(--rust); }
-  .form-input::placeholder { color: var(--steel); opacity: 0.6; }
+  .form-input:focus { border-color: var(--rust); box-shadow: 0 0 0 3px rgba(201,75,31,0.08); }
+  .form-input::placeholder { color: var(--text-tertiary); opacity: 0.7; }
   .field-error {
     font-family: var(--mono);
     font-size: 11px;
-    color: #FCA5A5;
+    color: #DC2626;
     margin-top: 4px;
     display: none;
   }
@@ -210,7 +211,7 @@
     display: block;
     width: 100%;
     background: var(--rust);
-    color: var(--white);
+    color: #fff;
     font-family: var(--display);
     font-size: 18px;
     font-weight: 700;
@@ -220,86 +221,92 @@
     border: none;
     cursor: pointer;
     text-align: center;
-    transition: background 0.2s, transform 0.15s;
-    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    border-radius: 10px;
     margin-top: 8px;
+    box-shadow: 0 2px 8px rgba(201,75,31,0.2);
   }
-  .btn-primary:hover { background: var(--rust-light); transform: translateY(-1px); }
-  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+  .btn-primary:hover { background: var(--rust-light); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(201,75,31,0.25); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
 
   .error-msg {
     display: none;
-    background: rgba(239,68,68,0.10);
-    border: 1px solid rgba(239,68,68,0.3);
-    color: #FCA5A5;
+    background: rgba(239,68,68,0.06);
+    border: 1px solid rgba(239,68,68,0.2);
+    color: #DC2626;
     font-family: var(--mono);
     font-size: 13px;
     padding: 12px 16px;
     margin-bottom: 20px;
+    border-radius: 8px;
   }
   .error-msg.visible { display: block; }
 
   .terms-note {
     margin-top: 20px;
     font-size: 12px;
-    color: var(--steel);
+    color: var(--text-tertiary);
     text-align: center;
     line-height: 1.6;
   }
-  .terms-note a { color: var(--steel-light); text-decoration: none; border-bottom: 1px solid var(--border-mid); }
+  .terms-note a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border-mid);
+  }
+  .terms-note a:hover { color: var(--text); }
 
   .login-link {
     margin-top: 28px;
     text-align: center;
     font-size: 14px;
-    color: var(--steel);
+    color: var(--text-tertiary);
   }
   .login-link a {
-    color: var(--steel-light);
+    color: var(--rust);
     text-decoration: none;
-    border-bottom: 1px solid var(--border-mid);
+    border-bottom: 1px solid rgba(201,75,31,0.2);
     padding-bottom: 1px;
+    transition: border-color 0.2s;
   }
-  .login-link a:hover { color: var(--white); }
+  .login-link a:hover { border-color: var(--rust); }
 
+  .success-card {
+    display: none;
+    background: rgba(34,197,94,0.06);
+    border: 1px solid rgba(34,197,94,0.2);
+    padding: 24px;
+    text-align: center;
+    margin-top: 24px;
+    border-radius: 8px;
+  }
+  .success-card h3 { font-family: var(--display); font-size: 24px; font-weight: 800; color: #16A34A; margin-bottom: 8px; }
+
+  /* ── FOOTER ── */
   .page-footer {
     padding: 24px 32px;
     text-align: center;
     border-top: 1px solid var(--border);
     font-size: 13px;
-    color: var(--steel);
+    color: var(--text-tertiary);
   }
-  .page-footer a { color: var(--steel); text-decoration: none; }
-  .page-footer a:hover { color: var(--white); }
-
-  .success-card {
-    display: none;
-    background: rgba(34,197,94,0.08);
-    border: 1px solid rgba(34,197,94,0.25);
-    padding: 24px;
-    text-align: center;
-    margin-top: 24px;
-  }
-  .success-card h3 { font-family: var(--display); font-size: 24px; font-weight: 800; color: var(--green); margin-bottom: 8px; }
+  .page-footer a { color: var(--text-tertiary); text-decoration: none; }
+  .page-footer a:hover { color: var(--text); }
 </style>
 </head>
 <body>
 
 <nav class="topnav">
   <a href="/" class="nav-logo">AutoShop <span>SMS</span> AI</a>
-  <a href="/login" class="nav-back">Already have an account? Sign in →</a>
+  <a href="/" class="nav-back">&larr; Back to site</a>
 </nav>
 
 <main class="main">
   <div class="card">
-    <div class="card-tag">Free Trial</div>
+    <div class="card-tag">Start free trial</div>
     <h1>Start Your Trial</h1>
-    <p class="sub">14 days free. No credit card required. Cancel anytime.</p>
-
-    <div class="trial-badge">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-      14 days free · 50 AI conversations included · No card required
-    </div>
+    <p class="sub">14 days free. No credit card required.</p>
+    <p class="sub-detail">Includes 50 AI conversations.</p>
 
     <div class="error-msg" id="errorMsg"></div>
 
@@ -317,19 +324,11 @@
     <div class="divider">or sign up with email</div>
 
     <form id="signupForm" onsubmit="handleSignup(event)" novalidate>
-      <div class="form-row">
-        <div>
-          <label class="form-label" for="ownerName">Your Name</label>
-          <input class="form-input" type="text" id="ownerName" name="ownerName"
-            placeholder="Jane Smith" autocomplete="name" required>
-          <div class="field-error" id="ownerNameErr"></div>
-        </div>
-        <div>
-          <label class="form-label" for="shopName">Shop Name</label>
-          <input class="form-input" type="text" id="shopName" name="shopName"
-            placeholder="Austin Quick Lube" required>
-          <div class="field-error" id="shopNameErr"></div>
-        </div>
+      <div class="form-group">
+        <label class="form-label" for="shopName">Shop Name</label>
+        <input class="form-input" type="text" id="shopName" name="shopName"
+          placeholder="Austin Quick Lube" required>
+        <div class="field-error" id="shopNameErr"></div>
       </div>
 
       <div class="form-group">
@@ -340,39 +339,39 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label" for="password">Password <span style="color:var(--steel);font-size:10px">(min 8 characters)</span></label>
+        <label class="form-label" for="password">Password <span style="color:var(--text-tertiary);font-size:10px">(min 8 characters)</span></label>
         <input class="form-input" type="password" id="password" name="password"
-          placeholder="••••••••" autocomplete="new-password" required minlength="8">
+          placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" autocomplete="new-password" required minlength="8">
         <div class="field-error" id="passwordErr"></div>
       </div>
 
       <button type="submit" class="btn-primary" id="submitBtn">
-        Create Free Account →
+        Create Free Account
       </button>
     </form>
 
     <div class="success-card" id="successCard">
       <h3>Account Created!</h3>
-      <p style="color:var(--steel-light);font-size:14px;">Redirecting to your dashboard…</p>
+      <p style="color:var(--text-secondary);font-size:14px;">Redirecting to your dashboard&hellip;</p>
     </div>
 
     <p class="terms-note">
-      By signing up you agree to our
-      <a href="terms.html">Terms of Service</a> and
+      By continuing, you agree to the
+      <a href="terms.html">Terms</a> and
       <a href="privacy.html">Privacy Policy</a>.
     </p>
 
     <div class="login-link">
       Already have an account?
-      <a href="/login">Sign in →</a>
+      <a href="/login">Sign in</a>
     </div>
   </div>
 </main>
 
 <footer class="page-footer">
-  &copy; 2026 AutoShop SMS AI &nbsp;·&nbsp;
-  <a href="privacy.html">Privacy Policy</a> &nbsp;·&nbsp;
-  <a href="terms.html">Terms of Service</a> &nbsp;·&nbsp;
+  &copy; 2026 AutoShop SMS AI &nbsp;&middot;&nbsp;
+  <a href="privacy.html">Privacy Policy</a> &nbsp;&middot;&nbsp;
+  <a href="terms.html">Terms of Service</a> &nbsp;&middot;&nbsp;
   <a href="mailto:hello@autoshopsmsai.com">Contact</a>
 </footer>
 
@@ -397,17 +396,12 @@
 
 // ── Google Sign-Up ───────────────────────────────────────────────────────────
 function startGoogleSignup() {
-  // Redirect to backend — if not configured, the API returns 503 and we show error
   window.location.href = '/auth/google/signup/start';
 }
 
-// ── Check if Google sign-in is available ────────────────────────────────────
-// We show the button always; if it fails, the API redirect returns an error page.
-// This is intentional: the button is real, not a placeholder.
-
 // ── Email sign-up form ───────────────────────────────────────────────────────
 function clearErrors() {
-  ['ownerNameErr','shopNameErr','emailErr','passwordErr'].forEach(function(id) {
+  ['shopNameErr','emailErr','passwordErr'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) { el.textContent = ''; el.classList.remove('visible'); }
   });
@@ -430,7 +424,6 @@ async function handleSignup(e) {
   e.preventDefault();
   clearErrors();
 
-  var ownerName = document.getElementById('ownerName').value.trim();
   var shopName  = document.getElementById('shopName').value.trim();
   var email     = document.getElementById('email').value.trim().toLowerCase();
   var password  = document.getElementById('password').value;
@@ -438,20 +431,19 @@ async function handleSignup(e) {
 
   // Client-side validation
   var hasError = false;
-  if (!ownerName) { showFieldError('ownerNameErr', 'Your name is required'); hasError = true; }
   if (!shopName || shopName.length < 2) { showFieldError('shopNameErr', 'Shop name required (min 2 chars)'); hasError = true; }
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showFieldError('emailErr', 'Valid email required'); hasError = true; }
   if (!password || password.length < 8) { showFieldError('passwordErr', 'Password must be at least 8 characters'); hasError = true; }
   if (hasError) return;
 
   submitBtn.disabled = true;
-  submitBtn.textContent = 'Creating Account…';
+  submitBtn.textContent = 'Creating Account\u2026';
 
   try {
     var res = await fetch('/auth/signup', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ email, password, shopName, ownerName })
+      body:    JSON.stringify({ email: email, password: password, shopName: shopName, ownerName: '' })
     });
     var data = await res.json();
 
@@ -475,7 +467,7 @@ async function handleSignup(e) {
     } else if (res.status === 409) {
       showError(data.error || 'An account with this email already exists.');
       submitBtn.disabled = false;
-      submitBtn.textContent = 'Create Free Account →';
+      submitBtn.textContent = 'Create Free Account';
     } else if (res.status === 400 && data.fields) {
       // Field-level errors from server
       Object.entries(data.fields).forEach(function([field, msgs]) {
@@ -484,16 +476,16 @@ async function handleSignup(e) {
         showFieldError(errId, msg);
       });
       submitBtn.disabled = false;
-      submitBtn.textContent = 'Create Free Account →';
+      submitBtn.textContent = 'Create Free Account';
     } else {
       showError(data.error || 'Account creation failed. Please try again.');
       submitBtn.disabled = false;
-      submitBtn.textContent = 'Create Free Account →';
+      submitBtn.textContent = 'Create Free Account';
     }
   } catch (err) {
     showError('Connection error — please try again.');
     submitBtn.disabled = false;
-    submitBtn.textContent = 'Create Free Account →';
+    submitBtn.textContent = 'Create Free Account';
   }
 }
 </script>
