@@ -987,6 +987,22 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .rev-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;padding:40px 20px;text-align:center}
 .rev-empty-title{font-size:18px;font-weight:700;color:var(--text)}
 .rev-empty-text{font-size:14px;color:var(--text-tertiary);max-width:320px;line-height:1.5}
+
+/* ── GitHub Board ── */
+.gh-board{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:0}
+.gh-col{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);display:flex;flex-direction:column;min-height:200px}
+.gh-col-header{padding:12px 16px;font-size:12px;font-weight:700;letter-spacing:.06em;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)}
+.gh-col-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.gh-col-count{font-family:var(--mono);font-size:11px;color:var(--text-tertiary);margin-left:auto}
+.gh-col-body{padding:8px;flex:1;overflow-y:auto;max-height:calc(100vh - 260px);display:flex;flex-direction:column;gap:6px}
+.gh-card{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px;cursor:default;transition:box-shadow .15s}
+.gh-card:hover{box-shadow:var(--shadow-sm)}
+.gh-card-title{font-size:13px;font-weight:600;color:var(--text);line-height:1.4;margin-bottom:6px}
+.gh-card-number{font-family:var(--mono);font-size:11px;color:var(--text-tertiary);margin-right:6px}
+.gh-card-labels{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.gh-label{font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap}
+@media(max-width:1024px){.gh-board{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.gh-board{grid-template-columns:1fr}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
@@ -1084,6 +1100,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
       <a class="sidebar-item" href="/app/settings" onclick="switchView('settings');return false;">
         <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
         Settings
+      </a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Dev</div>
+      <a class="sidebar-item" href="/app/projects" onclick="switchView('projects');return false;">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"/></svg>
+        Projects
       </a>
     </div>
     <div class="sidebar-status">
@@ -1944,6 +1967,33 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 
         </div><!-- /settings-content -->
       </div><!-- /settings-layout -->
+    </div>
+
+    <!-- ═══ PROJECTS (GitHub Issues Board) ═══ -->
+    <div class="view" id="view-projects">
+      <div class="page-header">
+        <div><div class="page-title">Projects</div><div class="page-subtitle">GitHub issues — read-only view</div></div>
+        <div class="page-actions"><button class="btn-sm primary" onclick="loadGitHubIssues()">Refresh</button></div>
+      </div>
+      <div id="ghBoardError" style="display:none;padding:16px;background:var(--red-dim);border:1px solid var(--red);border-radius:var(--radius);margin-bottom:16px;color:var(--red);font-size:13px"></div>
+      <div id="ghBoard" class="gh-board">
+        <div class="gh-col">
+          <div class="gh-col-header"><span class="gh-col-dot" style="background:var(--red)"></span>CRITICAL <span class="gh-col-count" id="ghCountCritical">0</span></div>
+          <div class="gh-col-body" id="ghColCritical"></div>
+        </div>
+        <div class="gh-col">
+          <div class="gh-col-header"><span class="gh-col-dot" style="background:var(--amber)"></span>BLOCKED <span class="gh-col-count" id="ghCountBlocked">0</span></div>
+          <div class="gh-col-body" id="ghColBlocked"></div>
+        </div>
+        <div class="gh-col">
+          <div class="gh-col-header"><span class="gh-col-dot" style="background:var(--rust)"></span>BACKLOG <span class="gh-col-count" id="ghCountBacklog">0</span></div>
+          <div class="gh-col-body" id="ghColBacklog"></div>
+        </div>
+        <div class="gh-col">
+          <div class="gh-col-header"><span class="gh-col-dot" style="background:var(--green)"></span>DONE <span class="gh-col-count" id="ghCountDone">0</span></div>
+          <div class="gh-col-body" id="ghColDone"></div>
+        </div>
+      </div>
     </div>
 
   </main>
@@ -3654,7 +3704,7 @@ async function disconnectGoogleCalendar() {
 // NAVIGATION
 // ════════════════════════════════════════════
 // ── Route constants ──
-var VALID_VIEWS = ['dashboard','conversations','appointments','customers','analytics','billing','settings'];
+var VALID_VIEWS = ['dashboard','conversations','appointments','customers','analytics','billing','settings','projects'];
 var VIEW_ALIASES = { bookings:'appointments', revenue:'analytics' };
 
 function getViewFromPath() {
@@ -3674,12 +3724,12 @@ function switchView(view, opts) {
   document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
   const el = document.getElementById('view-' + view);
   if (el) el.classList.add('active');
-  const map = { dashboard:0, conversations:1, appointments:2, customers:3, analytics:4, billing:5, settings:6 };
+  const map = { dashboard:0, conversations:1, appointments:2, customers:3, analytics:4, billing:5, settings:6, projects:7 };
   const items = document.querySelectorAll('.sidebar-item');
   if (items[map[view]] !== undefined) items[map[view]].classList.add('active');
 
   // Update nav page title
-  var titles = { dashboard:['Dashboard','Real-time performance overview'], conversations:['Conversations','SMS thread management'], appointments:['Appointments','Manage customer bookings'], customers:['Customers','Customer database & history'], analytics:['Analytics','Performance metrics & insights'], billing:['Billing','Subscription & payment management'], settings:['Settings','Configure your preferences'] };
+  var titles = { dashboard:['Dashboard','Real-time performance overview'], conversations:['Conversations','SMS thread management'], appointments:['Appointments','Manage customer bookings'], customers:['Customers','Customer database & history'], analytics:['Analytics','Performance metrics & insights'], billing:['Billing','Subscription & payment management'], settings:['Settings','Configure your preferences'], projects:['Projects','GitHub issues — read-only view'] };
   var t = titles[view] || ['Dashboard',''];
   var navTitle = document.getElementById('navPageTitle');
   var navSub = document.getElementById('navPageSubtitle');
@@ -4994,6 +5044,87 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 })();
+</script>
+
+<!-- ── GITHUB ISSUES BOARD ── -->
+<script>
+var ghIssuesLoaded = false;
+
+function loadGitHubIssues() {
+  var errEl = document.getElementById('ghBoardError');
+  errEl.style.display = 'none';
+  ['ghColCritical','ghColBlocked','ghColBacklog','ghColDone'].forEach(function(id) {
+    document.getElementById(id).innerHTML = '<div style="color:var(--text-tertiary);font-size:12px;padding:8px">Loading...</div>';
+  });
+
+  var token = localStorage.getItem('jwt');
+  fetch('/internal/admin/github-issues', {
+    headers: token ? { Authorization: 'Bearer ' + token } : {}
+  })
+  .then(function(res) {
+    if (!res.ok) return res.json().then(function(d) { throw new Error(d.error || 'HTTP ' + res.status); });
+    return res.json();
+  })
+  .then(function(data) {
+    ghIssuesLoaded = true;
+    renderGitHubBoard(data.issues || []);
+  })
+  .catch(function(err) {
+    errEl.textContent = 'Failed to load issues: ' + err.message;
+    errEl.style.display = 'block';
+    ['ghColCritical','ghColBlocked','ghColBacklog','ghColDone'].forEach(function(id) {
+      document.getElementById(id).innerHTML = '';
+    });
+  });
+}
+
+function classifyIssue(issue) {
+  if (issue.state === 'closed') return 'done';
+  var labelNames = issue.labels.map(function(l) { return l.name.toLowerCase(); });
+  if (labelNames.indexOf('critical') !== -1) return 'critical';
+  if (labelNames.indexOf('blocked-human') !== -1) return 'blocked';
+  return 'backlog';
+}
+
+function renderGitHubBoard(issues) {
+  var buckets = { critical: [], blocked: [], backlog: [], done: [] };
+  issues.forEach(function(i) { buckets[classifyIssue(i)].push(i); });
+
+  ['critical','blocked','backlog','done'].forEach(function(col) {
+    var container = document.getElementById('ghCol' + col.charAt(0).toUpperCase() + col.slice(1));
+    var countEl = document.getElementById('ghCount' + col.charAt(0).toUpperCase() + col.slice(1));
+    countEl.textContent = buckets[col].length;
+    if (buckets[col].length === 0) {
+      container.innerHTML = '<div style="color:var(--text-tertiary);font-size:12px;padding:12px;text-align:center">No issues</div>';
+      return;
+    }
+    container.innerHTML = buckets[col].map(function(i) {
+      var labelsHtml = i.labels.map(function(l) {
+        var bg = '#' + l.color;
+        var r = parseInt(l.color.substr(0,2),16), g = parseInt(l.color.substr(2,2),16), b = parseInt(l.color.substr(4,2),16);
+        var fg = (r*0.299 + g*0.587 + b*0.114) > 150 ? '#000' : '#fff';
+        return '<span class="gh-label" style="background:' + bg + ';color:' + fg + '">' + escHtml(l.name) + '</span>';
+      }).join('');
+      return '<a class="gh-card" href="' + escHtml(i.html_url) + '" target="_blank" rel="noopener" style="text-decoration:none">' +
+        '<div class="gh-card-title"><span class="gh-card-number">#' + i.number + '</span>' + escHtml(i.title) + '</div>' +
+        (labelsHtml ? '<div class="gh-card-labels">' + labelsHtml + '</div>' : '') +
+        '</a>';
+    }).join('');
+  });
+}
+
+function escHtml(s) {
+  var d = document.createElement('div');
+  d.appendChild(document.createTextNode(s));
+  return d.innerHTML;
+}
+
+// Auto-load when switching to projects view
+var origSwitchView = switchView;
+switchView = function(view, opts) {
+  origSwitchView(view, opts);
+  if (view === 'projects' && !ghIssuesLoaded) loadGitHubIssues();
+};
 </script>
 </body>
 </html>
