@@ -396,8 +396,52 @@
 
 // ── Google Sign-Up ───────────────────────────────────────────────────────────
 function startGoogleSignup() {
-  window.location.href = '/auth/google/signup/start';
+  window.location.href = '/auth/google/login/start?intent=signup';
 }
+
+// ── Handle Google signup callback (one-time auth code exchange) ──────────────
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var googleCode = params.get('google_code');
+  if (googleCode) {
+    // Clean the code from the URL immediately (prevent leakage via history/referrer)
+    window.history.replaceState({}, '', '/signup');
+    // Exchange the one-time code for JWT via POST (token never in URL)
+    fetch('/auth/google/exchange', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: googleCode })
+    })
+    .then(function(res) { return res.json().then(function(data) { return { ok: res.ok, data: data }; }); })
+    .then(function(result) {
+      if (result.ok && result.data.token) {
+        localStorage.setItem('autoshop_jwt', result.data.token);
+        localStorage.setItem('autoshop_session', JSON.stringify({
+          email: result.data.email || '',
+          tenantId: result.data.tenantId || '',
+          shopName: result.data.shopName || '',
+          trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+          loginAt: Date.now()
+        }));
+        if (result.data.shopName) localStorage.setItem('tenant_name', result.data.shopName);
+        // Show success then redirect to onboarding
+        document.getElementById('signupForm').style.display = 'none';
+        document.querySelector('.btn-google').style.display = 'none';
+        document.querySelector('.divider').style.display = 'none';
+        document.getElementById('successCard').style.display = 'block';
+        setTimeout(function() {
+          window.location.href = '/onboarding/business';
+        }, 1200);
+      } else {
+        showError(result.data.error || 'Google sign-up failed. Please try again.');
+      }
+    })
+    .catch(function() {
+      showError('Unable to complete Google sign-up. Please try again.');
+    });
+    return;
+  }
+})();
 
 // ── Email sign-up form ───────────────────────────────────────────────────────
 function clearErrors() {
