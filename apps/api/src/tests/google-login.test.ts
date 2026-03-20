@@ -17,7 +17,7 @@ vi.mock("../db/client", () => ({
 // Mock global fetch for Google API calls
 vi.stubGlobal("fetch", mocks.fetch);
 
-import { googleAuthRoute } from "../routes/auth/google";
+import { googleAuthRoute, oauthStateStore, authCodeStore } from "../routes/auth/google";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -40,11 +40,17 @@ function buildApp() {
   return app;
 }
 
+/** Seed a valid nonce into the state store so callback tests pass state validation. */
+function seedNonce(nonce: string) {
+  oauthStateStore.set(nonce, { createdAt: Date.now() });
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe("GET /auth/google/login/start", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    oauthStateStore.clear();
   });
 
   it("redirects to Google OAuth consent URL", async () => {
@@ -60,6 +66,13 @@ describe("GET /auth/google/login/start", () => {
     expect(location).toContain("scope=openid+email+profile");
     // State should start with "login:"
     expect(location).toMatch(/state=login%3A[0-9a-f]+/);
+  });
+
+  it("persists nonce in server-side state store", async () => {
+    const app = buildApp();
+    expect(oauthStateStore.size).toBe(0);
+    await app.inject({ method: "GET", url: "/auth/google/login/start" });
+    expect(oauthStateStore.size).toBe(1);
   });
 
   it("returns 503 when Google OAuth not configured", async () => {
@@ -80,9 +93,64 @@ describe("GET /auth/google/login/start", () => {
 describe("GET /auth/google/callback (login flow)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    oauthStateStore.clear();
+    authCodeStore.clear();
+  });
+
+  it("rejects callback with invalid/missing state nonce", async () => {
+    // Do NOT seed nonce — state is unknown to server
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/auth/google/callback?code=authcode123&state=login:unknown_nonce",
+    });
+    expect(res.statusCode).toBe(302);
+    const location = res.headers.location as string;
+    expect(location).toContain("/login?error=");
+    expect(location).toContain("Invalid+login+session");
+  });
+
+  it("rejects callback with reused state nonce", async () => {
+    seedNonce("reuse_nonce");
+    // First use consumes it
+    mocks.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ access_token: "google-token-123" }),
+    });
+    mocks.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ email: "nobody@example.com" }),
+    });
+    mocks.query.mockResolvedValueOnce([]); // no tenant
+    const app = buildApp();
+    await app.inject({
+      method: "GET",
+      url: "/auth/google/callback?code=authcode&state=login:reuse_nonce",
+    });
+
+    // Second use should fail — nonce was consumed
+    const res2 = await app.inject({
+      method: "GET",
+      url: "/auth/google/callback?code=authcode2&state=login:reuse_nonce",
+    });
+    expect(res2.statusCode).toBe(302);
+    expect((res2.headers.location as string)).toContain("Invalid+login+session");
+  });
+
+  it("rejects callback with expired state nonce", async () => {
+    // Seed nonce with expired timestamp (11 minutes ago)
+    oauthStateStore.set("expired_nonce", { createdAt: Date.now() - 11 * 60 * 1000 });
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/auth/google/callback?code=authcode&state=login:expired_nonce",
+    });
+    expect(res.statusCode).toBe(302);
+    expect((res.headers.location as string)).toContain("expired");
   });
 
   it("redirects to login with error when OAuth denied", async () => {
+    seedNonce("abc123");
     const app = buildApp();
     const res = await app.inject({
       method: "GET",
@@ -95,17 +163,15 @@ describe("GET /auth/google/callback (login flow)", () => {
   });
 
   it("redirects to login with error when no matching account", async () => {
-    // Mock Google token exchange
+    seedNonce("abc123");
     mocks.fetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ access_token: "google-token-123" }),
     });
-    // Mock Google userinfo
     mocks.fetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ email: "nobody@example.com" }),
     });
-    // Mock tenant lookup — not found
     mocks.query.mockResolvedValueOnce([]);
 
     const app = buildApp();
@@ -119,18 +185,16 @@ describe("GET /auth/google/callback (login flow)", () => {
     expect(location).toContain("No+account+found");
   });
 
-  it("issues JWT and redirects when account matches", async () => {
-    // Mock Google token exchange
+  it("redirects with auth code (NOT JWT) when account matches", async () => {
+    seedNonce("abc123");
     mocks.fetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ access_token: "google-token-123" }),
     });
-    // Mock Google userinfo
     mocks.fetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ email: TEST_EMAIL }),
     });
-    // Mock tenant lookup — found
     mocks.query.mockResolvedValueOnce([
       { id: TENANT_ID, shop_name: "Test Auto", owner_email: TEST_EMAIL },
     ]);
@@ -142,12 +206,16 @@ describe("GET /auth/google/callback (login flow)", () => {
     });
     expect(res.statusCode).toBe(302);
     const location = res.headers.location as string;
-    expect(location).toContain("/login?google_token=");
-    expect(location).toContain("tenantId=");
-    expect(location).toContain("shopName=");
+    // Must have auth code, NOT JWT
+    expect(location).toContain("/login?google_code=");
+    expect(location).not.toContain("google_token=");
+    expect(location).not.toContain("tenantId=");
+    // Auth code should be stored server-side
+    expect(authCodeStore.size).toBe(1);
   });
 
   it("handles Google token exchange failure gracefully", async () => {
+    seedNonce("abc123");
     mocks.fetch.mockResolvedValueOnce({
       ok: false,
       status: 400,
@@ -166,6 +234,7 @@ describe("GET /auth/google/callback (login flow)", () => {
   });
 
   it("does NOT create a new account (login-only enforcement)", async () => {
+    seedNonce("abc123");
     mocks.fetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ access_token: "google-token-123" }),
@@ -186,6 +255,106 @@ describe("GET /auth/google/callback (login flow)", () => {
     for (const call of mocks.query.mock.calls) {
       expect(call[0]).not.toContain("INSERT INTO tenants");
     }
+  });
+});
+
+describe("POST /auth/google/exchange", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authCodeStore.clear();
+  });
+
+  it("returns JWT for valid auth code", async () => {
+    const app = buildApp();
+    authCodeStore.set("valid-code-123", {
+      jwt: "test.jwt.token",
+      tenantId: TENANT_ID,
+      shopName: "Test Auto",
+      email: TEST_EMAIL,
+      createdAt: Date.now(),
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/auth/google/exchange",
+      headers: { "content-type": "application/json" },
+      payload: { code: "valid-code-123" },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.token).toBe("test.jwt.token");
+    expect(body.tenantId).toBe(TENANT_ID);
+    expect(body.shopName).toBe("Test Auto");
+    expect(body.email).toBe(TEST_EMAIL);
+  });
+
+  it("rejects invalid auth code", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/auth/google/exchange",
+      headers: { "content-type": "application/json" },
+      payload: { code: "nonexistent-code" },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("auth code is single-use (second attempt fails)", async () => {
+    const app = buildApp();
+    authCodeStore.set("one-time-code", {
+      jwt: "test.jwt.token",
+      tenantId: TENANT_ID,
+      shopName: "Test Auto",
+      email: TEST_EMAIL,
+      createdAt: Date.now(),
+    });
+
+    const res1 = await app.inject({
+      method: "POST",
+      url: "/auth/google/exchange",
+      headers: { "content-type": "application/json" },
+      payload: { code: "one-time-code" },
+    });
+    expect(res1.statusCode).toBe(200);
+
+    // Second use must fail
+    const res2 = await app.inject({
+      method: "POST",
+      url: "/auth/google/exchange",
+      headers: { "content-type": "application/json" },
+      payload: { code: "one-time-code" },
+    });
+    expect(res2.statusCode).toBe(400);
+  });
+
+  it("rejects expired auth code", async () => {
+    const app = buildApp();
+    authCodeStore.set("expired-code", {
+      jwt: "test.jwt.token",
+      tenantId: TENANT_ID,
+      shopName: "Test Auto",
+      email: TEST_EMAIL,
+      createdAt: Date.now() - 2 * 60 * 1000, // 2 minutes ago (> 1 min TTL)
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/auth/google/exchange",
+      headers: { "content-type": "application/json" },
+      payload: { code: "expired-code" },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("returns 400 for missing code in body", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/auth/google/exchange",
+      headers: { "content-type": "application/json" },
+      payload: {},
+    });
+    expect(res.statusCode).toBe(400);
   });
 });
 

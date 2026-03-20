@@ -87,6 +87,55 @@ async function fetchGoogleEmail(accessToken: string): Promise<string | undefined
   }
 }
 
+// ── OAuth state store (server-side, in-memory with TTL) ──────────────────────
+// Stores login nonces for CSRF validation. Single-use, 10-minute expiry.
+
+const STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const STATE_CLEANUP_INTERVAL_MS = 60 * 1000; // sweep every minute
+
+interface StoredState {
+  createdAt: number;
+}
+
+export const oauthStateStore = new Map<string, StoredState>();
+
+// Periodic cleanup of expired states
+const stateCleanupTimer = setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of oauthStateStore) {
+    if (now - val.createdAt > STATE_TTL_MS) {
+      oauthStateStore.delete(key);
+    }
+  }
+}, STATE_CLEANUP_INTERVAL_MS);
+stateCleanupTimer.unref(); // don't keep process alive
+
+// ── One-time auth code store (replaces JWT-in-URL) ───────────────────────────
+// After successful Google login, server stores code → session data.
+// Frontend exchanges code for JWT via POST (no token in URL/history/referrer).
+
+const AUTH_CODE_TTL_MS = 60 * 1000; // 1 minute — must be exchanged quickly
+
+interface StoredAuthCode {
+  jwt: string;
+  tenantId: string;
+  shopName: string;
+  email: string;
+  createdAt: number;
+}
+
+export const authCodeStore = new Map<string, StoredAuthCode>();
+
+const authCodeCleanupTimer = setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of authCodeStore) {
+    if (now - val.createdAt > AUTH_CODE_TTL_MS) {
+      authCodeStore.delete(key);
+    }
+  }
+}, STATE_CLEANUP_INTERVAL_MS);
+authCodeCleanupTimer.unref();
+
 // ── State helpers ─────────────────────────────────────────────────────────────
 
 /** Login state: "login:<random-nonce>" — distinguishable from calendar state (UUID). */
@@ -113,14 +162,16 @@ export async function googleAuthRoute(app: FastifyInstance) {
    * GET /auth/google/login/start
    * Unauthenticated — initiates Google OAuth for LOGIN.
    * Redirects browser to Google consent screen.
+   * State nonce is persisted server-side for validation on callback.
    */
   app.get("/login/start", async (_request, reply) => {
     if (!clientId || !redirectUri) {
       return reply.status(503).send({ error: "Google OAuth not configured" });
     }
 
-    // Generate a random nonce for CSRF protection on the login flow
+    // Generate a cryptographic nonce and persist it server-side
     const nonce = randomBytes(16).toString("hex");
+    oauthStateStore.set(nonce, { createdAt: Date.now() });
 
     const params = new URLSearchParams({
       client_id: clientId,
@@ -133,6 +184,38 @@ export async function googleAuthRoute(app: FastifyInstance) {
     });
 
     return reply.redirect(`${GOOGLE_AUTH_URL}?${params.toString()}`);
+  });
+
+  /**
+   * POST /auth/google/exchange
+   * Exchanges a one-time auth code (from Google login callback redirect)
+   * for a JWT + session metadata. The auth code is single-use and short-lived.
+   * This replaces passing JWT in URL query parameters.
+   */
+  app.post("/exchange", async (request, reply) => {
+    const body = z.object({ code: z.string().min(1) }).safeParse(request.body);
+    if (!body.success) {
+      return reply.status(400).send({ error: "Auth code is required" });
+    }
+
+    const stored = authCodeStore.get(body.data.code);
+    // Delete immediately — single-use regardless of validity
+    authCodeStore.delete(body.data.code);
+
+    if (!stored) {
+      return reply.status(400).send({ error: "Invalid or expired auth code" });
+    }
+
+    if (Date.now() - stored.createdAt > AUTH_CODE_TTL_MS) {
+      return reply.status(400).send({ error: "Auth code expired" });
+    }
+
+    return reply.send({
+      token: stored.jwt,
+      tenantId: stored.tenantId,
+      shopName: stored.shopName,
+      email: stored.email,
+    });
   });
 
   /**
@@ -176,8 +259,8 @@ export async function googleAuthRoute(app: FastifyInstance) {
    * Google redirects here after consent.
    *
    * State routing:
+   *   - "login:<nonce>" → Google login flow (nonce validated server-side)
    *   - UUID → calendar token flow (existing)
-   *   - "login:<nonce>" → Google login flow
    */
   app.get("/callback", async (request, reply) => {
     const parsed = CallbackQuerySchema.safeParse(request.query);
@@ -190,6 +273,26 @@ export async function googleAuthRoute(app: FastifyInstance) {
 
     // ── Google Login callback ─────────────────────────────────────────────────
     if (isLoginState(state)) {
+      // Validate the nonce server-side — reject missing, expired, or reused
+      const nonce = state.slice("login:".length);
+      const storedState = oauthStateStore.get(nonce);
+      // Delete immediately — single-use regardless of outcome
+      oauthStateStore.delete(nonce);
+
+      if (!storedState) {
+        request.log.warn({ state }, "Google login: invalid or reused OAuth state");
+        return reply.redirect(
+          `${publicOrigin}/login?error=Invalid+login+session.+Please+try+again.`
+        );
+      }
+
+      if (Date.now() - storedState.createdAt > STATE_TTL_MS) {
+        request.log.warn({ state }, "Google login: expired OAuth state");
+        return reply.redirect(
+          `${publicOrigin}/login?error=Login+session+expired.+Please+try+again.`
+        );
+      }
+
       if (error || !code) {
         request.log.warn({ error }, "Google login OAuth denied by user");
         return reply.redirect(
@@ -248,7 +351,10 @@ export async function googleAuthRoute(app: FastifyInstance) {
 
       const normalizedEmail = googleEmail.toLowerCase().trim();
 
-      // Look up existing tenant by email — LOGIN ONLY, no account creation
+      // Look up existing tenant by owner_email — LOGIN ONLY, no account creation.
+      // Identity model: this app uses owner-only login. Each tenant has exactly one
+      // owner (tenants.owner_email). Google login matches against owner_email.
+      // The users table exists for future multi-user support but is not used for login.
       const rows = await query<{
         id: string;
         shop_name: string;
@@ -281,10 +387,20 @@ export async function googleAuthRoute(app: FastifyInstance) {
         "Google login successful"
       );
 
-      // Redirect to a small handler page that stores the JWT and redirects to dashboard
-      // Using a query param to pass the token (short-lived, HTTPS-only in production)
+      // Store a one-time auth code; redirect with only the opaque code in the URL.
+      // Frontend exchanges code → JWT via POST /auth/google/exchange.
+      // JWT never appears in URL, browser history, logs, or referrer headers.
+      const authCode = randomBytes(32).toString("hex");
+      authCodeStore.set(authCode, {
+        jwt,
+        tenantId: tenant.id,
+        shopName: tenant.shop_name,
+        email: tenant.owner_email,
+        createdAt: Date.now(),
+      });
+
       return reply.redirect(
-        `${publicOrigin}/login?google_token=${encodeURIComponent(jwt)}&tenantId=${encodeURIComponent(tenant.id)}&shopName=${encodeURIComponent(tenant.shop_name)}`
+        `${publicOrigin}/login?google_code=${encodeURIComponent(authCode)}`
       );
     }
 
