@@ -138,19 +138,18 @@ Admin API: `GET /internal/admin/verification/booking-dedup`
 curl -s -H "Authorization: Bearer $TOKEN" \
   "https://autoshopsmsai.com/internal/admin/verification/booking-dedup?limit=10" | jq .
 
-# 2. Check for any appointment where was_updated=true
-#    (indicates ON CONFLICT triggered — the row was updated, not duplicated)
+# 2. Check that no two appointments share the same conversation_id
+#    (UNIQUE constraint prevents duplicates — ON CONFLICT upsert)
 
 # 3. Check log drain for "booking_duplicate_blocked" events:
 #    Search: event:"booking_duplicate_blocked"
 
 # 4. Verify UNIQUE constraint exists on appointments table:
-#    (already proven by migration 024 and unit tests — 548 passing)
+#    (already proven by migration and unit tests — 548 passing)
 ```
 
 ### Pass Condition
 - No two appointments share the same `conversation_id`
-- Any `was_updated=true` appointment confirms the upsert path worked
 - Log drain shows `booking_duplicate_blocked` if a real duplicate was attempted
 - **OR** unit test suite confirms dedup logic (548 tests passing)
 
