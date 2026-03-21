@@ -42,6 +42,11 @@ export async function adminRoute(app: FastifyInstance) {
     reply.header("Expires", "0");
   });
 
+  // ── GET /internal/admin/check — lightweight admin probe (no DB queries) ───
+  app.get("/admin/check", { preHandler: [adminGuard] }, async (_req, reply) => {
+    return reply.status(200).send({ admin: true });
+  });
+
   // ── GET /internal/admin/metrics/signups ───────────────────────────────────
   app.get("/admin/metrics/signups", { preHandler: [adminGuard] }, async (_req, reply) => {
     const rows = await query(
