@@ -20,6 +20,15 @@
       ]
     },
     {
+      "source": "/admin/:path*",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" },
+        { "key": "Vercel-CDN-Cache-Control", "value": "max-age=0, must-revalidate" },
+        { "key": "Pragma", "value": "no-cache" },
+        { "key": "Expires", "value": "0" }
+      ]
+    },
+    {
       "source": "/admin.html",
       "headers": [
         { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" },
@@ -71,6 +80,7 @@
     { "source": "/signup", "destination": "/signup.html" },
     { "source": "/forgot-password", "destination": "/forgot-password.html" },
     { "source": "/onboarding/:step", "destination": "/onboarding.html" },
+    { "source": "/admin/:view", "destination": "https://autoshop-api-7ek9.onrender.com/admin.html" },
     { "source": "/admin.html", "destination": "https://autoshop-api-7ek9.onrender.com/admin.html" },
     { "source": "/health", "destination": "https://autoshop-api-7ek9.onrender.com/health" },
     { "source": "/auth/:path*", "destination": "https://autoshop-api-7ek9.onrender.com/auth/:path*" },

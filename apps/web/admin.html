@@ -428,7 +428,10 @@ function initAuth() {
 
 function showAdmin() {
   document.getElementById('adminLayout').style.display = 'block';
-  navigate('overview');
+  // Support clean URLs: /admin/project-ops → navigate to that section
+  const match = window.location.pathname.match(/^\/admin\/([a-z0-9-]+)/);
+  const section = match ? match[1] : 'overview';
+  navigate(section);
 }
 
 function showAccessDenied(msg) {
@@ -480,6 +483,13 @@ async function apiFetch(path, params) {
 // ── NAVIGATION ───────────────────────────────────────────────────────────────
 function navigate(section, params) {
   currentSection = section;
+  // Keep URL in sync (don't push for sub-views like account-detail)
+  if (!params) {
+    const target = section === 'overview' ? '/admin.html' : '/admin/' + section;
+    if (window.location.pathname !== target) {
+      history.pushState(null, '', target);
+    }
+  }
   document.querySelectorAll('.sidebar-item').forEach(el => {
     el.classList.toggle('active', el.dataset.section === section);
   });
@@ -2555,6 +2565,10 @@ function renderProjectOpsV1(main, d) {
 }
 
 // ── INIT ─────────────────────────────────────────────────────────────────────
+window.addEventListener('popstate', () => {
+  const match = window.location.pathname.match(/^\/admin\/([a-z0-9-]+)/);
+  navigate(match ? match[1] : 'overview');
+});
 initAuth();
 </script>
 </body>
