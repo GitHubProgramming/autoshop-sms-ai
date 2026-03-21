@@ -45,14 +45,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 /* ── BANNERS ── */
 .banner{padding:10px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;font-size:13px;border-bottom:1px solid var(--border)}
 .banner.trial{background:linear-gradient(90deg,var(--rust-tint),#FFF8F2)}
-.banner.warning-80{background:#FFFBEB}
+.banner.warning-80{background:#FFFFFF;border-bottom-color:#E6E1D9}
 .banner.warning-100{background:var(--red-bg)}
 .banner.paused{background:var(--red-bg)}
 .banner.reconnect{background:var(--red-bg)}
 .banner-left{display:flex;align-items:center;gap:14px}
 .banner-label{font-size:12px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap}
 .banner-label.rust{color:var(--rust)}
-.banner-label.amber{color:var(--amber)}
+.banner-label.amber{color:var(--rust)}
 .banner-label.red{color:var(--red)}
 .banner-bar-bg{width:140px;height:4px;background:rgba(0,0,0,.06);border-radius:2px;overflow:hidden}
 .banner-bar-fill{height:100%;border-radius:2px;transition:width .4s}
@@ -60,11 +60,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .banner-count strong{color:var(--text)}
 .banner-days{font-size:11px;color:var(--text-tertiary)}
 .banner-msg{font-size:13px;font-weight:500}
-.banner-msg.amber{color:var(--amber)}
+.banner-msg.amber{color:var(--rust)}
 .banner-msg.red{color:var(--red)}
 .btn-upgrade{background:linear-gradient(135deg,var(--rust),var(--rust-deep));color:#fff;font-size:12px;font-weight:600;padding:7px 18px;border:none;cursor:pointer;border-radius:8px;transition:all .2s;text-decoration:none;display:inline-block;white-space:nowrap;box-shadow:var(--shadow-primary)}
 .btn-upgrade:hover{box-shadow:0 4px 12px rgba(201,75,31,.35);transform:translateY(-1px)}
-.btn-upgrade.amber{background:var(--amber)}
+.btn-upgrade.amber{background:var(--rust)}
 .btn-upgrade.red{background:var(--red)}
 
 /* ── TOP NAV ── */
@@ -104,12 +104,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 .status-dot.green{background:#34D399;box-shadow:0 0 8px rgba(52,211,153,.5);animation:pulse-g 2s infinite}
 .status-dot.red{background:var(--red);box-shadow:0 0 6px rgba(239,68,68,.4)}
-.status-dot.amber{background:var(--amber)}
+.status-dot.amber{background:var(--rust)}
 @keyframes pulse-g{0%,100%{box-shadow:0 0 6px rgba(52,211,153,.4)}50%{box-shadow:0 0 14px rgba(52,211,153,.7)}}
 .status-text{font-size:12px;font-weight:600}
 .status-text.green{color:#34D399}
 .status-text.red{color:var(--red)}
-.status-text.amber{color:var(--amber)}
+.status-text.amber{color:var(--rust)}
 .status-sub{font-size:11px;color:rgba(255,255,255,0.4);margin-top:1px}
 
 /* ── MAIN ── */
@@ -167,10 +167,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .conv-card-phone{font-size:11px;color:var(--text-tertiary);margin-bottom:4px}
 .conv-card-msg{font-size:13px;color:var(--text);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .conv-card-badge{display:inline-block;padding:2px 8px;background:var(--rust-tint);color:var(--rust);border-radius:4px;font-size:11px;font-weight:600}
-.conv-card-badge.booking{background:var(--green-dim);color:var(--green-vivid)}
+.conv-card-badge.booking{background:rgba(13,27,42,.06);color:var(--navy)}
 .conv-card-badge.lost{background:var(--red-dim);color:var(--red)}
-.conv-active-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--green-dim);color:var(--green-vivid);border-radius:20px;font-size:11px;font-weight:600}
-.conv-active-dot{width:8px;height:8px;background:var(--green-vivid);border-radius:50%;animation:pulse-g 2s infinite}
+.conv-active-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--rust-tint);color:var(--rust);border-radius:20px;font-size:11px;font-weight:600}
+.conv-active-dot{width:8px;height:8px;background:var(--rust);border-radius:50%;animation:pulse-g 2s infinite}
 
 /* ── Conversation Slide Panel (Dashboard) ── */
 .conv-slide-panel{position:fixed;top:0;right:0;width:400px;height:100vh;background:var(--bg-panel);box-shadow:-4px 0 24px rgba(0,0,0,.12);z-index:1000;transform:translateX(100%);transition:transform .25s ease;display:flex;flex-direction:column;overflow:hidden}
@@ -205,10 +205,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .conv-panel-status-block{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:16px}
 .conv-panel-status-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600}
 .conv-panel-status-badge.active{background:var(--rust-accent);color:var(--rust)}
-.conv-panel-status-badge.booked{background:var(--green-dim);color:var(--green-dark)}
+.conv-panel-status-badge.booked{background:rgba(13,27,42,.06);color:var(--navy)}
 .conv-panel-status-badge.lost{background:var(--red-dim,#FEE2E2);color:var(--red,#EF4444)}
-.conv-panel-status-badge.no-response{background:var(--amber-soft);color:#D97706}
-.conv-panel-status-badge.resolved{background:#FFF0E6;color:#A0522D}
+.conv-panel-status-badge.no-response{background:rgba(13,27,42,.04);color:var(--text-tertiary)}
+.conv-panel-status-badge.resolved{background:rgba(13,27,42,.04);color:var(--text-tertiary)}
 .conv-panel-outcome{font-size:12px;color:var(--text-tertiary);margin-left:auto}
 .conv-panel-info-block{padding:14px 16px;border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:12px}
 .conv-panel-info-block .conv-panel-block-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-tertiary);margin-bottom:10px;display:flex;align-items:center;gap:6px}
@@ -217,8 +217,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .conv-panel-info-label{font-size:11px;font-weight:600;color:var(--text-tertiary);min-width:70px;flex-shrink:0}
 .conv-panel-info-value{font-size:13px;color:var(--text)}
 .conv-panel-booking-status{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600}
-.conv-panel-booking-status.synced{background:var(--green-dim);color:var(--green-dark)}
-.conv-panel-booking-status.pending{background:var(--amber-soft);color:#D97706}
+.conv-panel-booking-status.synced{background:rgba(13,27,42,.06);color:var(--navy)}
+.conv-panel-booking-status.pending{background:var(--rust-tint);color:var(--rust)}
 .conv-panel-booking-status.failed{background:var(--red-dim,#FEE2E2);color:var(--red,#EF4444)}
 .conv-panel-divider{height:1px;background:var(--border);margin:16px 0}
 .conv-panel-timeline{display:flex;flex-direction:column;gap:6px}
@@ -234,8 +234,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .appt-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
 .appt-card-time{font-size:13px;font-weight:600;color:var(--text)}
 .appt-card-status{font-size:11px;padding:1px 8px;border-radius:4px;font-weight:500}
-.appt-card-status.confirmed{background:var(--green-dim);color:var(--green-vivid)}
-.appt-card-status.pending{background:var(--amber-soft);color:#F59E0B}
+.appt-card-status.confirmed{background:rgba(13,27,42,.06);color:var(--navy)}
+.appt-card-status.pending{background:var(--rust-tint);color:var(--rust)}
 .appt-card-customer{font-size:13px;color:var(--text);margin-bottom:2px}
 .appt-card-service{font-size:11px;color:var(--text-tertiary);margin-bottom:2px}
 .appt-card-source{font-size:11px;color:var(--rust);font-weight:600}
@@ -246,9 +246,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .sys-status-row:last-child{border-bottom:none}
 .sys-status-top{display:flex;align-items:center;justify-content:space-between}
 .sys-status-name{font-size:13px;font-weight:600;color:var(--text)}
-.sys-status-check svg{width:16px;height:16px;color:var(--green-vivid)}
+.sys-status-check svg{width:16px;height:16px;color:var(--navy)}
 .sys-status-bottom{display:flex;align-items:center;justify-content:space-between}
-.sys-status-label{font-size:11px;color:var(--green-vivid)}
+.sys-status-label{font-size:11px;color:var(--navy)}
 .sys-status-uptime{font-size:11px;color:var(--text-tertiary)}
 
 /* ── TSX Revenue Analytics header ── */
@@ -262,10 +262,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 @media(max-width:1024px){.dash-lower{grid-template-columns:1fr}}
 
 .kpi-card.revenue::before{background:var(--rust)}
-.kpi-card.calls::before{background:var(--amber)}
-.kpi-card.booked::before{background:var(--green)}
+.kpi-card.calls::before{background:var(--navy)}
+.kpi-card.booked::before{background:var(--navy)}
 .kpi-card.health-card{padding:0;overflow:hidden}
-.kpi-card.health-card::before{background:var(--green)}
+.kpi-card.health-card::before{background:var(--navy)}
 .kpi-tag{font-family:var(--display);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--steel);margin-bottom:10px}
 .kpi-value{font-size:32px;font-weight:700;color:var(--text);line-height:1;margin-bottom:6px;letter-spacing:-.03em}
 .kpi-value .curr{font-size:20px;color:var(--text-tertiary);vertical-align:top;margin-top:3px;display:inline-block}
@@ -280,13 +280,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .health-row:last-child{border-bottom:none}
 .health-label{font-size:11px;font-weight:600;letter-spacing:.03em;color:var(--text-tertiary);text-transform:uppercase}
 .health-val{font-family:var(--mono);font-size:11px;display:flex;align-items:center;gap:5px}
-.health-val.ok{color:var(--green)}
-.health-val.warn{color:var(--amber)}
+.health-val.ok{color:var(--navy)}
+.health-val.warn{color:var(--rust)}
 .health-val.err{color:var(--red)}
 .health-val.neutral{color:var(--text-secondary)}
 .hdot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-.hdot.green{background:var(--green);box-shadow:0 0 5px rgba(22,163,74,.4);animation:pulse-g 2s infinite}
-.hdot.amber{background:var(--amber)}
+.hdot.green{background:var(--navy);box-shadow:none;animation:none}
+.hdot.amber{background:var(--rust)}
 .hdot.red{background:var(--red)}
 .fade-in{opacity:0;transform:translateY(12px);animation:fadeUp .4s cubic-bezier(.22,.68,0,1.1) forwards}
 .fade-in:nth-child(1){animation-delay:.05s}
@@ -311,7 +311,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .system-hero.success{background:#FFFFFF;border-color:var(--border);border-top:1px solid #E6E1D9;border-right:1px solid #E6E1D9;border-bottom:1px solid #E6E1D9}
 .system-hero.error{background:#FFFFFF;border-color:var(--red);border-top:1px solid #E6E1D9;border-right:1px solid #E6E1D9;border-bottom:1px solid #E6E1D9}
 .hero-status{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;white-space:nowrap}
-.hero-status.green{color:var(--green)}
+.hero-status.green{color:var(--navy)}
 .hero-status.red{color:var(--red)}
 .hero-divider{width:1px;height:24px;background:var(--border);flex-shrink:0}
 .hero-desc{font-size:13px;color:var(--text-secondary)}
@@ -347,7 +347,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .p-stage-count{font-size:24px;font-weight:700;color:var(--text);line-height:1;margin-bottom:4px;letter-spacing:-.02em}
 .p-stage-conv{font-family:var(--mono);font-size:11px;margin-bottom:2px}
 .p-stage-drop{font-family:var(--mono);font-size:10px;color:var(--text-tertiary)}
-.p-stage-drop.warn{color:var(--amber)}
+.p-stage-drop.warn{color:var(--rust)}
 .p-stage-drop.danger{color:var(--red)}
 .p-stage-bar{height:3px;background:var(--border);margin-top:10px;border-radius:2px;overflow:hidden}
 .p-stage-bar-fill{height:100%;border-radius:2px}
@@ -376,8 +376,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .onboarding-step-label{font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px}
 .onboarding-step-desc{font-size:12px;color:var(--text-tertiary);line-height:1.4;margin-bottom:10px;min-height:34px}
 .onboarding-step-status{font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px}
-.onboarding-step-status.done{color:var(--green-dark);background:var(--green-dim)}
-.onboarding-step-status.warning{color:var(--amber);background:var(--amber-soft)}
+.onboarding-step-status.done{color:var(--navy);background:rgba(13,27,42,.06)}
+.onboarding-step-status.warning{color:var(--rust);background:var(--rust-tint)}
 .onboarding-step-status.action{color:var(--rust);background:var(--rust-tint);cursor:pointer}
 .onboarding-step-status.action:hover{background:var(--rust-accent)}
 .onboarding-step-cta{margin-top:8px}
@@ -386,9 +386,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .onboarding-dismiss:hover{background:var(--bg);color:var(--text-secondary)}
 /* Warning banners for onboarding context */
 .onboarding-warning{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:500;margin-bottom:12px}
-.onboarding-warning.red{background:var(--red-bg);border:1px solid var(--red-light);color:#991B1B}
-.onboarding-warning.amber{background:var(--amber-soft);border:1px solid var(--amber-border);color:var(--amber-text)}
-.onboarding-warning.blue{background:var(--rust-tint);border:1px solid var(--rust-accent);color:var(--amber-text)}
+.onboarding-warning.red{background:#FFFFFF;border:1px solid #E6E1D9;color:var(--rust)}
+.onboarding-warning.amber{background:#FFFFFF;border:1px solid #E6E1D9;color:var(--text-secondary)}
+.onboarding-warning.blue{background:var(--rust-tint);border:1px solid var(--rust-accent);color:var(--text-secondary)}
 .onboarding-warning svg{flex-shrink:0}
 /* Test AI modal */
 .test-ai-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-top:8px}
@@ -401,10 +401,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .step-label{font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;line-height:1.3}
 .step-pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;margin-bottom:10px}
 .step-pill::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0}
-.step-pill.done{background:var(--green-dim);color:var(--green)}
-.step-pill.done::before{background:var(--green)}
-.step-pill.warn{background:rgba(217,119,6,.08);color:var(--amber-text)}
-.step-pill.warn::before{background:var(--amber)}
+.step-pill.done{background:rgba(13,27,42,.06);color:var(--navy)}
+.step-pill.done::before{background:var(--navy)}
+.step-pill.warn{background:var(--rust-tint);color:var(--rust)}
+.step-pill.warn::before{background:var(--rust)}
 .step-pill.fail{background:var(--red-dim);color:var(--red)}
 .step-pill.fail::before{background:var(--red)}
 .step-pill.info{background:rgba(148,163,184,.1);color:var(--text-tertiary)}
@@ -422,10 +422,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .int-cell-name{font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:8px}
 .int-status-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:4px;margin-bottom:6px}
 .int-status-pill::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0}
-.int-status-pill.healthy{background:var(--green-dim);color:var(--green)}
-.int-status-pill.healthy::before{background:var(--green);box-shadow:0 0 4px rgba(22,163,74,.4)}
-.int-status-pill.degraded{background:rgba(217,119,6,.08);color:var(--amber-text)}
-.int-status-pill.degraded::before{background:var(--amber)}
+.int-status-pill.healthy{background:rgba(13,27,42,.06);color:var(--navy)}
+.int-status-pill.healthy::before{background:var(--navy);box-shadow:none}
+.int-status-pill.degraded{background:var(--rust-tint);color:var(--rust)}
+.int-status-pill.degraded::before{background:var(--rust)}
 .int-status-pill.failing{background:var(--red-dim);color:var(--red)}
 .int-status-pill.failing::before{background:var(--red)}
 .int-meta{font-family:var(--mono);font-size:11px;color:var(--text-tertiary);line-height:1.5}
@@ -452,26 +452,26 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .td-date{font-family:var(--mono);font-size:12px;color:var(--text-tertiary);white-space:nowrap}
 .td-phone{font-family:var(--mono);font-size:12px;color:var(--text-secondary)}
 .td-issue{color:var(--text);font-weight:500}
-.td-aro{font-family:var(--mono);font-size:12px;color:var(--amber)}
+.td-aro{font-family:var(--mono);font-size:12px;color:var(--rust)}
 .td-aro.empty{color:var(--text-tertiary)}
 
 /* ── STATUS PILLS ── */
 .status-pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:4px;white-space:nowrap}
 .status-pill::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0}
-.status-pill.booked{background:var(--green-dim);color:var(--green)}
-.status-pill.booked::before{background:var(--green)}
+.status-pill.booked{background:rgba(13,27,42,.06);color:var(--navy)}
+.status-pill.booked::before{background:var(--navy)}
 .status-pill.no-response{background:rgba(148,163,184,.1);color:var(--text-tertiary)}
 .status-pill.no-response::before{background:var(--text-tertiary)}
 .status-pill.lost{background:var(--red-dim);color:var(--red)}
 .status-pill.lost::before{background:var(--red)}
-.status-pill.active{background:rgba(217,119,6,.08);color:var(--amber-text)}
-.status-pill.active::before{background:var(--amber);animation:pulse-g 1.5s infinite}
+.status-pill.active{background:var(--rust-tint);color:var(--rust)}
+.status-pill.active::before{background:var(--rust);animation:pulse-g 1.5s infinite}
 .status-pill.resolved{background:rgba(148,163,184,.08);color:var(--text-tertiary)}
 .status-pill.resolved::before{background:var(--text-tertiary)}
-.status-pill.synced{background:var(--green-dim);color:var(--green)}
-.status-pill.synced::before{background:var(--green)}
-.status-pill.pending{background:rgba(217,119,6,.08);color:var(--amber-text)}
-.status-pill.pending::before{background:var(--amber)}
+.status-pill.synced{background:rgba(13,27,42,.06);color:var(--navy)}
+.status-pill.synced::before{background:var(--navy)}
+.status-pill.pending{background:var(--rust-tint);color:var(--rust)}
+.status-pill.pending::before{background:var(--rust)}
 .status-pill.failed{background:var(--red-dim);color:var(--red)}
 .status-pill.failed::before{background:var(--red)}
 
@@ -507,7 +507,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .rev-sub-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);gap:10px}
 .rev-sub-label{font-size:12px;color:var(--text-tertiary)}
 .rev-sub-value{font-family:var(--mono);font-size:13px;color:var(--text);font-weight:600}
-.rev-sub-value.green{color:var(--green)}
+.rev-sub-value.green{color:var(--navy)}
 
 /* ── CHART ── */
 .chart-wrap{background:#FFFFFF;border:1px solid #E6E1D9;padding:20px;margin-bottom:20px;border-radius:var(--radius-lg);box-shadow:0 4px 12px rgba(13,27,42,.06)}
@@ -536,7 +536,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .billing-card{background:#FFFFFF;border:1px solid #E6E1D9;border-radius:var(--radius);padding:24px}
 .billing-card-title{font-family:var(--display);font-size:18px;font-weight:700;color:var(--navy);margin-bottom:4px;letter-spacing:.01em;text-transform:uppercase}
 .billing-card-subtitle{font-size:13px;color:var(--text-tertiary)}
-.billing-status-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:var(--green-dim);color:var(--green-vivid);border-radius:20px;font-size:12px;font-weight:500}
+.billing-status-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:rgba(13,27,42,.06);color:var(--navy);border-radius:20px;font-size:12px;font-weight:500}
 .billing-status-badge svg{width:12px;height:12px}
 .billing-plan-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px}
 .billing-price-block{padding-bottom:24px;border-bottom:1px solid var(--border);margin-bottom:24px}
@@ -550,7 +550,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .billing-usage-count{font-size:13px;color:var(--text-tertiary)}
 .billing-usage-bar{position:relative;width:100%;height:10px;background:var(--color-bg-surface-alt);border-radius:6px;overflow:hidden}
 .billing-usage-bar-fill{position:absolute;top:0;left:0;height:100%;background:var(--rust);border-radius:6px;transition:width .4s}
-.billing-usage-bar-fill.warn{background:var(--amber)}
+.billing-usage-bar-fill.warn{background:var(--rust)}
 .billing-usage-bar-fill.over{background:var(--red)}
 .billing-usage-pct{font-size:12px;color:var(--text-tertiary);margin-top:8px}
 .billing-next-row{display:flex;align-items:center;justify-content:space-between;padding:16px;background:#FAF8F5;border-radius:10px;margin-top:24px}
@@ -565,7 +565,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .billing-payment-icon svg{width:20px;height:20px;color:#fff}
 .billing-payment-card{font-size:13px;font-weight:500;color:var(--text);margin-bottom:2px}
 .billing-payment-exp{font-size:12px;color:var(--text-tertiary)}
-.billing-payment-default{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--green-vivid)}
+.billing-payment-default{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--navy)}
 .billing-payment-default svg{width:12px;height:12px}
 .billing-btn-outline{width:100%;padding:8px 16px;border:1px solid var(--border);background:transparent;color:var(--text);border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s}
 .billing-btn-outline:hover{background:#FAF8F5}
@@ -581,7 +581,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .billing-plan-card-convos{font-size:13px;color:var(--text-tertiary);margin:8px 0 20px}
 .billing-plan-features{list-style:none;margin-bottom:24px}
 .billing-plan-features li{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--text);padding:6px 0}
-.billing-plan-features li svg{width:16px;height:16px;color:var(--green-vivid);flex-shrink:0;margin-top:1px}
+.billing-plan-features li svg{width:16px;height:16px;color:var(--navy);flex-shrink:0;margin-top:1px}
 .billing-btn-primary{width:100%;padding:10px 16px;background:var(--rust);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s}
 .billing-btn-primary:hover{background:#A83D18}
 .billing-btn-disabled{width:100%;padding:10px 16px;background:var(--color-bg-surface-alt);color:var(--text-tertiary);border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:not-allowed}
@@ -591,18 +591,18 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .billing-invoice-table td{padding:14px 20px;font-size:13px;border-bottom:1px solid var(--border)}
 .billing-invoice-table tr:last-child td{border-bottom:none}
 .billing-invoice-table tr:hover{background:#FAF8F5}
-.billing-invoice-status{display:inline-block;padding:3px 10px;background:var(--green-dim);color:var(--green-vivid);border-radius:4px;font-size:12px;font-weight:500}
+.billing-invoice-status{display:inline-block;padding:3px 10px;background:rgba(13,27,42,.06);color:var(--navy);border-radius:4px;font-size:12px;font-weight:500}
 .billing-invoice-dl{display:flex;align-items:center;gap:4px;font-size:13px;color:var(--rust);cursor:pointer;background:none;border:none;font-family:inherit}
 .billing-invoice-dl:hover{color:#A83D18}
 .billing-dl-all{display:flex;align-items:center;gap:8px;padding:8px 16px;color:var(--rust);background:none;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s;font-family:inherit}
 .billing-dl-all:hover{background:var(--rust-tint)}
 .billing-warning{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:8px;margin-bottom:16px}
-.billing-warning.amber{background:#FFFBEB;border:1px solid #FEF3C7}
+.billing-warning.amber{background:#FFFFFF;border:1px solid #E6E1D9}
 .billing-warning.red{background:var(--red-bg);border:1px solid var(--red-light)}
 .billing-warning-icon{font-size:14px;flex-shrink:0;margin-top:1px}
 .billing-warning-text{font-size:13px;line-height:1.5}
 .billing-warning-text strong{display:block;margin-bottom:2px}
-.billing-warning.amber .billing-warning-text strong{color:var(--amber)}
+.billing-warning.amber .billing-warning-text strong{color:var(--rust)}
 .billing-warning.red .billing-warning-text strong{color:var(--red)}
 .billing-warning-text p{color:var(--text-tertiary)}
 
@@ -632,8 +632,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .s-toggle.on{background:var(--rust)}
 .s-toggle::after{content:'';position:absolute;width:16px;height:16px;background:#fff;border-radius:50%;top:3px;left:3px;transition:transform .2s;box-shadow:var(--shadow-sm)}
 .s-toggle.on::after{transform:translateX(18px)}
-.int-connected{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:12px;color:var(--green)}
-.int-connected::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green)}
+.int-connected{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:12px;color:var(--navy)}
+.int-connected::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--navy)}
 
 /* ── MODAL ── */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.4);z-index:500;backdrop-filter:blur(4px);align-items:flex-start;justify-content:center;padding:48px 20px;overflow-y:auto}
@@ -649,8 +649,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .modal-info-cell{background:var(--bg);padding:12px 14px;border:1px solid var(--border);border-radius:8px}
 .modal-info-label{font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--text-tertiary);text-transform:uppercase;margin-bottom:3px}
 .modal-info-value{font-size:16px;font-weight:600;color:var(--text)}
-.modal-info-value.green{color:var(--green)}
-.modal-info-value.amber{color:var(--amber)}
+.modal-info-value.green{color:var(--navy)}
+.modal-info-value.amber{color:var(--rust)}
 .thread-label{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:12px}
 .msg-row{display:flex;margin-bottom:12px}
 .msg-row.right{justify-content:flex-end}
@@ -662,8 +662,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .msg-bubble.customer .msg-ts{color:rgba(255,255,255,.6)}
 .msg-bubble.ai .msg-ts{color:var(--text-tertiary)}
 .msg-time{font-family:var(--mono);font-size:10px;color:var(--text-tertiary);text-align:center;margin:8px 0 12px}
-.modal-result{background:var(--green-dim);border:1px solid var(--green-light);padding:12px 14px;margin-top:14px;display:flex;align-items:center;gap:8px;border-radius:8px}
-.modal-result-text{font-size:13px;font-weight:500;color:var(--green)}
+.modal-result{background:rgba(13,27,42,.04);border:1px solid #E6E1D9;padding:12px 14px;margin-top:14px;display:flex;align-items:center;gap:8px;border-radius:8px}
+.modal-result-text{font-size:13px;font-weight:500;color:var(--navy)}
 .modal-result-text strong{color:var(--text)}
 
 /* ── TOAST ── */
@@ -714,8 +714,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .conv-unread-dot{width:8px;height:8px;background:var(--rust);border-radius:50%;flex-shrink:0}
 .conv-status-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
 .conv-status-badge.ai{background:var(--rust-tint);color:var(--rust)}
-.conv-status-badge.booked{background:var(--green-dim);color:var(--green-vivid)}
-.conv-status-badge.needs-operator{background:var(--amber-soft);color:#F59E0B}
+.conv-status-badge.booked{background:rgba(13,27,42,.06);color:var(--navy)}
+.conv-status-badge.needs-operator{background:var(--rust-tint);color:var(--rust)}
 .conv-status-badge.resolved,.conv-status-badge.no-response,.conv-status-badge.lost{background:var(--color-bg-surface-alt);color:#64748B}
 .conv-thread-panel{display:flex;flex-direction:column;overflow:hidden}
 .conv-thread-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -750,7 +750,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .conv-detail-appt-name{font-size:13px;font-weight:600;color:var(--text)}
 .conv-detail-appt-date{font-size:11px;color:var(--text-tertiary);margin-top:1px}
 .conv-detail-appt-tag{display:inline-block;margin-top:4px;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500}
-.conv-detail-appt-tag.upcoming{background:var(--green-dim);color:var(--green-vivid)}
+.conv-detail-appt-tag.upcoming{background:rgba(13,27,42,.06);color:var(--navy)}
 .conv-detail-appt-tag.completed{background:var(--color-bg-surface-alt);color:#64748B}
 .conv-detail-notes{width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);font-family:var(--body);resize:none;outline:none;transition:border-color .15s}
 .conv-detail-notes:focus{border-color:var(--rust);box-shadow:0 0 0 3px rgba(201,75,31,.1)}
@@ -780,7 +780,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 /* ── SOURCE TAG ── */
 .source-tag{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2px 6px;border-radius:4px;white-space:nowrap}
 .source-tag.ai{background:var(--rust-tint);color:var(--rust)}
-.source-tag.phone{background:rgba(217,119,6,.08);color:var(--amber-text)}
+.source-tag.phone{background:rgba(13,27,42,.06);color:var(--navy)}
 .source-tag.manual{background:rgba(148,163,184,.1);color:var(--text-tertiary)}
 
 /* ── APPOINTMENTS PAGE (SaaS redesign) ── */
@@ -789,7 +789,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .appt-stat-value{font-size:28px;font-weight:700;color:var(--text);line-height:1;margin-bottom:4px;letter-spacing:-.02em}
 .appt-stat-label{font-size:13px;color:var(--text-tertiary);margin-bottom:8px}
 .appt-stat-sub{font-size:12px;font-weight:500}
-.appt-stat-sub.green{color:var(--green-vivid)}
+.appt-stat-sub.green{color:var(--navy)}
 .appt-stat-sub.blue{color:var(--rust)}
 .appt-columns{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 @media(max-width:1024px){.appt-stats-row{grid-template-columns:repeat(2,1fr)}.appt-columns{grid-template-columns:1fr}}
@@ -806,8 +806,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .appt-today-name{font-size:14px;font-weight:600;color:var(--text);margin-bottom:2px}
 .appt-today-service{font-size:13px;color:var(--text-tertiary)}
 .appt-status-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
-.appt-status-badge.confirmed{background:var(--green-dim);color:var(--green-vivid)}
-.appt-status-badge.pending{background:var(--amber-soft);color:#F59E0B}
+.appt-status-badge.confirmed{background:rgba(13,27,42,.06);color:var(--navy)}
+.appt-status-badge.pending{background:var(--rust-tint);color:var(--rust)}
 .appt-status-badge.completed{background:var(--color-bg-surface-alt);color:#64748B}
 .appt-status-badge.cancelled{background:var(--red-light);color:#DC2626}
 .appt-today-meta{display:flex;align-items:center;gap:14px;margin-top:8px;font-size:12px;color:var(--text-tertiary)}
@@ -832,7 +832,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .cust-stat-value{font-size:28px;font-weight:700;color:var(--text);line-height:1;margin-bottom:4px;letter-spacing:-.02em}
 .cust-stat-label{font-size:13px;color:var(--text-tertiary);margin-bottom:8px}
 .cust-stat-sub{font-size:12px;font-weight:500}
-.cust-stat-sub.green{color:var(--green-vivid)}
+.cust-stat-sub.green{color:var(--navy)}
 .cust-stat-sub.blue{color:var(--rust)}
 .cust-stat-sub.muted{color:var(--text-tertiary)}
 .cust-list-card{background:var(--bg-panel);border-radius:var(--radius);border:1px solid var(--border)}
@@ -861,7 +861,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .cust-icon-cell svg{width:15px;height:15px;color:var(--text-tertiary);flex-shrink:0}
 .cust-spent{font-weight:600;font-family:var(--mono);font-size:13px}
 .cust-status{display:inline-block;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600}
-.cust-status.active{background:var(--green-dim);color:var(--green-vivid)}
+.cust-status.active{background:rgba(13,27,42,.06);color:var(--navy)}
 .cust-status.new{background:var(--rust-tint);color:var(--rust)}
 .cust-status.inactive{background:var(--color-bg-surface-alt);color:#64748B}
 .cust-actions-btn{padding:6px 8px;background:transparent;border:none;border-radius:6px;cursor:pointer;transition:background .12s;color:var(--text-tertiary)}
@@ -889,7 +889,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .an-kpi-icon.green{background:var(--rust-tint);color:var(--rust)}
 .an-kpi-icon.blue{background:rgba(13,27,42,.07);color:var(--navy)}
 .an-kpi-icon.amber{background:rgba(13,27,42,.07);color:var(--navy-light)}
-.an-kpi-icon.purple{background:#FFF0E6;color:#A0522D}
+.an-kpi-icon.purple{background:rgba(13,27,42,.07);color:var(--navy)}
 .an-kpi-val{font-size:28px;font-weight:700;color:var(--text);line-height:1;margin-bottom:4px;letter-spacing:-.02em}
 .an-kpi-label{font-size:13px;color:var(--text-tertiary);margin-bottom:8px}
 .an-kpi-change{font-size:12px;font-weight:500;color:var(--rust)}
@@ -972,8 +972,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .calendar-icon-box svg{width:20px;height:20px;color:#fff}
 .calendar-name{font-size:14px;font-weight:500;color:var(--text)}
 .calendar-email{font-size:12px;color:var(--text-tertiary)}
-.calendar-status-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:var(--green-dim);color:var(--green-vivid);border-radius:20px;font-size:12px;font-weight:600}
-.calendar-status-badge::before{content:'';width:6px;height:6px;background:var(--green-vivid);border-radius:50%}
+.calendar-status-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:rgba(13,27,42,.06);color:var(--navy);border-radius:20px;font-size:12px;font-weight:600}
+.calendar-status-badge::before{content:'';width:6px;height:6px;background:var(--navy);border-radius:50%}
 .calendar-disconnect-btn{padding:8px 16px;border:1px solid var(--border);background:var(--bg-panel);color:var(--text);border-radius:8px;font-size:13px;cursor:pointer;transition:background .12s;font-family:var(--body)}
 .calendar-disconnect-btn:hover{background:var(--bg-hover)}
 .notif-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px}
@@ -1168,7 +1168,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 
       <!-- ── 1. KPI ROW (4 cards) ── -->
       <div class="kpi-grid" id="kpiGrid"></div>
-      <div id="pendingCompletionBanner" style="display:none;margin:12px 0 0;padding:10px 16px;background:var(--amber-soft);border:1px solid #F59E0B;border-radius:8px;color:var(--amber-text);font-size:14px;font-weight:500;"></div>
+      <div id="pendingCompletionBanner" style="display:none;margin:12px 0 0;padding:10px 16px;background:#FFFFFF;border:1px solid #E6E1D9;border-radius:8px;color:var(--text-secondary);font-size:14px;font-weight:500;"></div>
 
       <!-- ── 2. LIVE CONVERSATIONS + TODAY'S APPOINTMENTS (2/3 + 1/3 grid) ── -->
       <div class="dash-body">
@@ -1503,7 +1503,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
           </div>
           <div class="an-legend" style="margin-top:16px;">
             <div class="an-legend-item"><div class="an-legend-dot" style="background:var(--rust);"></div>Conversations</div>
-            <div class="an-legend-item"><div class="an-legend-dot" style="background:var(--green-vivid);"></div>Booked</div>
+            <div class="an-legend-item"><div class="an-legend-dot" style="background:var(--navy);"></div>Booked</div>
           </div>
         </div>
 
@@ -1533,7 +1533,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
               </div>
               <div class="an-source-row">
                 <div style="display:flex;align-items:center;">
-                  <div class="an-source-dot" style="background:var(--green-vivid);"></div>
+                  <div class="an-source-dot" style="background:var(--navy);"></div>
                   <span class="an-source-name">Manual</span>
                 </div>
                 <span class="an-source-pct" id="anSrcManualPct">0%</span>
@@ -1993,7 +1993,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
           <div class="gh-col-body" id="ghColCritical"></div>
         </div>
         <div class="gh-col">
-          <div class="gh-col-header"><span class="gh-col-dot" style="background:var(--amber)"></span>BLOCKED <span class="gh-col-count" id="ghCountBlocked">0</span></div>
+          <div class="gh-col-header"><span class="gh-col-dot" style="background:var(--rust)"></span>BLOCKED <span class="gh-col-count" id="ghCountBlocked">0</span></div>
           <div class="gh-col-body" id="ghColBlocked"></div>
         </div>
         <div class="gh-col">
@@ -2001,7 +2001,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
           <div class="gh-col-body" id="ghColBacklog"></div>
         </div>
         <div class="gh-col">
-          <div class="gh-col-header"><span class="gh-col-dot" style="background:var(--green)"></span>DONE <span class="gh-col-count" id="ghCountDone">0</span></div>
+          <div class="gh-col-header"><span class="gh-col-dot" style="background:var(--navy)"></span>DONE <span class="gh-col-count" id="ghCountDone">0</span></div>
           <div class="gh-col-body" id="ghColDone"></div>
         </div>
       </div>
@@ -2043,7 +2043,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
         <label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">Notes (optional)</label>
         <textarea id="completeNotesInput" rows="2" placeholder="Service notes..." style="width:100%;padding:10px 12px;font-size:13px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);outline:none;resize:vertical;font-family:inherit"></textarea>
       </div>
-      <button id="completeSubmitBtn" onclick="submitCompleteAppointment()" style="width:100%;padding:10px;font-size:14px;font-weight:600;background:var(--green);color:#fff;border:none;border-radius:8px;cursor:pointer;transition:opacity .15s">Mark as Completed</button>
+      <button id="completeSubmitBtn" onclick="submitCompleteAppointment()" style="width:100%;padding:10px;font-size:14px;font-weight:600;background:var(--rust);color:#fff;border:none;border-radius:8px;cursor:pointer;transition:opacity .15s">Mark as Completed</button>
     </div>
   </div>
 </div>
@@ -2654,7 +2654,7 @@ function renderNav() {
       if (calId) rows += '<div class="settings-row"><div><div class="settings-row-label">Calendar ID</div></div><span style="font-family:var(--mono);font-size:12px;color:var(--steel);">' + calId + '</span></div>';
       rows += '<div class="settings-row"><div><div class="settings-row-label">Actions</div></div><div style="display:flex;gap:8px;"><button class="btn-sm" onclick="connectGoogleCalendar()">Change Account</button><button class="btn-sm red-btn" onclick="disconnectGoogleCalendar()">Disconnect</button></div></div>';
     } else if (calSt === 'token_expired') {
-      rows += '<div class="settings-row"><div><div class="settings-row-label">Status</div></div><span style="font-family:var(--mono);font-size:12px;color:var(--amber);">Reconnect Required</span></div>';
+      rows += '<div class="settings-row"><div><div class="settings-row-label">Status</div></div><span style="font-family:var(--mono);font-size:12px;color:var(--rust);">Reconnect Required</span></div>';
       rows += '<div class="settings-row"><div><div class="settings-row-label">Actions</div></div><button class="btn-sm amber-btn" onclick="connectGoogleCalendar()">Reconnect</button></div>';
     } else {
       rows += '<div class="settings-row"><div><div class="settings-row-label">Status</div></div><span style="font-family:var(--mono);font-size:12px;color:var(--red);">Not Connected</span></div>';
@@ -2670,9 +2670,9 @@ function renderNav() {
     var calSt2 = s.integrations.googleCalendar;
     calEmail.textContent = calSt2 === 'connected' ? (s._calendarId || 'Connected') : 'Not connected';
     if (calStatus) {
-      if (calSt2 === 'connected') { calStatus.textContent = 'Connected'; calStatus.style.background = '#ECFDF5'; calStatus.style.color = '#10B981'; }
-      else if (calSt2 === 'token_expired') { calStatus.textContent = 'Needs Reconnect'; calStatus.style.background = '#FEF3C7'; calStatus.style.color = '#F59E0B'; }
-      else { calStatus.textContent = 'Not Connected'; calStatus.style.background = '#FEE2E2'; calStatus.style.color = '#EF4444'; }
+      if (calSt2 === 'connected') { calStatus.textContent = 'Connected'; calStatus.style.background = 'rgba(13,27,42,.06)'; calStatus.style.color = '#0D1B2A'; }
+      else if (calSt2 === 'token_expired') { calStatus.textContent = 'Needs Reconnect'; calStatus.style.background = 'rgba(201,75,31,.08)'; calStatus.style.color = '#C94B1F'; }
+      else { calStatus.textContent = 'Not Connected'; calStatus.style.background = 'rgba(13,27,42,.04)'; calStatus.style.color = '#7A8A9E'; }
     }
   }
 
@@ -2830,7 +2830,7 @@ function renderOnboardingWarnings(steps) {
   var warnIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
 
   if (!steps[0].done) {
-    warnings.push('<div class="onboarding-warning red">' + warnIcon + 'AI is not active \u2014 no phone number connected. <a style="color:#991B1B;font-weight:600;cursor:pointer;text-decoration:underline;" onclick="onboardingStepAction(0)">Connect now</a></div>');
+    warnings.push('<div class="onboarding-warning red">' + warnIcon + 'AI is not active \u2014 no phone number connected. <a style="color:#C94B1F;font-weight:600;cursor:pointer;text-decoration:underline;" onclick="onboardingStepAction(0)">Connect now</a></div>');
   }
   if (steps[0].done && !steps[2].done && conversationsData.length === 0) {
     warnings.push('<div class="onboarding-warning blue">' + warnIcon + 'No customer activity yet \u2014 <a style="color:var(--rust);font-weight:600;cursor:pointer;text-decoration:underline;" onclick="onboardingStepAction(2)">test your AI receptionist</a> to see it in action.</div>');
@@ -2854,9 +2854,9 @@ function renderHealthGrid() {
   cells.forEach(function(cell, i) {
     var isOk = cell.status === 'ok' || cell.status === 'connected' || cell.status === 'operational' || cell.status === 'healthy';
     var isUnknown = cell.status === 'unknown';
-    var dotColor = isOk ? '#10B981' : (isUnknown ? '#7A8A9E' : '#F59E0B');
+    var dotColor = isOk ? '#0D1B2A' : (isUnknown ? '#7A8A9E' : '#C94B1F');
     var statusText = isOk ? 'Operational' : (isUnknown ? 'No data yet' : 'Degraded');
-    var statusColor = isOk ? '#10B981' : (isUnknown ? '#7A8A9E' : '#F59E0B');
+    var statusColor = isOk ? '#0D1B2A' : (isUnknown ? '#7A8A9E' : '#C94B1F');
     var borderBottom = i < cells.length - 1 ? 'border-bottom:1px solid var(--border);' : '';
     html += '<div style="padding:14px 0;' + borderBottom + '">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">' +
@@ -3017,15 +3017,15 @@ function renderBookings() {
       : `<span class="status-pill ${b.syncStatus}">${b.syncLabel || b.syncStatus.charAt(0).toUpperCase() + b.syncStatus.slice(1)}</span>`;
     const failNote = b.failNote && !isCompleted ? `<div style="font-family:var(--mono);font-size:11px;color:var(--red);margin-top:4px;">${b.failNote}</div>` : '';
     const priceCell = b.finalPrice != null
-      ? `<span style="font-family:var(--mono);font-weight:600;color:var(--green);">$${b.finalPrice.toFixed(2)}</span>`
+      ? `<span style="font-family:var(--mono);font-weight:600;color:var(--navy);">$${b.finalPrice.toFixed(2)}</span>`
       : `<span style="font-family:var(--mono);font-size:11px;color:var(--steel);">—</span>`;
     let action;
     if (isCompleted) {
-      action = `<span style="font-family:var(--mono);font-size:11px;color:var(--green);font-weight:600;">Done</span>`;
+      action = `<span style="font-family:var(--mono);font-size:11px;color:var(--navy);font-weight:600;">Done</span>`;
     } else if (b.syncStatus === 'failed') {
       action = `<button class="view-btn red" onclick="showToast('Retrying calendar sync...')">Retry Sync</button>`;
     } else if (b.syncStatus === 'pending') {
-      action = `<span style="font-family:var(--mono);font-size:11px;color:var(--amber);font-weight:600;">Action Needed</span>`;
+      action = `<span style="font-family:var(--mono);font-size:11px;color:var(--rust);font-weight:600;">Action Needed</span>`;
     } else {
       action = `<button class="view-btn" onclick="openCompleteModal('${b.id}')">Complete</button>`;
     }
@@ -3270,7 +3270,7 @@ function openModal(id) {
   });
   document.getElementById('modalThread').innerHTML = thread;
   document.getElementById('modalResult').innerHTML = data.result
-    ? `<div class="modal-result"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><div class="modal-result-text"><strong>${data.result}</strong></div></div>`
+    ? `<div class="modal-result"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0D1B2A" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><div class="modal-result-text"><strong>${data.result}</strong></div></div>`
     : '';
   document.getElementById('convModal').classList.add('open');
 }
@@ -3411,7 +3411,7 @@ async function loadConversationPanel(id, conv, booking) {
         html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Scheduled</span><span class="conv-panel-info-value">' + booking.date + '</span></div>';
       }
       if (booking.calendarSynced) {
-        html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Calendar</span><span class="conv-panel-info-value" style="color:var(--green-dark);">Synced</span></div>';
+        html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Calendar</span><span class="conv-panel-info-value" style="color:var(--navy);">Synced</span></div>';
       }
       if (booking.completedAt) {
         html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Completed</span><span class="conv-panel-info-value">' + fmtDate(booking.completedAt) + '</span></div>';
@@ -3840,13 +3840,13 @@ function renderSystemHero() {
     label.className = 'hero-status red';
     label.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> AI Engine Degraded';
     desc.textContent = 'Response times elevated. Conversations continue but may be slower.';
-    metr.innerHTML = h.aiEngine.lastMs != null ? `Last response: <span style="color:var(--amber);">${h.aiEngine.lastMs}ms</span>` : '';
+    metr.innerHTML = h.aiEngine.lastMs != null ? `Last response: <span style="color:var(--rust);">${h.aiEngine.lastMs}ms</span>` : '';
   } else {
     strip.className = 'system-hero success';
     label.className = 'hero-status green';
     label.innerHTML = '<span class="status-dot green" style="width:8px;height:8px;"></span> System Active';
     desc.textContent = 'Recovering missed calls in real time.';
-    var aiLatency = h.aiEngine.lastMs != null ? ('Avg AI response: <span style="color:var(--green);">' + h.aiEngine.lastMs + 'ms</span> &nbsp;·&nbsp; ') : '';
+    var aiLatency = h.aiEngine.lastMs != null ? ('Avg AI response: <span style="color:var(--navy);">' + h.aiEngine.lastMs + 'ms</span> &nbsp;·&nbsp; ') : '';
     metr.innerHTML = aiLatency + 'Last SMS: ' + h.twilioWebhooks.lastAt;
   }
 }
@@ -3934,7 +3934,7 @@ function renderLiveTodayActivity() {
   todayEl.innerHTML =
     '<div class="today-card"><div class="today-tag">Conversations Today</div><div class="today-num">' + (s.conversations_today || 0) + '</div></div>' +
     '<div class="today-card"><div class="today-tag">SMS Conversations</div><div class="today-num">' + (s.conversations_today || 0) + '</div></div>' +
-    '<div class="today-card" style="border-bottom-color:var(--amber);"><div class="today-tag">Active Conversations</div><div class="today-num amber">' + (s.active_conversations || 0) + '</div></div>' +
+    '<div class="today-card"><div class="today-tag">Active Conversations</div><div class="today-num">' + (s.active_conversations || 0) + '</div></div>' +
     '<div class="today-card"><div class="today-tag">Appointments Booked</div><div class="today-num green">' + (s.appointments_today || 0) + '</div></div>';
 }
 
@@ -3958,19 +3958,19 @@ function renderLivePipeline() {
         '<div class="p-stage-name">Conversations</div><div class="p-stage-count">' + total + '</div>' +
         '<div class="p-stage-conv" style="color:var(--steel-mid);">Baseline</div>' +
         '<div class="p-stage-drop">100% entered</div>' +
-        '<div class="p-stage-bar"><div class="p-stage-bar-fill" style="width:100%;background:var(--green);"></div></div>' +
+        '<div class="p-stage-bar"><div class="p-stage-bar-fill" style="width:100%;background:var(--navy);"></div></div>' +
       '</div><div class="pipeline-arrow">&rarr;</div></div>' +
       '<div class="pipeline-stage"><div class="pipeline-stage-inner">' +
         '<div class="p-stage-name">Active</div><div class="p-stage-count">' + active + '</div>' +
-        '<div class="p-stage-conv" style="color:var(--amber);">In progress</div>' +
+        '<div class="p-stage-conv" style="color:var(--rust);">In progress</div>' +
         '<div class="p-stage-drop">Awaiting reply</div>' +
-        '<div class="p-stage-bar"><div class="p-stage-bar-fill" style="width:' + (total > 0 ? Math.round(active/total*100) : 0) + '%;background:var(--amber);"></div></div>' +
+        '<div class="p-stage-bar"><div class="p-stage-bar-fill" style="width:' + (total > 0 ? Math.round(active/total*100) : 0) + '%;background:var(--rust);"></div></div>' +
       '</div><div class="pipeline-arrow">&rarr;</div></div>' +
       '<div class="pipeline-stage"><div class="pipeline-stage-inner">' +
         '<div class="p-stage-name">Booked</div><div class="p-stage-count">' + booked + '</div>' +
-        '<div class="p-stage-conv" style="color:var(--green);">' + bookedPct + '% of conversations</div>' +
+        '<div class="p-stage-conv" style="color:var(--navy);">' + bookedPct + '% of conversations</div>' +
         '<div class="p-stage-drop">' + booked + ' appointments</div>' +
-        '<div class="p-stage-bar"><div class="p-stage-bar-fill" style="width:' + bookedPct + '%;background:var(--green);"></div></div>' +
+        '<div class="p-stage-bar"><div class="p-stage-bar-fill" style="width:' + bookedPct + '%;background:var(--navy);"></div></div>' +
       '</div><div class="pipeline-arrow">&rarr;</div></div>' +
       '<div class="pipeline-stage' + (lost > 0 ? ' lost' : '') + '"><div class="pipeline-stage-inner">' +
         '<div class="p-stage-name">Lost / No Reply</div><div class="p-stage-count">' + lost + '</div>' +
@@ -4041,7 +4041,7 @@ function renderLiveRevenueBlocks() {
     usageBody.innerHTML =
       '<div class="rev-sub-row"><span class="rev-sub-label">Conversations Used</span><span class="rev-sub-value">' + tenantState.convUsed + ' / ' + ((tenantState.status === 'trial' ? tenantState.trialLimit : tenantState.convLimit) != null ? (tenantState.status === 'trial' ? tenantState.trialLimit : tenantState.convLimit) : '—') + '</span></div>' +
       '<div class="rev-sub-row"><span class="rev-sub-label">Plan</span><span class="rev-sub-value">' + tenantState.plan.charAt(0).toUpperCase() + tenantState.plan.slice(1) + '</span></div>' +
-      '<div class="rev-sub-row" style="border-bottom:none;"><span class="rev-sub-label">Status</span><span class="rev-sub-value" style="color:var(--green);">' + tenantState.status.replace(/_/g,' ') + '</span></div>';
+      '<div class="rev-sub-row" style="border-bottom:none;"><span class="rev-sub-label">Status</span><span class="rev-sub-value" style="color:var(--navy);">' + tenantState.status.replace(/_/g,' ') + '</span></div>';
   }
 
   // Analytics conversion rate
@@ -4062,8 +4062,8 @@ function renderLiveRevenueBlocks() {
   if (drt && drtParent) {
     if (k.total_revenue > 0) {
       drt.textContent = '$' + k.total_revenue.toLocaleString() + ' revenue (30d)';
-      drtParent.style.background = '#ECFDF5';
-      drtParent.style.color = '#10B981';
+      drtParent.style.background = 'rgba(201,75,31,.08)';
+      drtParent.style.color = '#C94B1F';
       drtParent.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg><span id="dashRevTrendText">$' + k.total_revenue.toLocaleString() + ' revenue (30d)</span>';
     } else {
       drt.textContent = 'No revenue data yet';
@@ -4117,7 +4117,7 @@ function renderLiveRevenueBlocks() {
           '</div>' +
           '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">' +
             '<div style="font-size:13px;font-weight:600;color:#0F172A;">' + bookedAn + '</div>' +
-            '<div style="width:40px;height:' + Math.max(bookedPct, 5) + '%;background:var(--green-vivid);border-radius:4px 4px 0 0;"></div>' +
+            '<div style="width:40px;height:' + Math.max(bookedPct, 5) + '%;background:var(--navy);border-radius:4px 4px 0 0;"></div>' +
             '<span style="font-size:11px;color:#64748B;">Booked (' + bookedPct + '%)</span>' +
           '</div>' +
         '</div>';
@@ -4256,7 +4256,7 @@ function selectConversation(el, id) {
       if (m.d === 'ai') thread += '<div class="msg-row"><div class="msg-bubble ai"><div class="msg-sender">AutoShop AI</div>' + m.t + '<div class="msg-ts">' + (m.ts || '') + '</div></div></div>';
       else thread += '<div class="msg-row right"><div class="msg-bubble customer">' + m.t + '<div class="msg-ts">' + (m.ts || '') + '</div></div></div>';
     });
-    if (data.result) thread += '<div class="modal-result"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><div class="modal-result-text"><strong>' + data.result + '</strong></div></div>';
+    if (data.result) thread += '<div class="modal-result"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0D1B2A" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><div class="modal-result-text"><strong>' + data.result + '</strong></div></div>';
     body.innerHTML = thread;
     body.scrollTop = body.scrollHeight;
   } else {
@@ -4930,7 +4930,7 @@ function aiUpdatePreview() {
   var greetLabels = { short: 'Short', standard: 'Standard', none: 'None' };
   var afterLabels = { book_next: 'Book next available slot', promise_callback: 'Promise callback', ask_urgent: 'Ask if urgent' };
 
-  var chk = function(on) { return on ? '<span style="color:var(--green);font-weight:600;">&#10004;</span>' : '<span style="color:var(--text-tertiary);">&#10006;</span>'; };
+  var chk = function(on) { return on ? '<span style="color:var(--navy);font-weight:600;">&#10004;</span>' : '<span style="color:var(--text-tertiary);">&#10006;</span>'; };
 
   var lines = [];
   lines.push('<div style="display:grid;grid-template-columns:160px 1fr;gap:6px 12px;">');
@@ -4951,7 +4951,7 @@ function aiUpdatePreview() {
 
   // SMS Mode
   lines.push('<span style="color:var(--text-tertiary);font-weight:600;grid-column:1/-1;margin-top:12px;margin-bottom:2px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;">SMS Mode</span>');
-  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Missed Call SMS</span><span>' + (s.missedSmsEnabled ? '<span style="color:var(--green);font-weight:600;">Enabled</span>' : '<span style="color:var(--text-tertiary);">Disabled</span>') + '</span>');
+  lines.push('<span style="color:var(--text-tertiary);font-weight:500;">Missed Call SMS</span><span>' + (s.missedSmsEnabled ? '<span style="color:var(--navy);font-weight:600;">Enabled</span>' : '<span style="color:var(--text-tertiary);">Disabled</span>') + '</span>');
 
   // Booking Mode
   lines.push('<span style="color:var(--text-tertiary);font-weight:600;grid-column:1/-1;margin-top:12px;margin-bottom:2px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;">Booking Mode</span>');
