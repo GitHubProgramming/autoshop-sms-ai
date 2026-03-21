@@ -346,6 +346,9 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
         <span class="sidebar-icon">⊕</span> Signup Funnel
       </div>
       <div class="sidebar-label">Pilot</div>
+      <div class="sidebar-item" data-section="project-ops" onclick="navigate('project-ops')">
+        <span class="sidebar-icon">◆</span> Project Ops
+      </div>
       <div class="sidebar-item" data-section="traces" onclick="navigate('traces')">
         <span class="sidebar-icon">▸</span> Execution Traces
       </div>
@@ -2538,7 +2541,85 @@ async function loadProjectOps() {
         </div>`;
     }
 
-    main.innerHTML = header + execBar + missionMapSection + critPathSection + backlogSection + movementSection;
+    // ── GITHUB ISSUES (read-only) ──
+    let ghSection = '';
+    try {
+      const gh = await apiFetch('/internal/admin/github-issues?state=open');
+      if (gh && gh.issues && gh.issues.length > 0) {
+        const issues = gh.issues;
+        // Bucket by labels
+        const critical = [], blocked = [], backlog = [];
+        issues.forEach(i => {
+          const names = (i.labels || []).map(l => (l.name || '').toLowerCase());
+          if (names.includes('critical')) critical.push(i);
+          else if (names.includes('blocked-human')) blocked.push(i);
+          else backlog.push(i);
+        });
+
+        function ghIssueCard(issue, bucket) {
+          const colors = {
+            CRITICAL: { border: 'rgba(220,38,38,.3)', badge: 'high', badgeLabel: 'CRITICAL' },
+            BLOCKED: { border: 'rgba(217,119,6,.3)', badge: 'medium', badgeLabel: 'BLOCKED' },
+            BACKLOG: { border: 'var(--border)', badge: 'open', badgeLabel: 'BACKLOG' },
+          };
+          const c = colors[bucket] || colors.BACKLOG;
+          const labelBadges = (issue.labels || []).map(l =>
+            `<span style="display:inline-block;background:#${l.color || '6b7280'}22;color:#${l.color || '6b7280'};border:1px solid #${l.color || '6b7280'}44;font-size:11px;padding:2px 8px;border-radius:4px;margin-right:4px;margin-bottom:4px;">${escHtml(l.name)}</span>`
+          ).join('');
+          return `<a href="${escHtml(issue.html_url)}" target="_blank" rel="noreferrer" style="display:block;text-decoration:none;color:inherit;background:var(--bg-panel);border:1px solid ${c.border};border-radius:10px;padding:14px 16px;transition:background .15s;margin-bottom:8px;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='var(--bg-panel)'">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+              <span class="badge ${c.badge}" style="font-size:10px;">${c.badgeLabel}</span>
+              <span style="font-family:var(--mono);font-size:11px;color:var(--steel);">#${issue.number}</span>
+            </div>
+            <div style="font-size:14px;font-weight:600;color:var(--white);margin-bottom:8px;">${escHtml(issue.title)}</div>
+            <div style="margin-bottom:8px;">${labelBadges}</div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--steel);">
+              <span>Updated: ${relTime(issue.updated_at)}</span>
+              <span>Open in GitHub &#8594;</span>
+            </div>
+          </a>`;
+        }
+
+        function ghColumn(title, items, bucket) {
+          const countBadge = `<span style="font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);padding:2px 10px;border-radius:10px;">${items.length}</span>`;
+          const titleColors = { CRITICAL: 'var(--red)', BLOCKED: 'var(--amber)', BACKLOG: 'var(--steel-light)' };
+          const cards = items.length > 0
+            ? items.map(i => ghIssueCard(i, bucket)).join('')
+            : '<div style="border:1px dashed var(--border);border-radius:10px;padding:24px;text-align:center;color:var(--steel);font-size:13px;">Nothing here.</div>';
+          return `<div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <span style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${titleColors[bucket] || 'var(--white)'};">${title}</span>
+              ${countBadge}
+            </div>
+            ${cards}
+          </div>`;
+        }
+
+        // Summary stats
+        const ghStats = `<div class="stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px;">
+          <div class="stat-card steel"><div class="stat-tag">Total Open</div><div class="stat-val">${issues.length}</div></div>
+          <div class="stat-card red"><div class="stat-tag">Critical</div><div class="stat-val ${critical.length > 0 ? 'red' : ''}">${critical.length}</div></div>
+          <div class="stat-card amber"><div class="stat-tag">Blocked</div><div class="stat-val ${blocked.length > 0 ? 'amber' : ''}">${blocked.length}</div></div>
+          <div class="stat-card"><div class="stat-tag">Backlog</div><div class="stat-val">${backlog.length}</div></div>
+        </div>`;
+
+        ghSection = `<div class="section-label">GitHub Issues (read-only)</div>
+          ${ghStats}
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px;">
+            ${ghColumn('Critical', critical, 'CRITICAL')}
+            ${ghColumn('Blocked', blocked, 'BLOCKED')}
+            ${ghColumn('Backlog', backlog, 'BACKLOG')}
+          </div>`;
+      }
+    } catch (ghErr) {
+      // GitHub issues are optional — don't break Project Ops if not configured
+      ghSection = `<div class="section-label">GitHub Issues</div>
+        <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;color:var(--steel);font-size:13px;">
+          GitHub integration not available: ${escHtml(ghErr.message || 'Unknown error')}
+        </div>`;
+    }
+
+    main.innerHTML = header + execBar + missionMapSection + critPathSection + backlogSection + movementSection + ghSection;
 
   } catch (err) {
     main.innerHTML = renderError(err);
