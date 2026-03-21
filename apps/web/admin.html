@@ -288,7 +288,7 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
       Your account is not authorized to access the admin panel.<br>
       Contact an admin to be added to the ADMIN_EMAILS allowlist.
     </div>
-    <a href="/admin" class="access-denied-btn" onclick="localStorage.removeItem('autoshop_jwt');localStorage.removeItem('autoshop_session');">Try Different Account</a>
+    <a href="#" class="access-denied-btn" onclick="logout(); return false;">Try Different Account</a>
   </div>
 </div>
 
@@ -413,40 +413,12 @@ document.getElementById('apiBaseLabel').textContent = API;
 
 // ── AUTH ─────────────────────────────────────────────────────────────────────
 // Admin access: dedicated Google login flow → server checks ADMIN_EMAILS.
-// If no JWT → redirect to Google login with ?intent=admin.
-// Server callback verifies admin email, issues JWT, redirects here with google_code.
-// Frontend exchanges google_code → JWT via POST /auth/google/exchange.
+// Server sets httpOnly cookie on success. No localStorage. No JWT.
+// Frontend verifies session via lightweight /internal/admin/check call.
 
 async function initAuth() {
-  // Check for google_code from admin Google login callback
-  var params = new URLSearchParams(window.location.search);
-  var googleCode = params.get('google_code');
-  if (googleCode) {
-    try {
-      var res = await fetch(API + '/auth/google/exchange', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: googleCode })
-      });
-      if (res.ok) {
-        var data = await res.json();
-        localStorage.setItem('autoshop_jwt', data.token);
-        if (data.tenantId) localStorage.setItem('autoshop_session', JSON.stringify({
-          tenantId: data.tenantId, shopName: data.shopName, email: data.email
-        }));
-        // Clean URL — remove google_code param
-        history.replaceState(null, '', window.location.pathname);
-        showAdmin();
-        return;
-      }
-    } catch (e) {
-      console.error('Admin auth code exchange failed:', e);
-    }
-    // Code exchange failed — fall through to normal check
-    history.replaceState(null, '', window.location.pathname);
-  }
-
   // Check for error from admin Google login denial
+  var params = new URLSearchParams(window.location.search);
   var error = params.get('error');
   if (error) {
     history.replaceState(null, '', window.location.pathname);
@@ -454,13 +426,25 @@ async function initAuth() {
     return;
   }
 
-  var token = localStorage.getItem('autoshop_jwt');
-  if (!token) {
-    // No JWT — redirect to Google login with admin intent
-    window.location.replace('/auth/google/login/start?intent=admin');
-    return;
+  // Verify admin session cookie by calling lightweight admin check endpoint.
+  // The httpOnly cookie is sent automatically by the browser.
+  try {
+    var res = await fetch(API + '/internal/admin/check', { credentials: 'same-origin' });
+    if (res.ok) {
+      showAdmin();
+      return;
+    }
+    if (res.status === 403) {
+      var body = await res.json().catch(function() { return {}; });
+      showAccessDenied(body.error || 'Your account is not authorized to access the admin panel.');
+      return;
+    }
+  } catch (e) {
+    console.error('Admin session check failed:', e);
   }
-  showAdmin();
+
+  // No valid admin session — redirect to Google login with admin intent
+  window.location.replace('/auth/google/login/start?intent=admin');
 }
 
 function showAdmin() {
@@ -478,13 +462,17 @@ function showAccessDenied(msg) {
   if (msg) document.getElementById('accessDeniedMsg').textContent = msg;
 }
 
-function logout() {
-  localStorage.removeItem('autoshop_jwt');
-  localStorage.removeItem('autoshop_session');
-  window.location.replace('/login');
+async function logout() {
+  try {
+    await fetch(API + '/auth/google/admin-logout', { method: 'POST', credentials: 'same-origin' });
+  } catch (e) {
+    // Best-effort — cookie will expire anyway
+  }
+  window.location.replace('/admin');
 }
 
 // ── API FETCH ────────────────────────────────────────────────────────────────
+// Admin session cookie is sent automatically by the browser (httpOnly, same-origin).
 async function apiFetch(path, params) {
   const url = new URL(API + path);
   if (params) {
@@ -492,21 +480,13 @@ async function apiFetch(path, params) {
       if (v !== null && v !== undefined && v !== '') url.searchParams.set(k, v);
     }
   }
-  const token = localStorage.getItem('autoshop_jwt') || '';
-  const res = await fetch(url.toString(), {
-    headers: { 'Authorization': 'Bearer ' + token }
-  });
+  const res = await fetch(url.toString(), { credentials: 'same-origin' });
   if (res.status === 401) {
-    localStorage.removeItem('autoshop_jwt');
-    localStorage.removeItem('autoshop_session');
     window.location.replace('/admin');
     throw new Error('401 Unauthorized — redirecting to login');
   }
   if (res.status === 403) {
     const body = await res.json().catch(() => ({}));
-    // Clear stale JWT so "Back to Login" doesn't auto-redirect with wrong email
-    localStorage.removeItem('autoshop_jwt');
-    localStorage.removeItem('autoshop_session');
     showAccessDenied(body.error || 'Your account is not authorized to access the admin panel.');
     throw new Error('403 Forbidden — not an admin account');
   }
@@ -522,7 +502,7 @@ function navigate(section, params) {
   currentSection = section;
   // Keep URL in sync (don't push for sub-views like account-detail)
   if (!params) {
-    const target = section === 'overview' ? '/admin.html' : '/admin/' + section;
+    const target = section === 'overview' ? '/admin' : '/admin/' + section;
     if (window.location.pathname !== target) {
       history.pushState(null, '', target);
     }
@@ -1422,10 +1402,10 @@ async function saveTenantSettings(tenantId) {
       business_hours: document.getElementById('set_business_hours').value || null,
       services_description: document.getElementById('set_services').value || null,
     };
-    const token = localStorage.getItem('autoshop_jwt') || '';
     const res = await fetch(API + `/internal/admin/tenants/${tenantId}/settings`, {
       method: 'PUT',
-      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify(payload),
     });
     if (!res.ok) { const text = await res.text().catch(() => ''); throw new Error(text || res.statusText); }
@@ -1556,10 +1536,10 @@ document.getElementById('convModal').addEventListener('click', e => {
 async function updateBookingState(bookingId, newState, btnEl) {
   if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Updating…'; }
   try {
-    const token = localStorage.getItem('autoshop_jwt') || '';
     const resp = await fetch(API + '/internal/admin/bookings/' + bookingId + '/state', {
       method: 'PATCH',
-      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify({ booking_state: newState }),
     });
     if (!resp.ok) {

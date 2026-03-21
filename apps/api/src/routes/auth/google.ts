@@ -4,6 +4,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypt
 import { query } from "../../db/client";
 import { requireAuth } from "../../middleware/require-auth";
 import { writeAuditEvent } from "../../db/audit";
+import { setAdminSessionCookie, clearAdminSessionCookie } from "../../middleware/admin-session";
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -376,7 +377,7 @@ export async function googleAuthRoute(app: FastifyInstance) {
 
       const normalizedEmail = googleEmail.toLowerCase().trim();
 
-      // ── Admin login: verify ADMIN_EMAILS allowlist, then find/create admin tenant ──
+      // ── Admin login: verify ADMIN_EMAILS allowlist, set httpOnly session cookie ──
       if (isAdmin) {
         const adminEmails = new Set(
           (process.env.ADMIN_EMAILS ?? "")
@@ -402,59 +403,16 @@ export async function googleAuthRoute(app: FastifyInstance) {
           );
         }
 
-        // Admin email verified — find or create admin tenant
-        const adminRows = await query<{
-          id: string;
-          shop_name: string;
-          owner_email: string;
-        }>(
-          `SELECT id, shop_name, owner_email FROM tenants WHERE owner_email = $1 LIMIT 1`,
-          [normalizedEmail]
-        );
-
-        let adminTenant = adminRows[0];
-        if (!adminTenant) {
-          // Auto-create minimal admin tenant (365-day trial, matches admin-bootstrap logic)
-          const created = await query<{ id: string }>(
-            `INSERT INTO tenants
-               (shop_name, owner_name, owner_email, timezone, billing_status,
-                trial_started_at, trial_ends_at, trial_conv_limit,
-                conv_limit_this_cycle, conv_used_this_cycle)
-             VALUES ($1, $2, $3, 'America/Chicago', 'trial',
-                     NOW(), NOW() + INTERVAL '365 days', 50,
-                     50, 0)
-             RETURNING id`,
-            ["Admin", "", normalizedEmail]
-          );
-          adminTenant = { id: created[0].id, shop_name: "Admin", owner_email: normalizedEmail };
-          request.log.info(
-            { tenantId: adminTenant.id, email: normalizedEmail },
-            "Auto-created admin tenant via Google admin login"
-          );
-        }
-
-        const jwt = app.jwt.sign(
-          { tenantId: adminTenant.id, email: adminTenant.owner_email },
-          { expiresIn: "24h" }
-        );
-
-        const authCode = randomBytes(32).toString("hex");
-        authCodeStore.set(authCode, {
-          jwt,
-          tenantId: adminTenant.id,
-          shopName: adminTenant.shop_name,
-          email: adminTenant.owner_email,
-          createdAt: Date.now(),
-        });
+        // Admin email verified — set httpOnly admin session cookie and redirect.
+        // No tenant creation. No JWT. No localStorage. Pure admin identity.
+        setAdminSessionCookie(reply, normalizedEmail);
 
         request.log.info(
-          { tenantId: adminTenant.id, email: normalizedEmail },
-          "Admin Google login successful — redirecting to admin panel"
+          { email: normalizedEmail },
+          "Admin Google login successful — cookie set, redirecting to admin panel"
         );
 
-        return reply.redirect(
-          `${publicOrigin}/admin/project-ops?google_code=${encodeURIComponent(authCode)}`
-        );
+        return reply.redirect(`${publicOrigin}/admin/project-ops`);
       }
 
       // Look up existing tenant by owner_email
@@ -628,6 +586,15 @@ export async function googleAuthRoute(app: FastifyInstance) {
 
     // Redirect back to the app dashboard with a success flag
     return reply.redirect(`${publicOrigin}/app/dashboard?calendar=connected`);
+  });
+
+  /**
+   * POST /auth/google/admin-logout
+   * Clears the admin session cookie.
+   */
+  app.post("/admin-logout", async (_request, reply) => {
+    clearAdminSessionCookie(reply);
+    return reply.send({ ok: true });
   });
 
   /**
