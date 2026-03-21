@@ -271,6 +271,7 @@ describe("POST /auth/google/exchange", () => {
       tenantId: TENANT_ID,
       shopName: "Test Auto",
       email: TEST_EMAIL,
+      isNewAccount: true,
       createdAt: Date.now(),
     });
 
@@ -286,6 +287,7 @@ describe("POST /auth/google/exchange", () => {
     expect(body.tenantId).toBe(TENANT_ID);
     expect(body.shopName).toBe("Test Auto");
     expect(body.email).toBe(TEST_EMAIL);
+    expect(body.isNewAccount).toBe(true);
   });
 
   it("rejects invalid auth code", async () => {
@@ -306,6 +308,7 @@ describe("POST /auth/google/exchange", () => {
       tenantId: TENANT_ID,
       shopName: "Test Auto",
       email: TEST_EMAIL,
+      isNewAccount: false,
       createdAt: Date.now(),
     });
 
@@ -334,6 +337,7 @@ describe("POST /auth/google/exchange", () => {
       tenantId: TENANT_ID,
       shopName: "Test Auto",
       email: TEST_EMAIL,
+      isNewAccount: false,
       createdAt: Date.now() - 2 * 60 * 1000, // 2 minutes ago (> 1 min TTL)
     });
 

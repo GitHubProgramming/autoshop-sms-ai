@@ -426,13 +426,14 @@ function startGoogleSignup() {
           loginAt: Date.now()
         }));
         if (result.data.shopName) localStorage.setItem('tenant_name', result.data.shopName);
-        // Show success then redirect to onboarding
+        // Route based on whether this is a new or existing account
+        var destination = result.data.isNewAccount ? '/onboarding/business' : '/app/dashboard';
         document.getElementById('signupForm').style.display = 'none';
         document.querySelector('.btn-google').style.display = 'none';
         document.querySelector('.divider').style.display = 'none';
         document.getElementById('successCard').style.display = 'block';
         setTimeout(function() {
-          window.location.href = '/onboarding/business';
+          window.location.href = destination;
         }, 1200);
       } else {
         showError(result.data.error || 'Google sign-up failed. Please try again.');
