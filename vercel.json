@@ -94,7 +94,6 @@
     { "source": "/forgot-password", "destination": "/forgot-password.html" },
     { "source": "/reset-password", "destination": "/reset-password.html" },
     { "source": "/onboarding/:step", "destination": "/onboarding.html" },
-    { "source": "/admin.html", "destination": "https://autoshop-api-7ek9.onrender.com/admin.html" },
     { "source": "/health", "destination": "https://autoshop-api-7ek9.onrender.com/health" },
     { "source": "/auth/:path*", "destination": "https://autoshop-api-7ek9.onrender.com/auth/:path*" },
     { "source": "/billing/:path*", "destination": "https://autoshop-api-7ek9.onrender.com/billing/:path*" },
