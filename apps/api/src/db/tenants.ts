@@ -4,6 +4,7 @@ export type BillingStatus =
   | "trial"
   | "trial_expired"
   | "active"
+  | "scheduled_cancel"
   | "past_due"
   | "past_due_blocked"
   | "canceled"

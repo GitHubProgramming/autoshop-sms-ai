@@ -14,6 +14,7 @@ const TwilioSmsBody = z.object({
   To: z.string(),   // our Twilio number (= tenant's number)
   Body: z.string(),
   NumMedia: z.string().optional(),
+  NumSegments: z.string().optional(), // Real segment count from Twilio
 });
 
 export async function twilioSmsRoute(app: FastifyInstance) {
@@ -27,7 +28,8 @@ export async function twilioSmsRoute(app: FastifyInstance) {
         return reply.status(400).send({ error: "Invalid body" });
       }
 
-      const { MessageSid, From, To, Body } = parsed.data;
+      const { MessageSid, From, To, Body, NumSegments } = parsed.data;
+      const inboundSegments = NumSegments ? parseInt(NumSegments, 10) : null;
 
       // ── 0. Start execution trace ──────────────────────────────────────────
       let traceId: string | null = null;
@@ -117,6 +119,7 @@ export async function twilioSmsRoute(app: FastifyInstance) {
             messageSid: MessageSid,
             atSoftLimit,
             traceId,
+            inboundSegments,
           },
           {
             jobId: `sms-${MessageSid}`, // BullMQ dedup key

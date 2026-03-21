@@ -154,12 +154,13 @@ describe("GET /internal/admin/overview — booking_state counts", () => {
       [],                // lastCriticalAlertRows
       [{ count: 0 }],   // failedBookings24hRows
       [{ count: 0 }],   // failedSyncs24hRows
-      [{ plan_id: "plan_starter", count: 2 }],  // revenueTenantsRows
+      [{ plan_id: "plan_starter", billing_status: "active", count: 2, total_amount_cents: "29800" }],  // revenueTenantsRows
       [{ total_tokens: "5000" }],  // tokenCost30dRows
-      [{ total_sms: 100 }],       // smsCost30dRows
+      [{ total_segments: 100, exact_count: 80, fallback_count: 20 }],  // smsCost30dRows
       [{ total_tokens: "500" }],   // tokenCostTodayRows
-      [{ total_sms: 10 }],        // smsCostTodayRows
+      [{ total_segments: 10, exact_count: 8, fallback_count: 2 }],  // smsCostTodayRows
       [{ count: 20 }],            // missedCalls30dRows
+      [],                          // revenueAtRiskRows
     ];
     for (const mock of overviewMocks) {
       mocks.query.mockResolvedValueOnce(mock);
