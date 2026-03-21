@@ -62,13 +62,13 @@ export async function sendTwilioSms(
   to: string,
   body: string,
   fetchFn: typeof fetch = fetch
-): Promise<{ sid: string | null; error: string | null }> {
+): Promise<{ sid: string | null; error: string | null; numSegments: number | null }> {
   const accountSid = await getConfig("TWILIO_ACCOUNT_SID");
   const authToken = await getConfig("TWILIO_AUTH_TOKEN");
   const messagingServiceSid = await getConfig("TWILIO_MESSAGING_SERVICE_SID");
 
   if (!accountSid || !authToken || !messagingServiceSid) {
-    return { sid: null, error: "Twilio credentials not configured" };
+    return { sid: null, error: "Twilio credentials not configured", numSegments: null };
   }
 
   const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
@@ -86,6 +86,7 @@ export async function sendTwilioSms(
 
     const data = (await res.json()) as {
       sid?: string;
+      num_segments?: string;
       code?: number;
       message?: string;
     };
@@ -94,14 +95,19 @@ export async function sendTwilioSms(
       return {
         sid: null,
         error: `Twilio API error ${res.status}: ${data.message || "unknown"}`,
+        numSegments: null,
       };
     }
 
-    return { sid: data.sid, error: null };
+    // Twilio returns num_segments as a string in the API response
+    const numSegments = data.num_segments ? parseInt(data.num_segments, 10) : null;
+
+    return { sid: data.sid, error: null, numSegments };
   } catch (err) {
     return {
       sid: null,
       error: `Twilio request failed: ${(err as Error).message}`,
+      numSegments: null,
     };
   }
 }
@@ -247,12 +253,12 @@ export async function handleMissedCallSms(
     fetchFn
   );
 
-  // 6. Log the outbound message
+  // 6. Log the outbound message (with real segment count from Twilio)
   try {
     await query(
-      `INSERT INTO messages (tenant_id, conversation_id, direction, body)
-       VALUES ($1, $2, 'outbound', $3)`,
-      [input.tenantId, conversationId, smsBody]
+      `INSERT INTO messages (tenant_id, conversation_id, direction, body, sms_segments)
+       VALUES ($1, $2, 'outbound', $3, $4)`,
+      [input.tenantId, conversationId, smsBody, twilioResult.numSegments ?? 1]
     );
     // Touch conversation to update last_message_at
     await query(

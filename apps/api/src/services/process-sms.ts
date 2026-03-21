@@ -37,6 +37,7 @@ export interface ProcessSmsInput {
   body: string;
   messageSid: string;
   atSoftLimit: boolean;
+  inboundSegments?: number | null;
 }
 
 export interface ProcessSmsResult {
@@ -131,12 +132,13 @@ export async function processSms(
     // Continue with no history — AI will still respond
   }
 
-  // ── 3. Log inbound message ───────────────────────────────────────────────
+  // ── 3. Log inbound message (with real segment count from Twilio webhook) ──
   try {
     await query(
-      `INSERT INTO messages (tenant_id, conversation_id, direction, body, twilio_sid)
-       VALUES ($1, $2, 'inbound', $3, $4)`,
-      [input.tenantId, result.conversationId, input.body, input.messageSid]
+      `INSERT INTO messages (tenant_id, conversation_id, direction, body, twilio_sid, sms_segments)
+       VALUES ($1, $2, 'inbound', $3, $4, $5)`,
+      [input.tenantId, result.conversationId, input.body, input.messageSid,
+       input.inboundSegments ?? 1]
     );
   } catch {
     // Non-fatal: continue even if logging fails (twilio_sid unique constraint = already logged)
@@ -162,12 +164,13 @@ export async function processSms(
     );
     result.smsSent = !!smsResult.sid;
 
-    // Log outbound
+    // Log outbound (with real segment count from Twilio)
     try {
       await query(
-        `INSERT INTO messages (tenant_id, conversation_id, direction, body)
-         VALUES ($1, $2, 'outbound', $3)`,
-        [input.tenantId, result.conversationId, SOFT_LIMIT_RESPONSE]
+        `INSERT INTO messages (tenant_id, conversation_id, direction, body, sms_segments)
+         VALUES ($1, $2, 'outbound', $3, $4)`,
+        [input.tenantId, result.conversationId, SOFT_LIMIT_RESPONSE,
+         smsResult.numSegments ?? 1]
       );
     } catch {
       // Non-fatal
@@ -343,17 +346,18 @@ export async function processSms(
       result.success = true;
       result.aiResponse = safeBody;
 
-      // Log outbound and send corrected SMS (not the AI's false confirmation)
-      try {
-        await query(
-          `INSERT INTO messages (tenant_id, conversation_id, direction, body, tokens_used, model_version)
-           VALUES ($1, $2, 'outbound', $3, $4, $5)`,
-          [input.tenantId, result.conversationId, safeBody, tokensUsed, OPENAI_MODEL]
-        );
-      } catch { /* Non-fatal */ }
-
+      // Send corrected SMS first, then log with real segment count
       const smsResult = await sendTwilioSms(input.customerPhone, safeBody, fetchFn);
       result.smsSent = !!smsResult.sid;
+
+      try {
+        await query(
+          `INSERT INTO messages (tenant_id, conversation_id, direction, body, tokens_used, model_version, sms_segments)
+           VALUES ($1, $2, 'outbound', $3, $4, $5, $6)`,
+          [input.tenantId, result.conversationId, safeBody, tokensUsed, OPENAI_MODEL,
+           smsResult.numSegments ?? 1]
+        );
+      } catch { /* Non-fatal */ }
 
       try {
         await query(`SELECT touch_conversation($1, $2)`, [result.conversationId, input.tenantId]);
@@ -481,20 +485,7 @@ export async function processSms(
     }
   }
 
-  // ── 9. Log outbound message ────────────────────────────────────────────
-  // Log the actual message being sent (may differ from AI response if
-  // calendar sync failed and we replaced the confirmation)
-  try {
-    await query(
-      `INSERT INTO messages (tenant_id, conversation_id, direction, body, tokens_used, model_version)
-       VALUES ($1, $2, 'outbound', $3, $4, $5)`,
-      [input.tenantId, result.conversationId, smsBody, tokensUsed, OPENAI_MODEL]
-    );
-  } catch {
-    // Non-fatal
-  }
-
-  // ── 10. Send SMS reply (with dedup protection) ────────────────────────
+  // ── 9. Send SMS reply (with dedup protection) ────────────────────────
   // Check if identical message was sent in this conversation within the last 30s.
   // Prevents double-sends from queue retries or race conditions.
   let smsDuplicate = false;
@@ -522,9 +513,9 @@ export async function processSms(
     // Non-fatal: if check fails, send anyway (better to double-send than not send)
   }
 
-  let smsResult: { sid: string | null; error: string | null };
+  let smsResult: { sid: string | null; error: string | null; numSegments: number | null };
   if (smsDuplicate) {
-    smsResult = { sid: "skipped-duplicate", error: null };
+    smsResult = { sid: "skipped-duplicate", error: null, numSegments: null };
   } else {
     smsResult = await sendTwilioSms(input.customerPhone, smsBody, fetchFn);
   }
@@ -535,6 +526,18 @@ export async function processSms(
     result.error = result.error
       ? `${result.error}; SMS send failed: ${smsResult.error}`
       : `SMS send failed: ${smsResult.error}`;
+  }
+
+  // ── 10. Log outbound message (AFTER send, so we have real segment count) ──
+  try {
+    await query(
+      `INSERT INTO messages (tenant_id, conversation_id, direction, body, tokens_used, model_version, sms_segments)
+       VALUES ($1, $2, 'outbound', $3, $4, $5, $6)`,
+      [input.tenantId, result.conversationId, smsBody, tokensUsed, OPENAI_MODEL,
+       smsResult.numSegments ?? 1]
+    );
+  } catch {
+    // Non-fatal
   }
 
   // Touch conversation again after outbound

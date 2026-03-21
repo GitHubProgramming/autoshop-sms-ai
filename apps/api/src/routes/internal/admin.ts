@@ -153,6 +153,7 @@ export async function adminRoute(app: FastifyInstance) {
       tokenCostTodayRows,
       smsCostTodayRows,
       missedCalls30dRows,
+      revenueAtRiskRows,
     ] = await Promise.all([
       query(`SELECT billing_status, COUNT(*) as count FROM tenants WHERE is_test = FALSE GROUP BY billing_status`),
       query(`SELECT COUNT(*)::int FROM tenants WHERE created_at > NOW() - INTERVAL '7 days' AND is_test = FALSE`),
@@ -213,37 +214,58 @@ export async function adminRoute(app: FastifyInstance) {
          JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE
          WHERE a.calendar_synced = false AND a.created_at > NOW() - INTERVAL '24 hours'
          AND a.booking_state NOT IN ('CONFIRMED_MANUAL', 'RESOLVED')`),
-      // ── Revenue: active tenants with plan ──
-      query(`SELECT plan_id, COUNT(*)::int as count FROM tenants
-         WHERE is_test = FALSE AND billing_status = 'active'
-         GROUP BY plan_id`),
+      // ── Revenue: active tenants with plan (includes scheduled_cancel — still paying) ──
+      query(`SELECT plan_id, billing_status, COUNT(*)::int as count,
+           COALESCE(SUM(subscription_amount_cents), 0)::bigint as total_amount_cents
+         FROM tenants
+         WHERE is_test = FALSE AND billing_status IN ('active', 'scheduled_cancel')
+         GROUP BY plan_id, billing_status`),
       // ── Cost: AI tokens 30d ──
       query(`SELECT COALESCE(SUM(m.tokens_used), 0)::bigint as total_tokens
          FROM messages m
          JOIN conversations c ON c.id = m.conversation_id
          JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE
          WHERE m.sent_at > NOW() - INTERVAL '30 days'`),
-      // ── Cost: SMS messages 30d ──
-      query(`SELECT COUNT(*)::int as total_sms
+      // ── Cost: SMS segments 30d (real segment counts where available) ──
+      query(`SELECT
+           COALESCE(SUM(m.sms_segments), COUNT(*))::int as total_segments,
+           COUNT(*) FILTER (WHERE m.sms_segments IS NOT NULL AND m.sms_segments > 0)::int as exact_count,
+           COUNT(*) FILTER (WHERE m.sms_segments IS NULL OR m.sms_segments = 0)::int as fallback_count
          FROM messages m
          JOIN conversations c ON c.id = m.conversation_id
          JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE
-         WHERE m.sent_at > NOW() - INTERVAL '30 days'`),
+         WHERE m.sent_at > NOW() - INTERVAL '30 days'
+           AND m.direction IN ('inbound', 'outbound')`),
       // ── Cost: AI tokens today ──
       query(`SELECT COALESCE(SUM(m.tokens_used), 0)::bigint as total_tokens
          FROM messages m
          JOIN conversations c ON c.id = m.conversation_id
          JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE
          WHERE m.sent_at >= CURRENT_DATE`),
-      // ── Cost: SMS messages today ──
-      query(`SELECT COUNT(*)::int as total_sms
+      // ── Cost: SMS segments today (real segment counts where available) ──
+      query(`SELECT
+           COALESCE(SUM(m.sms_segments), COUNT(*))::int as total_segments,
+           COUNT(*) FILTER (WHERE m.sms_segments IS NOT NULL AND m.sms_segments > 0)::int as exact_count,
+           COUNT(*) FILTER (WHERE m.sms_segments IS NULL OR m.sms_segments = 0)::int as fallback_count
          FROM messages m
          JOIN conversations c ON c.id = m.conversation_id
          JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE
-         WHERE m.sent_at >= CURRENT_DATE`),
+         WHERE m.sent_at >= CURRENT_DATE
+           AND m.direction IN ('inbound', 'outbound')`),
       // ── Funnel: missed calls 30d (from pipeline_traces) ──
       query(`SELECT COUNT(*)::int FROM pipeline_traces
          WHERE trigger_type = 'missed_call' AND started_at > NOW() - INTERVAL '30 days'`),
+      // ── Revenue at risk: real amounts for at-risk tenants ──
+      query(`SELECT
+         billing_status,
+         COUNT(*)::int as tenant_count,
+         COALESCE(SUM(subscription_amount_cents), 0)::bigint as total_amount_cents,
+         COUNT(*) FILTER (WHERE subscription_amount_cents IS NOT NULL)::int as exact_count,
+         COUNT(*) FILTER (WHERE subscription_amount_cents IS NULL)::int as fallback_count
+       FROM tenants
+       WHERE is_test = FALSE
+         AND billing_status IN ('past_due', 'past_due_blocked', 'paused', 'scheduled_cancel')
+       GROUP BY billing_status`),
     ]);
 
     // Build status map
@@ -272,26 +294,74 @@ export async function adminRoute(app: FastifyInstance) {
 
     // ── Revenue ──
     const activePaid = statusCounts["active"] || 0;
+    const scheduledCancelCount = statusCounts["scheduled_cancel"] || 0;
     const trialCount = statusCounts["trial"] || 0;
     const pastDueCount = (statusCounts["past_due"] || 0) + (statusCounts["past_due_blocked"] || 0);
+
+    // MRR calculation: prefer real Stripe subscription_amount_cents.
+    // Fall back to plan price map only for tenants without synced amounts.
     let mrr = 0;
-    for (const row of revenueTenantsRows as { plan_id: string | null; count: number }[]) {
-      const price = PLAN_PRICES[row.plan_id ?? ""] ?? DEFAULT_PLAN_PRICE;
-      mrr += price * Number(row.count);
+    let mrrExactCents = 0; // from Stripe-synced amounts
+    let mrrFallbackCents = 0; // from plan price map
+    for (const row of revenueTenantsRows as {
+      plan_id: string | null; billing_status: string;
+      count: number; total_amount_cents: string;
+    }[]) {
+      const totalAmountCents = Number(row.total_amount_cents);
+      const count = Number(row.count);
+      if (totalAmountCents > 0) {
+        mrrExactCents += totalAmountCents;
+      }
+      const planPrice = PLAN_PRICES[row.plan_id ?? ""] ?? DEFAULT_PLAN_PRICE;
+      const expectedTotalCents = planPrice * 100 * count;
+      const fallbackForGroup = Math.max(0, expectedTotalCents - totalAmountCents);
+      mrrFallbackCents += fallbackForGroup;
+    }
+    mrr = Math.round((mrrExactCents + mrrFallbackCents) / 100);
+
+    // Revenue at risk: sum real subscription amounts for at-risk tenants.
+    const revenueAtRisk: {
+      total_cents: number;
+      exact_cents: number;
+      fallback_cents: number;
+      by_status: Record<string, { tenant_count: number; amount_cents: number; exact: number; fallback: number }>;
+    } = { total_cents: 0, exact_cents: 0, fallback_cents: 0, by_status: {} };
+
+    for (const row of revenueAtRiskRows as {
+      billing_status: string; tenant_count: number;
+      total_amount_cents: string; exact_count: number; fallback_count: number;
+    }[]) {
+      const exactCents = Number(row.total_amount_cents);
+      const fallbackCents = Number(row.fallback_count) * DEFAULT_PLAN_PRICE * 100;
+      const totalCents = exactCents + fallbackCents;
+
+      revenueAtRisk.total_cents += totalCents;
+      revenueAtRisk.exact_cents += exactCents;
+      revenueAtRisk.fallback_cents += fallbackCents;
+      revenueAtRisk.by_status[row.billing_status] = {
+        tenant_count: Number(row.tenant_count),
+        amount_cents: totalCents,
+        exact: Number(row.exact_count),
+        fallback: Number(row.fallback_count),
+      };
     }
 
-    // ── Cost ──
+    // ── Cost (uses real segment counts where available) ──
     const totalTokens30d = Number((tokenCost30dRows as any[])[0]?.total_tokens ?? 0);
-    const totalSms30d = Number((smsCost30dRows as any[])[0]?.total_sms ?? 0);
+    const sms30dData = (smsCost30dRows as any[])[0] ?? {};
+    const totalSegments30d = Number(sms30dData.total_segments ?? 0);
+    const smsExactCount30d = Number(sms30dData.exact_count ?? 0);
+    const smsFallbackCount30d = Number(sms30dData.fallback_count ?? 0);
     const aiCost30d = Math.round((totalTokens30d / 1000) * OPENAI_COST_PER_1K_TOKENS * 100) / 100;
-    const smsCost30d = Math.round(totalSms30d * TWILIO_SMS_COST_PER_SEGMENT * 100) / 100;
+    const smsCost30d = Math.round(totalSegments30d * TWILIO_SMS_COST_PER_SEGMENT * 100) / 100;
     const totalCost30d = Math.round((aiCost30d + smsCost30d) * 100) / 100;
     const avgCostPerConv = convs30d > 0 ? Math.round((totalCost30d / convs30d) * 100) / 100 : 0;
 
     const totalTokensToday = Number((tokenCostTodayRows as any[])[0]?.total_tokens ?? 0);
-    const totalSmsToday = Number((smsCostTodayRows as any[])[0]?.total_sms ?? 0);
+    const smsTodayData = (smsCostTodayRows as any[])[0] ?? {};
+    const totalSegmentsToday = Number(smsTodayData.total_segments ?? 0);
     const aiCostToday = Math.round((totalTokensToday / 1000) * OPENAI_COST_PER_1K_TOKENS * 100) / 100;
-    const smsCostToday = Math.round(totalSmsToday * TWILIO_SMS_COST_PER_SEGMENT * 100) / 100;
+    const smsCostToday = Math.round(totalSegmentsToday * TWILIO_SMS_COST_PER_SEGMENT * 100) / 100;
     const totalCostToday = Math.round((aiCostToday + smsCostToday) * 100) / 100;
 
     return reply.status(200).send({
@@ -323,9 +393,18 @@ export async function adminRoute(app: FastifyInstance) {
       },
       revenue: {
         mrr,
+        mrr_exact_cents: mrrExactCents,
+        mrr_fallback_cents: mrrFallbackCents,
         active_paid: activePaid,
+        scheduled_cancel: scheduledCancelCount,
         trial: trialCount,
         past_due: pastDueCount,
+        revenue_at_risk: {
+          total: Math.round(revenueAtRisk.total_cents / 100),
+          exact_cents: revenueAtRisk.exact_cents,
+          fallback_cents: revenueAtRisk.fallback_cents,
+          by_status: revenueAtRisk.by_status,
+        },
       },
       funnel_30d: {
         missed_calls: missedCalls30d,
@@ -336,7 +415,11 @@ export async function adminRoute(app: FastifyInstance) {
       },
       cost: {
         today: { total: totalCostToday, ai: aiCostToday, sms: smsCostToday },
-        month: { total: totalCost30d, ai: aiCost30d, sms: smsCost30d },
+        month: {
+          total: totalCost30d, ai: aiCost30d, sms: smsCost30d,
+          sms_segments_exact: smsExactCount30d,
+          sms_segments_fallback: smsFallbackCount30d,
+        },
         avg_per_conversation: avgCostPerConv,
       },
     });
@@ -1617,5 +1700,109 @@ export async function adminRoute(app: FastifyInstance) {
 
     const rows = await query(sql, params);
     return reply.send({ messages: rows, count: (rows as any[]).length });
+  });
+
+  // ── GET /internal/admin/metrics/funnel-integrity ──────────────────────────
+  // Exposes data integrity anomalies in the funnel chain:
+  //   missed_call → conversation → booking → calendar_sync
+  app.get("/admin/metrics/funnel-integrity", { preHandler: [adminGuard] }, async (_req, reply) => {
+    const [
+      orphanBookingsRows,
+      bookedWithoutAppointmentRows,
+      multipleBookingsPerConvRows,
+      conversationsWithoutSourceRows,
+      duplicateTraceRows,
+      funnelCountsRows,
+    ] = await Promise.all([
+      // Orphan bookings: appointments with no conversation_id
+      query(`SELECT COUNT(*)::int as count FROM appointments a
+         JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE
+         WHERE a.conversation_id IS NULL`),
+      // Booked conversations with no matching appointment
+      query(`SELECT COUNT(*)::int as count FROM conversations c
+         JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE
+         WHERE c.status = 'booked'
+           AND NOT EXISTS (SELECT 1 FROM appointments a WHERE a.conversation_id = c.id)`),
+      // Conversations with more than 1 appointment
+      query(`SELECT conversation_id, COUNT(*)::int as booking_count
+         FROM appointments a
+         JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE
+         WHERE a.conversation_id IS NOT NULL
+         GROUP BY a.conversation_id
+         HAVING COUNT(*) > 1`),
+      // Conversations with no identifiable trigger source
+      query(`SELECT COUNT(*)::int as count FROM conversations c
+         JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE
+         WHERE c.opened_at > NOW() - INTERVAL '30 days'
+           AND NOT EXISTS (
+             SELECT 1 FROM pipeline_traces pt
+             WHERE pt.tenant_id = c.tenant_id
+               AND pt.customer_phone = c.customer_phone
+               AND pt.started_at BETWEEN c.opened_at - INTERVAL '5 minutes' AND c.opened_at + INTERVAL '5 minutes'
+           )`),
+      // Duplicate pipeline traces (same trigger_id appearing more than once)
+      query(`SELECT trigger_id, COUNT(*)::int as trace_count
+         FROM pipeline_traces
+         WHERE started_at > NOW() - INTERVAL '30 days'
+           AND trigger_id IS NOT NULL
+         GROUP BY trigger_id
+         HAVING COUNT(*) > 1`),
+      // Clean funnel counts for last 30 days
+      query(`SELECT
+           (SELECT COUNT(*)::int FROM pipeline_traces
+            WHERE trigger_type = 'missed_call' AND started_at > NOW() - INTERVAL '30 days') as missed_calls,
+           (SELECT COUNT(*)::int FROM conversations c
+            JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE
+            WHERE c.opened_at > NOW() - INTERVAL '30 days') as conversations,
+           (SELECT COUNT(DISTINCT a.conversation_id)::int FROM appointments a
+            JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE
+            WHERE a.created_at > NOW() - INTERVAL '30 days'
+              AND a.conversation_id IS NOT NULL) as bookings_with_conversation,
+           (SELECT COUNT(*)::int FROM appointments a
+            JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE
+            WHERE a.created_at > NOW() - INTERVAL '30 days'
+              AND a.conversation_id IS NULL) as bookings_orphan,
+           (SELECT COUNT(*)::int FROM appointments a
+            JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE
+            WHERE a.created_at > NOW() - INTERVAL '30 days'
+              AND a.calendar_synced = true) as calendar_synced`),
+    ]);
+
+    const orphanBookings = (orphanBookingsRows as any[])[0]?.count ?? 0;
+    const bookedWithoutAppointment = (bookedWithoutAppointmentRows as any[])[0]?.count ?? 0;
+    const multipleBookingsPerConv = (multipleBookingsPerConvRows as any[]);
+    const conversationsWithoutSource = (conversationsWithoutSourceRows as any[])[0]?.count ?? 0;
+    const duplicateTraces = (duplicateTraceRows as any[]);
+    const funnelCounts = (funnelCountsRows as any[])[0] ?? {};
+
+    return reply.status(200).send({
+      funnel_definitions: {
+        missed_call: "pipeline_traces with trigger_type='missed_call'",
+        conversation: "conversations table row (1 per customer+tenant, with cooldown)",
+        booking: "appointments table row linked to conversation via conversation_id",
+        calendar_synced: "appointments with calendar_synced=true AND google_event_id set",
+      },
+      funnel_30d: {
+        missed_calls: funnelCounts.missed_calls ?? 0,
+        conversations: funnelCounts.conversations ?? 0,
+        bookings_with_conversation: funnelCounts.bookings_with_conversation ?? 0,
+        bookings_orphan: funnelCounts.bookings_orphan ?? 0,
+        calendar_synced: funnelCounts.calendar_synced ?? 0,
+      },
+      anomalies: {
+        orphan_bookings: orphanBookings,
+        booked_conversations_without_appointment: bookedWithoutAppointment,
+        multiple_bookings_per_conversation: multipleBookingsPerConv.length,
+        multiple_bookings_details: multipleBookingsPerConv.slice(0, 20),
+        conversations_without_trigger_source: conversationsWithoutSource,
+        duplicate_pipeline_traces: duplicateTraces.length,
+        duplicate_traces_details: duplicateTraces.slice(0, 20),
+      },
+      integrity_score: (
+        orphanBookings === 0 &&
+        bookedWithoutAppointment === 0 &&
+        multipleBookingsPerConv.length === 0
+      ) ? "CLEAN" : "ANOMALIES_DETECTED",
+    });
   });
 }

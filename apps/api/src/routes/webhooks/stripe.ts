@@ -6,7 +6,7 @@ import { billingQueue, provisionNumberQueue } from "../../queues/redis";
 import { deduplicateWebhook } from "../../db/webhook-events";
 
 type BillingStatus =
-  | "trial" | "trial_expired" | "active"
+  | "trial" | "trial_expired" | "active" | "scheduled_cancel"
   | "past_due" | "past_due_blocked" | "canceled" | "paused";
 
 const PLAN_LIMITS: Record<string, number> = {
@@ -101,20 +101,59 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
       const planId = getPlanFromStripePrice(priceId);
       const convLimit = PLAN_LIMITS[planId] ?? 150;
 
-      await query(
-        `UPDATE tenants SET
-           billing_status     = 'active',
-           plan_id            = $1,
-           stripe_subscription_id = $2,
-           conv_limit_this_cycle  = $3,
-           conv_used_this_cycle   = 0,
-           warned_80pct       = FALSE,
-           warned_100pct      = FALSE,
-           cycle_reset_at     = to_timestamp($4),
-           updated_at         = NOW()
-         WHERE id = $5`,
-        [planId, sub.id, convLimit, sub.current_period_end, tenantId]
-      );
+      // Determine billing status: if cancel_at_period_end is set, the subscription
+      // is still active (customer keeps service) but scheduled to cancel.
+      // MRR must include scheduled_cancel tenants until the period actually ends.
+      const billingStatus =
+        sub.status === "active" && sub.cancel_at_period_end
+          ? "scheduled_cancel"
+          : sub.status === "active"
+            ? "active"
+            : sub.status === "past_due"
+              ? "past_due"
+              : "active"; // default for other active-like states
+
+      // Extract real subscription amount from Stripe (cents)
+      const priceItem = sub.items.data[0]?.price;
+      const subscriptionAmountCents = priceItem?.unit_amount ?? null;
+      const subscriptionCurrency = priceItem?.currency ?? "usd";
+      const subscriptionInterval = priceItem?.recurring?.interval ?? "month";
+      const cancelAt = sub.cancel_at_period_end
+        ? sub.current_period_end
+        : null;
+
+      // On subscription.created: reset usage counters.
+      // On subscription.updated: preserve usage (user may just be changing cancel state).
+      if (event.type === "customer.subscription.created") {
+        await query(
+          `UPDATE tenants SET
+             billing_status     = $1, plan_id = $2, stripe_subscription_id = $3,
+             conv_limit_this_cycle = $4, conv_used_this_cycle = 0,
+             warned_80pct = FALSE, warned_100pct = FALSE,
+             cycle_reset_at = to_timestamp($5),
+             subscription_amount_cents = $6, subscription_currency = $7,
+             subscription_interval = $8, cancel_at = $9,
+             updated_at = NOW()
+           WHERE id = $10`,
+          [billingStatus, planId, sub.id, convLimit, sub.current_period_end,
+           subscriptionAmountCents, subscriptionCurrency, subscriptionInterval,
+           cancelAt ? new Date(cancelAt * 1000).toISOString() : null, tenantId]
+        );
+      } else {
+        await query(
+          `UPDATE tenants SET
+             billing_status     = $1, plan_id = $2, stripe_subscription_id = $3,
+             conv_limit_this_cycle = $4,
+             cycle_reset_at = to_timestamp($5),
+             subscription_amount_cents = $6, subscription_currency = $7,
+             subscription_interval = $8, cancel_at = $9,
+             updated_at = NOW()
+           WHERE id = $10`,
+          [billingStatus, planId, sub.id, convLimit, sub.current_period_end,
+           subscriptionAmountCents, subscriptionCurrency, subscriptionInterval,
+           cancelAt ? new Date(cancelAt * 1000).toISOString() : null, tenantId]
+        );
+      }
 
       // On first subscription: provision a Twilio number if tenant doesn't have one yet
       if (event.type === "customer.subscription.created") {
