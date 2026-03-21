@@ -288,7 +288,7 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
       Your account is not authorized to access the admin panel.<br>
       Contact an admin to be added to the ADMIN_EMAILS allowlist.
     </div>
-    <a href="login.html?next=admin.html" class="access-denied-btn">Back to Login</a>
+    <a href="/admin" class="access-denied-btn" onclick="localStorage.removeItem('autoshop_jwt');localStorage.removeItem('autoshop_session');">Try Different Account</a>
   </div>
 </div>
 
@@ -412,15 +412,52 @@ let _accountAttention = false;
 document.getElementById('apiBaseLabel').textContent = API;
 
 // ── AUTH ─────────────────────────────────────────────────────────────────────
-// Admin access is server-side: JWT (autoshop_jwt from localStorage) + ADMIN_EMAILS allowlist.
-// The server returns 401 if the token is missing/invalid → redirect to login.
-// The server returns 403 if the token is valid but email is not in ADMIN_EMAILS → show denied.
-// No master key is entered in the browser.
+// Admin access: dedicated Google login flow → server checks ADMIN_EMAILS.
+// If no JWT → redirect to Google login with ?intent=admin.
+// Server callback verifies admin email, issues JWT, redirects here with google_code.
+// Frontend exchanges google_code → JWT via POST /auth/google/exchange.
 
-function initAuth() {
-  const token = localStorage.getItem('autoshop_jwt');
+async function initAuth() {
+  // Check for google_code from admin Google login callback
+  var params = new URLSearchParams(window.location.search);
+  var googleCode = params.get('google_code');
+  if (googleCode) {
+    try {
+      var res = await fetch(API + '/auth/google/exchange', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: googleCode })
+      });
+      if (res.ok) {
+        var data = await res.json();
+        localStorage.setItem('autoshop_jwt', data.token);
+        if (data.tenantId) localStorage.setItem('autoshop_session', JSON.stringify({
+          tenantId: data.tenantId, shopName: data.shopName, email: data.email
+        }));
+        // Clean URL — remove google_code param
+        history.replaceState(null, '', window.location.pathname);
+        showAdmin();
+        return;
+      }
+    } catch (e) {
+      console.error('Admin auth code exchange failed:', e);
+    }
+    // Code exchange failed — fall through to normal check
+    history.replaceState(null, '', window.location.pathname);
+  }
+
+  // Check for error from admin Google login denial
+  var error = params.get('error');
+  if (error) {
+    history.replaceState(null, '', window.location.pathname);
+    showAccessDenied(decodeURIComponent(error.replace(/\+/g, ' ')));
+    return;
+  }
+
+  var token = localStorage.getItem('autoshop_jwt');
   if (!token) {
-    window.location.replace('login.html?next=admin.html');
+    // No JWT — redirect to Google login with admin intent
+    window.location.replace('/auth/google/login/start?intent=admin');
     return;
   }
   showAdmin();
@@ -462,7 +499,7 @@ async function apiFetch(path, params) {
   if (res.status === 401) {
     localStorage.removeItem('autoshop_jwt');
     localStorage.removeItem('autoshop_session');
-    window.location.replace('login.html?next=admin.html');
+    window.location.replace('/admin');
     throw new Error('401 Unauthorized — redirecting to login');
   }
   if (res.status === 403) {
