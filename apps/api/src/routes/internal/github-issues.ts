@@ -10,9 +10,13 @@ import { adminGuard } from "../../middleware/admin-guard";
 export async function githubIssuesRoute(app: FastifyInstance) {
   app.get("/admin/github-issues", { preHandler: [adminGuard] }, async (request, reply) => {
     const token = process.env.GITHUB_TOKEN;
-    const repo = process.env.GITHUB_REPO; // e.g. "owner/repo"
+    // Support both "owner/repo" format and separate GITHUB_OWNER + GITHUB_REPO (repo-name only)
+    let repo = process.env.GITHUB_REPO; // e.g. "owner/repo"
+    if (repo && !repo.includes("/") && process.env.GITHUB_OWNER) {
+      repo = `${process.env.GITHUB_OWNER}/${repo}`;
+    }
 
-    if (!token || !repo) {
+    if (!token || !repo || !repo.includes("/")) {
       return reply.status(503).send({
         error: "GitHub integration not configured — set GITHUB_TOKEN and GITHUB_REPO env vars",
       });
