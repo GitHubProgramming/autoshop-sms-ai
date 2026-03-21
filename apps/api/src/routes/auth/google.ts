@@ -123,6 +123,7 @@ interface StoredAuthCode {
   tenantId: string;
   shopName: string;
   email: string;
+  isNewAccount: boolean;
   createdAt: number;
 }
 
@@ -236,6 +237,7 @@ export async function googleAuthRoute(app: FastifyInstance) {
       tenantId: stored.tenantId,
       shopName: stored.shopName,
       email: stored.email,
+      isNewAccount: stored.isNewAccount,
     });
   });
 
@@ -426,6 +428,7 @@ export async function googleAuthRoute(app: FastifyInstance) {
       );
 
       let tenant = rows[0];
+      let isNewAccount = false;
 
       if (!tenant && isSignup) {
         // ── Create new tenant via Google signup ──────────────────────────────
@@ -464,6 +467,7 @@ export async function googleAuthRoute(app: FastifyInstance) {
           );
 
           tenant = { id: tenantId, shop_name: "My Shop", owner_email: normalizedEmail };
+          isNewAccount = true;
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : "unknown";
           request.log.error({ email: normalizedEmail, msg }, "Failed to create tenant during Google signup");
@@ -502,6 +506,7 @@ export async function googleAuthRoute(app: FastifyInstance) {
         tenantId: tenant.id,
         shopName: tenant.shop_name,
         email: tenant.owner_email,
+        isNewAccount,
         createdAt: Date.now(),
       });
 
