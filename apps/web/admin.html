@@ -353,10 +353,6 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
       <div class="sidebar-item" data-section="audit" onclick="navigate('audit')">
         <span class="sidebar-icon">≡</span> Audit Log
       </div>
-      <div class="sidebar-label">Admin</div>
-      <div class="sidebar-item" data-section="project-ops" onclick="navigate('project-ops')">
-        <span class="sidebar-icon">⚙</span> Project Ops
-      </div>
     </aside>
 
     <!-- Main Content -->
@@ -598,16 +594,15 @@ function renderEmpty(msg) {
   return `<div class="empty-state">${msg || 'No data'}</div>`;
 }
 
-// ── SECTION 1: OVERVIEW ──────────────────────────────────────────────────────
+// ── SECTION 1: OVERVIEW — SaaS COMMAND CENTER ───────────────────────────────
 async function loadOverview() {
   try {
     const d = await apiFetch('/internal/admin/overview');
     const sc = d.status_counts || {};
-    const trial     = sc.trial || 0;
-    const active    = sc.active || 0;
-    const pastDue   = (sc.past_due || 0) + (sc.past_due_blocked || 0);
-    const canceled  = sc.canceled || 0;
-    const expired   = sc.trial_expired || 0;
+    const sh = d.system_health || {};
+    const rev = d.revenue || {};
+    const fun = d.funnel_30d || {};
+    const cost = d.cost || {};
 
     // Update error badge
     if (d.failed_calendar_syncs > 0 || d.no_twilio > 0) {
@@ -624,52 +619,185 @@ async function loadOverview() {
       actionBadge.style.display = 'none';
     }
 
+    // System status styling
+    const statusMap = {
+      GREEN: { color: 'var(--green)', bg: 'var(--green-dim)', border: 'rgba(22,163,74,.3)', icon: '●', label: 'ALL SYSTEMS OPERATIONAL' },
+      DEGRADED: { color: 'var(--amber)', bg: 'rgba(217,119,6,.08)', border: 'rgba(217,119,6,.3)', icon: '◐', label: 'DEGRADED' },
+      FAILING: { color: 'var(--red)', bg: 'var(--red-dim)', border: 'rgba(220,38,38,.3)', icon: '●', label: 'FAILURES DETECTED' },
+    };
+    const ss = statusMap[sh.status] || statusMap.GREEN;
+
+    // Build unified action queue
+    const actions = [];
+    if (d.failed_bookings > 0) actions.push({ priority: 'CRITICAL', label: `${d.failed_bookings} failed booking${d.failed_bookings > 1 ? 's' : ''}`, action: 'Resolve in Action Needed', onclick: "navigate('action-needed')" });
+    if (d.pending_manual_bookings > 0) actions.push({ priority: 'CRITICAL', label: `${d.pending_manual_bookings} booking${d.pending_manual_bookings > 1 ? 's' : ''} need manual confirmation`, action: 'Confirm in Action Needed', onclick: "navigate('action-needed')" });
+    if (sh.pipeline_failures_24h > 0) actions.push({ priority: 'CRITICAL', label: `${sh.pipeline_failures_24h} pipeline failure${sh.pipeline_failures_24h > 1 ? 's' : ''} (24h)`, action: 'Check Execution Traces', onclick: "navigate('traces')" });
+    if ((rev.past_due || 0) > 0) actions.push({ priority: 'HIGH', label: `${rev.past_due} tenant${rev.past_due > 1 ? 's' : ''} past due`, action: 'Review in Billing', onclick: "navigate('billing')" });
+    if (d.near_expiry > 0) actions.push({ priority: 'HIGH', label: `${d.near_expiry} trial${d.near_expiry > 1 ? 's' : ''} expiring within 3 days`, action: 'Review in Billing', onclick: "navigate('billing')" });
+    if (d.no_twilio > 0) actions.push({ priority: 'MEDIUM', label: `${d.no_twilio} tenant${d.no_twilio > 1 ? 's' : ''} missing Twilio number`, action: 'Check Integrations', onclick: "navigate('integrations')" });
+    if (d.no_calendar > 0) actions.push({ priority: 'MEDIUM', label: `${d.no_calendar} tenant${d.no_calendar > 1 ? 's' : ''} missing Google Calendar`, action: 'Check Integrations', onclick: "navigate('integrations')" });
+    if (d.high_usage > 0) actions.push({ priority: 'MEDIUM', label: `${d.high_usage} tenant${d.high_usage > 1 ? 's' : ''} at ≥80% usage`, action: 'Review Accounts', onclick: "navigate('accounts')" });
+
+    const priorityColor = { CRITICAL: 'var(--red)', HIGH: 'var(--amber)', MEDIUM: 'var(--steel)' };
+    const priorityBg = { CRITICAL: 'var(--red-dim)', HIGH: 'rgba(217,119,6,.08)', MEDIUM: 'rgba(107,114,128,.08)' };
+
+    const fmtUsd = (v) => v !== null && v !== undefined ? '$' + Number(v).toFixed(2) : '$0.00';
+
     document.getElementById('mainContent').innerHTML = `
       <div class="page-header">
         <div>
-          <div class="page-title">Overview</div>
-          <div class="page-subtitle">System status at a glance</div>
+          <div class="page-title">Command Center</div>
+          <div class="page-subtitle">SaaS operations at a glance</div>
         </div>
         <button class="btn-sm" onclick="navigate('overview')">↻ Refresh</button>
       </div>
 
-      <!-- Main stats -->
-      <div class="section-label">Accounts</div>
-      <div class="stat-grid">
-        <div class="stat-card rust"><div class="stat-tag">Total Accounts</div><div class="stat-val">${d.total_accounts}</div></div>
-        <div class="stat-card amber"><div class="stat-tag">Trial</div><div class="stat-val amber">${trial}</div></div>
-        <div class="stat-card green"><div class="stat-tag">Active</div><div class="stat-val green">${active}</div></div>
-        <div class="stat-card red"><div class="stat-tag">Past Due</div><div class="stat-val red">${pastDue}</div></div>
-        <div class="stat-card steel"><div class="stat-tag">Canceled</div><div class="stat-val">${canceled}</div></div>
-        <div class="stat-card steel"><div class="stat-tag">Trial Expired</div><div class="stat-val">${expired}</div></div>
-        <div class="stat-card rust"><div class="stat-tag">New Last 7d</div><div class="stat-val">${d.new_signups_7d}</div></div>
+      <!-- ═══ A. SYSTEM HEALTH STRIP ═══ -->
+      <div style="display:flex;align-items:center;gap:16px;padding:16px 24px;border-radius:12px;border:2px solid ${ss.border};background:${ss.bg};margin-bottom:20px;">
+        <span style="font-size:24px;color:${ss.color}">${ss.icon}</span>
+        <div style="flex:1">
+          <div style="font-size:15px;font-weight:700;color:${ss.color};letter-spacing:.04em">${ss.label}</div>
+          ${sh.last_critical_error ? `<div style="font-size:11px;color:var(--steel);margin-top:2px;font-family:var(--mono)">Last error: ${relTime(sh.last_critical_error.timestamp)} — ${escHtml(sh.last_critical_error.summary || '')}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:20px;font-size:12px;font-family:var(--mono)">
+          <div style="text-align:center">
+            <div style="color:var(--steel);font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Failed Bookings</div>
+            <div style="font-size:18px;font-weight:700;color:${sh.failed_bookings_24h > 0 ? 'var(--red)' : 'var(--green)'}">${sh.failed_bookings_24h || 0}</div>
+            <div style="color:var(--steel);font-size:9px">24h</div>
+          </div>
+          <div style="text-align:center">
+            <div style="color:var(--steel);font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Sync Failures</div>
+            <div style="font-size:18px;font-weight:700;color:${sh.failed_syncs_24h > 0 ? 'var(--red)' : 'var(--green)'}">${sh.failed_syncs_24h || 0}</div>
+            <div style="color:var(--steel);font-size:9px">24h</div>
+          </div>
+          <div style="text-align:center">
+            <div style="color:var(--steel);font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Pipeline Errors</div>
+            <div style="font-size:18px;font-weight:700;color:${sh.pipeline_failures_24h > 0 ? 'var(--red)' : 'var(--green)'}">${sh.pipeline_failures_24h || 0}</div>
+            <div style="color:var(--steel);font-size:9px">24h</div>
+          </div>
+        </div>
       </div>
 
-      <div class="section-label">Today's Activity</div>
-      <div class="stat-grid">
-        <div class="stat-card green"><div class="stat-tag">Conversations Today</div><div class="stat-val green">${d.conversations_today}</div></div>
-        <div class="stat-card green"><div class="stat-tag">Bookings Today</div><div class="stat-val green">${d.bookings_today}</div></div>
+      <!-- ═══ B. REVENUE STRIP ═══ -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;margin-bottom:20px;">
+        <div class="stat-card green" style="border-top-width:4px">
+          <div class="stat-tag">Monthly Recurring Revenue</div>
+          <div class="stat-val green" style="font-size:36px">$${(rev.mrr || 0).toLocaleString()}</div>
+          <div class="stat-sub">MRR</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-tag">Active Paid</div>
+          <div class="stat-val green">${rev.active_paid || 0}</div>
+          <div class="stat-sub">paying tenants</div>
+        </div>
+        <div class="stat-card amber">
+          <div class="stat-tag">Trial</div>
+          <div class="stat-val amber">${rev.trial || 0}</div>
+          <div class="stat-sub">in trial period</div>
+        </div>
+        <div class="stat-card ${(rev.past_due || 0) > 0 ? 'red' : 'steel'}">
+          <div class="stat-tag">Revenue at Risk</div>
+          <div class="stat-val ${(rev.past_due || 0) > 0 ? 'red' : ''}">${rev.past_due || 0}</div>
+          <div class="stat-sub">past due tenants</div>
+        </div>
       </div>
 
-      <div class="section-label">Alerts</div>
-      <div class="stat-grid">
-        <div class="stat-card red"><div class="stat-tag">Failed Syncs</div><div class="stat-val ${d.failed_calendar_syncs > 0 ? 'red' : ''}">${d.failed_calendar_syncs}</div><div class="stat-sub">cal sync &gt;1h</div></div>
-        <div class="stat-card red" style="cursor:pointer" onclick="navigate('action-needed')"><div class="stat-tag">Needs Manual Confirm</div><div class="stat-val ${d.pending_manual_bookings > 0 ? 'red' : ''}">${d.pending_manual_bookings}</div><div class="stat-sub">click to resolve</div></div>
-        <div class="stat-card red" style="cursor:pointer" onclick="navigate('action-needed')"><div class="stat-tag">Failed Bookings</div><div class="stat-val ${d.failed_bookings > 0 ? 'red' : ''}">${d.failed_bookings}</div><div class="stat-sub">click to resolve</div></div>
-        <div class="stat-card amber"><div class="stat-tag">No Twilio</div><div class="stat-val ${d.no_twilio > 0 ? 'red' : ''}">${d.no_twilio}</div><div class="stat-sub">no active phone</div></div>
-        <div class="stat-card amber"><div class="stat-tag">No Calendar</div><div class="stat-val ${d.no_calendar > 0 ? 'amber' : ''}">${d.no_calendar}</div><div class="stat-sub">not connected</div></div>
-        <div class="stat-card amber"><div class="stat-tag">Near Expiry</div><div class="stat-val ${d.near_expiry > 0 ? 'amber' : ''}">${d.near_expiry}</div><div class="stat-sub">trial ≤3 days</div></div>
-        <div class="stat-card amber"><div class="stat-tag">High Usage</div><div class="stat-val ${d.high_usage > 0 ? 'amber' : ''}">${d.high_usage}</div><div class="stat-sub">≥80% of limit</div></div>
+      <!-- ═══ C. CORE FUNNEL ═══ -->
+      <div class="section-label">Core Funnel — Last 30 Days</div>
+      <div class="funnel-wrap" style="margin-bottom:20px">
+        <div class="funnel-bar">
+          <div class="funnel-label">Missed Calls</div>
+          <div class="funnel-val">${fun.missed_calls || 0}</div>
+          <div class="funnel-track"><div class="funnel-fill" style="background:var(--rust);width:100%"></div></div>
+        </div>
+        <div class="funnel-bar">
+          <div class="funnel-label">Conversations</div>
+          <div class="funnel-val">${fun.conversations || 0}</div>
+          <div class="funnel-track"><div class="funnel-fill" style="background:var(--amber);width:${fun.missed_calls > 0 ? Math.min(100, Math.round((fun.conversations / fun.missed_calls) * 100)) : 100}%"></div></div>
+        </div>
+        <div class="funnel-bar">
+          <div class="funnel-label">Bookings</div>
+          <div class="funnel-val">${fun.bookings || 0}</div>
+          <div class="funnel-track"><div class="funnel-fill" style="background:var(--green);width:${fun.conversations > 0 ? Math.min(100, Math.round((fun.bookings / fun.conversations) * 100)) : 0}%"></div></div>
+        </div>
+        <div class="funnel-bar" style="border-top:3px solid var(--rust)">
+          <div class="funnel-label">Conversion Rate</div>
+          <div class="funnel-val" style="color:${(fun.conversion_rate || 0) >= 20 ? 'var(--green)' : (fun.conversion_rate || 0) >= 10 ? 'var(--amber)' : 'var(--red)'}">${fun.conversion_rate || 0}%</div>
+          <div style="font-size:11px;color:var(--steel);margin-top:4px">conversation → booking</div>
+        </div>
+        <div class="funnel-bar">
+          <div class="funnel-label">Cal Sync Rate</div>
+          <div class="funnel-val" style="color:${(fun.calendar_sync_rate || 0) >= 80 ? 'var(--green)' : (fun.calendar_sync_rate || 0) >= 50 ? 'var(--amber)' : 'var(--red)'}">${fun.calendar_sync_rate || 0}%</div>
+          <div style="font-size:11px;color:var(--steel);margin-top:4px">booking → calendar</div>
+        </div>
       </div>
 
-      <!-- Needs Attention -->
-      <div class="section-label">Needs Attention</div>
-      <div class="table-wrap">
-        <div class="table-header"><span class="table-title">At-Risk Accounts</span></div>
+      <!-- ═══ Today's pulse ═══ -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+        <div class="stat-card green">
+          <div class="stat-tag">Conversations Today</div>
+          <div class="stat-val green">${d.conversations_today}</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-tag">Bookings Today</div>
+          <div class="stat-val green">${d.bookings_today}</div>
+        </div>
+      </div>
+
+      <!-- ═══ D. COST & UNIT ECONOMICS ═══ -->
+      <div class="section-label">Cost &amp; Unit Economics</div>
+      <div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:16px;margin-bottom:20px;">
+        <div class="stat-card steel">
+          <div class="stat-tag">Cost Today</div>
+          <div class="stat-val" style="font-size:28px">${fmtUsd(cost.today?.total)}</div>
+          <div class="stat-sub">AI ${fmtUsd(cost.today?.ai)} · SMS ${fmtUsd(cost.today?.sms)}</div>
+        </div>
+        <div class="stat-card steel">
+          <div class="stat-tag">Cost (30d)</div>
+          <div class="stat-val" style="font-size:28px">${fmtUsd(cost.month?.total)}</div>
+          <div class="stat-sub">AI ${fmtUsd(cost.month?.ai)} · SMS ${fmtUsd(cost.month?.sms)}</div>
+        </div>
+        <div class="stat-card rust">
+          <div class="stat-tag">Avg Cost / Conv</div>
+          <div class="stat-val" style="font-size:28px">${fmtUsd(cost.avg_per_conversation)}</div>
+          <div class="stat-sub">AI + SMS combined</div>
+        </div>
+        <div class="stat-card steel">
+          <div class="stat-tag">AI Cost (30d)</div>
+          <div class="stat-val" style="font-size:28px">${fmtUsd(cost.month?.ai)}</div>
+          <div class="stat-sub">${cost.month?.total > 0 ? Math.round(((cost.month?.ai || 0) / cost.month.total) * 100) : 0}% of total</div>
+        </div>
+        <div class="stat-card steel">
+          <div class="stat-tag">SMS Cost (30d)</div>
+          <div class="stat-val" style="font-size:28px">${fmtUsd(cost.month?.sms)}</div>
+          <div class="stat-sub">${cost.month?.total > 0 ? Math.round(((cost.month?.sms || 0) / cost.month.total) * 100) : 0}% of total</div>
+        </div>
+      </div>
+
+      <!-- ═══ E. UNIFIED ACTION QUEUE ═══ -->
+      <div class="section-label">Action Queue</div>
+      ${actions.length > 0 ? `
+      <div class="table-wrap" style="margin-bottom:20px">
+        <table class="data-table">
+          <thead><tr><th style="width:100px">Priority</th><th>Issue</th><th style="width:200px">Action</th></tr></thead>
+          <tbody>
+          ${actions.map(a => `<tr style="cursor:pointer;background:${priorityBg[a.priority]}" onclick="${a.onclick}">
+            <td><span style="font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.06em;color:${priorityColor[a.priority]}">${a.priority}</span></td>
+            <td style="font-weight:600">${escHtml(a.label)}</td>
+            <td><span style="font-size:12px;color:var(--rust);font-weight:600">${escHtml(a.action)} →</span></td>
+          </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>` : `<div class="table-wrap" style="margin-bottom:20px">${renderEmpty('No actions needed — all clear')}</div>`}
+
+      <!-- ═══ F. AT-RISK TENANTS TABLE ═══ -->
+      <div class="section-label">At-Risk Tenants</div>
+      <div class="table-wrap" style="margin-bottom:20px">
+        <div class="table-header"><span class="table-title">Tenants Needing Attention</span></div>
         ${d.needs_attention && d.needs_attention.length > 0 ? `
         <table class="data-table">
           <thead><tr>
-            <th>Shop</th><th>Email</th><th>Status</th><th>Trial Ends</th><th>Usage</th><th>Issues</th>
+            <th>Shop</th><th>Status</th><th>Usage</th><th>Issues</th>
           </tr></thead>
           <tbody>
           ${d.needs_attention.map(t => {
@@ -679,64 +807,52 @@ async function loadOverview() {
             if (t.billing_status === 'past_due' || t.billing_status === 'past_due_blocked') issues.push('<span class="issue-tag red">Past Due</span>');
             if (t.billing_status === 'trial' && t.trial_ends_at) {
               const days = Math.max(0, Math.ceil((new Date(t.trial_ends_at) - Date.now()) / 86400000));
-              if (days <= 3) issues.push(`<span class="issue-tag amber">Expires ${days}d</span>`);
+              if (days <= 3) issues.push('<span class="issue-tag amber">Expires ' + days + 'd</span>');
             }
             if (t.conv_limit_this_cycle > 0) {
               const pct = t.conv_used_this_cycle / t.conv_limit_this_cycle;
               if (pct >= 0.8) issues.push('<span class="issue-tag amber">High Usage</span>');
             }
-            return `<tr onclick="navigate('account-detail',{id:'${t.id}'})">
-              <td>${escHtml(t.shop_name)}</td>
-              <td class="mono dim">${escHtml(t.owner_email)}</td>
-              <td>${statusBadge(t.billing_status)}</td>
-              <td class="mono dim">${t.trial_ends_at ? relTime(t.trial_ends_at) : '—'}</td>
-              <td>${usageBar(t.conv_used_this_cycle, t.conv_limit_this_cycle)}</td>
-              <td><div class="attention-issues">${issues.join('')}</div></td>
-            </tr>`;
+            return '<tr onclick="navigate(\'account-detail\',{id:\'' + t.id + '\'})">' +
+              '<td style="font-weight:600">' + escHtml(t.shop_name) + '<br><span class="mono dim" style="font-size:10px">' + escHtml(t.owner_email) + '</span></td>' +
+              '<td>' + statusBadge(t.billing_status) + '</td>' +
+              '<td>' + usageBar(t.conv_used_this_cycle, t.conv_limit_this_cycle) + '</td>' +
+              '<td><div class="attention-issues">' + issues.join('') + '</div></td>' +
+            '</tr>';
           }).join('')}
           </tbody>
-        </table>` : renderEmpty('No accounts need attention')}
+        </table>` : renderEmpty('No tenants need attention')}
       </div>
 
-      <!-- Three-column lists -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
-        <!-- Recent Signups -->
-        <div class="table-wrap">
-          <div class="table-header"><span class="table-title">Recent Signups</span></div>
-          ${d.recent_signups && d.recent_signups.length > 0 ?
-            `<ul class="small-list">${d.recent_signups.map(t => `
-              <li onclick="navigate('account-detail',{id:'${t.id}'})" style="cursor:pointer;flex-direction:column;align-items:flex-start;gap:2px">
-                <span style="font-weight:600">${escHtml(t.shop_name)}</span>
-                <span class="mono dim" style="font-size:11px">${escHtml(t.owner_email)}</span>
-                <div style="display:flex;gap:6px;margin-top:4px">${statusBadge(t.billing_status)}<span class="mono dim" style="font-size:10px">${relTime(t.created_at)}</span></div>
-              </li>`).join('')}
-            </ul>` : renderEmpty('No recent signups')}
-        </div>
-
-        <!-- Recent Conversations -->
+      <!-- ═══ Quick summary row ═══ -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
         <div class="table-wrap">
           <div class="table-header"><span class="table-title">Recent Conversations</span></div>
           ${d.recent_conversations && d.recent_conversations.length > 0 ?
-            `<ul class="small-list">${d.recent_conversations.map(c => `
-              <li onclick="loadConversationDetail('${c.id}')" style="cursor:pointer;flex-direction:column;align-items:flex-start;gap:2px">
-                <span style="font-weight:600">${escHtml(c.shop_name)}</span>
-                <span class="mono dim" style="font-size:11px">${escHtml(c.customer_phone)}</span>
-                <div style="display:flex;gap:6px;margin-top:4px">${statusBadge(c.status)}<span class="mono dim" style="font-size:10px">${relTime(c.opened_at)}</span></div>
-              </li>`).join('')}
-            </ul>` : renderEmpty('No recent conversations')}
+            '<ul class="small-list">' + d.recent_conversations.map(function(c) { return '<li onclick="loadConversationDetail(\'' + c.id + '\')" style="cursor:pointer;flex-direction:column;align-items:flex-start;gap:2px">' +
+              '<span style="font-weight:600">' + escHtml(c.shop_name) + '</span>' +
+              '<span class="mono dim" style="font-size:11px">' + escHtml(c.customer_phone) + '</span>' +
+              '<div style="display:flex;gap:6px;margin-top:4px">' + statusBadge(c.status) + '<span class="mono dim" style="font-size:10px">' + relTime(c.opened_at) + '</span></div>' +
+            '</li>'; }).join('') + '</ul>' : renderEmpty('No recent conversations')}
         </div>
-
-        <!-- Recent Billing Events -->
         <div class="table-wrap">
-          <div class="table-header"><span class="table-title">Recent Billing Events</span></div>
-          ${d.recent_billing_events && d.recent_billing_events.length > 0 ?
-            `<ul class="small-list">${d.recent_billing_events.map(b => `
-              <li style="flex-direction:column;align-items:flex-start;gap:2px">
-                <span style="font-weight:600;font-size:12px;font-family:var(--mono)">${escHtml(b.event_type)}</span>
-                <span class="mono dim" style="font-size:11px">${escHtml(b.shop_name || '—')}</span>
-                <span class="mono dim" style="font-size:10px">${relTime(b.processed_at)}</span>
-              </li>`).join('')}
-            </ul>` : renderEmpty('No billing events')}
+          <div class="table-header"><span class="table-title">Account Summary</span></div>
+          <div style="padding:20px 24px">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;text-align:center">
+              <div>
+                <div style="font-size:28px;font-weight:700;color:var(--white)">${d.total_accounts}</div>
+                <div style="font-size:11px;color:var(--steel);text-transform:uppercase;letter-spacing:.04em">Total</div>
+              </div>
+              <div>
+                <div style="font-size:28px;font-weight:700;color:var(--green)">${rev.active_paid || 0}</div>
+                <div style="font-size:11px;color:var(--steel);text-transform:uppercase;letter-spacing:.04em">Paid</div>
+              </div>
+              <div>
+                <div style="font-size:28px;font-weight:700;color:var(--white)">${d.new_signups_7d}</div>
+                <div style="font-size:11px;color:var(--steel);text-transform:uppercase;letter-spacing:.04em">New (7d)</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     `;

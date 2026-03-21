@@ -107,6 +107,18 @@ export async function adminRoute(app: FastifyInstance) {
     });
   });
 
+  // ── Plan pricing for MRR calculation ──
+  const PLAN_PRICES: Record<string, number> = {
+    plan_starter: 149,
+    plan_pro: 299,
+    plan_enterprise: 499,
+  };
+  const DEFAULT_PLAN_PRICE = 149; // Fallback for unknown plans
+
+  // Cost-per-unit estimates (USD)
+  const OPENAI_COST_PER_1K_TOKENS = 0.003; // GPT-4o-mini avg input+output blend
+  const TWILIO_SMS_COST_PER_SEGMENT = 0.0079;
+
   // ── GET /internal/admin/overview ────────────────────────────────────────────
   app.get("/admin/overview", { preHandler: [adminGuard] }, async (_req, reply) => {
     const [
@@ -127,6 +139,20 @@ export async function adminRoute(app: FastifyInstance) {
       pendingManualRows,
       failedBookingsRows,
       unackedAlertsRows,
+      // ── New KPI queries ──
+      convs30dRows,
+      bookings30dRows,
+      syncedBookings30dRows,
+      pipelineFailures24hRows,
+      lastCriticalAlertRows,
+      failedBookings24hRows,
+      failedSyncs24hRows,
+      revenueTenantsRows,
+      tokenCost30dRows,
+      smsCost30dRows,
+      tokenCostTodayRows,
+      smsCostTodayRows,
+      missedCalls30dRows,
     ] = await Promise.all([
       query(`SELECT billing_status, COUNT(*) as count FROM tenants WHERE is_test = FALSE GROUP BY billing_status`),
       query(`SELECT COUNT(*)::int FROM tenants WHERE created_at > NOW() - INTERVAL '7 days' AND is_test = FALSE`),
@@ -160,6 +186,64 @@ export async function adminRoute(app: FastifyInstance) {
       query(`SELECT COUNT(*)::int FROM appointments a JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE WHERE a.booking_state = 'PENDING_MANUAL_CONFIRMATION'`),
       query(`SELECT COUNT(*)::int FROM appointments a JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE WHERE a.booking_state = 'FAILED'`),
       query(`SELECT COUNT(*)::int FROM pipeline_alerts WHERE acknowledged = FALSE`),
+      // ── Funnel: 30d conversations ──
+      query(`SELECT COUNT(*)::int FROM conversations c
+         JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE
+         WHERE c.opened_at > NOW() - INTERVAL '30 days'`),
+      // ── Funnel: 30d bookings ──
+      query(`SELECT COUNT(*)::int FROM appointments a
+         JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE
+         WHERE a.created_at > NOW() - INTERVAL '30 days'`),
+      // ── Funnel: 30d synced bookings ──
+      query(`SELECT COUNT(*)::int FROM appointments a
+         JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE
+         WHERE a.created_at > NOW() - INTERVAL '30 days' AND a.calendar_synced = true`),
+      // ── System health: pipeline failures 24h ──
+      query(`SELECT COUNT(*)::int FROM pipeline_traces
+         WHERE status = 'failed' AND started_at > NOW() - INTERVAL '24 hours'`),
+      // ── System health: last critical alert ──
+      query(`SELECT created_at, summary FROM pipeline_alerts
+         ORDER BY created_at DESC LIMIT 1`),
+      // ── System health: failed bookings 24h ──
+      query(`SELECT COUNT(*)::int FROM appointments a
+         JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE
+         WHERE a.booking_state = 'FAILED' AND a.created_at > NOW() - INTERVAL '24 hours'`),
+      // ── System health: failed calendar syncs 24h ──
+      query(`SELECT COUNT(*)::int FROM appointments a
+         JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE
+         WHERE a.calendar_synced = false AND a.created_at > NOW() - INTERVAL '24 hours'
+         AND a.booking_state NOT IN ('CONFIRMED_MANUAL', 'RESOLVED')`),
+      // ── Revenue: active tenants with plan ──
+      query(`SELECT plan_id, COUNT(*)::int as count FROM tenants
+         WHERE is_test = FALSE AND billing_status = 'active'
+         GROUP BY plan_id`),
+      // ── Cost: AI tokens 30d ──
+      query(`SELECT COALESCE(SUM(m.tokens_used), 0)::bigint as total_tokens
+         FROM messages m
+         JOIN conversations c ON c.id = m.conversation_id
+         JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE
+         WHERE m.sent_at > NOW() - INTERVAL '30 days'`),
+      // ── Cost: SMS messages 30d ──
+      query(`SELECT COUNT(*)::int as total_sms
+         FROM messages m
+         JOIN conversations c ON c.id = m.conversation_id
+         JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE
+         WHERE m.sent_at > NOW() - INTERVAL '30 days'`),
+      // ── Cost: AI tokens today ──
+      query(`SELECT COALESCE(SUM(m.tokens_used), 0)::bigint as total_tokens
+         FROM messages m
+         JOIN conversations c ON c.id = m.conversation_id
+         JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE
+         WHERE m.sent_at >= CURRENT_DATE`),
+      // ── Cost: SMS messages today ──
+      query(`SELECT COUNT(*)::int as total_sms
+         FROM messages m
+         JOIN conversations c ON c.id = m.conversation_id
+         JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE
+         WHERE m.sent_at >= CURRENT_DATE`),
+      // ── Funnel: missed calls 30d (from pipeline_traces) ──
+      query(`SELECT COUNT(*)::int FROM pipeline_traces
+         WHERE trigger_type = 'missed_call' AND started_at > NOW() - INTERVAL '30 days'`),
     ]);
 
     // Build status map
@@ -169,6 +253,46 @@ export async function adminRoute(app: FastifyInstance) {
       statusCounts[row.billing_status] = Number(row.count);
       totalAccounts += Number(row.count);
     }
+
+    // ── Funnel metrics ──
+    const convs30d = (convs30dRows as any[])[0]?.count ?? 0;
+    const bookings30d = (bookings30dRows as any[])[0]?.count ?? 0;
+    const syncedBookings30d = (syncedBookings30dRows as any[])[0]?.count ?? 0;
+    const missedCalls30d = (missedCalls30dRows as any[])[0]?.count ?? 0;
+    const conversionRate = convs30d > 0 ? Math.round((bookings30d / convs30d) * 100) : 0;
+    const calSyncRate = bookings30d > 0 ? Math.round((syncedBookings30d / bookings30d) * 100) : 0;
+
+    // ── System health ──
+    const pipelineFailures24h = (pipelineFailures24hRows as any[])[0]?.count ?? 0;
+    const failedBookings24h = (failedBookings24hRows as any[])[0]?.count ?? 0;
+    const failedSyncs24h = (failedSyncs24hRows as any[])[0]?.count ?? 0;
+    const lastAlert = (lastCriticalAlertRows as any[])[0] ?? null;
+    const totalFailures24h = pipelineFailures24h + failedBookings24h + failedSyncs24h;
+    const systemStatus = totalFailures24h === 0 ? "GREEN" : totalFailures24h <= 3 ? "DEGRADED" : "FAILING";
+
+    // ── Revenue ──
+    const activePaid = statusCounts["active"] || 0;
+    const trialCount = statusCounts["trial"] || 0;
+    const pastDueCount = (statusCounts["past_due"] || 0) + (statusCounts["past_due_blocked"] || 0);
+    let mrr = 0;
+    for (const row of revenueTenantsRows as { plan_id: string | null; count: number }[]) {
+      const price = PLAN_PRICES[row.plan_id ?? ""] ?? DEFAULT_PLAN_PRICE;
+      mrr += price * Number(row.count);
+    }
+
+    // ── Cost ──
+    const totalTokens30d = Number((tokenCost30dRows as any[])[0]?.total_tokens ?? 0);
+    const totalSms30d = Number((smsCost30dRows as any[])[0]?.total_sms ?? 0);
+    const aiCost30d = Math.round((totalTokens30d / 1000) * OPENAI_COST_PER_1K_TOKENS * 100) / 100;
+    const smsCost30d = Math.round(totalSms30d * TWILIO_SMS_COST_PER_SEGMENT * 100) / 100;
+    const totalCost30d = Math.round((aiCost30d + smsCost30d) * 100) / 100;
+    const avgCostPerConv = convs30d > 0 ? Math.round((totalCost30d / convs30d) * 100) / 100 : 0;
+
+    const totalTokensToday = Number((tokenCostTodayRows as any[])[0]?.total_tokens ?? 0);
+    const totalSmsToday = Number((smsCostTodayRows as any[])[0]?.total_sms ?? 0);
+    const aiCostToday = Math.round((totalTokensToday / 1000) * OPENAI_COST_PER_1K_TOKENS * 100) / 100;
+    const smsCostToday = Math.round(totalSmsToday * TWILIO_SMS_COST_PER_SEGMENT * 100) / 100;
+    const totalCostToday = Math.round((aiCostToday + smsCostToday) * 100) / 100;
 
     return reply.status(200).send({
       total_accounts: totalAccounts,
@@ -189,6 +313,32 @@ export async function adminRoute(app: FastifyInstance) {
       pending_manual_bookings: (pendingManualRows as any[])[0]?.count ?? 0,
       failed_bookings: (failedBookingsRows as any[])[0]?.count ?? 0,
       unacknowledged_alerts: (unackedAlertsRows as any[])[0]?.count ?? 0,
+      // ── New KPIs ──
+      system_health: {
+        status: systemStatus,
+        failed_bookings_24h: failedBookings24h,
+        failed_syncs_24h: failedSyncs24h,
+        pipeline_failures_24h: pipelineFailures24h,
+        last_critical_error: lastAlert ? { timestamp: lastAlert.created_at, summary: lastAlert.summary } : null,
+      },
+      revenue: {
+        mrr,
+        active_paid: activePaid,
+        trial: trialCount,
+        past_due: pastDueCount,
+      },
+      funnel_30d: {
+        missed_calls: missedCalls30d,
+        conversations: convs30d,
+        bookings: bookings30d,
+        conversion_rate: conversionRate,
+        calendar_sync_rate: calSyncRate,
+      },
+      cost: {
+        today: { total: totalCostToday, ai: aiCostToday, sms: smsCostToday },
+        month: { total: totalCost30d, ai: aiCost30d, sms: smsCost30d },
+        avg_per_conversation: avgCostPerConv,
+      },
     });
   });
 
