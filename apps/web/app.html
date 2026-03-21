@@ -2470,7 +2470,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   (function checkAdminAccess() {
     var token = localStorage.getItem('autoshop_jwt');
     if (!token) return;
-    fetch('/internal/admin/overview', {
+    fetch('/internal/admin/check', {
       headers: { 'Authorization': 'Bearer ' + token }
     }).then(function(res) {
       if (res.ok) {
