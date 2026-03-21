@@ -149,9 +149,14 @@ function isSignupState(state: string): boolean {
   return state.startsWith("signup:");
 }
 
-/** Either login or signup Google auth flow (not calendar). */
+/** Admin login state: "admin:<random-nonce>" — Google OAuth for admin entry. */
+function isAdminState(state: string): boolean {
+  return state.startsWith("admin:");
+}
+
+/** Either login, signup, or admin Google auth flow (not calendar). */
 function isAuthState(state: string): boolean {
-  return isLoginState(state) || isSignupState(state);
+  return isLoginState(state) || isSignupState(state) || isAdminState(state);
 }
 
 // ── Routes ────────────────────────────────────────────────────────────────────
@@ -184,9 +189,9 @@ export async function googleAuthRoute(app: FastifyInstance) {
     const nonce = randomBytes(16).toString("hex");
     oauthStateStore.set(nonce, { createdAt: Date.now() });
 
-    // Support ?intent=signup to route through account creation on callback
+    // Support ?intent=signup|admin to route through the right callback path
     const intentQuery = (request.query as Record<string, string>)?.intent;
-    const statePrefix = intentQuery === "signup" ? "signup" : "login";
+    const statePrefix = intentQuery === "signup" ? "signup" : intentQuery === "admin" ? "admin" : "login";
 
     const params = new URLSearchParams({
       client_id: clientId,
@@ -288,9 +293,10 @@ export async function googleAuthRoute(app: FastifyInstance) {
 
     // ── Google Login / Signup callback ──────────────────────────────────────────
     if (isAuthState(state)) {
+      const isAdmin = isAdminState(state);
       const isSignup = isSignupState(state);
-      const prefix = isSignup ? "signup:" : "login:";
-      const errorPage = isSignup ? "/signup" : "/login";
+      const prefix = isAdmin ? "admin:" : isSignup ? "signup:" : "login:";
+      const errorPage = isAdmin ? "/admin" : isSignup ? "/signup" : "/login";
 
       // Validate the nonce server-side — reject missing, expired, or reused
       const nonce = state.slice(prefix.length);
@@ -369,6 +375,87 @@ export async function googleAuthRoute(app: FastifyInstance) {
       }
 
       const normalizedEmail = googleEmail.toLowerCase().trim();
+
+      // ── Admin login: verify ADMIN_EMAILS allowlist, then find/create admin tenant ──
+      if (isAdmin) {
+        const adminEmails = new Set(
+          (process.env.ADMIN_EMAILS ?? "")
+            .split(",")
+            .map((e) => e.trim().toLowerCase())
+            .filter(Boolean)
+        );
+
+        if (adminEmails.size === 0) {
+          request.log.error("Admin Google login attempted but ADMIN_EMAILS not configured");
+          return reply.redirect(
+            `${publicOrigin}/admin?error=Admin+access+not+configured`
+          );
+        }
+
+        if (!adminEmails.has(normalizedEmail)) {
+          request.log.warn(
+            { email: normalizedEmail },
+            "Admin Google login denied — email not in ADMIN_EMAILS"
+          );
+          return reply.redirect(
+            `${publicOrigin}/admin?error=Access+denied.+Your+Google+account+is+not+an+admin.`
+          );
+        }
+
+        // Admin email verified — find or create admin tenant
+        const adminRows = await query<{
+          id: string;
+          shop_name: string;
+          owner_email: string;
+        }>(
+          `SELECT id, shop_name, owner_email FROM tenants WHERE owner_email = $1 LIMIT 1`,
+          [normalizedEmail]
+        );
+
+        let adminTenant = adminRows[0];
+        if (!adminTenant) {
+          // Auto-create minimal admin tenant (365-day trial, matches admin-bootstrap logic)
+          const created = await query<{ id: string }>(
+            `INSERT INTO tenants
+               (shop_name, owner_name, owner_email, timezone, billing_status,
+                trial_started_at, trial_ends_at, trial_conv_limit,
+                conv_limit_this_cycle, conv_used_this_cycle)
+             VALUES ($1, $2, $3, 'America/Chicago', 'trial',
+                     NOW(), NOW() + INTERVAL '365 days', 50,
+                     50, 0)
+             RETURNING id`,
+            ["Admin", "", normalizedEmail]
+          );
+          adminTenant = { id: created[0].id, shop_name: "Admin", owner_email: normalizedEmail };
+          request.log.info(
+            { tenantId: adminTenant.id, email: normalizedEmail },
+            "Auto-created admin tenant via Google admin login"
+          );
+        }
+
+        const jwt = app.jwt.sign(
+          { tenantId: adminTenant.id, email: adminTenant.owner_email },
+          { expiresIn: "24h" }
+        );
+
+        const authCode = randomBytes(32).toString("hex");
+        authCodeStore.set(authCode, {
+          jwt,
+          tenantId: adminTenant.id,
+          shopName: adminTenant.shop_name,
+          email: adminTenant.owner_email,
+          createdAt: Date.now(),
+        });
+
+        request.log.info(
+          { tenantId: adminTenant.id, email: normalizedEmail },
+          "Admin Google login successful — redirecting to admin panel"
+        );
+
+        return reply.redirect(
+          `${publicOrigin}/admin/project-ops?google_code=${encodeURIComponent(authCode)}`
+        );
+      }
 
       // Look up existing tenant by owner_email
       const rows = await query<{

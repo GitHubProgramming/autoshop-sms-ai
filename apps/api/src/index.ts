@@ -178,6 +178,13 @@ async function bootstrap() {
   // ── SPA route handlers (mirrors vercel.json rewrites for local dev / Docker) ──
   // Vercel rewrites /app/:view → /app.html, /login → /login.html, etc.
   // Fastify needs explicit handlers so these clean URLs resolve locally.
+  app.get("/admin", (_req, reply) => {
+    reply.header("Cache-Control", "no-store, no-cache, must-revalidate");
+    reply.header("Pragma", "no-cache");
+    reply.header("Expires", "0");
+    void reply.sendFile("admin.html");
+  });
+
   app.get("/admin/:view", (_req, reply) => {
     reply.header("Cache-Control", "no-store, no-cache, must-revalidate");
     reply.header("Pragma", "no-cache");
