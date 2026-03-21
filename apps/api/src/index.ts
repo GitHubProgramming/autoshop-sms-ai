@@ -4,6 +4,7 @@ import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import formbody from "@fastify/formbody";
 import fastifyJwt from "@fastify/jwt";
+import fastifyCookie from "@fastify/cookie";
 import fastifyStatic from "@fastify/static";
 import { join } from "path";
 import { existsSync } from "fs";
@@ -114,6 +115,9 @@ async function bootstrap() {
     max: 100,
     timeWindow: "1 minute",
   });
+
+  // ── Cookies (admin session) ─────────────────────────────
+  await app.register(fastifyCookie);
 
   // ── JWT auth ──────────────────────────────────────────────
   // JWT_SECRET is validated in the requiredEnv block above — safe to assert.

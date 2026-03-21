@@ -13,7 +13,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import Fastify from "fastify";
-import fastifyJwt from "@fastify/jwt";
+import fastifyCookie from "@fastify/cookie";
 
 // ── Hoisted mocks ─────────────────────────────────────────────────────────────
 
@@ -32,6 +32,7 @@ vi.mock("bcryptjs", () => ({
 }));
 
 import { adminRoute } from "../routes/internal/admin";
+import { setAdminSessionCookie } from "../middleware/admin-session";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -42,9 +43,33 @@ const ADMIN_EMAIL = "admin@autoshop.test";
 
 async function buildApp() {
   const app = Fastify({ logger: false });
-  await app.register(fastifyJwt, { secret: JWT_SECRET });
+  await app.register(fastifyCookie);
   await app.register(adminRoute, { prefix: "/internal" });
   return app;
+}
+
+/**
+ * Generate a valid admin session cookie value for testing.
+ * Uses the same signing mechanism as the real admin-session module.
+ */
+async function getAdminCookie(): Promise<string> {
+  const app = Fastify({ logger: false });
+  await app.register(fastifyCookie);
+
+  let cookieValue = "";
+  app.get("/test-set-cookie", (req, reply) => {
+    setAdminSessionCookie(reply, ADMIN_EMAIL);
+    return reply.send({ ok: true });
+  });
+
+  const res = await app.inject({ method: "GET", url: "/test-set-cookie" });
+  const setCookie = res.headers["set-cookie"];
+  const raw = Array.isArray(setCookie) ? setCookie[0] : setCookie;
+  if (raw) {
+    const match = raw.match(/admin_session=([^;]+)/);
+    if (match) cookieValue = match[1];
+  }
+  return cookieValue;
 }
 
 /** Build a mock result set that returns `count` as the active_tenants value */
@@ -81,12 +106,12 @@ describe("Admin freshness end-to-end proof", () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
-    process.env = { ...ORIGINAL_ENV, ADMIN_EMAILS: ADMIN_EMAIL };
+    process.env = { ...ORIGINAL_ENV, ADMIN_EMAILS: ADMIN_EMAIL, JWT_SECRET };
   });
 
   it("returns fresh data on every request — never stale", async () => {
     const app = await buildApp();
-    const token = app.jwt.sign({ email: ADMIN_EMAIL, tenantId: "t1" });
+    const cookie = await getAdminCookie();
 
     // ── Round 1: Database says 5 active tenants ─────────────────
     mockOverviewWithCount(5);
@@ -94,7 +119,7 @@ describe("Admin freshness end-to-end proof", () => {
     const res1 = await app.inject({
       method: "GET",
       url: "/internal/admin/overview",
-      headers: { authorization: `Bearer ${token}` },
+      headers: { cookie: `admin_session=${cookie}` },
     });
 
     expect(res1.statusCode).toBe(200);
@@ -108,7 +133,7 @@ describe("Admin freshness end-to-end proof", () => {
     const res2 = await app.inject({
       method: "GET",
       url: "/internal/admin/overview",
-      headers: { authorization: `Bearer ${token}` },
+      headers: { cookie: `admin_session=${cookie}` },
     });
 
     expect(res2.statusCode).toBe(200);
@@ -124,7 +149,7 @@ describe("Admin freshness end-to-end proof", () => {
     const res3 = await app.inject({
       method: "GET",
       url: "/internal/admin/overview",
-      headers: { authorization: `Bearer ${token}` },
+      headers: { cookie: `admin_session=${cookie}` },
     });
 
     expect(res3.statusCode).toBe(200);
@@ -137,7 +162,7 @@ describe("Admin freshness end-to-end proof", () => {
 
   it("metrics endpoint also returns fresh data on each call", async () => {
     const app = await buildApp();
-    const token = app.jwt.sign({ email: ADMIN_EMAIL, tenantId: "t1" });
+    const cookie = await getAdminCookie();
 
     // Round 1: return specific metric data
     mocks.query.mockResolvedValueOnce([
@@ -148,7 +173,7 @@ describe("Admin freshness end-to-end proof", () => {
     const res1 = await app.inject({
       method: "GET",
       url: "/internal/admin/metrics/signups",
-      headers: { authorization: `Bearer ${token}` },
+      headers: { cookie: `admin_session=${cookie}` },
     });
 
     expect(res1.statusCode).toBe(200);
@@ -165,7 +190,7 @@ describe("Admin freshness end-to-end proof", () => {
     const res2 = await app.inject({
       method: "GET",
       url: "/internal/admin/metrics/signups",
-      headers: { authorization: `Bearer ${token}` },
+      headers: { cookie: `admin_session=${cookie}` },
     });
 
     expect(res2.statusCode).toBe(200);
