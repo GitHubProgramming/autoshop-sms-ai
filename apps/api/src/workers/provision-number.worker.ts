@@ -1,5 +1,6 @@
 import { Worker, Job } from "bullmq";
 import { bullmqConnection as connection } from "../queues/redis";
+import { moveToDeadLetter } from "../queues/dead-letter";
 
 const N8N_INTERNAL_URL = process.env.N8N_INTERNAL_URL ?? "http://n8n:5678";
 const N8N_PROVISION_WEBHOOK = `${N8N_INTERNAL_URL}/webhook/provision-number`;
@@ -44,6 +45,13 @@ export function startProvisionNumberWorker(): Worker {
     console.error(
       `[provision-worker] job ${job?.id} (${job?.name}) FAILED: ${err.message}`
     );
+
+    // Preserve in dead letter queue when all retries exhausted
+    const attempts = job?.attemptsMade ?? 0;
+    const maxAttempts = job?.opts?.attempts ?? 3;
+    if (attempts >= maxAttempts) {
+      moveToDeadLetter("provision-number", job, err);
+    }
   });
 
   return worker;

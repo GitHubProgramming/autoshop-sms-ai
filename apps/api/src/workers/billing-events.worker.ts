@@ -1,5 +1,6 @@
 import { Worker, Job } from "bullmq";
 import { bullmqConnection as connection } from "../queues/redis";
+import { moveToDeadLetter } from "../queues/dead-letter";
 import { query } from "../db/client";
 
 /**
@@ -50,6 +51,13 @@ export function startBillingEventsWorker(): Worker {
     console.error(
       `[billing-worker] job ${job?.id} (${job?.name}) FAILED: ${err.message}`
     );
+
+    // Preserve in dead letter queue when all retries exhausted
+    const attempts = job?.attemptsMade ?? 0;
+    const maxAttempts = job?.opts?.attempts ?? 3;
+    if (attempts >= maxAttempts) {
+      moveToDeadLetter("billing-events", job, err);
+    }
   });
 
   return worker;
