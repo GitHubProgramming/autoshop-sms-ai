@@ -37,6 +37,7 @@ import { missedCallSmsRoute } from "./routes/internal/missed-call-sms";
 import { processSmsRoute } from "./routes/internal/process-sms";
 import { configRoute } from "./routes/internal/config";
 import { githubIssuesRoute } from "./routes/internal/github-issues";
+import { dlqRoute } from "./routes/internal/dlq";
 import { db } from "./db/client";
 import { redis } from "./queues/redis";
 import { deadLetterQueue } from "./queues/dead-letter";
@@ -147,6 +148,7 @@ async function bootstrap() {
   await app.register(processSmsRoute, { prefix: "/internal" });
   await app.register(configRoute, { prefix: "/internal" });
   await app.register(githubIssuesRoute, { prefix: "/internal" });
+  await app.register(dlqRoute, { prefix: "/internal" });
   await app.register(googleAuthRoute, { prefix: "/auth/google" });
   await app.register(loginRoute, { prefix: "/auth" });
   await app.register(signupRoute, { prefix: "/auth" });
