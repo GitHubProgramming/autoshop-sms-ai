@@ -2185,7 +2185,7 @@ async function loadDashboardData() {
     // Keep recent_conversations mapping only for dashboard Live Conversations card fallback
     conversationsData = conversationsData.length ? conversationsData : (data.recent_conversations || []).map(function(c) {
       var hasBooking = (data.recent_bookings || []).some(function(b) { return b.conversation_id === c.id; });
-      var status = c.status === 'closed' ? (hasBooking ? 'booked' : 'lost') : (c.turn_count <= 1 ? 'no-response' : 'active');
+      var status = c.status === 'booked' ? 'booked' : c.status === 'expired' ? 'expired' : c.status === 'closed' ? (hasBooking ? 'booked' : 'lost') : (c.turn_count <= 1 ? 'no-response' : 'active');
       return {
         id: c.id,
         date: fmtDate(c.opened_at),
@@ -2209,7 +2209,7 @@ async function loadDashboardData() {
     // ── Map live conversations (backend-filtered: open + last 10 min) ──
     liveConversationsData = (data.live_conversations || []).map(function(c) {
       var hasBooking = (data.recent_bookings || []).some(function(b) { return b.conversation_id === c.id; });
-      var status = c.turn_count <= 1 ? 'no-response' : 'active';
+      var status = c.status === 'booked' ? 'booked' : c.status === 'expired' ? 'expired' : c.status === 'closed' ? 'lost' : (c.turn_count <= 1 ? 'no-response' : 'active');
       return {
         id: c.id,
         date: fmtDate(c.opened_at),
@@ -2276,7 +2276,7 @@ async function loadConversationsData() {
     if (!res.ok) return;
     var data = await res.json();
     conversationsData = (data.conversations || []).map(function(c) {
-      var status = c.turn_count <= 1 ? 'no-response' : 'active';
+      var status = c.status === 'booked' ? 'booked' : c.status === 'expired' ? 'expired' : c.status === 'closed' ? 'lost' : (c.turn_count <= 1 ? 'no-response' : 'active');
       return {
         id: c.id,
         date: fmtDate(c.opened_at),
@@ -4267,8 +4267,8 @@ function checkActivationState() {
 // CONVERSATIONS INBOX (3-panel)
 // ════════════════════════════════════════════
 function convStatusBadge(status) {
-  var map = { active:'ai', booked:'booked', 'no-response':'needs-operator', lost:'resolved' };
-  var labelMap = { active:'AI', booked:'Booked', 'no-response':'Needs Operator', lost:'Resolved' };
+  var map = { active:'ai', booked:'booked', 'no-response':'needs-operator', lost:'resolved', expired:'resolved' };
+  var labelMap = { active:'AI', booked:'Booked', 'no-response':'Needs Operator', lost:'Resolved', expired:'Expired' };
   var cls = map[status] || 'resolved';
   var label = labelMap[status] || pillLabel(status);
   return '<span class="conv-status-badge ' + cls + '">' + label + '</span>';
