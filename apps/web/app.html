@@ -81,11 +81,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .nav-account:hover{background:var(--bg-hover)}
 .nav-avatar{width:32px;height:32px;background:linear-gradient(135deg,var(--rust),var(--rust-deep));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0}
 .nav-account-name{font-size:13px;font-weight:500;color:var(--text-secondary)}
-.nav-dropdown{display:none;position:absolute;top:calc(100% + 6px);right:0;background:var(--bg-panel);border:1px solid var(--border);min-width:180px;z-index:200;border-radius:var(--radius);box-shadow:0 12px 40px rgba(13,27,42,.18);overflow:hidden}
+.nav-dropdown{display:none;position:absolute;top:100%;right:0;padding-top:6px;background:transparent;min-width:180px;z-index:200}
+.nav-dropdown-inner{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 12px 40px rgba(13,27,42,.18);overflow:hidden}
 .nav-account:hover .nav-dropdown{display:block}
-.nav-dropdown a{display:block;padding:10px 16px;font-size:13px;color:var(--text-secondary);text-decoration:none;transition:background .1s}
-.nav-dropdown a:hover{background:var(--bg-hover);color:var(--text)}
-.nav-dropdown a.danger{color:var(--red)}
+.nav-dropdown-inner a{display:block;padding:10px 16px;font-size:13px;color:var(--text-secondary);text-decoration:none;transition:background .1s}
+.nav-dropdown-inner a:hover{background:var(--bg-hover);color:var(--text)}
+.nav-dropdown-inner a.danger{color:var(--red)}
 
 /* ── LAYOUT ── */
 .layout{display:flex;min-height:calc(100vh - 56px)}
@@ -1052,10 +1053,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
       <span class="nav-account-name" id="navAccountName" data-tenant-name></span>
       <span style="font-size:10px;color:var(--text-tertiary);margin-left:2px;">&#9662;</span>
       <div class="nav-dropdown">
-        <a href="/app/billing" onclick="switchView('billing');return false;">Billing</a>
-        <a href="/app/settings" onclick="switchView('settings');return false;">Settings</a>
-        <a href="index.html">Back to Website</a>
-        <a href="/login" class="danger">Log Out</a>
+        <div class="nav-dropdown-inner">
+          <a href="/app/billing" onclick="switchView('billing');return false;">Billing</a>
+          <a href="/app/settings" onclick="switchView('settings');return false;">Settings</a>
+          <a href="index.html">Back to Website</a>
+          <a href="/login" class="danger">Log Out</a>
+        </div>
       </div>
     </div>
   </div>
