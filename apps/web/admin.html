@@ -2201,581 +2201,413 @@ function loadAudit(source) {
     });
 }
 
-// ── PROJECT OPS v2 HELPERS ────────────────────────────────────────────────────
-function opsStatusColor(status) {
-  // Spec: done=green, in_progress=blue(rust), blocked=red, waiting=amber, todo=gray, not_started=gray
-  const map = { done: 'green', in_progress: 'rust', blocked: 'red', waiting: 'amber', todo: 'steel', not_started: 'steel' };
-  return map[(status || '').toLowerCase()] || 'steel';
+// ── PROJECT OPS HELPERS ──────────────────────────────────────────────────────
+function opsHealthBadge(status) {
+  if (!status) return '<span class="badge closed">unknown</span>';
+  const s = status.toUpperCase();
+  if (s === 'GREEN' || s === 'HEALTHY') return '<span class="badge active">healthy</span>';
+  if (s === 'DEGRADED' || s === 'DELAYED') return '<span class="badge trial">degraded</span>';
+  return '<span class="badge blocked">failing</span>';
 }
-function opsStatusBadge(status) {
-  const color = opsStatusColor(status);
-  const cssMap = { green: 'active', rust: 'open', red: 'blocked', steel: 'closed', amber: 'trial' };
-  const cls = cssMap[color] || 'closed';
-  const label = (status || '—').replace(/_/g, ' ');
-  return `<span class="badge ${cls}">${label}</span>`;
+function opsConfigBadge(connected) {
+  if (connected === true) return '<span class="badge active">connected</span>';
+  if (connected === false) return '<span class="badge blocked">missing</span>';
+  return '<span class="badge trial">needs attention</span>';
 }
-function opsMomentumBadge(m) {
-  const map = { shipping: 'active', blocked: 'blocked', stalled: 'trial', paused: 'paused' };
-  return `<span class="badge ${map[m] || 'closed'}">${m || '—'}</span>`;
+function opsTimestamp(ts) {
+  if (!ts) return '<span style="color:var(--steel);font-size:12px;">—</span>';
+  const d = new Date(ts);
+  if (isNaN(d)) return '<span style="color:var(--steel);font-size:12px;">—</span>';
+  return `<span style="color:var(--steel);font-size:12px;">${d.toLocaleString()}</span>`;
 }
-function opsOwnerBadge(owner) {
-  if (!owner) return '';
-  return owner === 'human'
-    ? '<span class="badge high" style="font-size:10px;padding:2px 8px;">human</span>'
-    : '<span class="badge open" style="font-size:10px;padding:2px 8px;">ai</span>';
-}
-function opsNextAiTask(activeBacklog, stages) {
-  // 1. Prefer active_backlog: exclude blocked, sort by priority then status (in_progress > todo)
-  const candidates = (activeBacklog || [])
-    .filter(b => b.owner === 'ai' && b.status !== 'blocked')
-    .sort((a, b) => {
-      const prio = { high: 0, medium: 1, low: 2 };
-      const pa = prio[a.priority] ?? 9, pb = prio[b.priority] ?? 9;
-      if (pa !== pb) return pa - pb;
-      const stat = { in_progress: 0, todo: 1 };
-      return (stat[a.status] ?? 2) - (stat[b.status] ?? 2);
-    });
-  if (candidates.length > 0) {
-    const c = candidates[0];
-    return { stage: c.stage_id || '', task: c.title };
-  }
-  // 2. Fall back to stages.next_task
-  for (const s of (stages || [])) {
-    if (s.owner === 'ai' && s.next_task && s.status !== 'done' && s.status !== 'blocked') {
-      return { stage: s.title, task: s.next_task };
-    }
-  }
-  return null;
-}
-function opsCurrentBlocker(exec) {
-  return exec?.current_blocker_summary || null;
-}
-function opsTopDecisions(decisions, n) {
-  const prio = { high: 0, medium: 1, low: 2 };
-  return (decisions || [])
-    .filter(d => d.status === 'waiting')
-    .sort((a, b) => {
-      const pa = prio[a.priority] ?? 9, pb = prio[b.priority] ?? 9;
-      if (pa !== pb) return pa - pb;
-      // More blocking impact = higher priority
-      return (b.blocks || []).length - (a.blocks || []).length;
-    })
-    .slice(0, n || 3);
-}
-function opsMovementIcon(type) {
-  const map = { task_done: '+', blocker_identified: '!', blocker_resolved: '-', decision_made: '*' };
-  return map[type] || '~';
+function opsNoData(msg) {
+  return `<div style="color:var(--steel);font-size:13px;font-style:italic;padding:8px 0;">${escHtml(msg || 'No data available yet')}</div>`;
 }
 
-// ── SECTION: PROJECT OPS (v2) ────────────────────────────────────────────────
+// ── SECTION: PROJECT OPS — OPERATOR CONTROL PANEL ───────────────────────────
 async function loadProjectOps() {
   const main = document.getElementById('mainContent');
   try {
-    // Try v2 first; fall back to v1
-    let d, isV2 = false;
-    try {
-      d = await apiFetch('/internal/admin/project-status-v2');
-      if (d && d.meta && d.meta.version >= 2) isV2 = true;
-    } catch { /* v2 not available */ }
-    if (!isV2) {
-      d = await apiFetch('/internal/admin/project-status');
-    }
+    // Fetch all real data sources in parallel
+    const [overview, health, ghData, alerts, errors, audit, integrations] = await Promise.allSettled([
+      apiFetch('/internal/admin/overview'),
+      fetch(API + '/health').then(r => r.ok ? r.json() : null).catch(() => null),
+      apiFetch('/internal/admin/github-issues?state=open'),
+      apiFetch('/internal/admin/alerts?acknowledged=false'),
+      apiFetch('/internal/admin/errors'),
+      apiFetch('/internal/admin/audit?limit=20'),
+      apiFetch('/internal/admin/integrations'),
+    ]);
 
-    // Load movement log (optional)
-    let movements = [];
-    if (isV2) {
-      try {
-        const ml = await apiFetch('/internal/admin/movement-log');
-        if (Array.isArray(ml) && ml.length > 0) movements = ml;
-      } catch { /* ignore */ }
-      // Fall back to inline recent_movements
-      if (movements.length === 0 && d.recent_movements) {
-        movements = d.recent_movements;
-      }
-    }
+    const ov = overview.status === 'fulfilled' ? overview.value : null;
+    const hp = health.status === 'fulfilled' ? health.value : null;
+    const gh = ghData.status === 'fulfilled' ? ghData.value : null;
+    const al = alerts.status === 'fulfilled' ? alerts.value : null;
+    const er = errors.status === 'fulfilled' ? errors.value : null;
+    const au = audit.status === 'fulfilled' ? audit.value : null;
+    const ig = integrations.status === 'fulfilled' ? integrations.value : null;
 
-    // ── If v1 format, render legacy view ──
-    if (!isV2) {
-      renderProjectOpsV1(main, d);
-      return;
-    }
-
-    // ── v2 rendering ──
-    const exec = d.executive || {};
-    const stages = d.stages || [];
-    const critPath = d.critical_path || {};
-    const decisions = d.human_decisions || [];
-    const activeBacklog = d.active_backlog || [];
-    const blockedBacklog = d.blocked_backlog || [];
-
-    // Build stage_id → human-friendly title lookup
-    const stageTitleMap = {};
-    stages.forEach(s => { stageTitleMap[s.id] = s.title; });
-
-    const progressPct = exec.overall_progress ?? Math.floor(stages.reduce(
-      (sum, s) => sum + (s.weight || 0) * (s.progress || 0) / 100, 0));
-    const progressColor = progressPct >= 80 ? 'green' : progressPct >= 40 ? 'rust' : 'amber';
+    const sysHealth = ov?.system_health || {};
+    const funnel = ov?.funnel_30d || {};
+    const revenue = ov?.revenue || {};
+    const cost = ov?.cost || {};
 
     // ── HEADER ──
     const header = `<div class="page-header">
       <div>
         <div class="page-title">Project Ops</div>
-        <div class="page-subtitle">${escHtml(exec.project_name || 'MVP progress, tasks, blockers, and decisions')}</div>
+        <div class="page-subtitle">Operator control panel — runtime truth + execution truth</div>
       </div>
     </div>`;
 
-    // ── EXECUTIVE BAR ──
-    const execBar = `
-      <div style="display:grid;grid-template-columns:auto 1fr auto auto auto;gap:16px;align-items:center;background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:18px 24px;margin-bottom:24px;">
-        <div>
-          <div style="font-size:36px;font-weight:700;color:var(--white);letter-spacing:-.03em;line-height:1;">${progressPct}%</div>
-          <div style="margin-top:6px;width:80px;">
-            <div class="usage-bar-bg" style="width:100%;height:6px;">
-              <div class="usage-bar-fill ${progressColor === 'rust' ? 'amber' : progressColor}" style="width:${progressPct}%"></div>
+    // ════════════════════════════════════════════════════════════════════════
+    // SECTION 1 — SYSTEM STATUS
+    // ════════════════════════════════════════════════════════════════════════
+    const sysStatusBadge = opsHealthBadge(sysHealth.status || (hp?.status) || null);
+    const pgStatus = hp?.checks?.postgres === 'ok' ? 'healthy' : (hp?.checks?.postgres ? 'failing' : null);
+    const redisStatus = hp?.checks?.redis === 'ok' ? 'healthy' : (hp?.checks?.redis ? 'failing' : null);
+    const recentConvs = ov?.recent_conversations || [];
+    const lastConvTs = recentConvs.length > 0 ? recentConvs[0].opened_at || recentConvs[0].last_message_at : null;
+
+    const statusCards = `
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px;">
+        <div class="stat-card" style="border-top:3px solid var(--${ov ? (sysHealth.status === 'FAILING' ? 'red' : 'green') : 'steel'});">
+          <div class="stat-tag">SMS Pipeline</div>
+          ${ov ? `
+            <div style="margin-top:8px;">${opsHealthBadge(sysHealth.status || 'GREEN')}</div>
+            <div style="margin-top:8px;font-size:12px;color:var(--steel);">
+              Conversations today: <span style="color:var(--white);font-weight:600;">${ov.conversations_today ?? 0}</span>
             </div>
-          </div>
-        </div>
-        <div>
-          <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--steel);margin-bottom:4px;">Mission</div>
-          <div style="font-size:14px;font-weight:600;color:var(--white);">${escHtml(exec.current_mission || '—')}</div>
-        </div>
-        <div style="text-align:center;">
-          <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--steel);margin-bottom:4px;">Momentum</div>
-          ${opsMomentumBadge(exec.momentum)}
-        </div>
-        <div style="text-align:center;">
-          <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--steel);margin-bottom:4px;">AI Ready</div>
-          <span class="${exec.ai_can_continue_now ? 'bool-ok' : 'bool-fail'}">${exec.ai_can_continue_now ? 'Yes' : 'No'}</span>
-        </div>
-        <div style="text-align:center;">
-          <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--steel);margin-bottom:4px;">Human Needed</div>
-          <span class="${exec.human_action_required ? 'bool-fail' : 'bool-ok'}">${exec.human_action_required ? 'Yes' : 'No'}</span>
-        </div>
-      </div>`;
-
-    // ── MISSION MAP + RIGHT ACTION PANEL (two-col) ──
-    const currentNodeId = exec.current_node_id;
-    const stageCards = stages.map(s => {
-      const isCurrent = s.id === currentNodeId;
-      const borderColor = isCurrent ? 'var(--rust)' : 'var(--border)';
-      const shadowStyle = isCurrent ? 'box-shadow:0 0 0 2px var(--rust),0 4px 16px rgba(201,75,31,.12);' : '';
-      const barColor = opsStatusColor(s.status);
-      const barCssMap = { green: 'green', rust: 'amber', red: 'red', steel: 'amber', amber: 'amber' };
-      const childrenHtml = (s.children || []).length > 0
-        ? `<div id="stage-children-${s.id}" style="display:${isCurrent ? '' : 'none'};margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
-            ${s.children.map(c => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;">
-              <span style="width:8px;height:8px;border-radius:50%;background:var(--${opsStatusColor(c.status)});flex-shrink:0;"></span>
-              <span style="color:var(--white);flex:1;">${escHtml(c.title)}</span>
-              ${opsOwnerBadge(c.owner)}
-            </div>`).join('')}
-          </div>`
-        : '';
-      const expandBtn = (s.children || []).length > 0
-        ? `<span style="color:var(--rust);cursor:pointer;font-size:11px;font-weight:600;" onclick="var el=document.getElementById('stage-children-${s.id}');el.style.display=el.style.display==='none'?'':'none';this.textContent=el.style.display==='none'?'Show subtasks':'Hide subtasks';">${isCurrent ? 'Hide subtasks' : 'Show subtasks'}</span>`
-        : '';
-      return `<div style="border:2px solid ${borderColor};border-radius:10px;padding:14px 16px;background:var(--bg-panel);${shadowStyle}position:relative;">
-        ${isCurrent ? '<div style="position:absolute;top:-9px;right:12px;background:var(--rust);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;letter-spacing:.04em;">CURRENT</div>' : ''}
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-          <div style="font-size:14px;font-weight:700;color:var(--white);">${escHtml(s.title)}</div>
-          ${opsOwnerBadge(s.owner)}
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-          ${opsStatusBadge(s.status)}
-          <div class="usage-bar-wrap" style="flex:1;">
-            <div class="usage-bar-bg" style="flex:1;"><div class="usage-bar-fill ${barCssMap[barColor] || 'green'}" style="width:${s.progress || 0}%"></div></div>
-            <span class="usage-bar-pct">${s.progress || 0}%</span>
-          </div>
-        </div>
-        ${s.next_task ? `<div style="font-size:12px;color:var(--steel);margin-bottom:6px;">Next: ${escHtml(s.next_task)}</div>` : ''}
-        ${expandBtn}
-        ${childrenHtml}
-      </div>`;
-    }).join('<div style="display:flex;align-items:center;justify-content:center;padding:4px 0;"><svg width="12" height="20" viewBox="0 0 12 20"><path d="M6 0v14m-4-4l4 4 4-4" stroke="var(--border-mid)" stroke-width="2" fill="none"/></svg></div>');
-
-    // Right Action Panel
-    const nextAi = opsNextAiTask(activeBacklog, stages);
-    const blocker = opsCurrentBlocker(exec);
-    const topDec = opsTopDecisions(decisions, 3);
-    const cpNodes = (critPath.nodes || []);
-    const cpDone = cpNodes.filter(n => n.status === 'done').length;
-    const cpTotal = cpNodes.length;
-
-    const rightPanel = `<div style="display:flex;flex-direction:column;gap:16px;">
-      <div class="panel" style="margin-bottom:0;">
-        <div class="panel-header"><span class="panel-title">Next AI Task</span></div>
-        <div class="panel-body">
-          ${nextAi
-            ? `<div style="font-size:14px;font-weight:600;color:var(--white);margin-bottom:4px;">${escHtml(nextAi.task)}</div>
-               <div style="font-size:12px;color:var(--steel);">Stage: ${escHtml(nextAi.stage)}</div>`
-            : '<div style="color:var(--steel);font-size:13px;">No AI tasks pending</div>'}
-        </div>
-      </div>
-      <div class="panel" style="margin-bottom:0;">
-        <div class="panel-header"><span class="panel-title">Current Blocker</span></div>
-        <div class="panel-body">
-          ${blocker
-            ? `<div style="font-size:13px;color:var(--red);font-weight:600;">${escHtml(blocker)}</div>`
-            : '<div style="font-size:13px;color:var(--green);font-weight:600;">No blockers</div>'}
-        </div>
-      </div>
-      <div class="panel" style="margin-bottom:0;">
-        <div class="panel-header"><span class="panel-title">Human Decisions</span></div>
-        <div class="panel-body">
-          ${topDec.length > 0
-            ? topDec.map(dd => `<div style="margin-bottom:10px;">
-                <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
-                  <span class="badge ${dd.priority === 'high' ? 'high' : 'medium'}">${dd.priority}</span>
-                  <span style="font-size:13px;font-weight:600;color:var(--white);">${escHtml(dd.title)}</span>
-                </div>
-                <div style="font-size:12px;color:var(--steel);">${escHtml(dd.impact || '')}</div>
-              </div>`).join('')
-            : '<div style="color:var(--steel);font-size:13px;">None pending</div>'}
-        </div>
-      </div>
-      <div class="panel" style="margin-bottom:0;">
-        <div class="panel-header"><span class="panel-title">Critical Path</span></div>
-        <div class="panel-body" style="text-align:center;">
-          <div style="font-size:32px;font-weight:700;color:var(--white);letter-spacing:-.02em;">${cpDone}/${cpTotal}</div>
-          <div style="font-size:12px;color:var(--steel);margin-top:2px;">${escHtml(critPath.title || 'MVP Path')}</div>
-          <div style="margin-top:8px;">
-            <div class="usage-bar-bg" style="width:100%;height:6px;">
-              <div class="usage-bar-fill ${cpDone === cpTotal ? 'green' : 'amber'}" style="width:${cpTotal > 0 ? Math.round(cpDone/cpTotal*100) : 0}%"></div>
+            <div style="font-size:12px;color:var(--steel);">
+              Last conversation: ${lastConvTs ? opsTimestamp(lastConvTs) : '<span style="font-size:12px;color:var(--steel);">none</span>'}
             </div>
-          </div>
+          ` : opsNoData()}
+        </div>
+
+        <div class="stat-card" style="border-top:3px solid var(--${sysHealth.failed_bookings_24h > 0 ? 'red' : ov ? 'green' : 'steel'});">
+          <div class="stat-tag">Booking Engine</div>
+          ${ov ? `
+            <div style="margin-top:8px;">${opsHealthBadge(sysHealth.failed_bookings_24h > 0 ? 'DEGRADED' : 'GREEN')}</div>
+            <div style="margin-top:8px;font-size:12px;color:var(--steel);">
+              Bookings today: <span style="color:var(--white);font-weight:600;">${ov.bookings_today ?? 0}</span>
+            </div>
+            <div style="font-size:12px;color:var(--steel);">
+              Failed (24h): <span style="color:var(--${sysHealth.failed_bookings_24h > 0 ? 'red' : 'white'});font-weight:600;">${sysHealth.failed_bookings_24h ?? 0}</span>
+            </div>
+          ` : opsNoData()}
+        </div>
+
+        <div class="stat-card" style="border-top:3px solid var(--${sysHealth.failed_syncs_24h > 0 ? 'red' : ov ? 'green' : 'steel'});">
+          <div class="stat-tag">Calendar Sync</div>
+          ${ov ? `
+            <div style="margin-top:8px;">${opsHealthBadge(sysHealth.failed_syncs_24h > 0 ? 'DEGRADED' : 'GREEN')}</div>
+            <div style="margin-top:8px;font-size:12px;color:var(--steel);">
+              Failed syncs (24h): <span style="color:var(--${sysHealth.failed_syncs_24h > 0 ? 'red' : 'white'});font-weight:600;">${sysHealth.failed_syncs_24h ?? 0}</span>
+            </div>
+            <div style="font-size:12px;color:var(--steel);">
+              No calendar: <span style="color:var(--white);font-weight:600;">${ov.no_calendar ?? '—'}</span> tenants
+            </div>
+          ` : opsNoData()}
+        </div>
+
+        <div class="stat-card" style="border-top:3px solid var(--${ov ? 'green' : 'steel'});">
+          <div class="stat-tag">AI Engine</div>
+          ${ov ? `
+            <div style="margin-top:8px;">${opsHealthBadge('GREEN')}</div>
+            <div style="margin-top:8px;font-size:12px;color:var(--steel);">
+              AI cost today: <span style="color:var(--white);font-weight:600;">$${(cost.today?.ai ?? 0).toFixed(2)}</span>
+            </div>
+            <div style="font-size:12px;color:var(--steel);">
+              Avg/conversation: <span style="color:var(--white);font-weight:600;">$${(cost.avg_per_conversation ?? 0).toFixed(2)}</span>
+            </div>
+          ` : opsNoData()}
+        </div>
+
+        <div class="stat-card" style="border-top:3px solid var(--${sysHealth.pipeline_failures_24h > 0 ? 'red' : ov ? 'green' : 'steel'});">
+          <div class="stat-tag">Pipeline / Queue</div>
+          ${ov ? `
+            <div style="margin-top:8px;">${opsHealthBadge(sysHealth.pipeline_failures_24h > 0 ? 'DEGRADED' : 'GREEN')}</div>
+            <div style="margin-top:8px;font-size:12px;color:var(--steel);">
+              Pipeline failures (24h): <span style="color:var(--${sysHealth.pipeline_failures_24h > 0 ? 'red' : 'white'});font-weight:600;">${sysHealth.pipeline_failures_24h ?? 0}</span>
+            </div>
+            <div style="font-size:12px;color:var(--steel);">
+              Unacked alerts: <span style="color:var(--${ov.unacknowledged_alerts > 0 ? 'red' : 'white'});font-weight:600;">${ov.unacknowledged_alerts ?? 0}</span>
+            </div>
+          ` : opsNoData()}
         </div>
       </div>
-    </div>`;
 
-    const missionMapSection = `<div class="section-label">Mission Map</div>
-      <div style="display:grid;grid-template-columns:1fr 340px;gap:24px;margin-bottom:32px;">
-        <div>${stageCards}</div>
-        ${rightPanel}
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;padding:12px 16px;background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;">
+        <span style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--steel);">Infrastructure</span>
+        <span style="font-size:12px;color:var(--steel);">Postgres: ${pgStatus ? opsHealthBadge(pgStatus.toUpperCase()) : '<span class="badge closed">unknown</span>'}</span>
+        <span style="font-size:12px;color:var(--steel);">Redis: ${redisStatus ? opsHealthBadge(redisStatus.toUpperCase()) : '<span class="badge closed">unknown</span>'}</span>
+        <span style="font-size:12px;color:var(--steel);">Overall: ${sysStatusBadge}</span>
+        ${sysHealth.last_critical_error ? `<span style="font-size:12px;color:var(--red);">Last critical: ${escHtml(sysHealth.last_critical_error.summary || '')} (${opsTimestamp(sysHealth.last_critical_error.timestamp)})</span>` : ''}
       </div>`;
 
-    // ── CRITICAL PATH TO MVP ──
-    const cpNodesHtml = cpNodes.map((n, i) => {
-      const color = opsStatusColor(n.status);
-      const bgMap = { green: 'var(--green-dim)', red: 'var(--red-dim)', amber: 'rgba(217,119,6,.08)', steel: 'rgba(107,114,128,.08)', rust: 'rgba(201,75,31,.06)' };
-      const borderMap = { green: 'rgba(22,163,74,.3)', red: 'rgba(220,38,38,.3)', amber: 'rgba(217,119,6,.25)', steel: 'rgba(107,114,128,.2)', rust: 'rgba(201,75,31,.2)' };
-      const connector = i < cpNodes.length - 1
-        ? '<div style="display:flex;align-items:center;justify-content:center;padding:0;"><svg width="24" height="8" viewBox="0 0 24 8"><path d="M0 4h18m-4-3.5l4 3.5-4 3.5" stroke="var(--border-mid)" stroke-width="1.5" fill="none"/></svg></div>'
-        : '';
-      return `<div style="display:flex;align-items:center;gap:0;">
-        <div style="background:${bgMap[color] || bgMap.steel};border:1px solid ${borderMap[color] || borderMap.steel};border-radius:8px;padding:10px 14px;min-width:140px;text-align:center;">
-          <div style="font-size:13px;font-weight:600;color:var(--white);margin-bottom:4px;">${escHtml(n.title)}</div>
-          <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
-            ${opsStatusBadge(n.status)}
-            ${opsOwnerBadge(n.owner)}
-          </div>
-        </div>
-        ${connector}
-      </div>`;
-    }).join('');
-    const critPathSection = `<div class="section-label">Critical Path to MVP — ${escHtml(critPath.completion_ratio || '')}</div>
-      <div style="display:flex;align-items:center;gap:0;overflow-x:auto;padding:12px 0;margin-bottom:32px;">
-        ${cpNodesHtml}
+    const systemStatusSection = `<div class="section-label">1. System Status</div>${statusCards}`;
+
+    // ════════════════════════════════════════════════════════════════════════
+    // SECTION 2 — REVENUE PIPELINE
+    // ════════════════════════════════════════════════════════════════════════
+    let revenueSection = '<div class="section-label">2. Revenue Pipeline</div>';
+    if (ov) {
+      const funnelStages = [
+        { label: 'Missed Calls', value: funnel.missed_calls, note: funnel.missed_calls === 0 ? 'voice webhook active — no calls captured yet' : null },
+        { label: 'Conversations', value: funnel.conversations },
+        { label: 'Bookings', value: funnel.bookings },
+      ];
+      const funnelHtml = `<div style="display:flex;align-items:center;gap:0;margin-bottom:20px;overflow-x:auto;">
+        ${funnelStages.map((s, i) => {
+          const connector = i < funnelStages.length - 1
+            ? '<div style="padding:0 8px;"><svg width="24" height="8" viewBox="0 0 24 8"><path d="M0 4h18m-4-3.5l4 3.5-4 3.5" stroke="var(--border-mid)" stroke-width="1.5" fill="none"/></svg></div>'
+            : '';
+          return `<div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;padding:16px 20px;min-width:150px;text-align:center;">
+            <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--steel);margin-bottom:6px;">${s.label}</div>
+            <div style="font-size:28px;font-weight:700;color:var(--white);">${s.value ?? 0}</div>
+            ${s.note ? `<div style="font-size:11px;color:var(--steel);margin-top:4px;">${escHtml(s.note)}</div>` : ''}
+          </div>${connector}`;
+        }).join('')}
       </div>`;
 
-    // ── BACKLOG (active + blocked) ──
-    const backlogRows = (items, isBlocked) => items.map(b => {
-      const prioCell = b.priority
-        ? `<span class="badge ${b.priority === 'high' ? 'high' : b.priority === 'medium' ? 'medium' : 'low'}">${b.priority}</span>`
-        : '<span style="color:var(--steel);font-size:12px;">—</span>';
-      return `<tr>
-      <td style="font-weight:600;">${escHtml(b.title)}</td>
-      <td>${opsStatusBadge(b.status)}</td>
-      <td>${opsOwnerBadge(b.owner)}</td>
-      <td>${prioCell}</td>
-      <td style="font-size:12px;color:var(--steel);">${escHtml(stageTitleMap[b.stage_id] || b.stage_id || '—')}</td>
-      ${isBlocked ? `<td style="font-size:12px;color:var(--red);">${escHtml(b.blocked_by || '—')}</td>` : ''}
-    </tr>`;
-    }).join('');
+      const kpiCards = `<div class="stat-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:24px;">
+        <div class="stat-card"><div class="stat-tag">Conversion Rate</div><div class="stat-val">${funnel.conversion_rate != null ? funnel.conversion_rate + '%' : '—'}</div><div style="font-size:11px;color:var(--steel);margin-top:4px;">conversation to booking (30d)</div></div>
+        <div class="stat-card"><div class="stat-tag">Calendar Sync Rate</div><div class="stat-val">${funnel.calendar_sync_rate != null ? funnel.calendar_sync_rate + '%' : '—'}</div><div style="font-size:11px;color:var(--steel);margin-top:4px;">booking to synced (30d)</div></div>
+        <div class="stat-card"><div class="stat-tag">MRR</div><div class="stat-val">$${revenue.mrr ?? 0}</div><div style="font-size:11px;color:var(--steel);margin-top:4px;">active paid: ${revenue.active_paid ?? 0}</div></div>
+        <div class="stat-card"><div class="stat-tag">Revenue at Risk</div><div class="stat-val ${revenue.revenue_at_risk?.total > 0 ? 'red' : ''}">${revenue.revenue_at_risk?.total != null ? '$' + revenue.revenue_at_risk.total : '—'}</div><div style="font-size:11px;color:var(--steel);margin-top:4px;">past due: ${revenue.past_due ?? 0}, cancel: ${revenue.scheduled_cancel ?? 0}</div></div>
+        <div class="stat-card"><div class="stat-tag">Cost Today</div><div class="stat-val">$${(cost.today?.total ?? 0).toFixed(2)}</div><div style="font-size:11px;color:var(--steel);margin-top:4px;">AI: $${(cost.today?.ai ?? 0).toFixed(2)} / SMS: $${(cost.today?.sms ?? 0).toFixed(2)}</div></div>
+      </div>`;
 
-    let backlogSection = '';
-    if (activeBacklog.length > 0) {
-      backlogSection += `<div class="section-label">Active Backlog (${activeBacklog.length})</div>
-        <div class="table-wrap" style="margin-bottom:24px;">
-          <table class="data-table">
-            <thead><tr><th>Task</th><th>Status</th><th>Owner</th><th>Priority</th><th>Stage</th></tr></thead>
-            <tbody>${backlogRows(activeBacklog, false)}</tbody>
-          </table>
-        </div>`;
-    }
-    if (blockedBacklog.length > 0) {
-      backlogSection += `<div class="section-label">Blocked Backlog (${blockedBacklog.length})</div>
-        <div class="table-wrap" style="margin-bottom:24px;">
-          <table class="data-table">
-            <thead><tr><th>Task</th><th>Status</th><th>Owner</th><th>Priority</th><th>Stage</th><th>Blocked By</th></tr></thead>
-            <tbody>${backlogRows(blockedBacklog, true)}</tbody>
-          </table>
-        </div>`;
+      revenueSection += funnelHtml + kpiCards;
+    } else {
+      revenueSection += opsNoData('Revenue data unavailable — admin overview endpoint did not respond');
     }
 
-    // ── MOVEMENT TIMELINE ──
-    const sortedMovements = [...movements].sort((a, b) => {
-      const da = new Date(a.date || 0), db = new Date(b.date || 0);
-      return db - da;
-    });
-    let movementSection = '';
-    if (sortedMovements.length > 0) {
-      const movementRows = sortedMovements.map(m => {
-        const icon = opsMovementIcon(m.type);
-        const typeColor = m.type === 'blocker_identified' ? 'var(--red)' : m.type === 'task_done' ? 'var(--green)' : 'var(--amber)';
-        const dateStr = m.date ? new Date(m.date).toLocaleDateString() : '—';
-        const branchBadge = m.branch ? `<span class="mono" style="font-size:11px;background:var(--bg);padding:2px 8px;border-radius:4px;border:1px solid var(--border);">${escHtml(m.branch)}</span>` : '';
-        return `<tr>
-          <td class="mono" style="white-space:nowrap;">${dateStr}</td>
-          <td><span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${typeColor};color:#fff;font-size:12px;font-weight:700;">${icon}</span></td>
-          <td style="font-weight:600;">${escHtml(m.title)}</td>
-          <td style="font-size:13px;color:var(--steel);">${escHtml(m.impact || '')}</td>
-          <td style="font-size:12px;color:var(--steel);">${escHtml(stageTitleMap[m.stage_id] || stageTitleMap[m.stage] || m.stage_id || m.stage || '')}</td>
-          <td>${branchBadge}</td>
-        </tr>`;
-      }).join('');
-      movementSection = `<div class="section-label">Movement Timeline</div>
-        <div class="table-wrap" style="margin-bottom:24px;">
-          <table class="data-table">
-            <thead><tr><th>Date</th><th></th><th>Title</th><th>Impact</th><th>Stage</th><th>Branch</th></tr></thead>
-            <tbody>${movementRows}</tbody>
-          </table>
-        </div>`;
+    // ════════════════════════════════════════════════════════════════════════
+    // SECTION 3 — FAILURES & RISKS
+    // ════════════════════════════════════════════════════════════════════════
+    let failuresSection = '<div class="section-label">3. Failures &amp; Risks</div>';
+    const failureItems = [];
+    if (ov) {
+      failureItems.push({ label: 'Failed Bookings (24h)', count: sysHealth.failed_bookings_24h ?? 0, latest: sysHealth.last_critical_error?.timestamp });
+      failureItems.push({ label: 'Failed Calendar Syncs (24h)', count: sysHealth.failed_syncs_24h ?? 0 });
+      failureItems.push({ label: 'Pipeline Failures (24h)', count: sysHealth.pipeline_failures_24h ?? 0 });
+      failureItems.push({ label: 'Failed Bookings (total pending)', count: ov.failed_bookings ?? 0 });
+      failureItems.push({ label: 'Pending Manual Bookings', count: ov.pending_manual_bookings ?? 0 });
+      failureItems.push({ label: 'Unacknowledged Alerts', count: ov.unacknowledged_alerts ?? 0 });
     }
 
-    // ── GITHUB ISSUES (read-only) ──
-    let ghSection = '';
-    try {
-      const gh = await apiFetch('/internal/admin/github-issues?state=open');
-      if (gh && gh.issues && gh.issues.length > 0) {
-        const issues = gh.issues;
-        // Bucket by labels
-        const critical = [], blocked = [], backlog = [];
-        issues.forEach(i => {
-          const names = (i.labels || []).map(l => (l.name || '').toLowerCase());
-          if (names.includes('critical')) critical.push(i);
-          else if (names.includes('blocked-human')) blocked.push(i);
-          else backlog.push(i);
-        });
+    const errorsList = Array.isArray(er) ? er : (er?.errors || []);
 
-        function ghIssueCard(issue, bucket) {
-          const colors = {
-            CRITICAL: { border: 'rgba(220,38,38,.3)', badge: 'high', badgeLabel: 'CRITICAL' },
-            BLOCKED: { border: 'rgba(217,119,6,.3)', badge: 'medium', badgeLabel: 'BLOCKED' },
-            BACKLOG: { border: 'var(--border)', badge: 'open', badgeLabel: 'BACKLOG' },
-          };
-          const c = colors[bucket] || colors.BACKLOG;
-          const labelBadges = (issue.labels || []).map(l =>
-            `<span style="display:inline-block;background:#${l.color || '6b7280'}22;color:#${l.color || '6b7280'};border:1px solid #${l.color || '6b7280'}44;font-size:11px;padding:2px 8px;border-radius:4px;margin-right:4px;margin-bottom:4px;">${escHtml(l.name)}</span>`
-          ).join('');
-          return `<a href="${escHtml(issue.html_url)}" target="_blank" rel="noreferrer" style="display:block;text-decoration:none;color:inherit;background:var(--bg-panel);border:1px solid ${c.border};border-radius:10px;padding:14px 16px;transition:background .15s;margin-bottom:8px;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='var(--bg-panel)'">
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
-              <span class="badge ${c.badge}" style="font-size:10px;">${c.badgeLabel}</span>
-              <span style="font-family:var(--mono);font-size:11px;color:var(--steel);">#${issue.number}</span>
-            </div>
-            <div style="font-size:14px;font-weight:600;color:var(--white);margin-bottom:8px;">${escHtml(issue.title)}</div>
-            <div style="margin-bottom:8px;">${labelBadges}</div>
-            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--steel);">
-              <span>Updated: ${relTime(issue.updated_at)}</span>
-              <span>Open in GitHub &#8594;</span>
-            </div>
-          </a>`;
-        }
+    if (failureItems.length > 0) {
+      failuresSection += `<div class="table-wrap" style="margin-bottom:16px;">
+        <table class="data-table">
+          <thead><tr><th>Category</th><th>Count</th><th>Latest</th></tr></thead>
+          <tbody>
+            ${failureItems.map(f => `<tr>
+              <td style="font-weight:600;">${escHtml(f.label)}</td>
+              <td><span style="color:var(--${f.count > 0 ? 'red' : 'green'});font-weight:700;">${f.count}</span></td>
+              <td>${f.latest ? opsTimestamp(f.latest) : '<span style="color:var(--steel);font-size:12px;">—</span>'}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+    }
 
-        function ghColumn(title, items, bucket) {
-          const countBadge = `<span style="font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);padding:2px 10px;border-radius:10px;">${items.length}</span>`;
-          const titleColors = { CRITICAL: 'var(--red)', BLOCKED: 'var(--amber)', BACKLOG: 'var(--steel-light)' };
-          const cards = items.length > 0
-            ? items.map(i => ghIssueCard(i, bucket)).join('')
-            : '<div style="border:1px dashed var(--border);border-radius:10px;padding:24px;text-align:center;color:var(--steel);font-size:13px;">Nothing here.</div>';
-          return `<div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-              <span style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${titleColors[bucket] || 'var(--white)'};">${title}</span>
-              ${countBadge}
-            </div>
-            ${cards}
-          </div>`;
-        }
-
-        // Summary stats
-        const ghStats = `<div class="stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px;">
-          <div class="stat-card steel"><div class="stat-tag">Total Open</div><div class="stat-val">${issues.length}</div></div>
-          <div class="stat-card red"><div class="stat-tag">Critical</div><div class="stat-val ${critical.length > 0 ? 'red' : ''}">${critical.length}</div></div>
-          <div class="stat-card amber"><div class="stat-tag">Blocked</div><div class="stat-val ${blocked.length > 0 ? 'amber' : ''}">${blocked.length}</div></div>
-          <div class="stat-card"><div class="stat-tag">Backlog</div><div class="stat-val">${backlog.length}</div></div>
+    if (errorsList.length > 0) {
+      const recentErrors = errorsList.slice(0, 10);
+      failuresSection += `<div style="font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--steel);margin:12px 0 8px;">Recent Errors</div>
+        <div class="table-wrap" style="margin-bottom:24px;">
+          <table class="data-table">
+            <thead><tr><th>Time</th><th>Type</th><th>Severity</th><th>Tenant</th><th>Summary</th></tr></thead>
+            <tbody>
+              ${recentErrors.map(e => `<tr>
+                <td class="mono" style="white-space:nowrap;font-size:12px;">${opsTimestamp(e.event_time)}</td>
+                <td><span class="badge ${e.severity === 'high' ? 'high' : e.severity === 'medium' ? 'medium' : 'closed'}">${escHtml(e.error_type || e.type || '—')}</span></td>
+                <td style="font-size:12px;">${escHtml(e.severity || '—')}</td>
+                <td style="font-size:12px;">${escHtml(e.shop_name || e.tenant_id || '—')}</td>
+                <td style="font-size:12px;color:var(--steel);">${escHtml((e.summary || '').slice(0, 120))}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
         </div>`;
+    } else if (failureItems.length === 0) {
+      failuresSection += opsNoData('Not instrumented yet');
+    } else {
+      failuresSection += `<div style="margin-bottom:24px;"></div>`;
+    }
 
-        ghSection = `<div class="section-label">GitHub Issues (read-only)</div>
-          ${ghStats}
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px;">
-            ${ghColumn('Critical', critical, 'CRITICAL')}
-            ${ghColumn('Blocked', blocked, 'BLOCKED')}
-            ${ghColumn('Backlog', backlog, 'BACKLOG')}
-          </div>`;
+    // ════════════════════════════════════════════════════════════════════════
+    // SECTION 4 — GITHUB EXECUTION
+    // ════════════════════════════════════════════════════════════════════════
+    let ghSection = '<div class="section-label">4. GitHub Execution</div>';
+    if (gh && gh.issues && gh.issues.length > 0) {
+      const issues = gh.issues;
+      const critical = [], blocked = [], backlog = [];
+      issues.forEach(i => {
+        const names = (i.labels || []).map(l => (l.name || '').toLowerCase());
+        if (names.includes('critical')) critical.push(i);
+        else if (names.includes('blocked-human')) blocked.push(i);
+        else backlog.push(i);
+      });
+
+      ghSection += `<div class="stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px;">
+        <div class="stat-card steel"><div class="stat-tag">Open Issues</div><div class="stat-val">${issues.length}</div></div>
+        <div class="stat-card red"><div class="stat-tag">Critical</div><div class="stat-val ${critical.length > 0 ? 'red' : ''}">${critical.length}</div></div>
+        <div class="stat-card amber"><div class="stat-tag">Blocked</div><div class="stat-val ${blocked.length > 0 ? 'amber' : ''}">${blocked.length}</div></div>
+        <div class="stat-card"><div class="stat-tag">Backlog</div><div class="stat-val">${backlog.length}</div></div>
+      </div>`;
+
+      function ghIssueCard(issue, bucket) {
+        const colors = {
+          CRITICAL: { border: 'rgba(220,38,38,.3)', badge: 'high', badgeLabel: 'CRITICAL' },
+          BLOCKED: { border: 'rgba(217,119,6,.3)', badge: 'medium', badgeLabel: 'BLOCKED' },
+          BACKLOG: { border: 'var(--border)', badge: 'open', badgeLabel: 'BACKLOG' },
+        };
+        const c = colors[bucket] || colors.BACKLOG;
+        const labelBadges = (issue.labels || []).map(l =>
+          `<span style="display:inline-block;background:#${l.color || '6b7280'}22;color:#${l.color || '6b7280'};border:1px solid #${l.color || '6b7280'}44;font-size:11px;padding:2px 8px;border-radius:4px;margin-right:4px;margin-bottom:4px;">${escHtml(l.name)}</span>`
+        ).join('');
+        return `<a href="${escHtml(issue.html_url)}" target="_blank" rel="noreferrer" style="display:block;text-decoration:none;color:inherit;background:var(--bg-panel);border:1px solid ${c.border};border-radius:10px;padding:14px 16px;transition:background .15s;margin-bottom:8px;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='var(--bg-panel)'">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+            <span class="badge ${c.badge}" style="font-size:10px;">${c.badgeLabel}</span>
+            <span style="font-family:var(--mono);font-size:11px;color:var(--steel);">#${issue.number}</span>
+          </div>
+          <div style="font-size:14px;font-weight:600;color:var(--white);margin-bottom:8px;">${escHtml(issue.title)}</div>
+          <div style="margin-bottom:8px;">${labelBadges}</div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--steel);">
+            <span>Updated: ${relTime(issue.updated_at)}</span>
+            <span>Open in GitHub &#8594;</span>
+          </div>
+        </a>`;
       }
-    } catch (ghErr) {
-      // GitHub issues are optional — don't break Project Ops if not configured
-      ghSection = `<div class="section-label">GitHub Issues</div>
-        <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;color:var(--steel);font-size:13px;">
-          GitHub integration not available: ${escHtml(ghErr.message || 'Unknown error')}
+
+      function ghColumn(title, items, bucket) {
+        const countBadge = `<span style="font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);padding:2px 10px;border-radius:10px;">${items.length}</span>`;
+        const titleColors = { CRITICAL: 'var(--red)', BLOCKED: 'var(--amber)', BACKLOG: 'var(--steel-light)' };
+        const cards = items.length > 0
+          ? items.map(i => ghIssueCard(i, bucket)).join('')
+          : '<div style="border:1px dashed var(--border);border-radius:10px;padding:24px;text-align:center;color:var(--steel);font-size:13px;">Nothing here.</div>';
+        return `<div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <span style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${titleColors[bucket] || 'var(--white)'};">${title}</span>
+            ${countBadge}
+          </div>
+          ${cards}
         </div>`;
+      }
+
+      ghSection += `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px;">
+        ${ghColumn('Critical', critical, 'CRITICAL')}
+        ${ghColumn('Blocked', blocked, 'BLOCKED')}
+        ${ghColumn('Backlog', backlog, 'BACKLOG')}
+      </div>`;
+    } else if (gh && gh.issues && gh.issues.length === 0) {
+      ghSection += `<div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;color:var(--green);font-size:13px;font-weight:600;">No open issues.</div>`;
+    } else {
+      ghSection += `<div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;color:var(--steel);font-size:13px;">
+        GitHub integration not available${ghData.status === 'rejected' ? ': ' + escHtml(ghData.reason?.message || 'Connection failed') : ''}
+      </div>`;
     }
 
-    main.innerHTML = header + execBar + missionMapSection + critPathSection + backlogSection + movementSection + ghSection;
+    // ════════════════════════════════════════════════════════════════════════
+    // SECTION 5 — NEXT ACTION
+    // ════════════════════════════════════════════════════════════════════════
+    let nextAction = null;
+
+    if (sysHealth.pipeline_failures_24h > 0) {
+      nextAction = 'Investigate pipeline failures — ' + sysHealth.pipeline_failures_24h + ' in last 24h';
+    } else if (sysHealth.failed_bookings_24h > 0) {
+      nextAction = 'Fix failed bookings — ' + sysHealth.failed_bookings_24h + ' in last 24h';
+    } else if (sysHealth.failed_syncs_24h > 0) {
+      nextAction = 'Fix calendar sync failures — ' + sysHealth.failed_syncs_24h + ' in last 24h';
+    }
+
+    if (!nextAction && gh?.issues) {
+      const critIssue = gh.issues.find(i => (i.labels || []).some(l => (l.name || '').toLowerCase() === 'critical'));
+      if (critIssue) nextAction = '#' + critIssue.number + ': ' + critIssue.title;
+    }
+
+    if (!nextAction && gh?.issues) {
+      const blockedIssue = gh.issues.find(i => (i.labels || []).some(l => (l.name || '').toLowerCase() === 'blocked-human'));
+      if (blockedIssue) nextAction = '#' + blockedIssue.number + ': ' + blockedIssue.title;
+    }
+
+    if (!nextAction && ov?.pending_manual_bookings > 0) {
+      nextAction = 'Confirm ' + ov.pending_manual_bookings + ' pending manual booking(s)';
+    }
+
+    if (!nextAction && gh?.issues?.length > 0) {
+      nextAction = '#' + gh.issues[0].number + ': ' + gh.issues[0].title;
+    }
+
+    const nextActionSection = `<div class="section-label">5. Next Required Action</div>
+      <div style="background:var(--bg-panel);border:2px solid ${nextAction ? 'var(--rust)' : 'var(--border)'};border-radius:12px;padding:20px 24px;margin-bottom:24px;">
+        <div style="font-size:16px;font-weight:700;color:var(--white);">${nextAction ? escHtml(nextAction) : 'No critical action required'}</div>
+      </div>`;
+
+    // ════════════════════════════════════════════════════════════════════════
+    // SECTION 6 — LIVE ACTIVITY
+    // ════════════════════════════════════════════════════════════════════════
+    let activitySection = '<div class="section-label">6. Live Activity</div>';
+    const auditEntries = Array.isArray(au) ? au : (au?.entries || au?.events || []);
+
+    if (auditEntries.length > 0) {
+      activitySection += `<div class="table-wrap" style="margin-bottom:24px;">
+        <table class="data-table">
+          <thead><tr><th>Time</th><th>Source</th><th>Event</th><th>Tenant</th><th>Detail</th></tr></thead>
+          <tbody>
+            ${auditEntries.slice(0, 20).map(e => `<tr>
+              <td class="mono" style="white-space:nowrap;font-size:12px;">${opsTimestamp(e.created_at || e.timestamp)}</td>
+              <td><span class="badge closed" style="font-size:10px;">${escHtml(e.source || '—')}</span></td>
+              <td style="font-size:13px;font-weight:600;color:var(--white);">${escHtml(e.event_type || e.type || '—')}</td>
+              <td style="font-size:12px;">${escHtml(e.shop_name || e.tenant_id || '—')}</td>
+              <td style="font-size:12px;color:var(--steel);">${escHtml((e.summary || e.detail || '').slice(0, 100))}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+    } else {
+      activitySection += `<div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;color:var(--steel);font-size:13px;font-style:italic;">No activity feed available yet</div>`;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // SECTION 7 — CONFIG STATUS
+    // ════════════════════════════════════════════════════════════════════════
+    let configSection = '<div class="section-label">7. Config Status</div>';
+
+    const configItems = [
+      { name: 'Twilio', connected: hp?.checks?.pipeline_env === 'ok' ? true : (hp?.checks?.pipeline_env ? false : null), detail: ov ? `${ov.no_twilio ?? '?'} tenants without phone` : null },
+      { name: 'OpenAI', connected: hp?.checks?.pipeline_env === 'ok' ? true : (hp?.checks?.pipeline_env ? false : null), detail: cost.today ? `AI cost today: $${(cost.today.ai ?? 0).toFixed(2)}` : null },
+      { name: 'Google Calendar', connected: ov ? (ov.no_calendar === 0 ? true : 'needs_attention') : null, detail: ov ? `${ov.no_calendar ?? '?'} tenants without calendar` : null },
+      { name: 'Stripe', connected: revenue.active_paid != null ? true : null, detail: revenue.mrr != null ? `MRR: $${revenue.mrr}` : null },
+      { name: 'PostgreSQL', connected: pgStatus === 'healthy' ? true : pgStatus === 'failing' ? false : null },
+      { name: 'Redis', connected: redisStatus === 'healthy' ? true : redisStatus === 'failing' ? false : null },
+    ];
+
+    configSection += `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;">
+      ${configItems.map(c => `<div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;padding:12px 16px;">
+        <span style="font-size:14px;font-weight:600;color:var(--white);">${escHtml(c.name)}</span>
+        <div style="text-align:right;">
+          ${opsConfigBadge(c.connected)}
+          ${c.detail ? `<div style="font-size:11px;color:var(--steel);margin-top:4px;">${escHtml(c.detail)}</div>` : ''}
+        </div>
+      </div>`).join('')}
+    </div>`;
+
+    // ── ASSEMBLE ──
+    main.innerHTML = header
+      + systemStatusSection
+      + revenueSection
+      + failuresSection
+      + ghSection
+      + nextActionSection
+      + activitySection
+      + configSection;
 
   } catch (err) {
     main.innerHTML = renderError(err);
   }
-}
-
-// ── Legacy v1 Project Ops renderer ──
-function renderProjectOpsV1(main, d) {
-  const header = `<div class="page-header">
-    <div><div class="page-title">Project Ops</div>
-    <div class="page-subtitle">MVP progress, tasks, blockers, and decisions</div></div>
-  </div>`;
-
-  const progressPct = Math.floor((d.stages || []).reduce(
-    (sum, s) => sum + (s.weight || 0) * (s.progress || 0) / 100, 0));
-  const progressColor = progressPct >= 80 ? 'green' : progressPct >= 40 ? 'rust' : 'amber';
-  const topSection = `
-    <div class="stat-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:24px;">
-      <div class="stat-card ${progressColor}">
-        <div class="stat-tag">Overall Progress</div>
-        <div class="stat-val">${progressPct}%</div>
-        <div style="margin-top:12px;">
-          <div class="usage-bar-bg" style="width:100%;height:8px;">
-            <div class="usage-bar-fill ${progressColor === 'rust' ? 'amber' : progressColor}" style="width:${progressPct}%;height:100%;"></div>
-          </div>
-        </div>
-      </div>
-      <div class="stat-card steel">
-        <div class="stat-tag">Current Phase</div>
-        <div style="font-size:15px;font-weight:600;color:var(--white);line-height:1.5;margin-top:4px;">${escHtml(d.current_phase || '—')}</div>
-      </div>
-      <div class="stat-card rust">
-        <div class="stat-tag">Current Focus</div>
-        <div style="font-size:15px;font-weight:600;color:var(--white);line-height:1.5;margin-top:4px;">${escHtml(d.current_focus || '—')}</div>
-      </div>
-    </div>`;
-
-  const blockers = d.blockers || [];
-  let blockerSection = '';
-  if (blockers.length === 0) {
-    blockerSection = `<div class="section-label">Blockers</div>
-      <div class="stat-card green" style="margin-bottom:24px;">
-        <div style="font-size:15px;font-weight:600;color:var(--green);">No blockers</div>
-      </div>`;
-  } else {
-    const blockerCards = blockers.map(b => {
-      const ownerBadge = b.owner === 'Human'
-        ? '<span class="badge high">Human</span>'
-        : `<span class="badge open">${escHtml(b.owner)}</span>`;
-      const stages = (b.affects_stages || []).map(s => `<span class="badge blocked" style="font-size:10px;padding:2px 6px;">${escHtml(s)}</span>`).join(' ');
-      return `<div class="stat-card red" style="flex:1;min-width:260px;">
-        <div style="font-size:14px;font-weight:700;color:var(--red);margin-bottom:8px;">${escHtml(b.name)}</div>
-        <div style="font-size:13px;color:var(--steel);margin-bottom:8px;">${escHtml(b.required_action)}</div>
-        <div style="margin-bottom:6px;">Owner: ${ownerBadge}</div>
-        <div style="display:flex;gap:4px;flex-wrap:wrap;">${stages}</div>
-      </div>`;
-    }).join('');
-    blockerSection = `<div class="section-label">Blockers (${blockers.length})</div>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:24px;">${blockerCards}</div>`;
-  }
-
-  const stages = d.stages || [];
-  const stageRows = stages.map(s => {
-    const statusMap = { done: 'active', in_progress: 'open', blocked: 'blocked', not_started: 'closed' };
-    const badgeClass = statusMap[s.status] || 'closed';
-    const contrib = ((s.weight || 0) * (s.progress || 0) / 100).toFixed(1);
-    const barColor = s.status === 'done' ? 'green' : s.status === 'blocked' ? 'red' : s.status === 'in_progress' ? 'amber' : 'green';
-    return `<tr>
-      <td style="font-weight:600;">${escHtml(s.name)}</td>
-      <td class="mono">${s.weight}%</td>
-      <td>${statusBadge(s.status)}</td>
-      <td>
-        <div class="usage-bar-wrap">
-          <div class="usage-bar-bg"><div class="usage-bar-fill ${barColor}" style="width:${s.progress}%"></div></div>
-          <span class="usage-bar-pct">${s.progress}%</span>
-        </div>
-      </td>
-      <td class="mono">${contrib}%</td>
-    </tr>`;
-  }).join('');
-  const stageSection = `<div class="section-label">Stage Progress</div>
-    <div class="table-wrap" style="margin-bottom:24px;">
-      <table class="data-table">
-        <thead><tr><th>Stage</th><th>Weight</th><th>Status</th><th>Progress</th><th>Contribution</th></tr></thead>
-        <tbody>${stageRows}</tbody>
-      </table>
-    </div>`;
-
-  const tasks = d.active_tasks || { todo: [], in_progress: [], done: [] };
-  function taskList(items, accentColor) {
-    if (!items || items.length === 0) return '<div style="color:var(--steel);font-size:13px;padding:8px 0;">None</div>';
-    return items.map(t => `<div style="padding:10px 14px;border:1px solid var(--border);border-left:3px solid ${accentColor};border-radius:8px;margin-bottom:8px;font-size:14px;background:var(--bg-panel);">${escHtml(t)}</div>`).join('');
-  }
-  const taskSection = `<div class="section-label">Active Tasks</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:24px;">
-      <div>
-        <div style="font-size:13px;font-weight:700;color:var(--rust);margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em;">In Progress (${tasks.in_progress.length})</div>
-        ${taskList(tasks.in_progress, 'var(--rust)')}
-      </div>
-      <div>
-        <div style="font-size:13px;font-weight:700;color:var(--amber);margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em;">Todo (${tasks.todo.length})</div>
-        ${taskList(tasks.todo, 'var(--amber)')}
-      </div>
-      <div>
-        <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em;">Done (${tasks.done.length})</div>
-        ${taskList(tasks.done, 'var(--green)')}
-      </div>
-    </div>`;
-
-  const decisions = d.next_owner_decision || [];
-  let decisionSection = '';
-  if (decisions.length > 0) {
-    const decisionItems = decisions.map((dec, i) => `<div class="stat-card amber" style="margin-bottom:8px;">
-      <div style="font-size:14px;font-weight:600;color:var(--white);">
-        <span style="color:var(--amber);font-weight:700;margin-right:8px;">${i + 1}.</span>${escHtml(dec)}
-      </div>
-    </div>`).join('');
-    decisionSection = `<div class="section-label">Next Owner Decisions (${decisions.length})</div>
-      <div style="margin-bottom:24px;">${decisionItems}</div>`;
-  }
-
-  const changes = d.recent_changes || [];
-  const recentChanges = changes.slice(0, 10);
-  const changeRows = recentChanges.map(c => {
-    const branchBadge = c.branch ? `<span class="mono" style="font-size:11px;background:var(--bg);padding:2px 8px;border-radius:4px;border:1px solid var(--border);">${escHtml(c.branch)}</span>` : '—';
-    return `<tr>
-      <td class="mono" style="white-space:nowrap;">${escHtml(c.date)}</td>
-      <td>${escHtml(c.change)}</td>
-      <td>${branchBadge}</td>
-    </tr>`;
-  }).join('');
-  let showAllBtn = '';
-  if (changes.length > 10) {
-    showAllBtn = `<div style="padding:12px 16px;border-top:1px solid var(--border);text-align:center;">
-      <span style="color:var(--rust);cursor:pointer;font-size:13px;font-weight:600;" onclick="document.getElementById('projOpsAllChanges').style.display='';this.parentElement.style.display='none';">Show all ${changes.length} changes</span>
-    </div>`;
-  }
-  const allChangeRows = changes.slice(10).map(c => {
-    const branchBadge = c.branch ? `<span class="mono" style="font-size:11px;background:var(--bg);padding:2px 8px;border-radius:4px;border:1px solid var(--border);">${escHtml(c.branch)}</span>` : '—';
-    return `<tr>
-      <td class="mono" style="white-space:nowrap;">${escHtml(c.date)}</td>
-      <td>${escHtml(c.change)}</td>
-      <td>${branchBadge}</td>
-    </tr>`;
-  }).join('');
-  const changeSection = `<div class="section-label">Recent Changes</div>
-    <div class="table-wrap" style="margin-bottom:24px;">
-      <table class="data-table">
-        <thead><tr><th>Date</th><th>Change</th><th>Branch</th></tr></thead>
-        <tbody>${changeRows}</tbody>
-        <tbody id="projOpsAllChanges" style="display:none;">${allChangeRows}</tbody>
-      </table>
-      ${showAllBtn}
-    </div>`;
-
-  main.innerHTML = header + topSection + blockerSection + stageSection + taskSection + decisionSection + changeSection;
 }
 
 // ── INIT ─────────────────────────────────────────────────────────────────────
