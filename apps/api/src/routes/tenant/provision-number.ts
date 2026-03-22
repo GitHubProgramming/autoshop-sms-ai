@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuth } from "../../middleware/require-auth";
 import { provisionNumberQueue } from "../../queues/redis";
 import { query } from "../../db/client";
+import { assignSharedTestNumber } from "../../utils/test-tenant";
 
 const ProvisionBody = z.object({
   areaCode: z.string().regex(/^\d{3}$/, "Area code must be 3 digits"),
@@ -40,13 +41,27 @@ export async function tenantProvisionNumberRoute(app: FastifyInstance) {
       });
     }
 
-    // Fetch shop name from tenant record (never trust client-supplied values for provisioning)
-    const tenantRows = await query<{ shop_name: string }>(
-      `SELECT shop_name FROM tenants WHERE id = $1`,
+    // ── Test tenant: assign shared number instead of buying from Twilio ──────
+    const tenantRows = await query<{ shop_name: string; is_test: boolean }>(
+      `SELECT shop_name, is_test FROM tenants WHERE id = $1`,
       [tenantId]
     );
     const shopName = tenantRows[0]?.shop_name ?? "My Shop";
 
+    if (tenantRows[0]?.is_test) {
+      const result = await assignSharedTestNumber(tenantId);
+      if (!result.ok) {
+        return reply.status(500).send({ error: result.error });
+      }
+      request.log.info({ tenantId }, "Test tenant — shared test number assigned (no Twilio purchase)");
+      return reply.status(200).send({
+        status: "assigned",
+        phone_number: result.phoneNumber,
+        test: true,
+      });
+    }
+
+    // ── Real tenant: enqueue Twilio purchase ──────────────────────────────────
     const job = await provisionNumberQueue.add(
       "provision-twilio-number",
       { tenantId, areaCode, shopName },
