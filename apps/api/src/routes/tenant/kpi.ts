@@ -119,8 +119,7 @@ export async function tenantKpiRoute(app: FastifyInstance) {
       apptTodayRows,
       activeConvRows,
       convsMonthRows,
-      missedCallRows,
-      capturedCallRows,
+      bookingConvRows,
       pendingCompletionRows,
     ] = await Promise.all([
       // Recovered revenue (AI-sourced completed appointments, last 30d)
@@ -177,15 +176,7 @@ export async function tenantKpiRoute(app: FastifyInstance) {
            AND opened_at >= date_trunc('month', CURRENT_DATE)`,
         [tenantId]
       ),
-      // Total missed calls this month (conversations originated from missed calls)
-      query<{ count: string }>(
-        `SELECT COUNT(*)::text AS count
-         FROM conversations
-         WHERE tenant_id = $1
-           AND opened_at >= date_trunc('month', CURRENT_DATE)`,
-        [tenantId]
-      ),
-      // Captured missed calls (conversations that led to bookings)
+      // Conversations that led to bookings this month
       query<{ count: string }>(
         `SELECT COUNT(*)::text AS count
          FROM conversations
@@ -206,9 +197,9 @@ export async function tenantKpiRoute(app: FastifyInstance) {
       ),
     ]);
 
-    const missedTotal = parseInt(missedCallRows[0]?.count ?? "0", 10);
-    const captured = parseInt(capturedCallRows[0]?.count ?? "0", 10);
-    const captureRate = missedTotal > 0 ? Math.round((captured / missedTotal) * 1000) / 10 : 0;
+    const convsMonth = parseInt(convsMonthRows[0]?.count ?? "0", 10);
+    const bookedConvs = parseInt(bookingConvRows[0]?.count ?? "0", 10);
+    const bookingRate = convsMonth > 0 ? Math.round((bookedConvs / convsMonth) * 1000) / 10 : 0;
 
     return reply.status(200).send({
       recovered_revenue: parseFloat(recoveredRows[0]?.total ?? "0"),
@@ -218,10 +209,9 @@ export async function tenantKpiRoute(app: FastifyInstance) {
       ai_booked_this_month: parseInt(apptMonthRows[0]?.count ?? "0", 10),
       appointments_today: parseInt(apptTodayRows[0]?.count ?? "0", 10),
       active_conversations: parseInt(activeConvRows[0]?.count ?? "0", 10),
-      conversations_this_month: parseInt(convsMonthRows[0]?.count ?? "0", 10),
-      missed_calls_total: missedTotal,
-      missed_calls_captured: captured,
-      capture_rate_pct: captureRate,
+      conversations_this_month: convsMonth,
+      conversations_booked: bookedConvs,
+      booking_rate_pct: bookingRate,
       pending_completion_count: parseInt(pendingCompletionRows[0]?.count ?? "0", 10),
     });
   });
