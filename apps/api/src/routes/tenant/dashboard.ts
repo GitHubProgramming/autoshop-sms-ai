@@ -26,6 +26,7 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
       totalAppointmentsRows,
       recentConvRows,
       recentBookingRows,
+      liveConvRows,
     ] = await Promise.all([
       // Tenant identity + billing + business hours (for onboarding check)
       query(
@@ -113,6 +114,18 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
          FROM appointments
          WHERE tenant_id = $1
          ORDER BY created_at DESC LIMIT 20`,
+        [tenantId]
+      ),
+      // Live conversations (open + active in last 10 minutes)
+      query(
+        `SELECT id, customer_phone, status, turn_count,
+                opened_at, last_message_at, closed_at, close_reason
+         FROM conversations
+         WHERE tenant_id = $1
+           AND status = 'open'
+           AND last_message_at >= NOW() - INTERVAL '10 minutes'
+         ORDER BY last_message_at DESC
+         LIMIT 10`,
         [tenantId]
       ),
     ]);
@@ -212,6 +225,8 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
       },
       recent_conversations: recentConvRows,
       recent_bookings: recentBookingRows,
+      live_conversations: liveConvRows,
+      live_conversations_count: (liveConvRows as any[]).length,
     });
   });
 }

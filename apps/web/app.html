@@ -2089,6 +2089,7 @@ let tenantState = {
 
 // Live data arrays — populated from API
 let conversationsData = [];
+let liveConversationsData = [];
 let bookingsData = [];
 let convThreads = {};
 let dashboardStats = {};
@@ -2198,6 +2199,22 @@ async function loadDashboardData() {
         timeAgo: fmtDate(c.last_message_at || c.opened_at),
         status: status,
         aro: '—',
+        duration: c.turn_count ? c.turn_count + ' msgs' : '—'
+      };
+    });
+
+    // ── Map live conversations (backend-filtered: open + last 10 min) ──
+    liveConversationsData = (data.live_conversations || []).map(function(c) {
+      var hasBooking = (data.recent_bookings || []).some(function(b) { return b.conversation_id === c.id; });
+      var status = c.turn_count <= 1 ? 'no-response' : 'active';
+      return {
+        id: c.id,
+        date: fmtDate(c.opened_at),
+        phone: fmtPhone(c.customer_phone),
+        issue: c.close_reason || 'SMS Conversation',
+        lastMessage: c.close_reason || 'SMS Conversation',
+        timeAgo: fmtDate(c.last_message_at || c.opened_at),
+        status: status,
         duration: c.turn_count ? c.turn_count + ' msgs' : '—'
       };
     });
@@ -2499,12 +2516,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   renderNav();
   renderChecklist();
   renderHealthGrid();
-  renderDashConvTable(conversationsData.filter(function(c) {
-    if (c.status !== 'active' && c.status !== 'no-response') return false;
-    if (!c.lastMessageAt) return false;
-    var tenMinAgo = Date.now() - 10 * 60 * 1000;
-    return new Date(c.lastMessageAt).getTime() >= tenMinAgo;
-  }).slice(0, 8));
+  renderDashConvTable(liveConversationsData);
   renderFullConvTable(conversationsData);
   renderConvInbox();
   renderBookings();
