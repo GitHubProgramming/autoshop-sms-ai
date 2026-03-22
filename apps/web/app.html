@@ -1668,9 +1668,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
                 <div class="hours-row"><div class="hours-day">Saturday</div><div class="hours-inputs"><input type="time" value="08:00"><span>to</span><input type="time" value="17:00"></div><label class="hours-closed"><input type="checkbox"><span>Closed</span></label></div>
                 <div class="hours-row"><div class="hours-day">Sunday</div><div class="hours-inputs"><input type="time" value="" disabled><span>to</span><input type="time" value="" disabled></div><label class="hours-closed"><input type="checkbox" checked><span>Closed</span></label></div>
               </div>
-              <button class="settings-save-btn" onclick="showToast('Business hours saved.')" style="margin-top:20px;">
+              <button class="settings-save-btn" disabled style="margin-top:20px;opacity:0.5;cursor:not-allowed;" title="Business hours persistence coming soon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                Save Hours
+                Save Hours <span style="font-size:11px;opacity:0.7;">(coming soon)</span>
               </button>
             </div>
           </div>
@@ -1697,9 +1697,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
               <div class="settings-check-row"><input type="checkbox" checked><span>Send appointment reminders 24 hours before</span></div>
               <div class="settings-check-row"><input type="checkbox" checked><span>Allow customers to reschedule via SMS</span></div>
               <div class="settings-check-row"><input type="checkbox" checked><span>Send follow-up messages after service</span></div>
-              <button class="settings-save-btn" onclick="showToast('SMS configuration saved.')" style="margin-top:20px;">
+              <button class="settings-save-btn" disabled style="margin-top:20px;opacity:0.5;cursor:not-allowed;" title="SMS configuration persistence coming soon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                Save Configuration
+                Save Configuration <span style="font-size:11px;opacity:0.7;">(coming soon)</span>
               </button>
             </div>
           </div>
@@ -1728,9 +1728,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
               <div class="settings-check-row"><input type="checkbox" checked><span>Two-way sync (updates in both directions)</span></div>
               <div class="settings-check-row"><input type="checkbox" checked><span>Block time slots that are unavailable</span></div>
               <div class="settings-check-row"><input type="checkbox" checked><span>Include customer details in calendar events</span></div>
-              <button class="settings-save-btn" onclick="showToast('Calendar settings saved.')" style="margin-top:20px;">
+              <button class="settings-save-btn" disabled style="margin-top:20px;opacity:0.5;cursor:not-allowed;" title="Calendar sync settings persistence coming soon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                Save Settings
+                Save Settings <span style="font-size:11px;opacity:0.7;">(coming soon)</span>
               </button>
             </div>
           </div>
@@ -1966,9 +1966,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
                 </div>
                 <input type="checkbox" checked>
               </div>
-              <button class="settings-save-btn" onclick="showToast('Notification preferences saved.')" style="margin-top:20px;">
+              <button class="settings-save-btn" disabled style="margin-top:20px;opacity:0.5;cursor:not-allowed;" title="Notification preferences persistence coming soon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                Save Preferences
+                Save Preferences <span style="font-size:11px;opacity:0.7;">(coming soon)</span>
               </button>
             </div>
           </div>
@@ -2905,7 +2905,7 @@ function convRow(c, showActions) {
 }
 
 function pillLabel(s) {
-  return {booked:'Booked', active:'Active', 'no-response':'No Response', lost:'Lost', resolved:'Resolved'}[s] || s;
+  return {booked:'Booked', active:'Active', 'no-response':'No Response', lost:'Lost', resolved:'Resolved', closed:'Closed'}[s] || s;
 }
 
 function renderDashConvTable(data) {
@@ -2996,13 +2996,38 @@ function searchConv(val) {
   rows.forEach(r => { r.style.display = r.dataset.phone.includes(val) ? '' : 'none'; });
 }
 
-function markResolved(btn, id) {
-  const row = btn.closest('tr');
-  row.querySelector('.status-pill').className = 'status-pill resolved';
-  row.querySelector('.status-pill').textContent = 'Resolved';
-  row.dataset.status = 'resolved';
-  btn.remove();
-  showToast('Conversation marked as resolved.');
+async function markResolved(btn, id) {
+  btn.disabled = true;
+  btn.textContent = 'Resolving...';
+  try {
+    var token = localStorage.getItem('autoshop_jwt') || '';
+    var res = await fetch('/tenant/conversations/' + id + '/resolve', {
+      method: 'PATCH',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (res.status === 401) { localStorage.removeItem('autoshop_jwt'); localStorage.removeItem('autoshop_session'); window.location.replace('/login'); return; }
+    if (!res.ok) { var data = await res.json().catch(function() { return {}; }); showToast(data.error || 'Could not resolve conversation.', 'error'); btn.disabled = false; btn.textContent = 'Resolve'; return; }
+    // Success — update DOM (backend sets status='closed', UI shows as 'Resolved')
+    var row = btn.closest('tr');
+    if (row) {
+      row.querySelector('.status-pill').className = 'status-pill resolved';
+      row.querySelector('.status-pill').textContent = 'Resolved';
+      row.dataset.status = 'resolved';
+    }
+    // Also handle detail-panel resolve button
+    var detailPanel = btn.closest('.conv-detail-section');
+    if (detailPanel && !row) {
+      btn.textContent = 'Resolved';
+      btn.disabled = true;
+    }
+    btn.remove();
+    showToast('Conversation resolved.');
+  } catch (err) {
+    console.error('Resolve error:', err);
+    showToast('Connection error — please try again.', 'error');
+    btn.disabled = false;
+    btn.textContent = 'Resolve';
+  }
 }
 
 // ════════════════════════════════════════════
@@ -4355,11 +4380,8 @@ function selectConversation(el, id) {
       '</div>' +
     '</div>';
 
-    // ── Notes (always shown) ──
-    html += '<div class="conv-detail-section bordered" style="border-bottom:none;">' +
-      '<div class="conv-detail-label">Notes</div>' +
-      '<textarea class="conv-detail-notes" rows="4" placeholder="Add notes about this customer..." id="convNotes_' + id + '"></textarea>' +
-    '</div>';
+    // Notes removed — no backend persistence exists. Showing a textarea
+    // without save would silently lose user data.
 
     detail.innerHTML = html;
   }
