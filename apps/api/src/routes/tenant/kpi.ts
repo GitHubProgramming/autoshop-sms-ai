@@ -227,20 +227,24 @@ export async function tenantKpiRoute(app: FastifyInstance) {
   });
 
   /**
-   * GET /tenant/kpi/daily-revenue
+   * GET /tenant/kpi/daily-revenue?days=30
    *
-   * Daily revenue for the last 7 days from completed appointments.
+   * Daily revenue for the last N days from completed appointments.
+   * Accepts ?days=7|30|90 (default 30).
    * Returns an array of { date, total } entries, one per day.
    * Days with no completions return total: 0.
    */
   app.get("/kpi/daily-revenue", { preHandler: [requireAuth] }, async (request, reply) => {
     const { tenantId } = request.user as { tenantId: string; email: string };
+    const rawDays = (request.query as Record<string, string>).days;
+    const allowed = [7, 30, 90];
+    const numDays = allowed.includes(Number(rawDays)) ? Number(rawDays) : 30;
 
     const rows = await query<{ day: string; total: string }>(
       `SELECT d.day::date::text AS day,
               COALESCE(SUM(a.final_price), 0)::text AS total
        FROM generate_series(
-              CURRENT_DATE - INTERVAL '6 days',
+              CURRENT_DATE - INTERVAL '${numDays - 1} days',
               CURRENT_DATE,
               '1 day'
             ) AS d(day)
