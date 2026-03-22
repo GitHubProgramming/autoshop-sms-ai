@@ -3882,9 +3882,9 @@ function renderLiveKPIs() {
   var iconMsg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>';
 
   // Real change metrics — no fake percentages
-  var revChange = totalRev > 0 ? ('+$' + totalRev.toLocaleString() + ' total (30d)') : 'No completed bookings yet';
+  var revChange = recoveredRev > 0 ? ('+$' + recoveredRev.toLocaleString() + ' in last 30 days') : 'No completed bookings yet';
   var apptChange = aiBooked > 0 ? (aiBooked + ' this month') : 'No AI bookings yet';
-  var activeChange = apptToday > 0 ? (apptToday + ' appointments today') : 'No appointments today';
+  var activeChange = '';
 
   // Determine change arrow direction
   var revDir = recoveredRev > 0 ? 'up' : 'neutral';
@@ -3907,7 +3907,7 @@ function renderLiveKPIs() {
       '<div class="kpi-icon-box amber">' + iconPhone + '</div>' +
       '<div class="kpi-value">' + convsMonth + '</div>' +
       '<div class="kpi-label">Conversations This Month</div>' +
-      '<div class="kpi-change neutral">' + (convsMonth > 0 ? convsMonth + ' conversations' : 'No conversations yet') + '</div>' +
+      '<div class="kpi-change neutral"></div>' +
     '</div>' +
     '<div class="kpi-card">' +
       '<div class="kpi-icon-box purple">' + iconMsg + '</div>' +
