@@ -704,6 +704,112 @@
     display: flex;
     justify-content: center;
   }
+  .calc-fields-three {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 32px;
+    margin-bottom: 40px;
+  }
+  @media (max-width: 700px) {
+    .calc-fields-three { grid-template-columns: 1fr; }
+  }
+  .calc-tooltip-wrap {
+    position: relative;
+    display: inline-block;
+  }
+  .calc-tooltip-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    border: 1px solid var(--steel);
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--steel);
+    cursor: help;
+    flex-shrink: 0;
+  }
+  .calc-tooltip-text {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--navy);
+    border: 1px solid var(--border-mid);
+    color: var(--steel-light);
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.5;
+    padding: 10px 12px;
+    border-radius: 4px;
+    width: 220px;
+    z-index: 10;
+    transition: opacity 0.15s;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .calc-tooltip-wrap:hover .calc-tooltip-text {
+    visibility: visible;
+    opacity: 1;
+  }
+  .calc-suffix {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--steel);
+    padding: 0 8px;
+    user-select: none;
+  }
+  .calc-scenarios {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .calc-scenario {
+    background: var(--navy);
+    border: 1px solid var(--border-mid);
+    border-radius: 2px;
+    padding: 16px;
+    text-align: center;
+  }
+  .calc-scenario.expected {
+    border-color: var(--rust);
+    background: rgba(201,75,31,0.06);
+  }
+  .calc-scenario-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--steel);
+    margin-bottom: 6px;
+  }
+  .calc-scenario.expected .calc-scenario-label { color: var(--rust-light); }
+  .calc-scenario-value {
+    font-family: var(--display);
+    font-size: clamp(20px, 2.5vw, 28px);
+    font-weight: 900;
+    color: var(--steel-light);
+    line-height: 1.2;
+  }
+  .calc-scenario.expected .calc-scenario-value { color: var(--white); }
+  .calc-scenario-monthly {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--steel);
+    margin-top: 4px;
+  }
+  .calc-credibility {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--steel);
+    text-align: center;
+    margin-top: 16px;
+    letter-spacing: 0.02em;
+  }
 
   /* DEMO */
   #demo {
@@ -1269,7 +1375,7 @@
   <div class="nav-inner">
     <a href="index.html" class="nav-logo">AutoShop <span>SMS</span> AI</a>
     <ul class="nav-links">
-      <li><a href="#roi">ROI Calculator</a></li>
+      <li><a href="#roi">Revenue Calculator</a></li>
       <li><a href="#demo">How It Works</a></li>
       <li><a href="#pricing">Pricing</a></li>
       <li><a href="#faq">FAQ</a></li>
@@ -1406,46 +1512,83 @@
   <div class="container">
     <div class="roi-header fade-in">
       <div class="section-tag" style="justify-content:center"><span class="label">Revenue Calculator</span></div>
-      <h2 class="roi-headline">How Much Are You<br><em>Losing?</em></h2>
-      <p class="roi-sub">Plug in your numbers. The math speaks for itself.</p>
+      <h2 class="roi-headline">Missed Call<br><em>Revenue Impact</em></h2>
+      <p class="roi-sub">Estimate how much recoverable revenue your shop is leaving on the table each year.</p>
     </div>
 
     <div class="calc-card fade-in">
-      <div class="calc-fields">
+      <div class="calc-fields-three">
         <div class="calc-field">
           <div class="calc-field-top">
-            <label class="calc-label" for="calc-calls">Missed calls per day</label>
-            <input class="calc-num-input" id="calc-calls-num" type="number" min="1" max="20" value="5">
+            <label class="calc-label" for="calc-calls">Missed calls per week</label>
+            <input class="calc-num-input" id="calc-calls-num" type="number" min="1" max="40" value="5">
           </div>
           <div class="calc-slider-row">
             <span class="calc-slider-min">1</span>
-            <input class="calc-slider" id="calc-calls" type="range" min="1" max="20" value="5" step="1">
-            <span class="calc-slider-max">20</span>
+            <input class="calc-slider" id="calc-calls" type="range" min="1" max="40" value="5" step="1">
+            <span class="calc-slider-max">40</span>
           </div>
         </div>
 
         <div class="calc-field">
           <div class="calc-field-top">
             <label class="calc-label" for="calc-aro">Average repair order</label>
-            <div class="calc-num-input-wrap"><span class="calc-prefix">$</span><input class="calc-num-input" id="calc-aro-num" type="number" min="300" max="1200" value="600"></div>
+            <div class="calc-num-input-wrap"><span class="calc-prefix">$</span><input class="calc-num-input" id="calc-aro-num" type="number" min="200" max="1200" value="500"></div>
           </div>
           <div class="calc-slider-row">
-            <span class="calc-slider-min">$300</span>
-            <input class="calc-slider" id="calc-aro" type="range" min="300" max="1200" value="600" step="50">
+            <span class="calc-slider-min">$200</span>
+            <input class="calc-slider" id="calc-aro" type="range" min="200" max="1200" value="500" step="50">
             <span class="calc-slider-max">$1,200</span>
+          </div>
+        </div>
+
+        <div class="calc-field">
+          <div class="calc-field-top">
+            <label class="calc-label" for="calc-rate">Recovery rate
+              <span class="calc-tooltip-wrap">
+                <span class="calc-tooltip-icon">?</span>
+                <span class="calc-tooltip-text">Not every missed call becomes a job — this estimates how many you could realistically recover.</span>
+              </span>
+            </label>
+            <div class="calc-num-input-wrap"><input class="calc-num-input" id="calc-rate-num" type="number" min="10" max="60" value="30"><span class="calc-suffix">%</span></div>
+          </div>
+          <div class="calc-slider-row">
+            <span class="calc-slider-min">10%</span>
+            <input class="calc-slider" id="calc-rate" type="range" min="10" max="60" value="30" step="5">
+            <span class="calc-slider-max">60%</span>
           </div>
         </div>
       </div>
 
       <div class="calc-divider"></div>
 
-      <div class="calc-result-annual-label">You're losing this every year</div>
-      <div class="calc-result-annual" id="res-annual">$792,000</div>
-      <div class="calc-result-monthly" id="res-monthly-wrap">That's <strong id="res-monthly">$66,000</strong> per month walking out the door</div>
-      <div class="calc-result-note" id="res-note">Just 1-2 recovered jobs per week can cover the cost of any plan</div>
-      <div class="calc-cta-wrap">
+      <div class="calc-result-annual-label">Estimated recoverable revenue</div>
+      <div class="calc-result-annual" id="res-annual">$39,000</div>
+      <div class="calc-result-monthly" id="res-monthly-wrap">≈ <strong id="res-monthly">$3,250</strong>/month currently slipping through</div>
+
+      <div class="calc-scenarios" id="res-scenarios">
+        <div class="calc-scenario">
+          <div class="calc-scenario-label">Conservative (20%)</div>
+          <div class="calc-scenario-value" id="res-conservative">$26,000</div>
+          <div class="calc-scenario-monthly" id="res-conservative-mo">$2,167/mo</div>
+        </div>
+        <div class="calc-scenario expected">
+          <div class="calc-scenario-label">Expected (30%)</div>
+          <div class="calc-scenario-value" id="res-expected">$39,000</div>
+          <div class="calc-scenario-monthly" id="res-expected-mo">$3,250/mo</div>
+        </div>
+        <div class="calc-scenario">
+          <div class="calc-scenario-label">Aggressive (50%)</div>
+          <div class="calc-scenario-value" id="res-aggressive">$65,000</div>
+          <div class="calc-scenario-monthly" id="res-aggressive-mo">$5,417/mo</div>
+        </div>
+      </div>
+
+      <div class="calc-credibility">Based on industry averages for missed call recovery and repair order values.</div>
+
+      <div style="margin-top:24px" class="calc-cta-wrap">
         <a href="/signup" class="btn-primary">
-          Start Free Trial
+          Start capturing missed calls
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </a>
       </div>
@@ -1544,7 +1687,7 @@
       </div>
 
       <div class="trust-proof" style="border-left:3px solid var(--rust); text-align:left;">
-5 missed calls per day at a $600 average repair order creates a significant revenue gap over a year. <strong>Even recovering a small portion of those missed opportunities can materially increase monthly revenue.</strong>
+5 missed calls per week at a $500 average repair order — even recovering 30% means <strong>$39,000/year in revenue your shop would otherwise lose.</strong>
       </div>
     </div>
   </div>
@@ -1735,7 +1878,7 @@
     setTimeout(function() { smsBooked.style.opacity = '1'; }, 1900);
   }
 
-  // ROI CALCULATOR — simplified: calls x ARO x 22 x 12
+  // ROI CALCULATOR — calls/week × recovery_rate × ARO × 52
   (function() {
     var fmt = function(n) { return '$' + Math.round(n).toLocaleString('en-US'); };
 
@@ -1743,6 +1886,8 @@
     var callsNum = document.getElementById('calc-calls-num');
     var aroSlider = document.getElementById('calc-aro');
     var aroNum = document.getElementById('calc-aro-num');
+    var rateSlider = document.getElementById('calc-rate');
+    var rateNum = document.getElementById('calc-rate-num');
 
     function sync(slider, num) {
       if (!slider || !num) return;
@@ -1759,15 +1904,29 @@
 
     sync(callsSlider, callsNum);
     sync(aroSlider, aroNum);
+    sync(rateSlider, rateNum);
 
     function calculate() {
       var calls = parseFloat(callsSlider.value) || 0;
       var aro = parseFloat(aroSlider.value) || 0;
-      var annual = calls * aro * 22 * 12;
-      var monthly = calls * aro * 22;
+      var rate = (parseFloat(rateSlider.value) || 0) / 100;
+      var annual = calls * rate * aro * 52;
+      var monthly = annual / 12;
 
       document.getElementById('res-annual').textContent = fmt(annual);
       document.getElementById('res-monthly').textContent = fmt(monthly);
+
+      // Scenario calculations
+      var conservative = calls * 0.20 * aro * 52;
+      var expected = calls * 0.30 * aro * 52;
+      var aggressive = calls * 0.50 * aro * 52;
+
+      document.getElementById('res-conservative').textContent = fmt(conservative);
+      document.getElementById('res-conservative-mo').textContent = fmt(conservative / 12) + '/mo';
+      document.getElementById('res-expected').textContent = fmt(expected);
+      document.getElementById('res-expected-mo').textContent = fmt(expected / 12) + '/mo';
+      document.getElementById('res-aggressive').textContent = fmt(aggressive);
+      document.getElementById('res-aggressive-mo').textContent = fmt(aggressive / 12) + '/mo';
     }
 
     calculate();
