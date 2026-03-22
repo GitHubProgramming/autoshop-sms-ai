@@ -12,6 +12,7 @@
  */
 
 import { query } from "../db/client";
+import { getMaxConversationTurns } from "../config/conversation";
 import { detectBookingIntent, extractFieldsFromMessage, mergeBookingFields } from "./booking-intent";
 import { createAppointment, type BookingState } from "./appointments";
 import { createCalendarEvent } from "./google-calendar";
@@ -60,7 +61,6 @@ const OPENAI_MODEL = "gpt-4o-mini";
 const OPENAI_MAX_TOKENS = 800;
 const OPENAI_TEMPERATURE = 0.3;
 const HISTORY_LIMIT = 8;
-const MAX_CONVERSATION_TURNS = 50;
 
 const DEFAULT_SYSTEM_PROMPT =
   "You are an auto shop scheduling assistant. Help customers book appointments for vehicle maintenance and repair. " +
@@ -167,10 +167,11 @@ export async function processSms(
       `SELECT turn_count FROM conversations WHERE id = $1 AND tenant_id = $2`,
       [result.conversationId, input.tenantId]
     );
-    if (turnRows.length > 0 && turnRows[0].turn_count >= MAX_CONVERSATION_TURNS) {
+    const maxTurns = getMaxConversationTurns();
+    if (turnRows.length > 0 && turnRows[0].turn_count >= maxTurns) {
       console.info(
         `[max-turns] Conversation ${result.conversationId} reached turn limit ` +
-        `(${turnRows[0].turn_count}/${MAX_CONVERSATION_TURNS}) — closing`
+        `(${turnRows[0].turn_count}/${maxTurns}) — closing`
       );
 
       // Close conversation using canonical path
