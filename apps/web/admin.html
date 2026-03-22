@@ -2206,6 +2206,7 @@ function opsHealthBadge(status) {
   if (!status) return '<span class="badge closed">unknown</span>';
   const s = status.toUpperCase();
   if (s === 'GREEN' || s === 'HEALTHY') return '<span class="badge active">healthy</span>';
+  if (s === 'NEEDS_ATTENTION') return '<span class="badge trial">needs attention</span>';
   if (s === 'DEGRADED' || s === 'DELAYED') return '<span class="badge trial">degraded</span>';
   return '<span class="badge blocked">failing</span>';
 }
@@ -2311,7 +2312,7 @@ async function loadProjectOps() {
         <div class="stat-card" style="border-top:3px solid var(--steel);">
           <div class="stat-tag">AI Engine</div>
           ${ov ? `
-            <div style="margin-top:8px;">${opsHealthBadge(pipelineEnv === 'ok' ? 'DEGRADED' : null)}</div>
+            <div style="margin-top:8px;">${opsHealthBadge(pipelineEnv === 'ok' ? 'NEEDS_ATTENTION' : null)}</div>
             <div style="margin-top:4px;font-size:11px;color:var(--steel);font-style:italic;">env vars present — no live connectivity check</div>
             <div style="margin-top:8px;font-size:12px;color:var(--steel);">
               AI cost today: <span style="color:var(--white);font-weight:600;">$${(cost.today?.ai ?? 0).toFixed(2)}</span>
