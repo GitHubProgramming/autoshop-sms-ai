@@ -3,6 +3,7 @@ import { bullmqConnection as connection } from "../queues/redis";
 import { raiseAlert } from "../services/pipeline-alerts";
 
 const API_INTERNAL_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY ?? "";
 const MISSED_CALL_ENDPOINT = `${API_INTERNAL_URL}/internal/missed-call-sms`;
 const PROCESS_SMS_ENDPOINT = `${API_INTERNAL_URL}/internal/process-sms`;
 console.info(`[sms-worker] SMS replies → ${PROCESS_SMS_ENDPOINT}`);
@@ -25,9 +26,12 @@ export function startSmsInboundWorker(): Worker {
       const isMissedCall = job.name === "missed-call-trigger";
       const targetUrl = isMissedCall ? MISSED_CALL_ENDPOINT : PROCESS_SMS_ENDPOINT;
 
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (INTERNAL_API_KEY) headers["x-internal-key"] = INTERNAL_API_KEY;
+
       const res = await fetch(targetUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(job.data),
         signal: AbortSignal.timeout(60_000), // 60s for AI processing
       });
