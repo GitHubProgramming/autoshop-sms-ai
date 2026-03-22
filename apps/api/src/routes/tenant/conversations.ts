@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { query } from "../../db/client";
 import { requireAuth } from "../../middleware/require-auth";
+import { sendTwilioSms } from "../../services/missed-call-sms";
 
 /**
  * GET /tenant/conversations
@@ -88,5 +89,72 @@ export async function tenantConversationsRoute(app: FastifyInstance) {
     }
 
     return reply.status(200).send((result as any[])[0]);
+  });
+
+  /**
+   * POST /tenant/conversations/:id/messages
+   *
+   * Sends a manual outbound SMS to the customer in this conversation.
+   * Reuses existing Twilio send infrastructure and message logging pattern.
+   */
+  app.post("/conversations/:id/messages", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { tenantId } = request.user as { tenantId: string; email: string };
+    const { id } = request.params as { id: string };
+    const { body: messageBody } = (request.body as { body?: string }) || {};
+
+    // Validate body
+    const trimmed = (messageBody || "").trim();
+    if (!trimmed) {
+      return reply.status(400).send({ error: "Message body is required" });
+    }
+    if (trimmed.length > 1600) {
+      return reply.status(400).send({ error: "Message body too long (max 1600 characters)" });
+    }
+
+    // Load conversation and verify tenant ownership
+    const convRows = await query(
+      `SELECT id, customer_phone, status
+       FROM conversations
+       WHERE id = $1 AND tenant_id = $2`,
+      [id, tenantId]
+    );
+
+    if (!(convRows as any[]).length) {
+      return reply.status(404).send({ error: "Conversation not found" });
+    }
+
+    const conv = (convRows as any[])[0];
+
+    // Send SMS via Twilio
+    const twilioResult = await sendTwilioSms(conv.customer_phone, trimmed);
+
+    if (twilioResult.error) {
+      request.log.error({ err: twilioResult.error }, "Manual SMS send failed");
+      return reply.status(502).send({ error: "Failed to send SMS" });
+    }
+
+    // Log outbound message (same pattern as AI replies)
+    const msgRows = await query(
+      `INSERT INTO messages (tenant_id, conversation_id, direction, body, sms_segments)
+       VALUES ($1, $2, 'outbound', $3, $4)
+       RETURNING id, direction, body, sent_at`,
+      [tenantId, id, trimmed, twilioResult.numSegments ?? 1]
+    );
+
+    // Touch conversation to update last_message_at
+    await query(`SELECT touch_conversation($1, $2)`, [id, tenantId]);
+
+    const msg = (msgRows as any[])[0];
+
+    return reply.status(200).send({
+      ok: true,
+      message: {
+        id: msg.id,
+        direction: msg.direction,
+        body: msg.body,
+        sent_at: msg.sent_at,
+        provider_message_id: twilioResult.sid,
+      },
+    });
   });
 }

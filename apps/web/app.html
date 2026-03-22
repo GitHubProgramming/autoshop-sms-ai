@@ -1207,7 +1207,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
     <div class="view" id="view-conversations">
       <div class="page-header">
         <div><div class="page-title">Conversations</div><div class="page-subtitle" id="convsSubtitle">SMS thread management</div></div>
-        <div class="page-actions"><button class="btn-sm" onclick="showToast('Export coming soon.')">Export CSV</button></div>
+        <div class="page-actions"><button class="btn-sm" onclick="exportConversationsCsv()">Export CSV</button></div>
       </div>
       <div class="conv-layout">
         <!-- Left: Conversation List -->
@@ -1252,11 +1252,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
             </div>
           </div>
           <div class="conv-composer">
-            <button class="conv-composer-attach" onclick="showToast('Attachments coming soon.')">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
-            </button>
-            <input type="text" id="convMessageInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter')showToast('Sending coming soon.')">
-            <button class="conv-composer-send" onclick="showToast('Sending coming soon.')">
+            <input type="text" id="convMessageInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendConversationMessage()">
+            <button class="conv-composer-send" onclick="sendConversationMessage()">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               Send
             </button>
@@ -2093,6 +2090,7 @@ let conversationsLoadError = false;
 let liveConversationsData = [];
 let bookingsData = [];
 let convThreads = {};
+let selectedConversationId = null;
 let dashboardStats = {};
 let kpiSummary = null; // Real KPI data from /tenant/kpi/summary
 
@@ -4324,6 +4322,93 @@ function renderConvInbox() {
   if (conversationsData.length > 0) selectConversation(null, conversationsData[0].id);
 }
 
+function exportConversationsCsv() {
+  if (!conversationsData || conversationsData.length === 0) {
+    showToast('No conversations to export');
+    return;
+  }
+  var headers = ['ID','Customer Name','Phone','Status','Turn Count','Unread','Last Message','Last Message At'];
+  function csvCell(val) {
+    var s = String(val == null ? '' : val);
+    if (s.indexOf(',') !== -1 || s.indexOf('"') !== -1 || s.indexOf('\n') !== -1) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  }
+  var rows = [headers.join(',')];
+  conversationsData.forEach(function(c) {
+    rows.push([c.id, c.customerName, c.phone, c.status, c.turnCount, c.unread, c.lastMessage, c.lastMessageAt].map(csvCell).join(','));
+  });
+  var blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'conversations-export-' + new Date().toISOString().slice(0, 10) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+var sendingMessage = false;
+async function sendConversationMessage() {
+  if (sendingMessage) return;
+  if (!selectedConversationId) { showToast('Select a conversation first'); return; }
+  var input = document.getElementById('convMessageInput');
+  var body = (input.value || '').trim();
+  if (!body) { showToast('Type a message first'); return; }
+
+  sendingMessage = true;
+  var btn = document.querySelector('.conv-composer-send');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+
+  try {
+    var token = localStorage.getItem('autoshop_jwt');
+    var res = await fetch('/tenant/conversations/' + selectedConversationId + '/messages', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body: body })
+    });
+    if (!res.ok) {
+      var err = await res.json().catch(function() { return {}; });
+      showToast(err.error || 'Failed to send message');
+      return;
+    }
+    var data = await res.json();
+    var msg = data.message;
+
+    // Append to cache
+    var entry = { d: 'ai', t: msg.body, ts: msg.sent_at ? fmtDate(msg.sent_at) : fmtDate(new Date().toISOString()) };
+    if (!convThreads[selectedConversationId]) {
+      convThreads[selectedConversationId] = { title: '', meta: '', thread: [], result: null, info: [] };
+    }
+    convThreads[selectedConversationId].thread.push(entry);
+
+    // Re-render thread
+    var threadBody = document.getElementById('convThreadBody');
+    if (threadBody) renderConvThread(threadBody, convThreads[selectedConversationId]);
+
+    input.value = '';
+  } catch (e) {
+    showToast('Network error — message not sent');
+  } finally {
+    sendingMessage = false;
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+  }
+}
+
+function renderConvThread(body, data) {
+  var thread = '';
+  data.thread.forEach(function(m) {
+    if (m.ts) thread += '<div class="msg-time">' + m.ts + '</div>';
+    if (m.d === 'ai') thread += '<div class="msg-row"><div class="msg-bubble ai"><div class="msg-sender">AutoShop AI</div>' + m.t + '<div class="msg-ts">' + (m.ts || '') + '</div></div></div>';
+    else thread += '<div class="msg-row right"><div class="msg-bubble customer">' + m.t + '<div class="msg-ts">' + (m.ts || '') + '</div></div></div>';
+  });
+  if (data.result) thread += '<div class="modal-result"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0D1B2A" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><div class="modal-result-text"><strong>' + data.result + '</strong></div></div>';
+  body.innerHTML = thread;
+  body.scrollTop = body.scrollHeight;
+}
+
 function selectConversation(el, id) {
   // Update selected state
   document.querySelectorAll('.conv-list-item').forEach(function(i) { i.classList.remove('selected'); });
@@ -4336,6 +4421,7 @@ function selectConversation(el, id) {
   // Find conversation data
   var conv = conversationsData.find(function(c) { return c.id === id; });
   if (!conv) return;
+  selectedConversationId = id;
 
   var name = conv.customerName || conv.phone;
 
@@ -4349,21 +4435,44 @@ function selectConversation(el, id) {
   var actions = document.getElementById('convThreadActions');
   if (actions) actions.innerHTML = convStatusBadge(conv.status);
 
-  // Thread body — show messages if available
+  // Thread body — show messages if available, fetch from API if not cached
   var body = document.getElementById('convThreadBody');
   var data = convThreads[id];
   if (data && data.thread) {
-    var thread = '';
-    data.thread.forEach(function(m) {
-      if (m.ts) thread += '<div class="msg-time">' + m.ts + '</div>';
-      if (m.d === 'ai') thread += '<div class="msg-row"><div class="msg-bubble ai"><div class="msg-sender">AutoShop AI</div>' + m.t + '<div class="msg-ts">' + (m.ts || '') + '</div></div></div>';
-      else thread += '<div class="msg-row right"><div class="msg-bubble customer">' + m.t + '<div class="msg-ts">' + (m.ts || '') + '</div></div></div>';
-    });
-    if (data.result) thread += '<div class="modal-result"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0D1B2A" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><div class="modal-result-text"><strong>' + data.result + '</strong></div></div>';
-    body.innerHTML = thread;
-    body.scrollTop = body.scrollHeight;
+    renderConvThread(body, data);
   } else {
-    body.innerHTML = '<div class="conv-empty-state"><span style="font-size:13px;">Thread data not available — <a style="color:var(--rust);cursor:pointer;" onclick="openModal(\'' + id + '\')">open in modal</a></span></div>';
+    body.innerHTML = '<div class="conv-empty-state"><span style="font-size:13px;">Loading messages...</span></div>';
+    (async function() {
+      try {
+        var token = localStorage.getItem('autoshop_jwt');
+        var res = await fetch('/tenant/conversations/' + id, {
+          headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        var json = await res.json();
+        if (json.messages && json.messages.length > 0) {
+          convThreads[id] = {
+            title: conv ? (conv.customerName || conv.phone) : 'Conversation',
+            meta: conv ? conv.phone : '',
+            thread: json.messages.map(function(m) {
+              return {
+                d: m.direction === 'outbound' ? 'ai' : 'customer',
+                t: m.body,
+                ts: m.sent_at ? fmtDate(m.sent_at) : ''
+              };
+            }),
+            result: null,
+            info: []
+          };
+          renderConvThread(body, convThreads[id]);
+        } else {
+          body.innerHTML = '<div class="conv-empty-state"><span style="font-size:13px;">No messages in this conversation yet.</span></div>';
+        }
+      } catch (e) {
+        console.error('Failed to load conversation messages:', e);
+        body.innerHTML = '<div class="conv-empty-state"><span style="font-size:13px;color:var(--rust);">Failed to load messages. <a style="color:var(--rust);cursor:pointer;text-decoration:underline;" onclick="selectConversation(null,\'' + id + '\')">Retry</a></span></div>';
+      }
+    })();
   }
 
   // Detail panel — always show all sections with fallback placeholders
