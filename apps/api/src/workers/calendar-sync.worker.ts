@@ -1,5 +1,6 @@
 import { Worker, Job } from "bullmq";
 import { bullmqConnection as connection } from "../queues/redis";
+import { moveToDeadLetter } from "../queues/dead-letter";
 import { createCalendarEvent, type CalendarEventInput } from "../services/google-calendar";
 import { raiseAlert } from "../services/pipeline-alerts";
 import { query } from "../db/client";
@@ -73,6 +74,9 @@ export function startCalendarSyncWorker(): Worker {
         summary: `Calendar sync failed after ${maxAttempts} retries for appointment ${input?.appointmentId ?? "unknown"}`,
         details: err.message,
       }).catch(() => { /* non-fatal */ });
+
+      // Preserve in dead letter queue for inspection/replay
+      moveToDeadLetter("calendar-sync", job, err);
     }
   });
 

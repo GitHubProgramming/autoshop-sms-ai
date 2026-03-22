@@ -39,6 +39,7 @@ import { configRoute } from "./routes/internal/config";
 import { githubIssuesRoute } from "./routes/internal/github-issues";
 import { db } from "./db/client";
 import { redis } from "./queues/redis";
+import { deadLetterQueue } from "./queues/dead-letter";
 import { startSmsInboundWorker } from "./workers/sms-inbound.worker";
 import { startProvisionNumberWorker } from "./workers/provision-number.worker";
 import { startBillingEventsWorker } from "./workers/billing-events.worker";
@@ -270,6 +271,7 @@ async function bootstrap() {
         await billingWorker.close();
         await calendarSyncWorker.close();
         await closeStaleWorker.close();
+        await deadLetterQueue.close();
         await db.end();
         redis.disconnect();
       } catch (err) {

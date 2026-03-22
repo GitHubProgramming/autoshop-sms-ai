@@ -1,5 +1,6 @@
 import { Worker, Job } from "bullmq";
 import { bullmqConnection as connection } from "../queues/redis";
+import { moveToDeadLetter } from "../queues/dead-letter";
 import { raiseAlert } from "../services/pipeline-alerts";
 
 const API_INTERNAL_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
@@ -76,6 +77,9 @@ export function startSmsInboundWorker(): Worker {
         summary: `Job ${job?.name ?? "unknown"} exhausted all ${maxAttempts} retries${phoneSuffix}`,
         details: err.message,
       }).catch(() => { /* non-fatal */ });
+
+      // Preserve in dead letter queue for inspection/replay
+      moveToDeadLetter("sms-inbound", job, err);
     }
   });
 
