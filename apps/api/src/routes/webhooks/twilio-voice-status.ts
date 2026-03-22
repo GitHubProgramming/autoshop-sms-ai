@@ -2,7 +2,7 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { validateTwilioSignature } from "../../middleware/twilio-validate";
 import { getTenantByPhoneNumber, getBlockReason } from "../../db/tenants";
-import { smsInboundQueue } from "../../queues/redis";
+import { smsInboundQueue, checkMissedCallDedupe } from "../../queues/redis";
 import { deduplicateWebhook } from "../../db/webhook-events";
 import { startTrace, resumeTrace } from "../../services/pipeline-trace";
 
@@ -87,6 +87,30 @@ export async function twilioVoiceStatusRoute(app: FastifyInstance) {
           await t.setTenant(tenant.id);
           await t.step("tenant_resolved", "ok", `${tenant.shop_name ?? "unknown"} (${tenant.id.slice(0, 8)})`);
         } catch { /* non-fatal */ }
+      }
+
+      // ── Caller dedupe (tenant + phone + 5min window) ────────────────────
+      // Prevents duplicate missed-call flows when the same caller produces
+      // multiple CallSids (redials, busy retries, forwarding loops).
+      try {
+        const isDuplicateCaller = await checkMissedCallDedupe(tenant.id, From);
+        if (isDuplicateCaller) {
+          request.log.info(
+            { tenantId: tenant.id, from: From, CallSid, event: "missed_call_caller_dedupe" },
+            "Duplicate missed-call for same caller within 5min window — skipping"
+          );
+          if (traceId) {
+            try {
+              const t = await resumeTrace(traceId);
+              await t.step("caller_dedupe", "skip", `Duplicate caller ${From} within 5min`);
+              await t.complete();
+            } catch { /* non-fatal */ }
+          }
+          return reply.status(200).type("text/xml").send("<Response/>");
+        }
+      } catch (err) {
+        // Redis failure — fall through and process (same as webhook dedup policy)
+        request.log.warn({ err }, "Missed-call caller dedupe check failed — proceeding");
       }
 
       // ── Billing enforcement ────────────────────────────────────────────

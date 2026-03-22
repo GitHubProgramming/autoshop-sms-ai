@@ -59,3 +59,26 @@ export async function checkIdempotency(key: string): Promise<boolean> {
 export async function markIdempotency(key: string): Promise<void> {
   await redis.setex(`idempotency:${key}`, IDEMPOTENCY_TTL, "1");
 }
+
+// ── Missed-call caller dedupe ─────────────────────────────────────────────────
+// Prevents multiple missed-call flows for the same tenant + caller within a
+// short time window, regardless of how many distinct CallSids Twilio generates.
+
+const MISSED_CALL_DEDUPE_TTL = 300; // 5 minutes
+
+/**
+ * Returns true if a missed-call flow was already triggered for this
+ * tenant + caller within the dedupe window.  Atomically sets the key
+ * on first call so concurrent webhooks cannot both pass.
+ */
+export async function checkMissedCallDedupe(
+  tenantId: string,
+  callerPhone: string
+): Promise<boolean> {
+  const key = `missed-call-dedupe:${tenantId}:${callerPhone}`;
+  // SET NX returns "OK" only if the key did not already exist (atomic)
+  const result = await redis.set(key, "1", "EX", MISSED_CALL_DEDUPE_TTL, "NX");
+  // result === "OK" → first caller, not a duplicate
+  // result === null → key existed, this IS a duplicate
+  return result === null;
+}

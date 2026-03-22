@@ -223,6 +223,31 @@ export async function handleMissedCallSms(
     };
   }
 
+  // 3b. If conversation already existed, don't send another initial SMS.
+  // The customer already has an open thread — appending a duplicate
+  // "we missed your call" message is confusing and spammy.
+  if (!isNew) {
+    try {
+      await query(
+        `INSERT INTO messages (tenant_id, conversation_id, direction, body)
+         VALUES ($1, $2, 'inbound', $3)`,
+        [
+          input.tenantId,
+          conversationId,
+          `[Missed call: ${input.callStatus}] from ${input.customerPhone} (dedupe: open conversation exists)`,
+        ]
+      );
+    } catch { /* non-fatal */ }
+
+    return {
+      success: true,
+      conversationId,
+      smsSent: false,
+      twilioSid: null,
+      error: null,
+    };
+  }
+
   // 4. Log the missed call as a synthetic inbound message
   try {
     await query(
