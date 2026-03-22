@@ -1145,7 +1145,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 
       <!-- ── 1. KPI ROW (4 cards) ── -->
       <div class="kpi-grid" id="kpiGrid"></div>
-      <div id="pendingCompletionBanner" style="display:none;margin:12px 0 0;padding:10px 16px;background:#FFFFFF;border:1px solid #E6E1D9;border-radius:8px;color:var(--text-secondary);font-size:14px;font-weight:500;"></div>
 
       <!-- ── 2. LIVE CONVERSATIONS + TODAY'S APPOINTMENTS (2/3 + 1/3 grid) ── -->
       <div class="dash-body">
@@ -1186,6 +1185,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
               <span id="dashRevTrendText">No revenue data yet</span>
             </div>
           </div>
+          <div id="pendingCompletionBanner" style="display:none;padding:6px 24px 0;font-size:13px;color:var(--amber-text);font-weight:500;"></div>
           <div id="revSummaryBar" class="rev-summary" style="display:none;"></div>
           <div id="revenueChartContainer" style="height:280px;padding:20px 24px 30px;position:relative;overflow:visible;">
             <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-tertiary);font-size:14px;">Loading chart…</div>
@@ -3919,13 +3919,13 @@ function renderLiveKPIs() {
       '<div class="kpi-change neutral">' + activeChange + '</div>' +
     '</div>';
 
-  // Pending completion warning — revenue integrity signal
+  // Pending completion — inline in Revenue Analytics card
   var pendingBanner = document.getElementById('pendingCompletionBanner');
   if (pendingBanner) {
     var pendingCount = k.pending_completion_count || 0;
     if (pendingCount > 0) {
       pendingBanner.style.display = 'block';
-      pendingBanner.textContent = pendingCount + ' past appointment' + (pendingCount > 1 ? 's need' : ' needs') + ' completion to count revenue';
+      pendingBanner.innerHTML = '<span style="opacity:.7;">⏳</span> ' + pendingCount + ' appointment' + (pendingCount > 1 ? 's' : '') + ' pending completion';
     } else {
       pendingBanner.style.display = 'none';
     }
