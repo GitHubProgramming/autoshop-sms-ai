@@ -6,9 +6,8 @@ import { sendTwilioSms } from "../../services/missed-call-sms";
 /**
  * GET /tenant/conversations
  *
- * Returns all open conversations for the authenticated tenant.
- * This is the authoritative source for the Conversations page,
- * aligned with the "Open Conversations" KPI (status = 'open').
+ * Returns recent conversations (all statuses) for the authenticated tenant.
+ * This is the authoritative source for the Conversations page.
  */
 export async function tenantConversationsRoute(app: FastifyInstance) {
   app.get("/conversations", { preHandler: [requireAuth] }, async (request, reply) => {
@@ -18,8 +17,9 @@ export async function tenantConversationsRoute(app: FastifyInstance) {
       `SELECT id, customer_phone, status, turn_count,
               opened_at, last_message_at, closed_at, close_reason
        FROM conversations
-       WHERE tenant_id = $1 AND status = 'open'
-       ORDER BY last_message_at DESC`,
+       WHERE tenant_id = $1
+       ORDER BY last_message_at DESC
+       LIMIT 200`,
       [tenantId]
     );
 
