@@ -33,7 +33,7 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
                 conv_used_this_cycle, conv_limit_this_cycle,
                 trial_started_at, trial_ends_at,
                 warned_80pct, warned_100pct, created_at,
-                business_hours
+                business_hours, is_test
          FROM tenants WHERE id = $1`,
         [tenantId]
       ),
@@ -123,7 +123,18 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
     }
 
     const calendar = (calendarRows as any[])[0] || null;
-    const phone = (phoneRows as any[])[0] || null;
+    let phone = (phoneRows as any[])[0] || null;
+
+    // Test tenants without their own phone row get the shared test number.
+    // The pilot/base tenant owns the real row; plus-alias test tenants see
+    // the same number via this fallback — no DB ownership transfer needed.
+    if (!phone && tenant.is_test && process.env.TEST_SHARED_PHONE_NUMBER) {
+      phone = {
+        phone_number: process.env.TEST_SHARED_PHONE_NUMBER,
+        status: "active",
+        provisioned_at: tenant.created_at,
+      };
+    }
 
     // Determine calendar integration status from integration_status column.
     // Do NOT derive status from token_expiry — access tokens expire every hour,

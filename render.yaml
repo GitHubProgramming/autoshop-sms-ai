@@ -63,8 +63,6 @@ services:
         value: "false"
       - key: TEST_SHARED_PHONE_NUMBER
         value: "+13257523890"
-      - key: TEST_SHARED_TWILIO_SID
-        value: "PNf77089f763ad788a2ea7bf65e71c181a"
       - key: CORS_ORIGINS
         value: "https://autoshopsmsai.com"
 

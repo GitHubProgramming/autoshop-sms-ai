@@ -4,7 +4,7 @@ import { query } from "../../db/client";
 import { updateBillingStatus } from "../../db/tenants";
 import { billingQueue, provisionNumberQueue } from "../../queues/redis";
 import { deduplicateWebhook } from "../../db/webhook-events";
-import { assignSharedTestNumber } from "../../utils/test-tenant";
+import { getSharedTestNumber } from "../../utils/test-tenant";
 
 type BillingStatus =
   | "trial" | "trial_expired" | "active" | "scheduled_cancel"
@@ -169,10 +169,9 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
             [tenantId]
           );
 
-          // Test tenants: assign shared number, never buy from Twilio
+          // Test tenants: skip Twilio purchase entirely — dashboard shows shared number via fallback
           if (tenantRows[0]?.is_test) {
-            await assignSharedTestNumber(tenantId);
-            console.info(`[stripe] Test tenant ${tenantId} — shared test number assigned (no Twilio purchase)`);
+            console.info(`[stripe] Test tenant ${tenantId} — skipping Twilio purchase (shared test number)`);
           } else {
             const areaCode =
               tenantRows[0]?.owner_phone?.replace(/\D/g, "").slice(1, 4) || "512";
