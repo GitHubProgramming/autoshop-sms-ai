@@ -39,4 +39,29 @@ export async function tenantConversationsRoute(app: FastifyInstance) {
       messages: messagesRows,
     });
   });
+
+  /**
+   * PATCH /tenant/conversations/:id/resolve
+   *
+   * Closes a conversation with status='closed', close_reason='user_closed'.
+   * Only allowed on conversations that are currently 'open'.
+   */
+  app.patch("/conversations/:id/resolve", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { tenantId } = request.user as { tenantId: string; email: string };
+    const { id } = request.params as { id: string };
+
+    const result = await query(
+      `UPDATE conversations
+       SET status = 'closed', close_reason = 'user_closed', closed_at = NOW()
+       WHERE id = $1 AND tenant_id = $2 AND status = 'open'
+       RETURNING id, status, close_reason`,
+      [id, tenantId]
+    );
+
+    if (!(result as any[]).length) {
+      return reply.status(404).send({ error: "Conversation not found or already closed" });
+    }
+
+    return reply.status(200).send((result as any[])[0]);
+  });
 }
