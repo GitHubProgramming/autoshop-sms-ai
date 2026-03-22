@@ -426,10 +426,6 @@
             <p class="form-hint">Your main customer-facing number</p>
           </div>
           <div class="form-group">
-            <label class="form-label" for="shopZip">Location (ZIP Code)</label>
-            <input class="form-input" type="text" id="shopZip" placeholder="78701" maxlength="10">
-          </div>
-          <div class="form-group">
             <label class="form-label" for="timezone">Time Zone</label>
             <select class="form-input" id="timezone">
               <option value="America/Chicago" selected>Central Time (CT) — most of Texas</option>
@@ -636,9 +632,15 @@ if (!jwt) {
 })();
 
 // ── Check if user already has onboarding state (returning to page) ──
+// Derives the correct step from server state so refresh doesn't lose progress.
 (function() {
   fetchDashboard().then(function(data) {
-    if (!data) return;
+    if (!data) {
+      // Server unreachable — fall back to localStorage step
+      var saved = parseInt(localStorage.getItem('onboarding_step') || '0', 10);
+      if (saved > 0 && saved <= 6) goStep(saved);
+      return;
+    }
     // Prefill fields from existing tenant data
     var t = data.tenant || {};
     var shopEl = document.getElementById('shopName');
@@ -659,7 +661,24 @@ if (!jwt) {
     // If fully onboarded, redirect to app
     var ob = data.onboarding || {};
     if (ob.onboarding_complete) {
+      localStorage.removeItem('onboarding_step');
       window.location.replace('/app/dashboard');
+      return;
+    }
+    // Derive step from server state — auto-advance past completed steps
+    // This is the primary step-restoration mechanism on refresh.
+    var hasShopName = t.shop_name && t.shop_name !== 'My Shop';
+    var hasPhone = !!assignedPhone;
+    var derivedStep = 0;
+    if (hasShopName) derivedStep = 2;      // profile done → go to number
+    if (hasPhone) derivedStep = 3;         // number done → go to forwarding
+    if (hasPhone && calConnected) derivedStep = 5; // cal done → go to test
+
+    // Use the higher of: derived step vs localStorage step (user may have advanced past derivable state)
+    var savedStep = parseInt(localStorage.getItem('onboarding_step') || '0', 10);
+    var targetStep = Math.max(derivedStep, savedStep);
+    if (targetStep > 0 && targetStep <= 6) {
+      goStep(targetStep);
     }
   });
 })();
@@ -669,6 +688,7 @@ if (!jwt) {
 // ════════════════════════════════════════════
 function goStep(n) {
   currentStep = n;
+  localStorage.setItem('onboarding_step', String(n));
   // Hide all steps
   var steps = document.querySelectorAll('.wiz-step');
   for (var i = 0; i < steps.length; i++) {
@@ -749,22 +769,32 @@ async function saveProfile(e) {
       body: JSON.stringify({ shopName: shopName, ownerPhone: ownerPhone, timezone: timezone })
     });
 
-    // Update local session
-    session.shopName = shopName;
-    localStorage.setItem('autoshop_session', JSON.stringify(session));
+    if (res.status === 401 || res.status === 403) {
+      errorEl.textContent = 'Your session has expired. Please sign in again.';
+      errorEl.classList.add('visible');
+      btn.disabled = false;
+      btn.textContent = 'Save & Continue';
+      setTimeout(function() { window.location.replace('/login'); }, 2000);
+      return;
+    }
 
     if (!res.ok) {
-      // Non-blocking — move forward even if save fails
-      console.warn('Profile save returned ' + res.status + ' — proceeding anyway');
+      var errData = await res.json().catch(function() { return {}; });
+      errorEl.textContent = errData.error || 'Failed to save profile (error ' + res.status + '). Please try again.';
+      errorEl.classList.add('visible');
+      btn.disabled = false;
+      btn.textContent = 'Save & Continue';
+      return;
     }
-    goStep(2);
-  } catch (err) {
-    // Network error — save locally and continue
-    console.warn('Profile save failed:', err);
+
+    // Success — update local session and advance
     session.shopName = shopName;
     localStorage.setItem('autoshop_session', JSON.stringify(session));
     goStep(2);
-  } finally {
+  } catch (err) {
+    // Network error — show warning but allow retry
+    errorEl.textContent = 'Connection error — please check your internet and try again.';
+    errorEl.classList.add('visible');
     btn.disabled = false;
     btn.textContent = 'Save & Continue';
   }
@@ -790,14 +820,10 @@ async function requestNumber() {
   statusEl.innerHTML = '<span class="spinner"></span> Requesting number with area code ' + areaCode + '...';
 
   try {
-    var res = await fetch('/internal/enqueue-provision-number', {
+    var res = await fetch('/tenant/provision-number', {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({
-        tenantId: session.tenantId,
-        areaCode: areaCode,
-        shopName: session.shopName || 'My Shop'
-      })
+      body: JSON.stringify({ areaCode: areaCode })
     });
 
     if (res.ok) {
@@ -868,15 +894,24 @@ function checkCalendarOnEntry() {
     document.getElementById('calSkipBtn').style.display = 'none';
     return;
   }
-  // Check URL for calendar=connected callback
+  // Check URL for calendar OAuth return
   var params = new URLSearchParams(window.location.search);
-  if (params.get('calendar') === 'connected') {
+  var calParam = params.get('calendar');
+  if (calParam === 'connected') {
     calConnected = true;
     document.getElementById('calendarContent').style.display = 'none';
     document.getElementById('calendarConnected').style.display = 'block';
     document.getElementById('calSkipBtn').style.display = 'none';
     history.replaceState(null, '', '/onboarding/calendar');
     return;
+  }
+  if (calParam === 'denied') {
+    var errorEl = document.getElementById('step4Error');
+    if (errorEl) {
+      errorEl.textContent = 'Google Calendar connection was cancelled. You can try again or skip.';
+      errorEl.classList.add('visible');
+    }
+    history.replaceState(null, '', '/onboarding/calendar');
   }
   // Also re-check from server
   fetchDashboard().then(function(data) {
