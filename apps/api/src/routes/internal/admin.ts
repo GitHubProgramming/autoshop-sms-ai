@@ -567,18 +567,25 @@ export async function adminRoute(app: FastifyInstance) {
   // ── GET /internal/admin/conversations/:id ───────────────────────────────────
   app.get("/admin/conversations/:id", { preHandler: [adminGuard] }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const [convRows, messagesRows, appointmentRows] = await Promise.all([
-      query(`SELECT c.*, t.shop_name FROM conversations c JOIN tenants t ON t.id = c.tenant_id WHERE c.id = $1`, [id]),
-      query(`SELECT id, direction, body, sent_at, tokens_used, model_version FROM messages WHERE conversation_id = $1 ORDER BY sent_at ASC`, [id]),
-      query(`SELECT * FROM appointments WHERE conversation_id = $1 LIMIT 1`, [id]),
-    ]);
+
+    // Load parent conversation first to obtain tenant_id for child queries
+    const convRows = await query(`SELECT c.*, t.shop_name FROM conversations c JOIN tenants t ON t.id = c.tenant_id WHERE c.id = $1`, [id]);
 
     if (!(convRows as any[]).length) {
       return reply.status(404).send({ error: "Conversation not found" });
     }
 
+    const conv = (convRows as any[])[0];
+    const convTenantId = conv.tenant_id;
+
+    // Child queries scoped by tenant_id from parent record (prevents cross-tenant leakage)
+    const [messagesRows, appointmentRows] = await Promise.all([
+      query(`SELECT id, direction, body, sent_at, tokens_used, model_version FROM messages WHERE conversation_id = $1 AND tenant_id = $2 ORDER BY sent_at ASC`, [id, convTenantId]),
+      query(`SELECT * FROM appointments WHERE conversation_id = $1 AND tenant_id = $2 LIMIT 1`, [id, convTenantId]),
+    ]);
+
     return reply.status(200).send({
-      conversation: (convRows as any[])[0],
+      conversation: conv,
       messages: messagesRows,
       appointment: (appointmentRows as any[])[0] ?? null,
     });

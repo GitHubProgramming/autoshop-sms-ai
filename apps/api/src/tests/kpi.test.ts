@@ -123,8 +123,8 @@ describe("GET /tenant/kpi/total-revenue", () => {
 
 describe("GET /tenant/kpi/summary", () => {
   it("returns all zeros when no data exists", async () => {
-    // 8 parallel queries
-    for (let i = 0; i < 8; i++) {
+    // 7 parallel queries
+    for (let i = 0; i < 7; i++) {
       mocks.query.mockResolvedValueOnce([{ total: "0", count: "0" }]);
     }
 
@@ -139,7 +139,7 @@ describe("GET /tenant/kpi/summary", () => {
     expect(body.appointments_today).toBe(0);
     expect(body.active_conversations).toBe(0);
     expect(body.conversations_this_month).toBe(0);
-    expect(body.capture_rate_pct).toBe(0);
+    expect(body.booking_rate_pct).toBe(0);
   });
 
   it("returns real computed values", async () => {
@@ -150,8 +150,7 @@ describe("GET /tenant/kpi/summary", () => {
       .mockResolvedValueOnce([{ count: "2" }])                     // appts today
       .mockResolvedValueOnce([{ count: "3" }])                     // active convs
       .mockResolvedValueOnce([{ count: "20" }])                    // convs this month
-      .mockResolvedValueOnce([{ count: "20" }])                    // missed calls total
-      .mockResolvedValueOnce([{ count: "15" }]);                   // captured calls
+      .mockResolvedValueOnce([{ count: "15" }]);                   // booked convs
 
     const app = buildApp();
     const res = await app.inject({ method: "GET", url: "/tenant/kpi/summary" });
@@ -164,13 +163,12 @@ describe("GET /tenant/kpi/summary", () => {
     expect(body.appointments_today).toBe(2);
     expect(body.active_conversations).toBe(3);
     expect(body.conversations_this_month).toBe(20);
-    expect(body.missed_calls_total).toBe(20);
-    expect(body.missed_calls_captured).toBe(15);
-    expect(body.capture_rate_pct).toBe(75);
+    expect(body.conversations_booked).toBe(15);
+    expect(body.booking_rate_pct).toBe(75);
   });
 
   it("does not contain any hardcoded demo values", async () => {
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 7; i++) {
       mocks.query.mockResolvedValueOnce([{ total: "0", count: "0" }]);
     }
 
@@ -191,7 +189,7 @@ describe("GET /tenant/kpi/summary", () => {
   });
 
   it("queries appointments table not bookings", async () => {
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 7; i++) {
       mocks.query.mockResolvedValueOnce([{ total: "0", count: "0" }]);
     }
 
