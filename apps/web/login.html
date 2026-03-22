@@ -260,20 +260,6 @@
   }
   .signup-link a:hover { border-color: var(--rust); }
 
-  .demo-link {
-    margin-top: 16px;
-    text-align: center;
-    font-size: 12px;
-    color: var(--text-tertiary);
-    opacity: 0.7;
-  }
-  .demo-link a {
-    color: var(--text-tertiary);
-    text-decoration: none;
-    border-bottom: 1px dashed var(--border-mid);
-    cursor: pointer;
-  }
-  .demo-link a:hover { color: var(--text-secondary); }
 
   /* ── FOOTER ── */
   .page-footer {
@@ -353,9 +339,6 @@
       <a href="/signup">Start your free trial →</a>
     </div>
 
-    <div class="demo-link">
-      <a onclick="fillDemoCredentials()" tabindex="0">Use demo account</a>
-    </div>
   </div>
 </main>
 
@@ -437,12 +420,6 @@ function showError(msg) {
   var el = document.getElementById('errorMsg');
   el.textContent = msg;
   el.classList.add('visible');
-}
-
-function fillDemoCredentials() {
-  document.getElementById('email').value = 'dev@autoshop.local';
-  document.getElementById('password').value = 'devpass2026';
-  document.getElementById('errorMsg').classList.remove('visible');
 }
 
 async function handleLogin(e) {

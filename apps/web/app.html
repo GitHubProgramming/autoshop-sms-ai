@@ -3195,7 +3195,7 @@ async function startCheckout(plan) {
         cancelUrl: window.location.origin + '/app/billing?billing=canceled'
       })
     });
-    if (res.status === 401) { showToast('Session expired — please log in again.'); return; }
+    if (res.status === 401) { localStorage.removeItem('autoshop_jwt'); localStorage.removeItem('autoshop_session'); window.location.replace('/login'); return; }
     var data = await res.json();
     if (!res.ok) { showToast(data.error || 'Checkout failed — please try again.'); return; }
     if (data.url) { window.location.href = data.url; }
@@ -3214,7 +3214,7 @@ async function openBillingPortal() {
     var res = await fetch('/billing/portal', {
       headers: { 'Authorization': 'Bearer ' + token }
     });
-    if (res.status === 401) { showToast('Session expired — please log in again.'); return; }
+    if (res.status === 401) { localStorage.removeItem('autoshop_jwt'); localStorage.removeItem('autoshop_session'); window.location.replace('/login'); return; }
     var data = await res.json();
     if (!res.ok) { showToast(data.error || 'Could not open billing portal.'); return; }
     if (data.url) { window.location.href = data.url; }
@@ -3633,8 +3633,9 @@ async function connectGoogleCalendar() {
       headers: { 'Authorization': 'Bearer ' + token }
     });
     if (res.status === 401) {
-      showToast('Session expired — please log in again.');
-      setTimeout(function() { window.location.href = '/login'; }, 1500);
+      localStorage.removeItem('autoshop_jwt');
+      localStorage.removeItem('autoshop_session');
+      window.location.replace('/login');
       return;
     }
     var data = await res.json();
@@ -3663,8 +3664,9 @@ async function disconnectGoogleCalendar() {
       headers: { 'Authorization': 'Bearer ' + token }
     });
     if (res.status === 401) {
-      showToast('Session expired — please log in again.');
-      setTimeout(function() { window.location.href = '/login'; }, 1500);
+      localStorage.removeItem('autoshop_jwt');
+      localStorage.removeItem('autoshop_session');
+      window.location.replace('/login');
       return;
     }
     if (!res.ok) {
