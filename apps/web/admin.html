@@ -2212,6 +2212,7 @@ function opsHealthBadge(status) {
 function opsConfigBadge(connected) {
   if (connected === true) return '<span class="badge active">connected</span>';
   if (connected === false) return '<span class="badge blocked">missing</span>';
+  if (connected === 'needs_attention' || connected === null || connected === undefined) return '<span class="badge trial">needs attention</span>';
   return '<span class="badge trial">needs attention</span>';
 }
 function opsTimestamp(ts) {
@@ -2229,14 +2230,12 @@ async function loadProjectOps() {
   const main = document.getElementById('mainContent');
   try {
     // Fetch all real data sources in parallel
-    const [overview, health, ghData, alerts, errors, audit, integrations] = await Promise.allSettled([
+    const [overview, health, ghData, alerts, errors] = await Promise.allSettled([
       apiFetch('/internal/admin/overview'),
       fetch(API + '/health').then(r => r.ok ? r.json() : null).catch(() => null),
       apiFetch('/internal/admin/github-issues?state=open'),
       apiFetch('/internal/admin/alerts?acknowledged=false'),
       apiFetch('/internal/admin/errors'),
-      apiFetch('/internal/admin/audit?limit=20'),
-      apiFetch('/internal/admin/integrations'),
     ]);
 
     const ov = overview.status === 'fulfilled' ? overview.value : null;
@@ -2244,13 +2243,12 @@ async function loadProjectOps() {
     const gh = ghData.status === 'fulfilled' ? ghData.value : null;
     const al = alerts.status === 'fulfilled' ? alerts.value : null;
     const er = errors.status === 'fulfilled' ? errors.value : null;
-    const au = audit.status === 'fulfilled' ? audit.value : null;
-    const ig = integrations.status === 'fulfilled' ? integrations.value : null;
 
     const sysHealth = ov?.system_health || {};
     const funnel = ov?.funnel_30d || {};
     const revenue = ov?.revenue || {};
     const cost = ov?.cost || {};
+    const pipelineEnv = hp?.checks?.pipeline_env;
 
     // ── HEADER ──
     const header = `<div class="page-header">
@@ -2310,10 +2308,11 @@ async function loadProjectOps() {
           ` : opsNoData()}
         </div>
 
-        <div class="stat-card" style="border-top:3px solid var(--${ov ? 'green' : 'steel'});">
+        <div class="stat-card" style="border-top:3px solid var(--steel);">
           <div class="stat-tag">AI Engine</div>
           ${ov ? `
-            <div style="margin-top:8px;">${opsHealthBadge('GREEN')}</div>
+            <div style="margin-top:8px;">${opsHealthBadge(pipelineEnv === 'ok' ? 'DEGRADED' : null)}</div>
+            <div style="margin-top:4px;font-size:11px;color:var(--steel);font-style:italic;">env vars present — no live connectivity check</div>
             <div style="margin-top:8px;font-size:12px;color:var(--steel);">
               AI cost today: <span style="color:var(--white);font-weight:600;">$${(cost.today?.ai ?? 0).toFixed(2)}</span>
             </div>
@@ -2549,43 +2548,32 @@ async function loadProjectOps() {
     // ════════════════════════════════════════════════════════════════════════
     // SECTION 6 — LIVE ACTIVITY
     // ════════════════════════════════════════════════════════════════════════
+    // Live Activity: only show real runtime business events (inbound SMS, AI reply, booking created, calendar synced).
+    // The /audit endpoint contains system audit logs (signup, plan change, etc.) — NOT runtime pipeline events.
+    // Until a dedicated runtime event feed endpoint exists, show honest placeholder.
     let activitySection = '<div class="section-label">6. Live Activity</div>';
-    const auditEntries = Array.isArray(au) ? au : (au?.entries || au?.events || []);
-
-    if (auditEntries.length > 0) {
-      activitySection += `<div class="table-wrap" style="margin-bottom:24px;">
-        <table class="data-table">
-          <thead><tr><th>Time</th><th>Source</th><th>Event</th><th>Tenant</th><th>Detail</th></tr></thead>
-          <tbody>
-            ${auditEntries.slice(0, 20).map(e => `<tr>
-              <td class="mono" style="white-space:nowrap;font-size:12px;">${opsTimestamp(e.created_at || e.timestamp)}</td>
-              <td><span class="badge closed" style="font-size:10px;">${escHtml(e.source || '—')}</span></td>
-              <td style="font-size:13px;font-weight:600;color:var(--white);">${escHtml(e.event_type || e.type || '—')}</td>
-              <td style="font-size:12px;">${escHtml(e.shop_name || e.tenant_id || '—')}</td>
-              <td style="font-size:12px;color:var(--steel);">${escHtml((e.summary || e.detail || '').slice(0, 100))}</td>
-            </tr>`).join('')}
-          </tbody>
-        </table>
-      </div>`;
-    } else {
-      activitySection += `<div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;color:var(--steel);font-size:13px;font-style:italic;">No activity feed available yet</div>`;
-    }
+    activitySection += `<div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;color:var(--steel);font-size:13px;font-style:italic;">No activity feed available yet</div>`;
 
     // ════════════════════════════════════════════════════════════════════════
     // SECTION 7 — CONFIG STATUS
     // ════════════════════════════════════════════════════════════════════════
     let configSection = '<div class="section-label">7. Config Status</div>';
 
+    // Config status: only show the 4 required integrations (Twilio, OpenAI, Google Calendar, Stripe).
+    // Signal rules:
+    //   pipeline_env === 'ok' means env vars are set — NOT a connectivity proof → "needs attention"
+    //   pipeline_env === 'missing' → "missing"
+    //   No signal at all → "needs attention"
+    //   revenue.active_paid is an indirect signal → "needs attention"
+    //   no_calendar === 0 with real tenant data could mean connected, but without per-tenant OAuth proof → "needs attention"
     const configItems = [
-      { name: 'Twilio', connected: hp?.checks?.pipeline_env === 'ok' ? true : (hp?.checks?.pipeline_env ? false : null), detail: ov ? `${ov.no_twilio ?? '?'} tenants without phone` : null },
-      { name: 'OpenAI', connected: hp?.checks?.pipeline_env === 'ok' ? true : (hp?.checks?.pipeline_env ? false : null), detail: cost.today ? `AI cost today: $${(cost.today.ai ?? 0).toFixed(2)}` : null },
-      { name: 'Google Calendar', connected: ov ? (ov.no_calendar === 0 ? true : 'needs_attention') : null, detail: ov ? `${ov.no_calendar ?? '?'} tenants without calendar` : null },
-      { name: 'Stripe', connected: revenue.active_paid != null ? true : null, detail: revenue.mrr != null ? `MRR: $${revenue.mrr}` : null },
-      { name: 'PostgreSQL', connected: pgStatus === 'healthy' ? true : pgStatus === 'failing' ? false : null },
-      { name: 'Redis', connected: redisStatus === 'healthy' ? true : redisStatus === 'failing' ? false : null },
+      { name: 'Twilio', connected: pipelineEnv === 'missing' ? false : 'needs_attention', detail: ov ? `${ov.no_twilio ?? '?'} tenants without phone` : 'env var check only — no connectivity proof' },
+      { name: 'OpenAI', connected: pipelineEnv === 'missing' ? false : 'needs_attention', detail: cost.today ? `AI cost today: $${(cost.today.ai ?? 0).toFixed(2)}` : 'env var check only — no connectivity proof' },
+      { name: 'Google Calendar', connected: 'needs_attention', detail: ov ? `${ov.no_calendar ?? '?'} tenants without calendar` : 'no per-tenant OAuth verification available' },
+      { name: 'Stripe', connected: 'needs_attention', detail: revenue.mrr != null ? `MRR: $${revenue.mrr}` : 'no direct Stripe API health check available' },
     ];
 
-    configSection += `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;">
+    configSection += `<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:24px;">
       ${configItems.map(c => `<div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;padding:12px 16px;">
         <span style="font-size:14px;font-weight:600;color:var(--white);">${escHtml(c.name)}</span>
         <div style="text-align:right;">
