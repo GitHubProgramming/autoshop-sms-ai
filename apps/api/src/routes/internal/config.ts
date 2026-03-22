@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { query } from "../../db/client";
+import { requireInternal } from "../../middleware/require-internal";
 
 const SetConfigBody = z.object({
   key: z.string().min(1),
@@ -22,7 +23,7 @@ const ALLOWED_KEYS = new Set([
  * Internal only — NOT exposed externally.
  */
 export async function configRoute(app: FastifyInstance) {
-  app.post("/config", async (request, reply) => {
+  app.post("/config", { preHandler: [requireInternal] }, async (request, reply) => {
     const parsed = SetConfigBody.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({ error: "key and value required" });
@@ -47,7 +48,7 @@ export async function configRoute(app: FastifyInstance) {
     return reply.status(200).send({ ok: true, key });
   });
 
-  app.get("/config/:key", async (request, reply) => {
+  app.get("/config/:key", { preHandler: [requireInternal] }, async (request, reply) => {
     const { key } = request.params as { key: string };
     const rows = await query<{ value: string }>(
       "SELECT value FROM app_config WHERE key = $1",

@@ -6,6 +6,7 @@ import {
   isTokenExpired,
   refreshAccessToken,
 } from "../../services/google-token-refresh";
+import { requireInternal } from "../../middleware/require-internal";
 
 const ParamsSchema = z.object({
   tenantId: z.string().uuid(),
@@ -27,7 +28,7 @@ export async function calendarTokensRoute(app: FastifyInstance) {
    * expiry, and returns before/after state for verification.
    * Internal only — NOT exposed externally.
    */
-  app.post("/calendar-tokens/:tenantId/force-refresh", async (request, reply) => {
+  app.post("/calendar-tokens/:tenantId/force-refresh", { preHandler: [requireInternal] }, async (request, reply) => {
     const parsed = ParamsSchema.safeParse(request.params);
     if (!parsed.success) {
       return reply.status(400).send({ error: "Invalid tenantId" });
@@ -109,7 +110,7 @@ export async function calendarTokensRoute(app: FastifyInstance) {
     });
   });
 
-  app.get("/calendar-tokens/:tenantId", async (request, reply) => {
+  app.get("/calendar-tokens/:tenantId", { preHandler: [requireInternal] }, async (request, reply) => {
     const parsed = ParamsSchema.safeParse(request.params);
     if (!parsed.success) {
       return reply.status(400).send({ error: "Invalid tenantId" });

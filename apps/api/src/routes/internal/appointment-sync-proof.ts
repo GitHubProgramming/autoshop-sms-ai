@@ -4,6 +4,7 @@ import { query } from "../../db/client";
 import { decryptToken } from "../auth/google";
 import { createCalendarEvent } from "../../services/google-calendar";
 import { randomUUID } from "crypto";
+import { requireInternal } from "../../middleware/require-internal";
 
 const ParamsSchema = z.object({
   tenantId: z.string().uuid(),
@@ -23,7 +24,7 @@ const ParamsSchema = z.object({
  * Internal only — NOT exposed externally.
  */
 export async function appointmentSyncProofRoute(app: FastifyInstance) {
-  app.post("/appointment-sync-proof/:tenantId", async (request, reply) => {
+  app.post("/appointment-sync-proof/:tenantId", { preHandler: [requireInternal] }, async (request, reply) => {
     const parsed = ParamsSchema.safeParse(request.params);
     if (!parsed.success) {
       return reply.status(400).send({ error: "Invalid tenantId" });

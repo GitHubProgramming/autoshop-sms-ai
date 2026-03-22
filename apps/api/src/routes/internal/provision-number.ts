@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { provisionNumberQueue } from "../../queues/redis";
+import { requireInternal } from "../../middleware/require-internal";
 
 const ProvisionBody = z.object({
   tenantId: z.string().uuid(),
@@ -19,9 +20,7 @@ const ProvisionBody = z.object({
  *  - Admin panel (manual re-provision)
  */
 export async function provisionNumberRoute(app: FastifyInstance) {
-  app.post("/enqueue-provision-number", async (request, reply) => {
-    // TODO: Add internal auth (e.g., shared secret header or JWT with service role)
-    // For now: only accessible within Docker network (not exposed externally)
+  app.post("/enqueue-provision-number", { preHandler: [requireInternal] }, async (request, reply) => {
 
     const parsed = ProvisionBody.safeParse(request.body);
     if (!parsed.success) {

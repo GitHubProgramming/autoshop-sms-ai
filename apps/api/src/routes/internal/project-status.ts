@@ -169,7 +169,7 @@ export async function projectStatusRoute(app: FastifyInstance) {
   // ── diagnostic (no auth) ─────────────────────────────────────────────────
   // Returns file metadata (resolved path, sha256, key fields) but NOT full data.
   // Used for deploy verification without requiring admin credentials.
-  app.get("/admin/project-status-check", async (_req, reply) => {
+  app.get("/admin/project-status-check", { preHandler: [adminGuard] }, async (_req, reply) => {
     reply.header("Cache-Control", "no-store");
 
     const check = async (label: string, repo: string, local: string, envKey?: string) => {
