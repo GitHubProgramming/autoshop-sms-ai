@@ -3,21 +3,29 @@ import Fastify from "fastify";
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
-const { mockGetJobs } = vi.hoisted(() => ({
+const { mockGetJobs, mockGetJob, mockAdd, mockRemove } = vi.hoisted(() => ({
   mockGetJobs: vi.fn(),
+  mockGetJob: vi.fn(),
+  mockAdd: vi.fn(),
+  mockRemove: vi.fn(),
 }));
 
 vi.mock("bullmq", () => ({
   Queue: class MockQueue {
-    add = vi.fn();
+    add = mockAdd;
     close = vi.fn();
     getJobs = mockGetJobs;
+    getJob = mockGetJob;
   },
   Job: class MockJob {},
 }));
 
 vi.mock("../queues/redis", () => ({
   bullmqConnection: { host: "localhost", port: 6379 },
+  smsInboundQueue: { add: mockAdd },
+  provisionNumberQueue: { add: mockAdd },
+  billingQueue: { add: mockAdd },
+  calendarQueue: { add: mockAdd },
 }));
 
 import { dlqRoute } from "../routes/internal/dlq";
@@ -43,18 +51,19 @@ function fakeDlqJob(overrides: Record<string, unknown> = {}) {
       attemptsMade: 3,
       failedAt: "2026-03-22T10:00:00.000Z",
     },
+    remove: mockRemove,
     ...overrides,
   };
 }
 
-// ── Tests ────────────────────────────────────────────────────────────────────
+// ── Tests: GET /internal/dlq ────────────────────────────────────────────────
 
 describe("GET /internal/dlq", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("returns DLQ entries with correct shape", async () => {
+  it("returns DLQ entries with correct shape including dlqJobId", async () => {
     mockGetJobs.mockResolvedValueOnce([fakeDlqJob()]);
     const app = buildApp();
 
@@ -64,6 +73,7 @@ describe("GET /internal/dlq", () => {
     const body = JSON.parse(res.payload);
     expect(body).toHaveLength(1);
     expect(body[0]).toEqual({
+      dlqJobId: "dlq-sms-inbound-job-1",
       jobId: "job-1",
       sourceQueue: "sms-inbound",
       jobName: "process-sms",
@@ -127,5 +137,101 @@ describe("GET /internal/dlq", () => {
 
     expect(res.statusCode).toBe(500);
     expect(JSON.parse(res.payload).error).toBe("Failed to read dead letter queue");
+  });
+});
+
+// ── Tests: POST /internal/dlq/replay/:jobId ─────────────────────────────────
+
+describe("POST /internal/dlq/replay/:jobId", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("replays a DLQ job to its source queue and removes it", async () => {
+    const job = fakeDlqJob();
+    mockGetJob.mockResolvedValueOnce(job);
+    mockAdd.mockResolvedValueOnce({ id: "new-job-42" });
+    mockRemove.mockResolvedValueOnce(undefined);
+    const app = buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/internal/dlq/replay/dlq-sms-inbound-job-1",
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toEqual({
+      ok: true,
+      replayedFromDlqJobId: "dlq-sms-inbound-job-1",
+      sourceQueue: "sms-inbound",
+      replayedJobId: "new-job-42",
+    });
+    expect(mockAdd).toHaveBeenCalledWith("process-sms", { tenantId: "t1" });
+    expect(mockRemove).toHaveBeenCalled();
+  });
+
+  it("returns 404 when DLQ job not found", async () => {
+    mockGetJob.mockResolvedValueOnce(null);
+    const app = buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/internal/dlq/replay/nonexistent",
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(JSON.parse(res.payload).error).toBe("DLQ job not found");
+  });
+
+  it("returns 400 for invalid payload (missing data)", async () => {
+    const job = fakeDlqJob({ data: { sourceQueue: "sms-inbound" } });
+    mockGetJob.mockResolvedValueOnce(job);
+    const app = buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/internal/dlq/replay/dlq-bad",
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(JSON.parse(res.payload).error).toBe("Invalid DLQ payload");
+  });
+
+  it("returns 400 for unknown source queue", async () => {
+    const job = fakeDlqJob({
+      data: {
+        ...fakeDlqJob().data,
+        sourceQueue: "unknown-queue",
+      },
+    });
+    mockGetJob.mockResolvedValueOnce(job);
+    const app = buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/internal/dlq/replay/dlq-unknown",
+    });
+
+    expect(res.statusCode).toBe(400);
+    const body = JSON.parse(res.payload);
+    expect(body.error).toBe("Unknown source queue");
+    expect(body.sourceQueue).toBe("unknown-queue");
+    expect(body.allowedQueues).toContain("sms-inbound");
+  });
+
+  it("returns 500 when replay enqueue fails", async () => {
+    const job = fakeDlqJob();
+    mockGetJob.mockResolvedValueOnce(job);
+    mockAdd.mockRejectedValueOnce(new Error("Redis down"));
+    const app = buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/internal/dlq/replay/dlq-sms-inbound-job-1",
+    });
+
+    expect(res.statusCode).toBe(500);
+    expect(JSON.parse(res.payload).error).toBe("Failed to replay DLQ job");
   });
 });
