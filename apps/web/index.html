@@ -1272,11 +1272,11 @@
       <li><a href="#demo">How It Works</a></li>
       <li><a href="#pricing">Pricing</a></li>
       <li><a href="#faq">FAQ</a></li>
-      <li><a href="/login" class="nav-link-login">Login</a></li>
+      <li><a href="/login" class="nav-link-login" id="nav-login-desktop">Login</a></li>
     </ul>
     <a href="#roi" class="nav-cta">Calculate My Lost Revenue</a>
     <div class="nav-mobile-actions">
-      <a href="/login" class="btn-outline">Login</a>
+      <a href="/login" class="btn-outline" id="nav-login-mobile">Login</a>
     </div>
   </div>
 </nav>
@@ -1705,7 +1705,7 @@
         <li><a href="privacy.html">Privacy Policy</a></li>
         <li><a href="terms.html">Terms of Service</a></li>
         <li><a href="mailto:hello@autoshopsmsai.com">Contact</a></li>
-        <li><a href="/login" class="footer-login-link">Login</a></li>
+        <li><a href="/login" class="footer-login-link" id="nav-login-footer">Login</a></li>
       </ul>
     </div>
   </div>
@@ -1770,6 +1770,22 @@
     }
 
     calculate();
+  })();
+
+  // Auth-aware nav: swap Login → Dashboard for authenticated users
+  (function() {
+    var token = localStorage.getItem('autoshop_jwt');
+    if (!token) return;
+    var links = [
+      document.getElementById('nav-login-desktop'),
+      document.getElementById('nav-login-mobile'),
+      document.getElementById('nav-login-footer')
+    ];
+    links.forEach(function(el) {
+      if (!el) return;
+      el.href = '/app/dashboard';
+      el.textContent = 'Dashboard';
+    });
   })();
 </script>
 
