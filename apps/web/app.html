@@ -256,6 +256,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .chart-trend{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--rust)}
 .chart-trend svg{width:16px;height:16px}
 
+/* ── Revenue period control ── */
+.rev-period-control{display:flex;gap:2px;background:var(--color-bg-surface-alt,#F5F3F0);border-radius:8px;padding:2px}
+.rev-period-btn{font-family:var(--mono);font-size:11px;font-weight:600;padding:5px 12px;border:none;background:transparent;color:var(--text-tertiary);cursor:pointer;border-radius:6px;transition:all .15s;letter-spacing:.02em}
+.rev-period-btn:hover{color:var(--text-secondary)}
+.rev-period-btn.active{background:#fff;color:var(--text);box-shadow:0 1px 3px rgba(13,27,42,.08)}
+/* ── Pending completion badge ── */
+.pending-badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;color:var(--amber-text);background:var(--amber-soft);padding:5px 12px;border-radius:8px;cursor:pointer;transition:all .15s;text-decoration:none;white-space:nowrap}
+.pending-badge:hover{background:var(--amber-border);color:var(--text)}
+
 /* ── TSX Dashboard layout (70/30 grid) ── */
 .dash-body{display:grid;grid-template-columns:7fr 3fr;gap:20px;margin-bottom:24px}
 @media(max-width:1024px){.dash-body{grid-template-columns:1fr}}
@@ -1180,12 +1189,21 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
         <!-- Revenue Analytics -->
         <div class="log-wrap">
           <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
-            <div class="log-title" style="font-size:16px;font-weight:700;">Revenue Analytics</div>
-            <div class="chart-trend" id="dashRevTrend" style="padding:6px 14px;background:var(--color-bg-surface-alt);border-radius:8px;color:var(--text-tertiary);">
-              <span id="dashRevTrendText">No revenue data yet</span>
+            <div style="display:flex;align-items:center;gap:16px;">
+              <div class="log-title" style="font-size:16px;font-weight:700;">Revenue Analytics</div>
+              <div class="chart-trend" id="dashRevTrend" style="padding:6px 14px;background:var(--color-bg-surface-alt);border-radius:8px;color:var(--text-tertiary);">
+                <span id="dashRevTrendText">No revenue data yet</span>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div id="pendingCompletionBanner" style="display:none;"></div>
+              <div class="rev-period-control" id="revPeriodControl">
+                <button class="rev-period-btn" data-days="7" onclick="setRevPeriod(7)">7D</button>
+                <button class="rev-period-btn active" data-days="30" onclick="setRevPeriod(30)">30D</button>
+                <button class="rev-period-btn" data-days="90" onclick="setRevPeriod(90)">90D</button>
+              </div>
             </div>
           </div>
-          <div id="pendingCompletionBanner" style="display:none;padding:6px 24px 0;font-size:13px;color:var(--amber-text);font-weight:500;"></div>
           <div id="revSummaryBar" class="rev-summary" style="display:none;"></div>
           <div id="revenueChartContainer" style="height:280px;padding:20px 24px 30px;position:relative;overflow:visible;">
             <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-tertiary);font-size:14px;">Loading chart…</div>
@@ -2269,6 +2287,7 @@ function shouldShowEmptyState(days) {
 }
 
 var _revenueChartInstance = null;
+var _revPeriodDays = 30;
 
 // Vertical hover line plugin
 var verticalLinePlugin = {
@@ -2290,7 +2309,17 @@ var verticalLinePlugin = {
   }
 };
 
-async function loadRevenueChart() {
+function setRevPeriod(days) {
+  _revPeriodDays = days;
+  var btns = document.querySelectorAll('.rev-period-btn');
+  btns.forEach(function(btn) {
+    btn.classList.toggle('active', Number(btn.getAttribute('data-days')) === days);
+  });
+  loadRevenueChart(days);
+}
+
+async function loadRevenueChart(periodDays) {
+  var numDays = periodDays || _revPeriodDays || 30;
   var container = document.getElementById('revenueChartContainer');
   var summaryBar = document.getElementById('revSummaryBar');
   if (!container) return;
@@ -2298,12 +2327,16 @@ async function loadRevenueChart() {
   if (!token) return;
 
   try {
-    var res = await fetch('/tenant/kpi/daily-revenue', {
+    var res = await fetch('/tenant/kpi/daily-revenue?days=' + numDays, {
       headers: { 'Authorization': 'Bearer ' + token }
     });
     if (!res.ok) throw new Error('fetch failed');
     var data = await res.json();
     var days = data.days || [];
+
+    // Update trend label to match actual period
+    var drt = document.getElementById('dashRevTrendText');
+    var drtParent = document.getElementById('dashRevTrend');
 
     // Empty state — no revenue at all
     if (shouldShowEmptyState(days)) {
@@ -2313,6 +2346,8 @@ async function loadRevenueChart() {
         '<div class="rev-empty-text">Your AI receptionist hasn\'t booked any jobs yet.</div>' +
       '</div>';
       if (summaryBar) summaryBar.style.display = 'none';
+      if (drt) drt.textContent = 'No revenue data yet';
+      if (drtParent) { drtParent.style.background = 'var(--color-bg-surface-alt)'; drtParent.style.color = 'var(--text-tertiary)'; }
       return;
     }
 
@@ -2322,11 +2357,30 @@ async function loadRevenueChart() {
       totalRev += days[i].total;
     }
 
+    // Build cumulative values for trend line
+    var cumulative = [];
+    var runningTotal = 0;
+    for (var i = 0; i < days.length; i++) {
+      runningTotal += days[i].total;
+      cumulative.push(runningTotal);
+    }
+
+    // Update trend badge to match period
+    if (drt && drtParent) {
+      if (totalRev > 0) {
+        drtParent.style.background = 'rgba(201,75,31,.08)';
+        drtParent.style.color = '#C94B1F';
+        drtParent.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg><span id="dashRevTrendText">$' + totalRev.toLocaleString() + ' revenue (' + numDays + 'd)</span>';
+      } else {
+        drt.textContent = 'No revenue data yet';
+      }
+    }
+
     // Render summary bar — only metrics backed by real data
     if (summaryBar) {
       summaryBar.style.display = 'flex';
       summaryBar.innerHTML =
-        '<div class="rev-metric"><div class="rev-metric-label">Total Revenue</div><div class="rev-metric-value">' + formatCurrency(totalRev) + '</div></div>';
+        '<div class="rev-metric"><div class="rev-metric-label">Total Revenue (' + numDays + 'd)</div><div class="rev-metric-value">' + formatCurrency(totalRev) + '</div></div>';
     }
 
     // Prepare labels and data
@@ -2336,9 +2390,6 @@ async function loadRevenueChart() {
       return monthNames[parseInt(parts[1], 10) - 1] + ' ' + parseInt(parts[2], 10);
     });
     var values = days.map(function(d) { return d.total; });
-
-    // Determine chart type: bar for sparse data, line for normal
-    var useBars = hasSparseRevenueData(days);
 
     // Destroy previous instance
     if (_revenueChartInstance) {
@@ -2351,33 +2402,34 @@ async function loadRevenueChart() {
     var canvas = document.getElementById('revenueChartCanvas');
     var ctx = canvas.getContext('2d');
 
-    // Gradient fill for line chart
+    // Gradient fill for area-line chart
     var gradient = ctx.createLinearGradient(0, 0, 0, canvas.parentElement.offsetHeight || 280);
     gradient.addColorStop(0, 'rgba(201, 75, 31, 0.14)');
     gradient.addColorStop(1, 'rgba(201, 75, 31, 0.01)');
 
+    // Determine x-axis tick density based on period
+    var maxTicks = numDays <= 7 ? 7 : numDays <= 30 ? 10 : 12;
+
     var chartConfig = {
-      type: useBars ? 'bar' : 'line',
+      type: 'line',
       data: {
         labels: labels,
         datasets: [{
-          label: 'Revenue',
-          data: values,
+          label: 'Cumulative Revenue',
+          data: cumulative,
           borderColor: '#C94B1F',
-          backgroundColor: useBars ? 'rgba(201, 75, 31, 0.7)' : gradient,
-          borderWidth: useBars ? 0 : 2.5,
-          fill: !useBars,
-          tension: 0.38,
-          pointRadius: useBars ? 0 : 4,
+          backgroundColor: gradient,
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.35,
+          pointRadius: numDays <= 7 ? 5 : numDays <= 30 ? 3 : 0,
           pointBackgroundColor: '#C94B1F',
           pointBorderColor: '#fff',
           pointBorderWidth: 2,
           pointHoverRadius: 7,
           pointHoverBackgroundColor: '#C94B1F',
           pointHoverBorderColor: '#fff',
-          pointHoverBorderWidth: 3,
-          borderRadius: useBars ? 6 : 0,
-          maxBarThickness: 40
+          pointHoverBorderWidth: 3
         }]
       },
       options: {
@@ -2406,8 +2458,9 @@ async function loadRevenueChart() {
             callbacks: {
               title: function(items) { return items[0].label; },
               label: function(item) {
-                var rev = values[item.dataIndex];
-                return 'Revenue: ' + formatCurrency(rev);
+                var dayRev = values[item.dataIndex];
+                var cumRev = cumulative[item.dataIndex];
+                return ['Day: ' + formatCurrency(dayRev), 'Total: ' + formatCurrency(cumRev)];
               }
             }
           }
@@ -2429,12 +2482,14 @@ async function loadRevenueChart() {
             border: { display: false },
             ticks: {
               font: { family: 'Barlow', size: 11 },
-              color: '#7A8A9E'
+              color: '#7A8A9E',
+              maxTicksLimit: maxTicks,
+              maxRotation: 0
             }
           }
         }
       },
-      plugins: useBars ? [] : [verticalLinePlugin]
+      plugins: [verticalLinePlugin]
     };
 
     _revenueChartInstance = new Chart(ctx, chartConfig);
@@ -3919,13 +3974,15 @@ function renderLiveKPIs() {
       '<div class="kpi-change neutral">' + activeChange + '</div>' +
     '</div>';
 
-  // Pending completion — inline in Revenue Analytics card
+  // Pending completion — badge in Revenue Analytics header, clickable → appointments view
   var pendingBanner = document.getElementById('pendingCompletionBanner');
   if (pendingBanner) {
     var pendingCount = k.pending_completion_count || 0;
     if (pendingCount > 0) {
-      pendingBanner.style.display = 'block';
-      pendingBanner.innerHTML = '<span style="opacity:.7;">⏳</span> ' + pendingCount + ' appointment' + (pendingCount > 1 ? 's' : '') + ' pending completion';
+      pendingBanner.style.display = 'inline-flex';
+      pendingBanner.innerHTML = '<a class="pending-badge" href="/app/appointments" onclick="switchView(\'appointments\');return false;">' +
+        '<span style="opacity:.7;">⏳</span> ' + pendingCount + ' pending' +
+        '</a>';
     } else {
       pendingBanner.style.display = 'none';
     }
@@ -4068,18 +4125,7 @@ function renderLiveRevenueBlocks() {
   if (akr) akr.textContent = '—';
   var akrc = document.getElementById('anKpiRecoveryChange');
   if (akrc) akrc.textContent = 'Unavailable — requires call attribution';
-  var drt = document.getElementById('dashRevTrendText');
-  var drtParent = document.getElementById('dashRevTrend');
-  if (drt && drtParent) {
-    if (k.total_revenue > 0) {
-      drt.textContent = '$' + k.total_revenue.toLocaleString() + ' revenue (30d)';
-      drtParent.style.background = 'rgba(201,75,31,.08)';
-      drtParent.style.color = '#C94B1F';
-      drtParent.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg><span id="dashRevTrendText">$' + k.total_revenue.toLocaleString() + ' revenue (30d)</span>';
-    } else {
-      drt.textContent = 'No revenue data yet';
-    }
-  }
+  // Trend text is now managed by loadRevenueChart() to stay in sync with the selected period
 
   // Revenue Per Booking — total_revenue / total_completed_bookings (all sources, aligned)
   var anRevPerBooking = document.getElementById('anKpiRevenue');
