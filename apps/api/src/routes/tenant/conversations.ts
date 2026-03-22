@@ -3,12 +3,37 @@ import { query } from "../../db/client";
 import { requireAuth } from "../../middleware/require-auth";
 
 /**
- * GET /tenant/conversations/:id
+ * GET /tenant/conversations
  *
- * Returns conversation metadata + full message thread for a conversation
- * belonging to the authenticated tenant. Used by the dashboard slide panel.
+ * Returns all open conversations for the authenticated tenant.
+ * This is the authoritative source for the Conversations page,
+ * aligned with the "Open Conversations" KPI (status = 'open').
  */
 export async function tenantConversationsRoute(app: FastifyInstance) {
+  app.get("/conversations", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { tenantId } = request.user as { tenantId: string; email: string };
+
+    const rows = await query(
+      `SELECT id, customer_phone, status, turn_count,
+              opened_at, last_message_at, closed_at, close_reason
+       FROM conversations
+       WHERE tenant_id = $1 AND status = 'open'
+       ORDER BY last_message_at DESC`,
+      [tenantId]
+    );
+
+    return reply.status(200).send({
+      conversations: rows,
+      count: (rows as any[]).length,
+    });
+  });
+
+  /**
+   * GET /tenant/conversations/:id
+   *
+   * Returns conversation metadata + full message thread for a conversation
+   * belonging to the authenticated tenant. Used by the dashboard slide panel.
+   */
   app.get("/conversations/:id", { preHandler: [requireAuth] }, async (request, reply) => {
     const { tenantId } = request.user as { tenantId: string; email: string };
     const { id } = request.params as { id: string };

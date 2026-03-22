@@ -2180,9 +2180,12 @@ async function loadDashboardData() {
     tenantState.health.twilioWebhooks.status = tw.status === 'active' ? 'healthy' : 'failing';
 
     // ── Map conversations ──
-    conversationsData = (data.recent_conversations || []).map(function(c) {
+    // conversationsData is now loaded from dedicated /tenant/conversations endpoint
+    // (see loadConversationsData below) — no longer sourced from dashboard LIMIT 20
+    // Keep recent_conversations mapping only for dashboard Live Conversations card fallback
+    conversationsData = conversationsData.length ? conversationsData : (data.recent_conversations || []).map(function(c) {
       var hasBooking = (data.recent_bookings || []).some(function(b) { return b.conversation_id === c.id; });
-      var status = c.status === 'closed' ? (hasBooking ? 'booked' : 'lost') : (c.turn_count <= 1 ? 'no-response' : 'active');
+      var status = c.status === 'booked' ? 'booked' : c.status === 'expired' ? 'expired' : c.status === 'closed' ? (hasBooking ? 'booked' : 'lost') : (c.turn_count <= 1 ? 'no-response' : 'active');
       return {
         id: c.id,
         date: fmtDate(c.opened_at),
@@ -2206,7 +2209,7 @@ async function loadDashboardData() {
     // ── Map live conversations (backend-filtered: open + last 10 min) ──
     liveConversationsData = (data.live_conversations || []).map(function(c) {
       var hasBooking = (data.recent_bookings || []).some(function(b) { return b.conversation_id === c.id; });
-      var status = c.turn_count <= 1 ? 'no-response' : 'active';
+      var status = c.status === 'booked' ? 'booked' : c.status === 'expired' ? 'expired' : c.status === 'closed' ? 'lost' : (c.turn_count <= 1 ? 'no-response' : 'active');
       return {
         id: c.id,
         date: fmtDate(c.opened_at),
@@ -2257,6 +2260,45 @@ async function loadDashboardData() {
   } catch (err) {
     console.error('Dashboard data fetch failed:', err);
     return false;
+  }
+}
+
+// ════════════════════════════════════════════
+// FETCH OPEN CONVERSATIONS (authoritative source for /app/conversations)
+// ════════════════════════════════════════════
+async function loadConversationsData() {
+  var token = localStorage.getItem('autoshop_jwt');
+  if (!token) return;
+  try {
+    var res = await fetch('/tenant/conversations', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) return;
+    var data = await res.json();
+    conversationsData = (data.conversations || []).map(function(c) {
+      var status = c.status === 'booked' ? 'booked' : c.status === 'expired' ? 'expired' : c.status === 'closed' ? 'lost' : (c.turn_count <= 1 ? 'no-response' : 'active');
+      return {
+        id: c.id,
+        date: fmtDate(c.opened_at),
+        phone: fmtPhone(c.customer_phone),
+        customerName: c.customer_name || '',
+        email: c.customer_email || '',
+        location: c.customer_location || '',
+        vehicleModel: c.vehicle_model || '',
+        vin: c.vin || '',
+        mileage: c.mileage || '',
+        issue: c.close_reason || 'SMS Conversation',
+        lastMessage: c.last_message || c.close_reason || 'SMS Conversation',
+        lastMessageAt: c.last_message_at || c.opened_at || null,
+        timeAgo: fmtDate(c.last_message_at || c.opened_at),
+        status: status,
+        aro: '—',
+        duration: c.turn_count ? c.turn_count + ' msgs' : '—'
+      };
+    });
+    renderConvInbox();
+  } catch (err) {
+    console.error('Conversations data fetch failed:', err);
   }
 }
 
@@ -2496,6 +2538,7 @@ async function loadRevenueChart(periodDays) {
 // ════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', async function() {
   await loadDashboardData();
+  await loadConversationsData();
   await loadKpiData();
 
   // ── Admin access probe (non-blocking) ──
@@ -4224,8 +4267,8 @@ function checkActivationState() {
 // CONVERSATIONS INBOX (3-panel)
 // ════════════════════════════════════════════
 function convStatusBadge(status) {
-  var map = { active:'ai', booked:'booked', 'no-response':'needs-operator', lost:'resolved' };
-  var labelMap = { active:'AI', booked:'Booked', 'no-response':'Needs Operator', lost:'Resolved' };
+  var map = { active:'ai', booked:'booked', 'no-response':'needs-operator', lost:'resolved', expired:'resolved' };
+  var labelMap = { active:'AI', booked:'Booked', 'no-response':'Needs Operator', lost:'Resolved', expired:'Expired' };
   var cls = map[status] || 'resolved';
   var label = labelMap[status] || pillLabel(status);
   return '<span class="conv-status-badge ' + cls + '">' + label + '</span>';
