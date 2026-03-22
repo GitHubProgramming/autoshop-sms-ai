@@ -162,6 +162,7 @@ function setupDbMocks(options: {
   hasHistory?: boolean;
   hasCalendarTokens?: boolean;
   hasOwnerPhone?: boolean;
+  turnCount?: number;
 } = {}) {
   mocks.query.mockImplementation(async (sql: string, params?: unknown[]) => {
     // get_or_create_conversation
@@ -178,6 +179,11 @@ function setupDbMocks(options: {
     // touch_conversation
     if (sql.includes("touch_conversation")) {
       return [];
+    }
+
+    // turn_count check (max turns enforcement)
+    if (sql.includes("SELECT turn_count FROM conversations")) {
+      return [{ turn_count: options.turnCount ?? 1 }];
     }
 
     // system_prompts
@@ -1015,5 +1021,69 @@ describe("POST /internal/process-sms — route", () => {
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// max_turns enforcement
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe("processSms — max turns enforcement", () => {
+  it("closes conversation and sends final SMS when turn limit reached", async () => {
+    setupDbMocks({ turnCount: 50 });
+    const fetchMock = mockFetchAll();
+
+    const result = await processSms(validInput(), fetchMock);
+
+    expect(result.success).toBe(true);
+    expect(result.conversationClosed).toBe(true);
+    expect(result.aiResponse).toContain("message limit");
+    // Must NOT call OpenAI — enforcement happens before AI generation
+    const openaiCalls = (fetchMock as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (c: unknown[]) => typeof c[0] === "string" && (c[0] as string).includes("openai.com")
+    );
+    expect(openaiCalls).toHaveLength(0);
+
+    // Verify close_conversation was called with turn_limit
+    const closeCalls = mocks.query.mock.calls.filter(
+      (c: unknown[]) => typeof c[0] === "string" && (c[0] as string).includes("close_conversation")
+    );
+    expect(closeCalls).toHaveLength(1);
+    expect(closeCalls[0][1]).toContain("turn_limit");
+  });
+
+  it("continues normally when under turn limit", async () => {
+    setupDbMocks({ turnCount: 10 });
+    const fetchMock = mockFetchAll();
+
+    const result = await processSms(validInput(), fetchMock);
+
+    expect(result.success).toBe(true);
+    expect(result.conversationClosed).toBe(false);
+    expect(result.aiResponse).not.toContain("message limit");
+    // OpenAI should have been called
+    const openaiCalls = (fetchMock as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (c: unknown[]) => typeof c[0] === "string" && (c[0] as string).includes("openai.com")
+    );
+    expect(openaiCalls.length).toBeGreaterThan(0);
+  });
+
+  it("closes at exactly the limit boundary (turn_count === 50)", async () => {
+    setupDbMocks({ turnCount: 50 });
+    const fetchMock = mockFetchAll();
+
+    const result = await processSms(validInput(), fetchMock);
+
+    expect(result.conversationClosed).toBe(true);
+    expect(result.aiResponse).toContain("message limit");
+  });
+
+  it("does not close at turn_count 49 (one below limit)", async () => {
+    setupDbMocks({ turnCount: 49 });
+    const fetchMock = mockFetchAll();
+
+    const result = await processSms(validInput(), fetchMock);
+
+    expect(result.conversationClosed).toBe(false);
   });
 });

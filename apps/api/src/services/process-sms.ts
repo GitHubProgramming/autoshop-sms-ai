@@ -12,6 +12,7 @@
  */
 
 import { query } from "../db/client";
+import { getMaxConversationTurns } from "../config/conversation";
 import { detectBookingIntent, extractFieldsFromMessage, mergeBookingFields } from "./booking-intent";
 import { createAppointment, type BookingState } from "./appointments";
 import { createCalendarEvent } from "./google-calendar";
@@ -69,6 +70,10 @@ const DEFAULT_SYSTEM_PROMPT =
 const SOFT_LIMIT_RESPONSE =
   "We've reached our monthly messaging limit. " +
   "Please call us directly to schedule your appointment. Thank you!";
+
+const TURN_LIMIT_RESPONSE =
+  "This conversation has reached its message limit. " +
+  "Please call us directly to continue. Thank you!";
 
 // ── Core processing function ─────────────────────────────────────────────────
 
@@ -152,6 +157,63 @@ export async function processSms(
     ]);
   } catch {
     // Non-fatal
+  }
+
+  // ── 3b. Max turns enforcement ────────────────────────────────────────────
+  // Check turn_count AFTER touch_conversation incremented it.
+  // If limit reached: close via canonical close_conversation(), send final SMS, stop.
+  try {
+    const turnRows = await query<{ turn_count: number }>(
+      `SELECT turn_count FROM conversations WHERE id = $1 AND tenant_id = $2`,
+      [result.conversationId, input.tenantId]
+    );
+    const maxTurns = getMaxConversationTurns();
+    if (turnRows.length > 0 && turnRows[0].turn_count >= maxTurns) {
+      console.info(
+        `[max-turns] Conversation ${result.conversationId} reached turn limit ` +
+        `(${turnRows[0].turn_count}/${maxTurns}) — closing`
+      );
+
+      // Close conversation using canonical path
+      try {
+        await query(`SELECT close_conversation($1, $2, $3, $4)`, [
+          result.conversationId,
+          input.tenantId,
+          "closed",
+          "turn_limit",
+        ]);
+        result.conversationClosed = true;
+      } catch {
+        // Non-fatal: conversation may already be closed
+      }
+
+      // Send final SMS
+      result.aiResponse = TURN_LIMIT_RESPONSE;
+      const smsResult = await sendTwilioSms(
+        input.customerPhone,
+        TURN_LIMIT_RESPONSE,
+        fetchFn
+      );
+      result.smsSent = !!smsResult.sid;
+
+      // Log outbound
+      try {
+        await query(
+          `INSERT INTO messages (tenant_id, conversation_id, direction, body, sms_segments)
+           VALUES ($1, $2, 'outbound', $3, $4)`,
+          [input.tenantId, result.conversationId, TURN_LIMIT_RESPONSE,
+           smsResult.numSegments ?? 1]
+        );
+      } catch {
+        // Non-fatal
+      }
+
+      result.success = true;
+      return result;
+    }
+  } catch (err) {
+    console.error(`[max-turns] Failed to check turn count: ${(err as Error).message}`);
+    // Fail-open: continue processing if turn check fails
   }
 
   // ── 4. Soft limit check ──────────────────────────────────────────────────
