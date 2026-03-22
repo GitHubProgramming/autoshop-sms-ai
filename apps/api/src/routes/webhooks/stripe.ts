@@ -4,6 +4,7 @@ import { query } from "../../db/client";
 import { updateBillingStatus } from "../../db/tenants";
 import { billingQueue, provisionNumberQueue } from "../../queues/redis";
 import { deduplicateWebhook } from "../../db/webhook-events";
+import { assignSharedTestNumber } from "../../utils/test-tenant";
 
 type BillingStatus =
   | "trial" | "trial_expired" | "active" | "scheduled_cancel"
@@ -163,28 +164,35 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
           [tenantId]
         );
         if (existing.length === 0) {
-          const tenantRows = await query<{ shop_name: string; owner_phone: string | null }>(
-            `SELECT shop_name, owner_phone FROM tenants WHERE id = $1`,
+          const tenantRows = await query<{ shop_name: string; owner_phone: string | null; is_test: boolean }>(
+            `SELECT shop_name, owner_phone, is_test FROM tenants WHERE id = $1`,
             [tenantId]
           );
-          const areaCode =
-            tenantRows[0]?.owner_phone?.replace(/\D/g, "").slice(1, 4) || "512";
-          await provisionNumberQueue.add(
-            "provision-twilio-number",
-            {
-              tenantId,
-              areaCode,
-              shopName: tenantRows[0]?.shop_name ?? "AutoShop",
-            },
-            {
-              jobId: `provision-${tenantId}`,
-              attempts: 5,
-              backoff: { type: "exponential", delay: 5_000 },
-            }
-          );
-          console.info(
-            `[stripe] Provisioning Twilio number for tenant ${tenantId} (area code ${areaCode})`
-          );
+
+          // Test tenants: assign shared number, never buy from Twilio
+          if (tenantRows[0]?.is_test) {
+            await assignSharedTestNumber(tenantId);
+            console.info(`[stripe] Test tenant ${tenantId} — shared test number assigned (no Twilio purchase)`);
+          } else {
+            const areaCode =
+              tenantRows[0]?.owner_phone?.replace(/\D/g, "").slice(1, 4) || "512";
+            await provisionNumberQueue.add(
+              "provision-twilio-number",
+              {
+                tenantId,
+                areaCode,
+                shopName: tenantRows[0]?.shop_name ?? "AutoShop",
+              },
+              {
+                jobId: `provision-${tenantId}`,
+                attempts: 5,
+                backoff: { type: "exponential", delay: 5_000 },
+              }
+            );
+            console.info(
+              `[stripe] Provisioning Twilio number for tenant ${tenantId} (area code ${areaCode})`
+            );
+          }
         }
       }
       break;

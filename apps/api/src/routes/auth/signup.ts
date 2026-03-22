@@ -3,6 +3,7 @@ import { z } from "zod";
 import * as bcrypt from "bcryptjs";
 import { query } from "../../db/client";
 import { writeAuditEvent } from "../../db/audit";
+import { isTestSignupEmail } from "../../utils/test-tenant";
 
 const SignupBody = z.object({
   email:     z.string().email("Valid email required"),
@@ -103,6 +104,12 @@ export async function signupRoute(app: FastifyInstance) {
       return reply.status(500).send({
         error: "Account creation failed. Please try again.",
       });
+    }
+
+    // ── Mark test tenants ────────────────────────────────────────────────────
+    if (isTestSignupEmail(normalizedEmail)) {
+      await query(`UPDATE tenants SET is_test = TRUE WHERE id = $1`, [tenantId]);
+      request.log.info({ tenantId, email: normalizedEmail }, "Tenant marked as test account");
     }
 
     // ── Create user record ───────────────────────────────────────────────────
