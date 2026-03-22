@@ -1710,7 +1710,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
                   </div>
                   <span class="calendar-status-badge" id="settingsCalendarStatus">Connected</span>
                 </div>
-                <button class="calendar-disconnect-btn">Disconnect</button>
+                <button class="calendar-disconnect-btn" id="settingsCalendarAction">Disconnect</button>
               </div>
               <div class="settings-section-title">Sync Settings</div>
               <div class="settings-check-row"><input type="checkbox" checked><span>Two-way sync (updates in both directions)</span></div>
@@ -2174,6 +2174,7 @@ async function loadDashboardData() {
     // Store raw values for settings page
     tenantState._twilioPhone = tw.phone_number ? fmtPhone(tw.phone_number) : null;
     tenantState._calendarId = cal.calendar_id || null;
+    tenantState._calendarEmail = cal.google_account_email || null;
     tenantState.created_at = t.created_at;
 
     // Server-side onboarding state (single source of truth)
@@ -2639,13 +2640,38 @@ function renderNav() {
   // Settings — New Calendar card
   var calEmail = document.getElementById('settingsCalendarEmail');
   var calStatus = document.getElementById('settingsCalendarStatus');
+  var calAction = document.getElementById('settingsCalendarAction');
   if (calEmail) {
     var calSt2 = s.integrations.googleCalendar;
-    calEmail.textContent = calSt2 === 'connected' ? (s._calendarId || 'Connected') : 'Not connected';
+    calEmail.textContent = calSt2 === 'connected' ? (s._calendarEmail || s._calendarId || 'Connected') : 'Not connected';
     if (calStatus) {
       if (calSt2 === 'connected') { calStatus.textContent = 'Connected'; calStatus.style.background = 'rgba(13,27,42,.06)'; calStatus.style.color = '#0D1B2A'; }
       else if (calSt2 === 'token_expired') { calStatus.textContent = 'Needs Reconnect'; calStatus.style.background = 'rgba(201,75,31,.08)'; calStatus.style.color = '#C94B1F'; }
       else { calStatus.textContent = 'Not Connected'; calStatus.style.background = 'rgba(13,27,42,.04)'; calStatus.style.color = '#7A8A9E'; }
+    }
+    if (calAction) {
+      calAction.style.background = '';
+      calAction.style.color = '';
+      calAction.style.borderColor = '';
+      if (calSt2 === 'connected') {
+        calAction.textContent = 'Disconnect';
+        calAction.className = 'calendar-disconnect-btn';
+        calAction.onclick = function() { disconnectGoogleCalendar(); };
+      } else if (calSt2 === 'token_expired') {
+        calAction.textContent = 'Reconnect';
+        calAction.className = 'calendar-disconnect-btn';
+        calAction.style.background = 'rgba(201,75,31,.08)';
+        calAction.style.color = '#C94B1F';
+        calAction.style.borderColor = 'rgba(201,75,31,.18)';
+        calAction.onclick = function() { connectGoogleCalendar(); };
+      } else {
+        calAction.textContent = 'Connect Calendar';
+        calAction.className = 'calendar-disconnect-btn';
+        calAction.style.background = 'rgba(99,102,241,.08)';
+        calAction.style.color = '#6366F1';
+        calAction.style.borderColor = 'rgba(99,102,241,.18)';
+        calAction.onclick = function() { connectGoogleCalendar(); };
+      }
     }
   }
 
