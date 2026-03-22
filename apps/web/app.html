@@ -2498,7 +2498,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   renderNav();
   renderChecklist();
   renderHealthGrid();
-  renderDashConvTable(conversationsData.slice(0,8));
+  renderDashConvTable(conversationsData.filter(function(c) { return c.status === 'active' || c.status === 'no-response'; }).slice(0,8));
   renderFullConvTable(conversationsData);
   renderConvInbox();
   renderBookings();
@@ -2911,9 +2911,9 @@ function pillLabel(s) {
 }
 
 function renderDashConvTable(data) {
-  var activeCount = data.filter(function(c) { return c.status === 'active'; }).length;
+  var openCount = data.filter(function(c) { return c.status === 'active' || c.status === 'no-response'; }).length;
   var countEl = document.getElementById('dashConvActiveCount');
-  if (countEl) countEl.textContent = activeCount + ' Active';
+  if (countEl) countEl.textContent = openCount + ' Open';
 
   var container = document.getElementById('dashConvBody');
   if (!data.length) {
@@ -3944,7 +3944,7 @@ function renderLiveKPIs() {
     '<div class="kpi-card">' +
       '<div class="kpi-icon-box purple">' + iconMsg + '</div>' +
       '<div class="kpi-value">' + activeConvs + '</div>' +
-      '<div class="kpi-label">Active Conversations</div>' +
+      '<div class="kpi-label">Open Conversations</div>' +
       '<div class="kpi-change neutral">' + activeChange + '</div>' +
     '</div>';
 
@@ -3976,7 +3976,7 @@ function renderLiveTodayActivity() {
   todayEl.innerHTML =
     '<div class="today-card"><div class="today-tag">Conversations Today</div><div class="today-num">' + (s.conversations_today || 0) + '</div></div>' +
     '<div class="today-card"><div class="today-tag">SMS Conversations</div><div class="today-num">' + (s.conversations_today || 0) + '</div></div>' +
-    '<div class="today-card"><div class="today-tag">Active Conversations</div><div class="today-num">' + (s.active_conversations || 0) + '</div></div>' +
+    '<div class="today-card"><div class="today-tag">Open Conversations</div><div class="today-num">' + (s.active_conversations || 0) + '</div></div>' +
     '<div class="today-card"><div class="today-tag">Appointments Booked</div><div class="today-num green">' + (s.appointments_today || 0) + '</div></div>';
 }
 
@@ -4756,7 +4756,7 @@ function filterAppts(btn, status) {
 // SIDEBAR BADGE UPDATE
 // ════════════════════════════════════════════
 function updateSidebarBadge() {
-  var active = conversationsData.filter(function(c) { return c.status === 'active'; }).length;
+  var active = conversationsData.filter(function(c) { return c.status === 'active' || c.status === 'no-response'; }).length;
   var badge = document.getElementById('sidebarConvBadge');
   if (badge) {
     badge.textContent = active;
