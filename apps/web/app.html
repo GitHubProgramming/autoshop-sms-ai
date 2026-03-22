@@ -2272,6 +2272,12 @@ async function loadConversationsData() {
     var res = await fetch('/tenant/conversations', {
       headers: { 'Authorization': 'Bearer ' + token }
     });
+    if (res.status === 401 || res.status === 403) {
+      localStorage.removeItem('autoshop_jwt');
+      localStorage.removeItem('autoshop_session');
+      window.location.replace('/login?next=/app/conversations');
+      return;
+    }
     if (!res.ok) {
       console.error('Conversations fetch failed: HTTP ' + res.status);
       conversationsLoadError = true;
