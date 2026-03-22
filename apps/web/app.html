@@ -252,10 +252,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .sys-status-label{font-size:11px;color:var(--navy)}
 .sys-status-uptime{font-size:11px;color:var(--text-tertiary)}
 
-/* ── TSX Revenue Analytics header ── */
-.chart-trend{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--rust)}
-.chart-trend svg{width:16px;height:16px}
-
 /* ── Revenue period control ── */
 .rev-period-control{display:flex;gap:2px;background:var(--color-bg-surface-alt,#F5F3F0);border-radius:8px;padding:2px}
 .rev-period-btn{font-family:var(--mono);font-size:11px;font-weight:600;padding:5px 12px;border:none;background:transparent;color:var(--text-tertiary);cursor:pointer;border-radius:6px;transition:all .15s;letter-spacing:.02em}
@@ -1189,12 +1185,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
         <!-- Revenue Analytics -->
         <div class="log-wrap">
           <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
-            <div style="display:flex;align-items:center;gap:16px;">
-              <div class="log-title" style="font-size:16px;font-weight:700;">Revenue Analytics</div>
-              <div class="chart-trend" id="dashRevTrend" style="padding:6px 14px;background:var(--color-bg-surface-alt);border-radius:8px;color:var(--text-tertiary);">
-                <span id="dashRevTrendText">No revenue data yet</span>
-              </div>
-            </div>
+            <div class="log-title" style="font-size:16px;font-weight:700;">Revenue Analytics</div>
             <div style="display:flex;align-items:center;gap:12px;">
               <div id="pendingCompletionBanner" style="display:none;"></div>
               <div class="rev-period-control" id="revPeriodControl">
@@ -2334,10 +2325,6 @@ async function loadRevenueChart(periodDays) {
     var data = await res.json();
     var days = data.days || [];
 
-    // Update trend label to match actual period
-    var drt = document.getElementById('dashRevTrendText');
-    var drtParent = document.getElementById('dashRevTrend');
-
     // Empty state — no revenue at all
     if (shouldShowEmptyState(days)) {
       container.innerHTML = '<div class="rev-empty">' +
@@ -2346,8 +2333,6 @@ async function loadRevenueChart(periodDays) {
         '<div class="rev-empty-text">Your AI receptionist hasn\'t booked any jobs yet.</div>' +
       '</div>';
       if (summaryBar) summaryBar.style.display = 'none';
-      if (drt) drt.textContent = 'No revenue data yet';
-      if (drtParent) { drtParent.style.background = 'var(--color-bg-surface-alt)'; drtParent.style.color = 'var(--text-tertiary)'; }
       return;
     }
 
@@ -2363,17 +2348,6 @@ async function loadRevenueChart(periodDays) {
     for (var i = 0; i < days.length; i++) {
       runningTotal += days[i].total;
       cumulative.push(runningTotal);
-    }
-
-    // Update trend badge to match period
-    if (drt && drtParent) {
-      if (totalRev > 0) {
-        drtParent.style.background = 'rgba(201,75,31,.08)';
-        drtParent.style.color = '#C94B1F';
-        drtParent.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg><span id="dashRevTrendText">$' + totalRev.toLocaleString() + ' revenue (' + numDays + 'd)</span>';
-      } else {
-        drt.textContent = 'No revenue data yet';
-      }
     }
 
     // Render summary bar — only metrics backed by real data
@@ -4125,7 +4099,7 @@ function renderLiveRevenueBlocks() {
   if (akr) akr.textContent = '—';
   var akrc = document.getElementById('anKpiRecoveryChange');
   if (akrc) akrc.textContent = 'Unavailable — requires call attribution';
-  // Trend text is now managed by loadRevenueChart() to stay in sync with the selected period
+
 
   // Revenue Per Booking — total_revenue / total_completed_bookings (all sources, aligned)
   var anRevPerBooking = document.getElementById('anKpiRevenue');
