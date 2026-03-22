@@ -28,6 +28,7 @@ import { tenantDashboardRoute } from "./routes/tenant/dashboard";
 import { tenantKpiRoute } from "./routes/tenant/kpi";
 import { tenantSettingsRoute } from "./routes/tenant/settings";
 import { tenantConversationsRoute } from "./routes/tenant/conversations";
+import { tenantProvisionNumberRoute } from "./routes/tenant/provision-number";
 import { calendarTokensRoute } from "./routes/internal/calendar-tokens";
 import { bookingIntentRoute } from "./routes/internal/booking-intent";
 import { calendarEventRoute } from "./routes/internal/calendar-event";
@@ -154,6 +155,7 @@ async function bootstrap() {
   await app.register(tenantKpiRoute, { prefix: "/tenant" });
   await app.register(tenantSettingsRoute, { prefix: "/tenant" });
   await app.register(tenantConversationsRoute, { prefix: "/tenant" });
+  await app.register(tenantProvisionNumberRoute, { prefix: "/tenant" });
 
   // ── Static frontend (login.html, signup.html, etc.) ───────
   // Served AFTER API routes so API paths are never shadowed.
@@ -229,6 +231,13 @@ async function bootstrap() {
     reply.header("Pragma", "no-cache");
     reply.header("Expires", "0");
     void reply.sendFile("reset-password.html");
+  });
+
+  app.get("/onboarding", (_req, reply) => {
+    reply.header("Cache-Control", "no-store, no-cache, must-revalidate");
+    reply.header("Pragma", "no-cache");
+    reply.header("Expires", "0");
+    void reply.sendFile("onboarding.html");
   });
 
   app.get("/onboarding/:step", (_req, reply) => {

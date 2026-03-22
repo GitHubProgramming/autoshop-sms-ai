@@ -1,5 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { detectBookingIntent } from "../../services/booking-intent";
+import { requireInternal } from "../../middleware/require-internal";
 
 /**
  * POST /internal/booking-intent
@@ -11,7 +12,7 @@ import { detectBookingIntent } from "../../services/booking-intent";
  * Returns: BookingIntentResult
  */
 export async function bookingIntentRoute(app: FastifyInstance) {
-  app.post("/booking-intent", async (request, reply) => {
+  app.post("/booking-intent", { preHandler: [requireInternal] }, async (request, reply) => {
     const { aiResponse, customerMessage } = request.body as {
       aiResponse?: string;
       customerMessage?: string;

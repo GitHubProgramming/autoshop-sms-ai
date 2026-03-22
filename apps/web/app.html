@@ -1018,6 +1018,18 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
   if (!token) {
     window.location.replace('/login?next=/app/dashboard');
   }
+  // If returning from Google Calendar OAuth during onboarding, redirect back
+  var onbReturn = localStorage.getItem('onboarding_return_step');
+  if (onbReturn) {
+    var calParam = new URLSearchParams(window.location.search).get('calendar');
+    if (calParam === 'connected') {
+      localStorage.removeItem('onboarding_return_step');
+      window.location.replace('/onboarding/calendar?calendar=connected');
+    } else if (calParam === 'denied') {
+      localStorage.removeItem('onboarding_return_step');
+      window.location.replace('/onboarding/calendar?calendar=denied');
+    }
+  }
 })();
 </script>
 

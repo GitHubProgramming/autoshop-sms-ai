@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { createAppointment } from "../../services/appointments";
+import { requireInternal } from "../../middleware/require-internal";
 
 const BodySchema = z.object({
   tenantId: z.string().uuid(),
@@ -26,7 +27,7 @@ const BodySchema = z.object({
  * Internal only — NOT exposed externally (nginx does not proxy /internal/).
  */
 export async function appointmentsRoute(app: FastifyInstance) {
-  app.post("/appointments", async (request, reply) => {
+  app.post("/appointments", { preHandler: [requireInternal] }, async (request, reply) => {
     const parsed = BodySchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { processSms } from "../../services/process-sms";
 import { resumeTrace } from "../../services/pipeline-trace";
 import { alertFromTraceFailure } from "../../services/pipeline-alerts";
+import { requireInternal } from "../../middleware/require-internal";
 
 const BodySchema = z.object({
   tenantId: z.string().uuid(),
@@ -26,7 +27,7 @@ const BodySchema = z.object({
  * Internal only — NOT exposed externally.
  */
 export async function processSmsRoute(app: FastifyInstance) {
-  app.post("/process-sms", async (request, reply) => {
+  app.post("/process-sms", { preHandler: [requireInternal] }, async (request, reply) => {
     const parsed = BodySchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({

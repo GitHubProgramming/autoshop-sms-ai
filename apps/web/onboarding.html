@@ -3,33 +3,35 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AutoShop SMS AI — Onboarding</title>
+<title>AutoShop SMS AI — Setup</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/brand-tokens.css">
 <style>
   :root {
-    /* Dark theme — brand accent + fonts from shared brand-tokens.css */
-    --navy:       #0D1B2A;
-    --navy-mid:   #162336;
-    --navy-light: #1E3048;
     --rust:       var(--color-primary);
     --rust-light: var(--color-primary-hover);
-    --steel:      #94A3B8;
-    --steel-light:#CBD5E1;
-    --white:      #F8F9FA;
-    --border:     rgba(148,163,184,0.15);
-    --border-mid: rgba(148,163,184,0.25);
+    --text:       var(--color-text-primary);
+    --text-sec:   var(--color-text-secondary);
+    --text-tert:  var(--color-text-tertiary);
+    --bg:         var(--color-bg-page);
+    --bg-card:    var(--color-bg-surface);
+    --bg-alt:     var(--color-bg-surface-alt);
+    --border:     var(--color-border);
+    --border-str: var(--color-border-strong);
+    --green:      var(--color-success);
+    --green-soft: var(--color-success-soft);
+    --green-bdr:  var(--color-success-border);
     --mono:       var(--font-mono);
     --display:    var(--font-display);
     --body:       var(--font-body);
-    --green:      #22C55E;
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    background: var(--navy);
-    color: var(--white);
+    background: var(--bg);
+    background-image: linear-gradient(160deg, #FAF8F5 0%, #F3EDE5 50%, #FAF8F5 100%);
+    color: var(--text);
     font-family: var(--body);
     font-size: 16px;
     line-height: 1.6;
@@ -38,8 +40,10 @@
     flex-direction: column;
     -webkit-font-smoothing: antialiased;
   }
+
+  /* ── NAV ── */
   .topnav {
-    background: rgba(13,27,42,0.9);
+    background: rgba(255,255,255,0.85);
     border-bottom: 1px solid var(--border);
     padding: 0 32px;
     height: 60px;
@@ -57,7 +61,7 @@
     font-weight: 800;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--white);
+    color: var(--text);
     text-decoration: none;
   }
   .nav-logo span { color: var(--rust); }
@@ -66,327 +70,999 @@
     font-size: 11px;
     letter-spacing: 0.08em;
     color: var(--green);
-    background: rgba(34,197,94,0.1);
-    border: 1px solid rgba(34,197,94,0.2);
+    background: var(--green-soft);
+    border: 1px solid var(--green-bdr);
     padding: 4px 12px;
+    border-radius: var(--radius-sm, 8px);
   }
 
+  /* ── LAYOUT ── */
   .main {
     flex: 1;
     display: flex;
     align-items: flex-start;
     justify-content: center;
-    padding: 56px 24px 80px;
+    padding: 48px 24px 80px;
   }
   .card {
     width: 100%;
-    max-width: 500px;
+    max-width: 520px;
   }
 
-  /* Progress steps */
-  .steps {
+  /* ── PROGRESS BAR ── */
+  .progress-wrap {
     display: flex;
     align-items: center;
     gap: 0;
-    margin-bottom: 40px;
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    margin-bottom: 36px;
   }
-  .step {
+  .prog-step {
     display: flex;
     align-items: center;
-    gap: 8px;
-    color: var(--steel);
-    flex: 1;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-tert);
+    white-space: nowrap;
   }
-  .step.active { color: var(--rust-light); }
-  .step.done   { color: var(--green); }
-  .step-num {
-    width: 24px; height: 24px;
-    border: 1px solid currentColor;
+  .prog-step.active { color: var(--rust); font-weight: 600; }
+  .prog-step.done   { color: var(--green); }
+  .prog-circle {
+    width: 22px; height: 22px;
+    border: 1.5px solid currentColor;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 11px;
+    font-size: 10px;
     flex-shrink: 0;
+    font-weight: 600;
   }
-  .step-line {
+  .prog-step.done .prog-circle { background: var(--green); color: #fff; border-color: var(--green); }
+  .prog-line {
     flex: 1;
     height: 1px;
-    background: var(--border-mid);
-    margin: 0 8px;
+    background: var(--border-str);
+    margin: 0 6px;
+    min-width: 8px;
   }
+  .prog-step.done + .prog-line { background: var(--green); }
 
+  /* ── SECTION CARD ── */
   .section-card {
-    background: var(--navy-mid);
-    border: 1px solid var(--border-mid);
-    padding: 40px;
-    clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
-    margin-bottom: 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg, 12px);
+    padding: 36px 32px;
+    box-shadow: 0 4px 16px rgba(13,27,42,0.06);
+    margin-bottom: 16px;
   }
   .section-title {
     font-family: var(--display);
-    font-size: 28px;
+    font-size: 26px;
     font-weight: 800;
-    margin-bottom: 6px;
+    color: var(--text);
+    margin-bottom: 4px;
   }
   .section-sub {
-    color: var(--steel);
+    color: var(--text-sec);
     font-size: 14px;
-    margin-bottom: 28px;
+    margin-bottom: 24px;
+    line-height: 1.5;
   }
 
-  .form-group { margin-bottom: 18px; }
+  /* ── FORMS ── */
+  .form-group { margin-bottom: 16px; }
   .form-label {
     display: block;
     font-family: var(--mono);
-    font-size: 12px;
+    font-size: 11px;
     letter-spacing: 0.10em;
     text-transform: uppercase;
-    color: var(--steel);
-    margin-bottom: 7px;
+    color: var(--text-sec);
+    margin-bottom: 6px;
+    font-weight: 500;
   }
   .form-input {
     width: 100%;
-    background: var(--navy);
-    border: 1px solid var(--border-mid);
-    color: var(--white);
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    color: var(--text);
     font-family: var(--body);
-    font-size: 16px;
-    padding: 12px 16px;
+    font-size: 15px;
+    padding: 11px 14px;
+    border-radius: var(--radius-sm, 8px);
     outline: none;
     transition: border-color 0.2s;
-    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
   }
   .form-input:focus { border-color: var(--rust); }
-  .form-input::placeholder { color: var(--steel); opacity: 0.6; }
+  .form-input::placeholder { color: var(--text-tert); }
   .form-hint {
-    font-family: var(--mono);
     font-size: 12px;
-    color: var(--steel);
-    margin-top: 5px;
+    color: var(--text-tert);
+    margin-top: 4px;
   }
 
+  /* ── BUTTONS ── */
   .btn-primary {
     display: block;
     width: 100%;
     background: var(--rust);
-    color: var(--white);
+    color: #fff;
     font-family: var(--display);
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    padding: 16px 32px;
+    padding: 14px 28px;
     border: none;
+    border-radius: var(--radius-sm, 8px);
     cursor: pointer;
     text-align: center;
     transition: background 0.2s, transform 0.15s;
-    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
     margin-top: 8px;
   }
   .btn-primary:hover { background: var(--rust-light); transform: translateY(-1px); }
-  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-
+  .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+  .btn-secondary {
+    display: block;
+    width: 100%;
+    background: transparent;
+    color: var(--text-sec);
+    font-family: var(--display);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 12px 24px;
+    border: 1px solid var(--border-str);
+    border-radius: var(--radius-sm, 8px);
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.2s;
+    margin-top: 8px;
+  }
+  .btn-secondary:hover { background: var(--bg-alt); }
   .skip-link {
     text-align: center;
-    margin-top: 16px;
+    margin-top: 14px;
     font-size: 13px;
   }
   .skip-link a {
-    color: var(--steel);
+    color: var(--text-tert);
     text-decoration: none;
     font-family: var(--mono);
     font-size: 12px;
-    letter-spacing: 0.08em;
-    border-bottom: 1px solid var(--border-mid);
+    letter-spacing: 0.06em;
   }
-  .skip-link a:hover { color: var(--steel-light); }
+  .skip-link a:hover { color: var(--text-sec); text-decoration: underline; }
 
+  /* ── STATUS / INFO ── */
   .error-msg {
     display: none;
-    background: rgba(239,68,68,0.10);
-    border: 1px solid rgba(239,68,68,0.3);
-    color: #FCA5A5;
+    background: var(--color-danger-soft);
+    border: 1px solid var(--color-danger-border);
+    color: var(--color-danger);
     font-family: var(--mono);
     font-size: 13px;
-    padding: 12px 16px;
-    margin-bottom: 20px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm, 8px);
+    margin-bottom: 16px;
   }
   .error-msg.visible { display: block; }
+  .success-box {
+    background: var(--green-soft);
+    border: 1px solid var(--green-bdr);
+    color: var(--color-success);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm, 8px);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .info-box {
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    padding: 16px;
+    border-radius: var(--radius-sm, 8px);
+    margin-bottom: 16px;
+    font-size: 14px;
+    color: var(--text-sec);
+    line-height: 1.6;
+  }
+  .info-box strong { color: var(--text); }
+  .number-option {
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    padding: 14px 16px;
+    border-radius: var(--radius-sm, 8px);
+    margin-bottom: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .number-option:hover { border-color: var(--rust); background: var(--color-primary-soft); }
+  .number-option.selected { border-color: var(--rust); background: var(--color-primary-soft); }
+  .number-option .num-radio {
+    width: 18px; height: 18px;
+    border: 2px solid var(--border-str);
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .number-option.selected .num-radio {
+    border-color: var(--rust);
+  }
+  .number-option.selected .num-radio::after {
+    content: '';
+    width: 10px; height: 10px;
+    background: var(--rust);
+    border-radius: 50%;
+  }
+  .number-display {
+    font-family: var(--mono);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  /* ── SUMMARY STATUS ── */
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-label { color: var(--text-sec); }
+  .summary-val { font-weight: 600; color: var(--text); font-family: var(--mono); font-size: 13px; }
+  .summary-val.active { color: var(--green); }
+  .summary-val.pending { color: var(--color-warning); }
+  .summary-val.skip { color: var(--text-tert); }
+
+  /* ── STEP VISIBILITY ── */
+  .wiz-step { display: none; }
+  .wiz-step.active { display: block; }
+
+  /* ── SPINNER ── */
+  .spinner {
+    display: inline-block;
+    width: 18px; height: 18px;
+    border: 2px solid var(--border-str);
+    border-top-color: var(--rust);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── FORWARDING INSTRUCTIONS ── */
+  .fwd-step {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 14px;
+    font-size: 14px;
+    color: var(--text-sec);
+    line-height: 1.5;
+  }
+  .fwd-num {
+    width: 24px; height: 24px;
+    background: var(--rust);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .fwd-step code {
+    font-family: var(--mono);
+    font-size: 13px;
+    background: var(--bg-alt);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--text);
+  }
 </style>
 </head>
 <body>
 
 <nav class="topnav">
   <a href="/" class="nav-logo">AutoShop <span>SMS</span> AI</a>
-  <div class="trial-pill">Trial Active — 14 days free</div>
+  <div class="trial-pill">14-Day Free Trial</div>
 </nav>
 
 <main class="main">
   <div class="card">
 
-    <div class="steps">
-      <div class="step done">
-        <div class="step-num">✓</div>
-        Account
-      </div>
-      <div class="step-line"></div>
-      <div class="step active">
-        <div class="step-num">2</div>
-        Shop Info
-      </div>
-      <div class="step-line"></div>
-      <div class="step">
-        <div class="step-num">3</div>
-        Dashboard
+    <!-- ── PROGRESS BAR ── -->
+    <div class="progress-wrap" id="progressBar"></div>
+
+    <!-- ════════════════════════════════════════ -->
+    <!-- STEP 0: WELCOME                         -->
+    <!-- ════════════════════════════════════════ -->
+    <div class="wiz-step active" id="step-0">
+      <div class="section-card" style="text-align:center;padding:48px 32px;">
+        <div style="font-size:48px;margin-bottom:16px;">&#128736;</div>
+        <div class="section-title" style="font-size:30px;">Let's get your shop ready in 2 minutes</div>
+        <p class="section-sub" style="margin-bottom:32px;max-width:360px;margin-left:auto;margin-right:auto;">
+          We'll set up your AI receptionist so missed calls automatically turn into booked appointments.
+        </p>
+        <button class="btn-primary" onclick="goStep(1)" style="max-width:280px;margin:0 auto;">Start Setup</button>
       </div>
     </div>
 
-    <div class="section-card">
-      <div class="section-title">Tell us about your shop</div>
-      <p class="section-sub">This helps the AI respond correctly to your customers.</p>
-
-      <div class="error-msg" id="errorMsg"></div>
-
-      <form id="onboardingForm" onsubmit="handleOnboarding(event)" novalidate>
-        <div class="form-group">
-          <label class="form-label" for="shopName">Shop / Business Name</label>
-          <input class="form-input" type="text" id="shopName" name="shopName"
-            placeholder="Austin Quick Lube" required>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="ownerPhone">Business Phone Number</label>
-          <input class="form-input" type="tel" id="ownerPhone" name="ownerPhone"
-            placeholder="+1 (512) 555-0100" autocomplete="tel">
-          <p class="form-hint">Your main customer-facing number (optional for now)</p>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="timezone">Time Zone</label>
-          <select class="form-input" id="timezone" name="timezone">
-            <option value="America/Chicago" selected>Central Time (CT) — most of Texas</option>
-            <option value="America/New_York">Eastern Time (ET)</option>
-            <option value="America/Denver">Mountain Time (MT)</option>
-            <option value="America/Los_Angeles">Pacific Time (PT)</option>
-            <option value="America/Phoenix">Arizona (no DST)</option>
-          </select>
-        </div>
-
-        <button type="submit" class="btn-primary" id="submitBtn">
-          Go to Dashboard →
-        </button>
-      </form>
+    <!-- ════════════════════════════════════════ -->
+    <!-- STEP 1: SHOP PROFILE                    -->
+    <!-- ════════════════════════════════════════ -->
+    <div class="wiz-step" id="step-1">
+      <div class="section-card">
+        <div class="section-title">Your shop details</div>
+        <p class="section-sub">This helps the AI respond correctly to your customers.</p>
+        <div class="error-msg" id="step1Error"></div>
+        <form onsubmit="saveProfile(event)" novalidate>
+          <div class="form-group">
+            <label class="form-label" for="shopName">Shop / Business Name</label>
+            <input class="form-input" type="text" id="shopName" placeholder="Austin Quick Lube" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="ownerPhone">Business Phone Number</label>
+            <input class="form-input" type="tel" id="ownerPhone" placeholder="+1 (512) 555-0100" autocomplete="tel">
+            <p class="form-hint">Your main customer-facing number</p>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="timezone">Time Zone</label>
+            <select class="form-input" id="timezone">
+              <option value="America/Chicago" selected>Central Time (CT) — most of Texas</option>
+              <option value="America/New_York">Eastern Time (ET)</option>
+              <option value="America/Denver">Mountain Time (MT)</option>
+              <option value="America/Los_Angeles">Pacific Time (PT)</option>
+              <option value="America/Phoenix">Arizona (no DST)</option>
+            </select>
+          </div>
+          <button type="submit" class="btn-primary" id="profileBtn">Save & Continue</button>
+        </form>
+      </div>
     </div>
 
-    <div class="skip-link">
-      <a href="/app/dashboard" onclick="skipOnboarding()">Skip for now — I'll finish this later →</a>
+    <!-- ════════════════════════════════════════ -->
+    <!-- STEP 2: GET NUMBER                      -->
+    <!-- ════════════════════════════════════════ -->
+    <div class="wiz-step" id="step-2">
+      <div class="section-card">
+        <div class="section-title">Get your AI phone number</div>
+        <p class="section-sub">We'll provision a dedicated number for your AI receptionist to send and receive SMS.</p>
+        <div class="error-msg" id="step2Error"></div>
+        <div id="numberContent">
+          <div class="form-group">
+            <label class="form-label" for="areaCode">Preferred Area Code</label>
+            <input class="form-input" type="text" id="areaCode" placeholder="512" maxlength="3" pattern="\d{3}" style="max-width:140px;">
+            <p class="form-hint">We'll try to find a number with this area code</p>
+          </div>
+          <button class="btn-primary" id="provisionBtn" onclick="requestNumber()">Request Number</button>
+          <div id="provisionStatus" style="display:none;margin-top:16px;"></div>
+        </div>
+        <div id="numberAssigned" style="display:none;">
+          <div class="success-box">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Number secured
+          </div>
+          <div class="info-box" style="text-align:center;">
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-tert);margin-bottom:4px;">Your AI Number</div>
+            <div id="assignedNumber" style="font-family:var(--mono);font-size:22px;font-weight:700;color:var(--text);"></div>
+          </div>
+          <button class="btn-primary" onclick="goStep(3)">Continue</button>
+        </div>
+      </div>
+      <div class="skip-link">
+        <a href="#" onclick="goStep(3);return false;">I'll set this up later</a>
+      </div>
     </div>
+
+    <!-- ════════════════════════════════════════ -->
+    <!-- STEP 3: CALL FORWARDING                 -->
+    <!-- ════════════════════════════════════════ -->
+    <div class="wiz-step" id="step-3">
+      <div class="section-card">
+        <div class="section-title">Set up call forwarding</div>
+        <p class="section-sub">Forward unanswered calls from your business phone to your AI number so missed calls trigger automatic SMS follow-up.</p>
+        <div id="fwdInstructions">
+          <div class="fwd-step">
+            <div class="fwd-num">1</div>
+            <div>Open your phone's <strong>Settings</strong> app (or dial <code>*72</code> on a landline)</div>
+          </div>
+          <div class="fwd-step">
+            <div class="fwd-num">2</div>
+            <div>Go to <strong>Call Forwarding</strong> &rarr; <strong>Forward when unanswered</strong></div>
+          </div>
+          <div class="fwd-step">
+            <div class="fwd-num">3</div>
+            <div>Enter your AI number: <strong id="fwdTargetNum" style="font-family:var(--mono);">(assigned in previous step)</strong></div>
+          </div>
+          <div class="fwd-step">
+            <div class="fwd-num">4</div>
+            <div>Set the ring time to <strong>15-20 seconds</strong> before forwarding</div>
+          </div>
+          <div class="info-box">
+            <strong>Carrier-specific codes:</strong><br>
+            AT&T: <code>*92</code> then the number<br>
+            T-Mobile: <code>**61*</code> then the number <code>#</code><br>
+            Verizon: <code>*71</code> then the number
+          </div>
+        </div>
+        <button class="btn-primary" onclick="goStep(4)">Done — I've set it up</button>
+        <button class="btn-secondary" onclick="goStep(4)">I'll do this later</button>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════ -->
+    <!-- STEP 4: GOOGLE CALENDAR                 -->
+    <!-- ════════════════════════════════════════ -->
+    <div class="wiz-step" id="step-4">
+      <div class="section-card">
+        <div class="section-title">Connect Google Calendar</div>
+        <p class="section-sub">When the AI books an appointment, it will automatically appear on your Google Calendar.</p>
+        <div class="error-msg" id="step4Error"></div>
+        <div id="calendarContent">
+          <button class="btn-primary" onclick="connectCalendar()" id="calBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px;margin-top:-2px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Connect Google Calendar
+          </button>
+        </div>
+        <div id="calendarConnected" style="display:none;">
+          <div class="success-box">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Google Calendar connected
+          </div>
+          <button class="btn-primary" onclick="goStep(5)">Continue</button>
+        </div>
+        <button class="btn-secondary" onclick="goStep(5)" id="calSkipBtn">Skip — I don't use Google Calendar</button>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════ -->
+    <!-- STEP 5: TEST SYSTEM                     -->
+    <!-- ════════════════════════════════════════ -->
+    <div class="wiz-step" id="step-5">
+      <div class="section-card">
+        <div class="section-title">Test your AI receptionist</div>
+        <p class="section-sub" id="testDesc">Send a text message to your AI number to see the system in action.</p>
+        <div id="testContent">
+          <div class="info-box" id="testInfo">
+            <strong>How to test:</strong><br>
+            Send an SMS from your personal phone to <strong id="testNumber">(your AI number)</strong> with a message like:<br>
+            <em>"I need an oil change tomorrow at 2pm"</em>
+          </div>
+          <button class="btn-primary" onclick="goStep(6)">I've sent a test message</button>
+          <button class="btn-secondary" onclick="goStep(6)">Skip — I'll test later</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════ -->
+    <!-- STEP 6: SUCCESS                         -->
+    <!-- ════════════════════════════════════════ -->
+    <div class="wiz-step" id="step-6">
+      <div class="section-card" style="text-align:center;padding:44px 32px;">
+        <div style="font-size:48px;margin-bottom:12px;">&#127881;</div>
+        <div class="section-title" style="font-size:28px;" id="successTitle">Your system is live</div>
+        <p class="section-sub" style="max-width:380px;margin:0 auto 28px;">
+          Your AI receptionist is ready. Missed calls will automatically trigger SMS follow-up and book appointments for you.
+        </p>
+
+        <div style="text-align:left;max-width:360px;margin:0 auto 28px;">
+          <div class="summary-row">
+            <span class="summary-label">AI Number</span>
+            <span class="summary-val" id="sumNumber">—</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">SMS</span>
+            <span class="summary-val" id="sumSms">—</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Calls</span>
+            <span class="summary-val" id="sumCalls">—</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Calendar</span>
+            <span class="summary-val" id="sumCalendar">—</span>
+          </div>
+        </div>
+
+        <button class="btn-primary" onclick="window.location.href='/app/dashboard'" style="max-width:300px;margin:0 auto;">Go to Dashboard</button>
+      </div>
+    </div>
+
   </div>
 </main>
 
 <script>
-// ── Read auth from URL hash (Google OAuth redirect) or localStorage ───────────
+// ════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════
+var currentStep = 0;
+var jwt = localStorage.getItem('autoshop_jwt');
+var session = JSON.parse(localStorage.getItem('autoshop_session') || '{}');
+var assignedPhone = '';
+var calConnected = false;
+
+var STEP_LABELS = ['Welcome', 'Shop', 'Number', 'Forward', 'Calendar', 'Test', 'Live'];
+
+// ── Auth guard ──
+if (!jwt) {
+  window.location.replace('/signup');
+}
+
+// ── Prefill from session / hash (legacy compat) ──
 (function() {
   var hash = window.location.hash.slice(1);
   if (hash) {
     var params = new URLSearchParams(hash);
-    var token    = params.get('token');
+    var token = params.get('token');
     var tenantId = params.get('tenantId');
     var shopName = params.get('shopName');
-
     if (token && tenantId) {
       localStorage.setItem('autoshop_jwt', token);
-      localStorage.setItem('autoshop_session', JSON.stringify({
-        tenantId: tenantId,
-        shopName: shopName || '',
-        loginAt:  Date.now()
-      }));
-      // Remove hash from URL (clean up)
-      history.replaceState(null, '', window.location.pathname + window.location.search);
-
-      // Pre-fill shop name if from Google
-      if (shopName) {
-        var el = document.getElementById('shopName');
-        if (el) el.value = decodeURIComponent(shopName);
-      }
+      jwt = token;
+      session = { tenantId: tenantId, shopName: shopName || '', loginAt: Date.now() };
+      localStorage.setItem('autoshop_session', JSON.stringify(session));
+      history.replaceState(null, '', window.location.pathname);
     }
   }
-
-  // Redirect to login if no session
-  var jwt = localStorage.getItem('autoshop_jwt');
-  if (!jwt) {
-    window.location.replace('/signup');
-  }
-
-  // Pre-fill shop name from session if not already filled
-  var session = JSON.parse(localStorage.getItem('autoshop_session') || '{}');
-  var shopEl  = document.getElementById('shopName');
-  if (shopEl && !shopEl.value && session.shopName) {
-    shopEl.value = session.shopName;
+  // Prefill shop name
+  var el = document.getElementById('shopName');
+  if (el && session.shopName && session.shopName !== 'My Shop') {
+    el.value = session.shopName;
   }
 })();
 
-function skipOnboarding() {
-  // Don't block on optional onboarding
-  return true;
+// ── Check if user already has onboarding state (returning to page) ──
+// Derives the correct step from server state so refresh doesn't lose progress.
+(function() {
+  fetchDashboard().then(function(data) {
+    if (!data) {
+      // Server unreachable — fall back to localStorage step
+      var saved = parseInt(localStorage.getItem('onboarding_step') || '0', 10);
+      if (saved > 0 && saved <= 6) goStep(saved);
+      return;
+    }
+    // Prefill fields from existing tenant data
+    var t = data.tenant || {};
+    var shopEl = document.getElementById('shopName');
+    if (shopEl && !shopEl.value && t.shop_name && t.shop_name !== 'My Shop') {
+      shopEl.value = t.shop_name;
+    }
+    // Check for existing phone number
+    var tw = (data.integrations || {}).twilio || {};
+    if (tw.phone_number && tw.status === 'active') {
+      assignedPhone = tw.phone_number;
+      showAssignedNumber();
+    }
+    // Check for existing calendar
+    var cal = (data.integrations || {}).google_calendar || {};
+    if (cal.status === 'connected') {
+      calConnected = true;
+    }
+    // If fully onboarded, redirect to app
+    var ob = data.onboarding || {};
+    if (ob.onboarding_complete) {
+      localStorage.removeItem('onboarding_step');
+      window.location.replace('/app/dashboard');
+      return;
+    }
+    // Derive step from server state — auto-advance past completed steps
+    // This is the primary step-restoration mechanism on refresh.
+    var hasShopName = t.shop_name && t.shop_name !== 'My Shop';
+    var hasPhone = !!assignedPhone;
+    var derivedStep = 0;
+    if (hasShopName) derivedStep = 2;      // profile done → go to number
+    if (hasPhone) derivedStep = 3;         // number done → go to forwarding
+    if (hasPhone && calConnected) derivedStep = 5; // cal done → go to test
+
+    // Use the higher of: derived step vs localStorage step (user may have advanced past derivable state)
+    var savedStep = parseInt(localStorage.getItem('onboarding_step') || '0', 10);
+    var targetStep = Math.max(derivedStep, savedStep);
+    if (targetStep > 0 && targetStep <= 6) {
+      goStep(targetStep);
+    }
+  });
+})();
+
+// ════════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════════
+function goStep(n) {
+  currentStep = n;
+  localStorage.setItem('onboarding_step', String(n));
+  // Hide all steps
+  var steps = document.querySelectorAll('.wiz-step');
+  for (var i = 0; i < steps.length; i++) {
+    steps[i].classList.remove('active');
+  }
+  var target = document.getElementById('step-' + n);
+  if (target) target.classList.add('active');
+  renderProgress();
+  // Update URL without reload
+  var stepName = STEP_LABELS[n] ? STEP_LABELS[n].toLowerCase() : n;
+  history.replaceState({ step: n }, '', '/onboarding/' + stepName);
+  window.scrollTo(0, 0);
+
+  // Step-specific setup
+  if (n === 3) updateFwdNumber();
+  if (n === 4) checkCalendarOnEntry();
+  if (n === 5) updateTestNumber();
+  if (n === 6) renderSummary();
 }
 
-async function handleOnboarding(e) {
+function renderProgress() {
+  var wrap = document.getElementById('progressBar');
+  if (!wrap) return;
+  // Don't show progress on welcome step
+  if (currentStep === 0) { wrap.innerHTML = ''; return; }
+  var html = '';
+  for (var i = 1; i < STEP_LABELS.length; i++) {
+    var cls = i < currentStep ? 'done' : (i === currentStep ? 'active' : '');
+    var circle = i < currentStep ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : i;
+    html += '<div class="prog-step ' + cls + '"><div class="prog-circle">' + circle + '</div><span class="prog-label">' + STEP_LABELS[i] + '</span></div>';
+    if (i < STEP_LABELS.length - 1) {
+      html += '<div class="prog-line"></div>';
+    }
+  }
+  wrap.innerHTML = html;
+}
+
+// ════════════════════════════════════════════
+// API HELPERS
+// ════════════════════════════════════════════
+function authHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ' + jwt
+  };
+}
+
+function fetchDashboard() {
+  return fetch('/tenant/dashboard', { headers: authHeaders() })
+    .then(function(res) { return res.ok ? res.json() : null; })
+    .catch(function() { return null; });
+}
+
+// ════════════════════════════════════════════
+// STEP 1: SAVE PROFILE
+// ════════════════════════════════════════════
+async function saveProfile(e) {
   e.preventDefault();
-  var shopName   = document.getElementById('shopName').value.trim();
+  var shopName = document.getElementById('shopName').value.trim();
   var ownerPhone = document.getElementById('ownerPhone').value.trim();
-  var timezone   = document.getElementById('timezone').value;
-  var submitBtn  = document.getElementById('submitBtn');
-  var errorEl    = document.getElementById('errorMsg');
+  var timezone = document.getElementById('timezone').value;
+  var errorEl = document.getElementById('step1Error');
+  var btn = document.getElementById('profileBtn');
 
   if (!shopName || shopName.length < 2) {
-    errorEl.textContent = 'Please enter your shop name.';
+    errorEl.textContent = 'Please enter your shop name (at least 2 characters).';
     errorEl.classList.add('visible');
     return;
   }
   errorEl.classList.remove('visible');
-
-  submitBtn.disabled = true;
-  submitBtn.textContent = 'Saving…';
-
-  var jwt     = localStorage.getItem('autoshop_jwt');
-  var session = JSON.parse(localStorage.getItem('autoshop_session') || '{}');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
 
   try {
-    // PATCH /auth/onboarding — update shop name, phone, timezone
     var res = await fetch('/auth/onboarding', {
-      method:  'PATCH',
-      headers: {
-        'Content-Type':  'application/json',
-        'Authorization': 'Bearer ' + jwt
-      },
-      body: JSON.stringify({ shopName, ownerPhone, timezone })
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify({ shopName: shopName, ownerPhone: ownerPhone, timezone: timezone })
+    });
+
+    if (res.status === 401 || res.status === 403) {
+      errorEl.textContent = 'Your session has expired. Please sign in again.';
+      errorEl.classList.add('visible');
+      btn.disabled = false;
+      btn.textContent = 'Save & Continue';
+      setTimeout(function() { window.location.replace('/login'); }, 2000);
+      return;
+    }
+
+    if (!res.ok) {
+      var errData = await res.json().catch(function() { return {}; });
+      errorEl.textContent = errData.error || 'Failed to save profile (error ' + res.status + '). Please try again.';
+      errorEl.classList.add('visible');
+      btn.disabled = false;
+      btn.textContent = 'Save & Continue';
+      return;
+    }
+
+    // Success — update local session and advance
+    session.shopName = shopName;
+    localStorage.setItem('autoshop_session', JSON.stringify(session));
+    goStep(2);
+  } catch (err) {
+    // Network error — show warning but allow retry
+    errorEl.textContent = 'Connection error — please check your internet and try again.';
+    errorEl.classList.add('visible');
+    btn.disabled = false;
+    btn.textContent = 'Save & Continue';
+  }
+}
+
+// ════════════════════════════════════════════
+// STEP 2: NUMBER PROVISIONING
+// ════════════════════════════════════════════
+async function requestNumber() {
+  var areaCode = document.getElementById('areaCode').value.trim();
+  var errorEl = document.getElementById('step2Error');
+  var btn = document.getElementById('provisionBtn');
+  var statusEl = document.getElementById('provisionStatus');
+
+  if (!areaCode || !/^\d{3}$/.test(areaCode)) {
+    errorEl.textContent = 'Please enter a valid 3-digit area code.';
+    errorEl.classList.add('visible');
+    return;
+  }
+  errorEl.classList.remove('visible');
+  btn.disabled = true;
+  statusEl.style.display = 'block';
+  statusEl.innerHTML = '<span class="spinner"></span> Requesting number with area code ' + areaCode + '...';
+
+  try {
+    var res = await fetch('/tenant/provision-number', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ areaCode: areaCode })
     });
 
     if (res.ok) {
-      // Update local session with new shop name
-      session.shopName = shopName;
-      localStorage.setItem('autoshop_session', JSON.stringify(session));
-      window.location.href = '/app/dashboard';
+      statusEl.innerHTML = '<span class="spinner"></span> Number provisioning queued. Checking status...';
+      // Poll for the number to appear on the tenant
+      pollForNumber(0);
     } else {
-      // If endpoint doesn't exist yet, just redirect to dashboard
-      // (onboarding is non-blocking for MVP)
-      session.shopName = shopName;
-      localStorage.setItem('autoshop_session', JSON.stringify(session));
-      window.location.href = '/app/dashboard';
+      var data = await res.json().catch(function() { return {}; });
+      statusEl.innerHTML = '';
+      errorEl.textContent = data.error || 'Failed to request number. You can set this up later from Settings.';
+      errorEl.classList.add('visible');
+      btn.disabled = false;
     }
-  } catch {
-    // Network error — save locally and redirect anyway (non-blocking for MVP)
-    session.shopName = shopName;
-    localStorage.setItem('autoshop_session', JSON.stringify(session));
-    window.location.href = '/app/dashboard';
+  } catch (err) {
+    statusEl.innerHTML = '';
+    errorEl.textContent = 'Connection error. You can set this up later from Settings.';
+    errorEl.classList.add('visible');
+    btn.disabled = false;
   }
 }
+
+function pollForNumber(attempts) {
+  if (attempts > 30) {
+    // 30 attempts * 3s = 90s max
+    var statusEl = document.getElementById('provisionStatus');
+    statusEl.innerHTML = '<div class="info-box">Number provisioning is still in progress. You can continue setup and check your dashboard later.</div>';
+    document.getElementById('provisionBtn').style.display = 'none';
+    return;
+  }
+  setTimeout(function() {
+    fetchDashboard().then(function(data) {
+      if (data) {
+        var tw = (data.integrations || {}).twilio || {};
+        if (tw.phone_number && tw.status === 'active') {
+          assignedPhone = tw.phone_number;
+          showAssignedNumber();
+          return;
+        }
+      }
+      pollForNumber(attempts + 1);
+    });
+  }, 3000);
+}
+
+function showAssignedNumber() {
+  document.getElementById('numberContent').style.display = 'none';
+  document.getElementById('numberAssigned').style.display = 'block';
+  document.getElementById('assignedNumber').textContent = formatPhone(assignedPhone);
+}
+
+// ════════════════════════════════════════════
+// STEP 3: CALL FORWARDING
+// ════════════════════════════════════════════
+function updateFwdNumber() {
+  var el = document.getElementById('fwdTargetNum');
+  if (el && assignedPhone) {
+    el.textContent = formatPhone(assignedPhone);
+  }
+}
+
+// ════════════════════════════════════════════
+// STEP 4: GOOGLE CALENDAR
+// ════════════════════════════════════════════
+function checkCalendarOnEntry() {
+  if (calConnected) {
+    document.getElementById('calendarContent').style.display = 'none';
+    document.getElementById('calendarConnected').style.display = 'block';
+    document.getElementById('calSkipBtn').style.display = 'none';
+    return;
+  }
+  // Check URL for calendar OAuth return
+  var params = new URLSearchParams(window.location.search);
+  var calParam = params.get('calendar');
+  if (calParam === 'connected') {
+    calConnected = true;
+    document.getElementById('calendarContent').style.display = 'none';
+    document.getElementById('calendarConnected').style.display = 'block';
+    document.getElementById('calSkipBtn').style.display = 'none';
+    history.replaceState(null, '', '/onboarding/calendar');
+    return;
+  }
+  if (calParam === 'denied') {
+    var errorEl = document.getElementById('step4Error');
+    if (errorEl) {
+      errorEl.textContent = 'Google Calendar connection was cancelled. You can try again or skip.';
+      errorEl.classList.add('visible');
+    }
+    history.replaceState(null, '', '/onboarding/calendar');
+  }
+  // Also re-check from server
+  fetchDashboard().then(function(data) {
+    if (data) {
+      var cal = (data.integrations || {}).google_calendar || {};
+      if (cal.status === 'connected') {
+        calConnected = true;
+        document.getElementById('calendarContent').style.display = 'none';
+        document.getElementById('calendarConnected').style.display = 'block';
+        document.getElementById('calSkipBtn').style.display = 'none';
+      }
+    }
+  });
+}
+
+async function connectCalendar() {
+  var errorEl = document.getElementById('step4Error');
+  var btn = document.getElementById('calBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Connecting...';
+
+  try {
+    var res = await fetch('/auth/google/url', { headers: authHeaders() });
+    if (res.ok) {
+      var data = await res.json();
+      if (data.url) {
+        // Save current step so we return here after OAuth
+        localStorage.setItem('onboarding_return_step', '4');
+        window.location.href = data.url;
+        return;
+      }
+    }
+    errorEl.textContent = 'Could not start Google Calendar connection. Try again or skip.';
+    errorEl.classList.add('visible');
+  } catch (err) {
+    errorEl.textContent = 'Connection error. Try again or skip.';
+    errorEl.classList.add('visible');
+  }
+  btn.disabled = false;
+  btn.innerHTML = 'Connect Google Calendar';
+}
+
+// ════════════════════════════════════════════
+// STEP 5: TEST
+// ════════════════════════════════════════════
+function updateTestNumber() {
+  var el = document.getElementById('testNumber');
+  var descEl = document.getElementById('testDesc');
+  if (assignedPhone) {
+    if (el) el.textContent = formatPhone(assignedPhone);
+    if (descEl) descEl.textContent = 'Send a text message to your AI number to see the system in action.';
+  } else {
+    if (el) el.textContent = '(set up a number first)';
+    if (descEl) descEl.textContent = 'Once you have an AI number, you can test by sending an SMS to it.';
+  }
+}
+
+// ════════════════════════════════════════════
+// STEP 6: SUMMARY
+// ════════════════════════════════════════════
+function renderSummary() {
+  // Number
+  var numEl = document.getElementById('sumNumber');
+  if (assignedPhone) {
+    numEl.textContent = formatPhone(assignedPhone);
+    numEl.className = 'summary-val active';
+  } else {
+    numEl.textContent = 'Not set up';
+    numEl.className = 'summary-val pending';
+  }
+
+  // SMS
+  var smsEl = document.getElementById('sumSms');
+  if (assignedPhone) {
+    smsEl.textContent = 'Active';
+    smsEl.className = 'summary-val active';
+  } else {
+    smsEl.textContent = 'Pending';
+    smsEl.className = 'summary-val pending';
+  }
+
+  // Calls
+  var callsEl = document.getElementById('sumCalls');
+  if (assignedPhone) {
+    callsEl.textContent = 'Ready';
+    callsEl.className = 'summary-val active';
+  } else {
+    callsEl.textContent = 'Set up forwarding';
+    callsEl.className = 'summary-val pending';
+  }
+
+  // Calendar
+  var calEl = document.getElementById('sumCalendar');
+  if (calConnected) {
+    calEl.textContent = 'Connected';
+    calEl.className = 'summary-val active';
+  } else {
+    calEl.textContent = 'Skipped';
+    calEl.className = 'summary-val skip';
+  }
+
+  // Adjust title based on actual state
+  var titleEl = document.getElementById('successTitle');
+  if (!assignedPhone) {
+    titleEl.textContent = 'Setup started';
+  }
+}
+
+// ════════════════════════════════════════════
+// UTIL
+// ════════════════════════════════════════════
+function formatPhone(ph) {
+  if (!ph) return '';
+  // +1XXXXXXXXXX -> (XXX) XXX-XXXX
+  var d = ph.replace(/\D/g, '');
+  if (d.length === 11 && d[0] === '1') d = d.slice(1);
+  if (d.length === 10) {
+    return '(' + d.slice(0,3) + ') ' + d.slice(3,6) + '-' + d.slice(6);
+  }
+  return ph;
+}
+
+// ════════════════════════════════════════════
+// INIT: Handle return from Google Calendar OAuth
+// ════════════════════════════════════════════
+(function() {
+  var returnStep = localStorage.getItem('onboarding_return_step');
+  var params = new URLSearchParams(window.location.search);
+  // Google Calendar OAuth redirects to /app/dashboard?calendar=connected
+  // but also check if we're returning from OAuth on this page
+  if (returnStep) {
+    localStorage.removeItem('onboarding_return_step');
+    // Re-check calendar status then go to that step
+    fetchDashboard().then(function(data) {
+      if (data) {
+        var cal = (data.integrations || {}).google_calendar || {};
+        if (cal.status === 'connected') {
+          calConnected = true;
+        }
+        var tw = (data.integrations || {}).twilio || {};
+        if (tw.phone_number && tw.status === 'active') {
+          assignedPhone = tw.phone_number;
+        }
+      }
+      goStep(parseInt(returnStep, 10) || 4);
+    });
+  } else {
+    // Render initial progress
+    renderProgress();
+  }
+})();
 </script>
 </body>
 </html>

@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { createCalendarEvent } from "../../services/google-calendar";
+import { requireInternal } from "../../middleware/require-internal";
 
 const BodySchema = z.object({
   tenantId: z.string().uuid(),
@@ -23,7 +24,7 @@ const BodySchema = z.object({
  * Internal only — NOT exposed externally (nginx does not proxy /internal/).
  */
 export async function calendarEventRoute(app: FastifyInstance) {
-  app.post("/calendar-event", async (request, reply) => {
+  app.post("/calendar-event", { preHandler: [requireInternal] }, async (request, reply) => {
     const parsed = BodySchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({
