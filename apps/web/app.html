@@ -1140,29 +1140,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
         <p id="dashSubtitle">Real-time performance metrics and AI-driven customer engagement</p>
       </div>
 
-      <!-- ── ONBOARDING SETUP GUIDE ── -->
-      <div class="onboarding-guide" id="onboardingGuide" style="display:none;">
-        <div class="onboarding-header">
-          <div class="onboarding-header-left">
-            <div class="onboarding-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-            </div>
-            <div>
-              <div class="onboarding-title" id="onboardingTitle">Get your AI receptionist live</div>
-              <div class="onboarding-subtitle" id="onboardingSub">Complete these steps to start receiving bookings automatically</div>
-            </div>
-          </div>
-          <div style="text-align:right;">
-            <div class="onboarding-progress-bar"><div class="onboarding-progress-fill" id="onboardingProgressFill" style="width:0%"></div></div>
-            <div class="onboarding-progress-text" id="onboardingProgressText">0 of 4 complete</div>
-          </div>
-        </div>
-        <div class="onboarding-steps" id="onboardingSteps"></div>
-      </div>
-
-      <!-- ── CONTEXTUAL WARNINGS (shown during onboarding) ── -->
-      <div id="onboardingWarnings"></div>
-
       <!-- ── 1. KPI ROW (4 cards) ── -->
       <div class="kpi-grid" id="kpiGrid"></div>
       <div id="pendingCompletionBanner" style="display:none;margin:12px 0 0;padding:10px 16px;background:#FFFFFF;border:1px solid #E6E1D9;border-radius:8px;color:var(--text-secondary);font-size:14px;font-weight:500;"></div>
@@ -1196,8 +1173,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
         </div>
       </div>
 
-      <!-- ── 3. REVENUE ANALYTICS + SYSTEM STATUS (2/3 + 1/3 grid) ── -->
-      <div class="dash-body">
+      <!-- ── 3. REVENUE ANALYTICS ── -->
+      <div class="dash-body" style="grid-template-columns:1fr;">
         <!-- Revenue Analytics -->
         <div class="log-wrap">
           <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
@@ -1210,14 +1187,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
           <div id="revenueChartContainer" style="height:280px;padding:20px 24px 30px;position:relative;overflow:visible;">
             <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-tertiary);font-size:14px;">Loading chart…</div>
           </div>
-        </div>
-
-        <!-- System Status -->
-        <div class="log-wrap">
-          <div style="padding:20px 24px;border-bottom:1px solid var(--border);">
-            <div class="log-title" style="font-size:16px;font-weight:700;">System Status</div>
-          </div>
-          <div style="padding:16px 24px;" id="healthGrid"></div>
         </div>
       </div>
     </div>
@@ -2880,7 +2849,8 @@ function renderHealthGrid() {
     '</div>';
   });
   html += '</div>';
-  document.getElementById('healthGrid').innerHTML = html;
+  var hg = document.getElementById('healthGrid');
+  if (hg) hg.innerHTML = html;
 }
 
 // ════════════════════════════════════════════
