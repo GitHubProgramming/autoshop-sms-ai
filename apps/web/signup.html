@@ -427,7 +427,7 @@ function startGoogleSignup() {
         }));
         if (result.data.shopName) localStorage.setItem('tenant_name', result.data.shopName);
         // Route based on whether this is a new or existing account
-        var destination = result.data.isNewAccount ? '/onboarding/business' : '/app/dashboard';
+        var destination = result.data.isNewAccount ? '/onboarding' : '/app/dashboard';
         document.getElementById('signupForm').style.display = 'none';
         document.querySelector('.btn-google').style.display = 'none';
         document.querySelector('.divider').style.display = 'none';
@@ -509,7 +509,7 @@ async function handleSignup(e) {
       document.getElementById('signupForm').style.display = 'none';
       document.getElementById('successCard').style.display = 'block';
       setTimeout(function() {
-        window.location.href = '/onboarding/business';
+        window.location.href = '/onboarding';
       }, 1200);
     } else if (res.status === 409) {
       showError(data.error || 'An account with this email already exists.');

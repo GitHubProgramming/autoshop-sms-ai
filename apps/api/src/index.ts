@@ -231,6 +231,13 @@ async function bootstrap() {
     void reply.sendFile("reset-password.html");
   });
 
+  app.get("/onboarding", (_req, reply) => {
+    reply.header("Cache-Control", "no-store, no-cache, must-revalidate");
+    reply.header("Pragma", "no-cache");
+    reply.header("Expires", "0");
+    void reply.sendFile("onboarding.html");
+  });
+
   app.get("/onboarding/:step", (_req, reply) => {
     reply.header("Cache-Control", "no-store, no-cache, must-revalidate");
     reply.header("Pragma", "no-cache");
