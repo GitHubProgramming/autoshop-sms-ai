@@ -2089,6 +2089,7 @@ let tenantState = {
 
 // Live data arrays — populated from API
 let conversationsData = [];
+let conversationsLoadError = false;
 let liveConversationsData = [];
 let bookingsData = [];
 let convThreads = {};
@@ -2273,8 +2274,14 @@ async function loadConversationsData() {
     var res = await fetch('/tenant/conversations', {
       headers: { 'Authorization': 'Bearer ' + token }
     });
-    if (!res.ok) return;
+    if (!res.ok) {
+      console.error('Conversations fetch failed: HTTP ' + res.status);
+      conversationsLoadError = true;
+      renderConvInbox();
+      return;
+    }
     var data = await res.json();
+    conversationsLoadError = false;
     conversationsData = (data.conversations || []).map(function(c) {
       var status = c.status === 'booked' ? 'booked' : c.status === 'expired' ? 'expired' : c.status === 'closed' ? 'lost' : (c.turn_count <= 1 ? 'no-response' : 'active');
       return {
@@ -2299,6 +2306,8 @@ async function loadConversationsData() {
     renderConvInbox();
   } catch (err) {
     console.error('Conversations data fetch failed:', err);
+    conversationsLoadError = true;
+    renderConvInbox();
   }
 }
 
@@ -3004,6 +3013,10 @@ function renderDashConvTable(data) {
 
 function renderFullConvTable(data) {
   const tbody = document.getElementById('fullConvBody');
+  if (conversationsLoadError) {
+    document.getElementById('convTableContainer').innerHTML = '<div class="empty-state"><div class="empty-icon" style="font-size:24px;">&#9888;</div><div class="empty-title" style="color:#dc2626;">Failed to load conversations</div><div class="empty-sub">Please refresh the page or try again later.</div></div>';
+    return;
+  }
   if (!data.length) {
     document.getElementById('convTableContainer').innerHTML = emptyConvState();
     return;
@@ -4280,6 +4293,10 @@ function convInitial(name) {
 function renderConvInbox() {
   var list = document.getElementById('convInboxList');
   if (!list) return;
+  if (conversationsLoadError) {
+    list.innerHTML = '<div class="conv-empty-state" style="padding:40px 16px;text-align:center;"><div style="font-size:24px;margin-bottom:8px;">&#9888;</div><div style="font-size:13px;font-weight:600;color:#dc2626;">Failed to load conversations</div><div style="font-size:12px;color:#6b7280;margin-top:4px;">Please refresh or try again</div></div>';
+    return;
+  }
   if (!conversationsData.length) {
     list.innerHTML = '<div class="conv-empty-state" style="padding:40px 16px;"><div style="font-size:13px;">No conversations yet \u2014 complete onboarding to start</div></div>';
     return;
