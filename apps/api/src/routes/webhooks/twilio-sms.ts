@@ -105,9 +105,9 @@ export async function twilioSmsRoute(app: FastifyInstance) {
         tenant.billing_status === "active" &&
         tenant.conv_used_this_cycle >= tenant.conv_limit_this_cycle;
 
-      // ── 5. Enqueue for async processing — respond to Twilio immediately ────
-      // Wrapped in try/catch: always return 200 to Twilio to prevent retry storms,
-      // even if Redis/BullMQ is temporarily unavailable.
+      // ── 5. Enqueue for async processing ────
+      // Returns 200 only after successful enqueue. If Redis/BullMQ is down,
+      // returns 500 so Twilio retries the webhook instead of silently dropping the message.
       try {
         await smsInboundQueue.add(
           "process-sms",
@@ -151,6 +151,8 @@ export async function twilioSmsRoute(app: FastifyInstance) {
             await t.fail(`Failed to enqueue job: ${(err as Error).message}`);
           } catch { /* non-fatal */ }
         }
+        // Return 500 so Twilio retries — do NOT acknowledge a message that was not persisted
+        return reply.status(500).type("text/xml").send("<Response/>");
       }
 
       // Must respond with TwiML — empty = no immediate reply (worker sends reply)

@@ -1688,24 +1688,33 @@ export async function adminRoute(app: FastifyInstance) {
 
   // ── GET /internal/admin/verification/sms-dedup ────────────────────────────
   // Check for SMS send dedup evidence via messages table.
+  // conversation_id is required — tenant_id is resolved from the parent conversation to prevent cross-tenant leakage.
   app.get("/admin/verification/sms-dedup", { preHandler: [adminGuard] }, async (req, reply) => {
     const q = req.query as { conversation_id?: string; limit?: string };
     const limit = Math.min(parseInt(q.limit || "30", 10) || 30, 100);
 
-    let sql = `SELECT m.id, m.conversation_id, m.direction, m.body,
-                      m.twilio_sid, m.sent_at
-               FROM messages m`;
-    const params: (string | number)[] = [];
-
-    if (q.conversation_id) {
-      sql += ` WHERE m.conversation_id = $1`;
-      params.push(q.conversation_id);
+    if (!q.conversation_id) {
+      return reply.status(400).send({ error: "conversation_id is required" });
     }
 
-    sql += ` ORDER BY m.sent_at DESC LIMIT $${params.length + 1}`;
-    params.push(limit);
+    // Resolve tenant_id from the parent conversation (fail-closed)
+    const convRows = await query<{ tenant_id: string }>(
+      `SELECT tenant_id FROM conversations WHERE id = $1`,
+      [q.conversation_id]
+    );
+    if (!(convRows as any[]).length) {
+      return reply.status(404).send({ error: "Conversation not found" });
+    }
+    const tenantId = (convRows as any[])[0].tenant_id;
 
-    const rows = await query(sql, params);
+    const rows = await query(
+      `SELECT m.id, m.conversation_id, m.direction, m.body,
+              m.twilio_sid, m.sent_at
+       FROM messages m
+       WHERE m.conversation_id = $1 AND m.tenant_id = $2
+       ORDER BY m.sent_at DESC LIMIT $3`,
+      [q.conversation_id, tenantId, limit]
+    );
     return reply.send({ messages: rows, count: (rows as any[]).length });
   });
 
