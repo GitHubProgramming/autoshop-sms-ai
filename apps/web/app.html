@@ -480,6 +480,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .status-pill.pending::before{background:var(--rust)}
 .status-pill.failed{background:var(--red-dim);color:var(--red)}
 .status-pill.failed::before{background:var(--red)}
+.status-pill.cancelled{background:rgba(107,114,128,.08);color:#6B7280}
+.status-pill.cancelled::before{background:#6B7280}
 
 /* ── BUTTONS ── */
 .view-btn{font-size:11px;font-weight:500;padding:4px 10px;border:1px solid var(--border);background:var(--bg-panel);color:var(--text-tertiary);cursor:pointer;transition:all .12s;border-radius:6px}
@@ -822,7 +824,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .appt-status-badge.confirmed{background:rgba(13,27,42,.06);color:var(--navy)}
 .appt-status-badge.pending{background:var(--rust-tint);color:var(--rust)}
 .appt-status-badge.completed{background:var(--color-bg-surface-alt);color:#64748B}
-.appt-status-badge.cancelled{background:var(--red-light);color:#DC2626}
+.appt-status-badge.cancelled{background:rgba(107,114,128,.08);color:#6B7280}
+.appt-status-badge.failed{background:var(--red-light);color:#DC2626}
 .appt-today-meta{display:flex;align-items:center;gap:14px;margin-top:8px;font-size:12px;color:var(--text-tertiary)}
 .appt-today-meta svg{width:13px;height:13px;vertical-align:middle;margin-right:3px}
 .appt-upcoming-card{padding:14px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:border-color .15s;margin-bottom:10px}
@@ -1343,6 +1346,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
             <button class="filter-chip" onclick="filterAppts(this,'synced')">Confirmed</button>
             <button class="filter-chip" onclick="filterAppts(this,'pending')">Pending</button>
             <button class="filter-chip" onclick="filterAppts(this,'failed')">Failed</button>
+            <button class="filter-chip" onclick="filterAppts(this,'cancelled')">Cancelled</button>
           </div>
         </div>
         <table class="log-table">
@@ -2141,6 +2145,7 @@ async function loadDashboardData() {
         'CONFIRMED_MANUAL': { status: 'synced', label: 'Confirmed (Manual)', note: '' },
         'PENDING_MANUAL_CONFIRMATION': { status: 'pending', label: 'Needs Manual Confirmation', note: 'Calendar sync failed — confirm this booking manually.' },
         'FAILED': { status: 'failed', label: 'Failed', note: 'Booking failed — contact customer to reschedule.' },
+        'CANCELLED': { status: 'cancelled', label: 'Cancelled', note: '' },
         'RESOLVED': { status: 'resolved', label: 'Resolved', note: '' },
       };
       var mapped = stateMap[b.booking_state] || { status: b.calendar_synced ? 'synced' : 'failed', label: b.calendar_synced ? 'Confirmed' : 'Failed', note: '' };
@@ -3047,7 +3052,7 @@ function renderBookings() {
     const isCompleted = !!b.completedAt;
     const isCancelledSync = b.bookingState === 'CANCELLED';
     const syncEl = isCancelledSync
-      ? `<span class="status-pill failed">Cancelled</span>`
+      ? `<span class="status-pill cancelled">Cancelled</span>`
       : isCompleted
         ? `<span class="status-pill synced">Completed</span>`
         : `<span class="status-pill ${b.syncStatus}">${b.syncLabel || b.syncStatus.charAt(0).toUpperCase() + b.syncStatus.slice(1)}</span>`;
@@ -3058,7 +3063,7 @@ function renderBookings() {
     let action;
     var isCancelled = b.bookingState === 'CANCELLED';
     if (isCancelled) {
-      action = `<span style="font-family:var(--mono);font-size:11px;color:var(--red);font-weight:600;">Cancelled</span>`;
+      action = `<span style="font-family:var(--mono);font-size:11px;color:#6B7280;font-weight:600;">Cancelled</span>`;
     } else if (isCompleted) {
       action = `<span style="font-family:var(--mono);font-size:11px;color:var(--navy);font-weight:600;">Done</span>`;
     } else if (b.syncStatus === 'failed') {
@@ -3334,6 +3339,7 @@ function getConvStatusInfo(conv, booking) {
     if (booking.completedAt) outcome = 'Booking completed';
     else if (booking.syncStatus === 'synced') outcome = 'Calendar synced';
     else if (booking.syncStatus === 'pending') outcome = 'Pending confirmation';
+    else if (booking.syncStatus === 'cancelled') outcome = 'Cancelled';
     else if (booking.syncStatus === 'failed') outcome = 'Sync failed';
   }
   return { label: statusLabel, cls: statusCls, outcome: outcome };
@@ -4240,7 +4246,7 @@ async function cancelAppointment(apptId) {
     var b = bookingsData.find(function(x) { return x.id === apptId; });
     if (b) {
       b.bookingState = 'CANCELLED';
-      b.syncStatus = 'failed';
+      b.syncStatus = 'cancelled';
       b.syncLabel = 'Cancelled';
       if (data.calendar_event_deleted) {
         b.calendarSynced = false;
@@ -4977,7 +4983,8 @@ function renderAppointmentsPage() {
   function statusCls(syncStatus) {
     if (syncStatus === 'synced' || syncStatus === 'confirmed') return 'confirmed';
     if (syncStatus === 'pending') return 'pending';
-    if (syncStatus === 'failed' || syncStatus === 'cancelled') return 'cancelled';
+    if (syncStatus === 'cancelled') return 'cancelled';
+    if (syncStatus === 'failed') return 'failed';
     if (syncStatus === 'completed') return 'completed';
     return 'pending';
   }
