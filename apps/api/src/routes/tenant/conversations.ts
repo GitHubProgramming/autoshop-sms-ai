@@ -20,8 +20,7 @@ export async function tenantConversationsRoute(app: FastifyInstance) {
        FROM conversations c
        LEFT JOIN customers cu ON cu.tenant_id = c.tenant_id AND cu.phone = c.customer_phone
        WHERE c.tenant_id = $1
-       ORDER BY c.last_message_at DESC
-       LIMIT 200`,
+       ORDER BY c.last_message_at DESC`,
       [tenantId]
     );
 
