@@ -693,9 +693,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .sidebar-brand-shop{font-size:13px;color:rgba(255,255,255,0.55);margin-top:4px;font-weight:500}
 
 /* ── CONVERSATIONS 3-PANEL ── */
-.conv-layout{display:grid;grid-template-columns:320px 1fr 320px;gap:0;min-height:calc(100vh - 200px);border:1px solid #E6E1D9;border-radius:var(--radius);overflow:hidden;background:#FFFFFF}
+.conv-layout{display:grid;grid-template-columns:320px 1fr 320px;gap:0;height:calc(100vh - 200px);border:1px solid #E6E1D9;border-radius:var(--radius);overflow:hidden;background:#FFFFFF}
 @media(max-width:1200px){.conv-layout{grid-template-columns:280px 1fr;}.conv-detail-panel{display:none}}
-.conv-inbox{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.conv-inbox{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;min-width:0;min-height:0}
 .conv-inbox-header{padding:16px;border-bottom:1px solid var(--border)}
 .conv-inbox-title{font-family:var(--display);font-size:19px;font-weight:700;color:var(--navy);margin-bottom:12px;letter-spacing:.01em;text-transform:uppercase}
 .conv-inbox-search{position:relative}
@@ -723,7 +723,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .conv-status-badge.booked{background:rgba(13,27,42,.06);color:var(--navy)}
 .conv-status-badge.needs-operator{background:var(--rust-tint);color:var(--rust)}
 .conv-status-badge.resolved,.conv-status-badge.no-response,.conv-status-badge.lost{background:var(--color-bg-surface-alt);color:#64748B}
-.conv-thread-panel{display:flex;flex-direction:column;overflow:hidden}
+.conv-thread-panel{display:flex;flex-direction:column;overflow:hidden;min-width:0;min-height:0}
 .conv-thread-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px}
 .conv-thread-header-left{display:flex;align-items:center;gap:12px}
 .conv-thread-avatar{width:40px;height:40px;background:var(--rust);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:14px;flex-shrink:0}
@@ -740,7 +740,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .conv-composer input:focus{border-color:var(--rust);box-shadow:0 0 0 3px rgba(201,75,31,.1)}
 .conv-composer-send{padding:8px 16px;background:var(--rust);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;transition:background .15s}
 .conv-composer-send:hover{background:var(--rust-light)}
-.conv-detail-panel{border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;padding:24px}
+.conv-detail-panel{border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;padding:24px;min-width:0;min-height:0}
 .conv-detail-title{font-family:var(--display);font-size:17px;font-weight:700;color:var(--navy);margin-bottom:20px;letter-spacing:.02em;text-transform:uppercase}
 .conv-detail-section{margin-bottom:20px}
 .conv-detail-section.bordered{padding-top:20px;border-top:1px solid var(--border)}
@@ -2285,7 +2285,6 @@ async function loadConversationsData() {
       return;
     }
     var data = await res.json();
-    console.log('[CONV-DEBUG] GET /tenant/conversations →', res.status, 'rows:', (data.conversations || []).length, data);
     conversationsLoadError = false;
     conversationsData = (data.conversations || []).map(function(c) {
       var status = c.status === 'booked' ? 'booked' : c.status === 'expired' ? 'expired' : c.status === 'closed' ? 'lost' : (c.turn_count <= 1 ? 'no-response' : 'active');
@@ -2594,7 +2593,6 @@ document.addEventListener('DOMContentLoaded', async function() {
   // ── Route-based view switch on initial load ──
   var initialView = getViewFromPath();
   switchView(initialView, { skipPush: true });
-  console.log('[CONV-DEBUG] switchView done — view:', initialView, 'convViewActive:', document.getElementById('view-conversations')?.classList.contains('active'), 'inboxChildren:', document.getElementById('convInboxList')?.children.length);
   // Set initial history state
   history.replaceState({ view: initialView }, '', window.location.pathname + window.location.search);
 
@@ -4298,7 +4296,6 @@ function convInitial(name) {
 }
 function renderConvInbox() {
   var list = document.getElementById('convInboxList');
-  console.log('[CONV-DEBUG] renderConvInbox called — list:', !!list, 'dataLen:', conversationsData.length, 'error:', conversationsLoadError);
   if (!list) return;
   if (conversationsLoadError) {
     list.innerHTML = '<div class="conv-empty-state" style="padding:40px 16px;text-align:center;"><div style="font-size:24px;margin-bottom:8px;">&#9888;</div><div style="font-size:13px;font-weight:600;color:#dc2626;">Failed to load conversations</div><div style="font-size:12px;color:#6b7280;margin-top:4px;">Please refresh or try again</div></div>';
@@ -4327,36 +4324,6 @@ function renderConvInbox() {
     '</div>';
   });
   list.innerHTML = html;
-  console.log('[CONV-DEBUG] renderConvInbox done — children:', list.children.length, 'viewActive:', document.getElementById('view-conversations')?.classList.contains('active'));
-  // ── DOM visibility diagnostic (remove after debug) ──
-  setTimeout(function() {
-    var item = list.children[0];
-    if (!item) { console.log('[CONV-VIS] no children'); return; }
-    var rect = item.getBoundingClientRect();
-    var cs = window.getComputedStyle(item);
-    var listRect = list.getBoundingClientRect();
-    var view = document.getElementById('view-conversations');
-    var viewRect = view ? view.getBoundingClientRect() : null;
-    // Walk ancestors for display:none
-    var hiddenAncestor = null;
-    var el = item;
-    while (el && el !== document.body) {
-      if (window.getComputedStyle(el).display === 'none') { hiddenAncestor = el.tagName + '#' + el.id + '.' + el.className.split(' ').join('.'); break; }
-      el = el.parentElement;
-    }
-    console.log('[CONV-VIS] item0:', {
-      outerHTML: item.outerHTML.substring(0, 200),
-      text: item.textContent.trim().substring(0, 100),
-      offsetH: item.offsetHeight, offsetW: item.offsetWidth,
-      rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
-      display: cs.display, visibility: cs.visibility, opacity: cs.opacity,
-      color: cs.color, bg: cs.backgroundColor,
-      offsetParentNull: item.offsetParent === null
-    });
-    console.log('[CONV-VIS] list:', { h: listRect.height, w: listRect.width, top: listRect.top, left: listRect.left });
-    console.log('[CONV-VIS] view:', viewRect ? { h: viewRect.height, w: viewRect.width, top: viewRect.top } : 'null');
-    console.log('[CONV-VIS] hiddenAncestor:', hiddenAncestor);
-  }, 500);
   // Select first conversation
   if (conversationsData.length > 0) selectConversation(null, conversationsData[0].id);
 }
