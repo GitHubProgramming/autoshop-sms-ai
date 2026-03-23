@@ -2594,6 +2594,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   // ── Route-based view switch on initial load ──
   var initialView = getViewFromPath();
   switchView(initialView, { skipPush: true });
+  console.log('[CONV-DEBUG] switchView done — view:', initialView, 'convViewActive:', document.getElementById('view-conversations')?.classList.contains('active'), 'inboxChildren:', document.getElementById('convInboxList')?.children.length);
   // Set initial history state
   history.replaceState({ view: initialView }, '', window.location.pathname + window.location.search);
 
@@ -4297,6 +4298,7 @@ function convInitial(name) {
 }
 function renderConvInbox() {
   var list = document.getElementById('convInboxList');
+  console.log('[CONV-DEBUG] renderConvInbox called — list:', !!list, 'dataLen:', conversationsData.length, 'error:', conversationsLoadError);
   if (!list) return;
   if (conversationsLoadError) {
     list.innerHTML = '<div class="conv-empty-state" style="padding:40px 16px;text-align:center;"><div style="font-size:24px;margin-bottom:8px;">&#9888;</div><div style="font-size:13px;font-weight:600;color:#dc2626;">Failed to load conversations</div><div style="font-size:12px;color:#6b7280;margin-top:4px;">Please refresh or try again</div></div>';
@@ -4325,6 +4327,7 @@ function renderConvInbox() {
     '</div>';
   });
   list.innerHTML = html;
+  console.log('[CONV-DEBUG] renderConvInbox done — children:', list.children.length, 'viewActive:', document.getElementById('view-conversations')?.classList.contains('active'));
   // Select first conversation
   if (conversationsData.length > 0) selectConversation(null, conversationsData[0].id);
 }
