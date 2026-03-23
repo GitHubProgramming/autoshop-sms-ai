@@ -29,6 +29,7 @@ vi.mock("../db/webhook-events", () => ({
 
 vi.mock("../db/tenants", () => ({
   updateBillingStatus: mocks.updateBillingStatus,
+  activateTrial: vi.fn().mockResolvedValue(undefined),
 }));
 
 const mockRaiseAlert = vi.fn().mockResolvedValue("alert-id");
@@ -239,6 +240,7 @@ describe("POST /webhooks/stripe", () => {
     // No existing phone number
     mocks.query
       .mockResolvedValueOnce([]) // billing_events INSERT
+      .mockResolvedValueOnce([{ billing_status: "trial" }]) // SELECT billing_status (demo→trial check)
       .mockResolvedValueOnce([]) // UPDATE tenants
       .mockResolvedValueOnce([]) // SELECT tenant_phone_numbers (none)
       .mockResolvedValueOnce([{ shop_name: "Joe's Auto", owner_phone: "+15125551234" }]); // SELECT tenant
@@ -268,6 +270,7 @@ describe("POST /webhooks/stripe", () => {
 
     mocks.query
       .mockResolvedValueOnce([]) // billing_events INSERT
+      .mockResolvedValueOnce([{ billing_status: "trial" }]) // SELECT billing_status
       .mockResolvedValueOnce([]) // UPDATE tenants
       .mockResolvedValueOnce([{ id: "phone-1" }]); // existing phone found
 
@@ -310,6 +313,7 @@ describe("POST /webhooks/stripe", () => {
     // Has existing phone (skip provisioning path)
     mocks.query
       .mockResolvedValueOnce([]) // billing_events INSERT
+      .mockResolvedValueOnce([{ billing_status: "trial" }]) // SELECT billing_status
       .mockResolvedValueOnce([]) // UPDATE tenants
       .mockResolvedValueOnce([{ id: "phone-1" }]); // existing phone
 
@@ -472,6 +476,7 @@ describe("POST /webhooks/stripe", () => {
 
     mocks.query
       .mockResolvedValueOnce([]) // billing_events INSERT
+      .mockResolvedValueOnce([{ billing_status: "trial" }]) // SELECT billing_status
       .mockResolvedValueOnce([]) // UPDATE tenants
       .mockResolvedValueOnce([]) // no existing phone
       .mockResolvedValueOnce([{ shop_name: "Dallas Auto", owner_phone: "+12145559999" }]);
@@ -494,6 +499,7 @@ describe("POST /webhooks/stripe", () => {
 
     mocks.query
       .mockResolvedValueOnce([]) // billing_events INSERT
+      .mockResolvedValueOnce([{ billing_status: "trial" }]) // SELECT billing_status
       .mockResolvedValueOnce([]) // UPDATE tenants
       .mockResolvedValueOnce([]) // no existing phone
       .mockResolvedValueOnce([{ shop_name: "No Phone Shop", owner_phone: null }]);

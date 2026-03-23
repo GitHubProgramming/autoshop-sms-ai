@@ -49,6 +49,27 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .banner.warning-100{background:var(--red-bg)}
 .banner.paused{background:var(--red-bg)}
 .banner.reconnect{background:var(--red-bg)}
+.banner.demo{background:linear-gradient(90deg,#F0F4FF,#E8EEFF);border-bottom:2px solid #4A6CF7}
+.banner-label.blue{color:#4A6CF7}
+.banner-msg.blue{color:#3B5BDB}
+.demo-overlay{position:relative}
+.demo-overlay::after{content:'SAMPLE DATA';position:absolute;top:8px;right:12px;font-size:10px;font-weight:700;letter-spacing:.1em;color:#4A6CF7;background:#E8EEFF;padding:2px 8px;border-radius:4px;z-index:2}
+.demo-lock-overlay{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.85);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;border-radius:12px;backdrop-filter:blur(2px)}
+.demo-lock-overlay .lock-icon{font-size:32px;margin-bottom:8px}
+.demo-lock-overlay .lock-msg{font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:4px}
+.demo-lock-overlay .lock-sub{font-size:12px;color:var(--text-secondary);margin-bottom:12px}
+.btn-start-trial{display:inline-flex;align-items:center;gap:6px;background:#4A6CF7;color:#fff;border:none;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s}
+.btn-start-trial:hover{background:#3B5BDB}
+/* Upgrade modal */
+.upgrade-modal-bg{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center}
+.upgrade-modal-bg.visible{display:flex}
+.upgrade-modal{background:#fff;border-radius:16px;padding:40px;max-width:480px;width:90%;text-align:center;box-shadow:0 24px 48px rgba(0,0,0,0.15)}
+.upgrade-modal h2{margin:0 0 8px;font-size:24px}
+.upgrade-modal .um-sub{color:var(--text-secondary);font-size:14px;margin-bottom:24px}
+.upgrade-modal .um-features{text-align:left;margin:0 auto 24px;max-width:320px}
+.upgrade-modal .um-features li{font-size:13px;color:var(--text-secondary);margin-bottom:6px;list-style:none;padding-left:20px;position:relative}
+.upgrade-modal .um-features li::before{content:'✓';position:absolute;left:0;color:#4A6CF7;font-weight:700}
+.upgrade-modal .um-note{font-size:12px;color:var(--text-tertiary);margin-top:12px}
 .banner-left{display:flex;align-items:center;gap:14px}
 .banner-label{font-size:12px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap}
 .banner-label.rust{color:var(--rust)}
@@ -1051,6 +1072,25 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 
 <!-- BANNERS -->
 <div id="bannerContainer"></div>
+<!-- Upgrade modal (demo→trial) -->
+<div class="upgrade-modal-bg" id="upgradeModal">
+<div class="upgrade-modal">
+<h2>Start Your Free Trial</h2>
+<p class="um-sub">Card required to activate. No charge today.</p>
+<ul class="um-features">
+<li>14-day free trial period</li>
+<li>Up to 50 AI conversations</li>
+<li>Dedicated phone number for your shop</li>
+<li>Automatic missed-call SMS recovery</li>
+<li>AI-powered appointment booking</li>
+<li>Google Calendar sync</li>
+</ul>
+<button class="btn-start-trial" onclick="startTrialCheckout()">Start 14-Day Free Trial</button>
+<p class="um-note">Cancel anytime. After trial: plans start at $49/mo.</p>
+<br>
+<a href="#" onclick="closeUpgradeModal();return false;" style="font-size:13px;color:var(--text-tertiary)">Continue exploring demo</a>
+</div>
+</div>
 
 <!-- TOP NAV -->
 <nav class="topnav">
@@ -2004,11 +2044,15 @@ let tenantState = {
   plan:        'trial',
   status:      'trial',
   trialEndsAt: '',
+  trialStartedAt: '',
   convUsed:    0,
   convLimit:   null,
   trialLimit:  null,
   billingRenewalDate: '',
   warnings:    { at80: false, at100: false },
+  workspaceMode: 'demo',
+  provisioningState: 'not_started',
+  isDemo:      false,
   integrations: {
     googleCalendar: 'not_connected',
     twilioNumber:   'not_provisioned',
@@ -2083,15 +2127,20 @@ async function loadDashboardData() {
 
     // ── Map API response → tenantState ──
     var t = data.tenant;
+    var isDemo = t.billing_status === 'demo';
     var isTrial = t.billing_status === 'trial';
-    var planId = t.plan_id || (isTrial ? 'trial' : 'starter');
+    var planId = t.plan_id || (isDemo ? 'demo' : isTrial ? 'trial' : 'starter');
 
+    tenantState.isDemo = isDemo;
+    tenantState.workspaceMode = t.workspace_mode || (isDemo ? 'demo' : 'live_active');
+    tenantState.provisioningState = t.provisioning_state || 'ready';
     tenantState.shopName = t.shop_name || getTenantName();
     // Sync API shop name → localStorage (API is authoritative on first load)
     if (t.shop_name) localStorage.setItem('tenant_name', t.shop_name);
     tenantState.plan = planId;
     tenantState.status = t.billing_status;
     tenantState.trialEndsAt = t.trial_ends_at ? new Date(t.trial_ends_at).toISOString().slice(0,10) : '';
+    tenantState.trialStartedAt = t.trial_started_at || '';
     tenantState.convUsed = t.conv_used_this_cycle || 0;
     tenantState.convLimit = t.conv_limit_this_cycle != null ? t.conv_limit_this_cycle : null;
     tenantState.trialLimit = t.conv_limit_this_cycle != null ? t.conv_limit_this_cycle : null;
@@ -2173,6 +2222,13 @@ async function loadDashboardData() {
     session.shopName = t.shop_name;
     localStorage.setItem('autoshop_session', JSON.stringify(session));
 
+    // ── Demo mode: populate sample data for display ──
+    if (isDemo) {
+      dashboardStats = DEMO_SAMPLE_DATA.stats;
+      liveConversationsData = DEMO_SAMPLE_DATA.conversations;
+      bookingsData = DEMO_SAMPLE_DATA.appointments;
+    }
+
     return true;
   } catch (err) {
     console.error('Dashboard data fetch failed:', err);
@@ -2184,6 +2240,12 @@ async function loadDashboardData() {
 // FETCH OPEN CONVERSATIONS (authoritative source for /app/conversations)
 // ════════════════════════════════════════════
 async function loadConversationsData() {
+  // Demo mode: use sample conversations instead of hitting API
+  if (tenantState.isDemo) {
+    conversationsData = DEMO_SAMPLE_DATA.conversations;
+    conversationsLoadError = false;
+    return;
+  }
   var token = localStorage.getItem('autoshop_jwt');
   if (!token) return;
   try {
@@ -2527,8 +2589,14 @@ document.addEventListener('DOMContentLoaded', async function() {
   }
 
   // Handle Stripe checkout return
-  var billingParam = new URLSearchParams(window.location.search).get('billing');
-  if (billingParam === 'success') {
+  var urlParams = new URLSearchParams(window.location.search);
+  var billingParam = urlParams.get('billing');
+  var trialParam = urlParams.get('trial');
+  if (trialParam === 'activated') {
+    showToast('Trial activated! Your 14-day trial has started. Setting up your workspace...');
+    switchView('dashboard');
+    window.history.replaceState({}, '', window.location.pathname);
+  } else if (billingParam === 'success') {
     showToast('Subscription activated! Your plan will update shortly.');
     switchView('billing');
     window.history.replaceState({}, '', window.location.pathname);
@@ -2552,7 +2620,11 @@ function renderBanners() {
   const isSuspended = ['suspended','canceled','trial_expired'].includes(s.status);
   const headerBtn = document.getElementById('headerUpgradeBtn');
 
-  if (isSuspended) {
+  if (s.isDemo || s.status === 'demo') {
+    // Demo mode banner — prominent, always visible
+    html += `<div class="banner demo"><div class="banner-left"><span class="banner-label blue">DEMO MODE</span><span class="banner-msg blue">You're viewing sample data. No live number, no live messages. Start your free trial to activate.</span></div><button class="btn-start-trial" onclick="showUpgradeModal()">Start 14-Day Free Trial</button></div>`;
+    if (headerBtn) { headerBtn.style.display = 'inline-block'; headerBtn.textContent = 'Start Trial'; headerBtn.onclick = function(){ showUpgradeModal(); return false; }; }
+  } else if (isSuspended) {
     // State 4: Suspended / canceled / trial_expired — show banner CTA only, hide header CTA
     const msgs = { suspended:'Your account has been suspended. Service is paused — no new conversations will be started.', canceled:'Your subscription is canceled. Reactivate to resume missed-call recovery.', trial_expired:'Your trial has expired. Upgrade to continue recovering missed-call revenue.' };
     html += `<div class="banner paused"><div class="banner-left"><span class="banner-label red">⚠ Service Paused</span><span class="banner-msg red">${msgs[s.status]}</span></div><a href="#" onclick="switchView('billing');return false;" class="btn-upgrade red">Reactivate Now</a></div>`;
@@ -2596,6 +2668,100 @@ function renderBanners() {
   }
 
   document.getElementById('bannerContainer').innerHTML = html;
+
+  // Apply demo overlays if in demo mode
+  if (s.isDemo || s.status === 'demo') {
+    applyDemoOverlays();
+  }
+}
+
+// ════════════════════════════════════════════
+// DEMO MODE — Sample Data + Overlays
+// ════════════════════════════════════════════
+
+const DEMO_SAMPLE_DATA = {
+  conversations: [
+    { id:'demo-1', phone:'(512) 555-0142', status:'active', issue:'Oil change inquiry', lastMessage:'Hi, I need an oil change for my 2019 Toyota Camry', date:'Today, 2:15 PM', duration:'3 msgs', timeAgo:'2 min ago' },
+    { id:'demo-2', phone:'(512) 555-0198', status:'booked', issue:'Brake inspection', lastMessage:'Great, I\'ll bring it in Thursday at 10am', date:'Today, 11:30 AM', duration:'5 msgs', timeAgo:'3 hrs ago' },
+    { id:'demo-3', phone:'(512) 555-0267', status:'active', issue:'Check engine light', lastMessage:'Can you look at my check engine light?', date:'Today, 9:45 AM', duration:'2 msgs', timeAgo:'5 hrs ago' },
+    { id:'demo-4', phone:'(512) 555-0331', status:'no-response', issue:'Tire rotation', lastMessage:'What are your prices for tire rotation?', date:'Yesterday', duration:'1 msg', timeAgo:'1 day ago' },
+  ],
+  appointments: [
+    { id:'demo-a1', customerName:'Maria Garcia', phone:'(512) 555-0198', service:'Brake Inspection', rawScheduledAt:new Date(Date.now()+86400000).toISOString(), date:'Tomorrow, 10:00 AM', syncStatus:'synced', syncLabel:'Confirmed', bookingState:'CONFIRMED_CALENDAR' },
+    { id:'demo-a2', customerName:'James Wilson', phone:'(512) 555-0455', service:'Oil Change + Filter', rawScheduledAt:new Date(Date.now()+172800000).toISOString(), date:'In 2 days, 2:00 PM', syncStatus:'synced', syncLabel:'Confirmed', bookingState:'CONFIRMED_CALENDAR' },
+    { id:'demo-a3', customerName:'Sarah Chen', phone:'(512) 555-0512', service:'A/C Diagnostic', rawScheduledAt:new Date(Date.now()+259200000).toISOString(), date:'In 3 days, 9:00 AM', syncStatus:'pending', syncLabel:'Pending', bookingState:'PENDING_MANUAL_CONFIRMATION' },
+  ],
+  stats: {
+    conversations_today: 4,
+    appointments_today: 1,
+    active_conversations: 2,
+    conversations_this_month: 23,
+    appointments_this_month: 8,
+    total_conversations: 47,
+    total_appointments: 15
+  },
+  customers: [
+    { name:'Maria Garcia', phone:'(512) 555-0198', vehicle:'2021 Honda Civic', lastVisit:'Mar 15, 2026', apptCount:3, totalSpent:'$680', status:'returning' },
+    { name:'James Wilson', phone:'(512) 555-0455', vehicle:'2019 Ford F-150', lastVisit:'Mar 10, 2026', apptCount:2, totalSpent:'$420', status:'returning' },
+    { name:'Sarah Chen', phone:'(512) 555-0512', vehicle:'2022 Toyota RAV4', lastVisit:'—', apptCount:0, totalSpent:'$0', status:'first-time' },
+    { name:'Robert Kim', phone:'(512) 555-0142', vehicle:'2019 Toyota Camry', lastVisit:'Feb 28, 2026', apptCount:1, totalSpent:'$85', status:'first-time' },
+  ]
+};
+
+function applyDemoOverlays() {
+  // Mark dashboard KPI cards as sample data
+  document.querySelectorAll('.kpi-card, .card').forEach(function(card) {
+    if (!card.closest('.upgrade-modal') && !card.closest('#bannerContainer')) {
+      card.classList.add('demo-overlay');
+    }
+  });
+}
+
+function showUpgradeModal() {
+  var modal = document.getElementById('upgradeModal');
+  if (modal) modal.classList.add('visible');
+}
+
+function closeUpgradeModal() {
+  var modal = document.getElementById('upgradeModal');
+  if (modal) modal.classList.remove('visible');
+}
+
+// Start trial checkout — passes startTrial flag to get Stripe trial period
+async function startTrialCheckout() {
+  closeUpgradeModal();
+  var token = localStorage.getItem('autoshop_jwt');
+  if (!token) { showToast('Session expired — please log in again.'); return; }
+
+  showToast('Redirecting to activate your trial...');
+  try {
+    var res = await fetch('/billing/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({
+        plan: 'starter',
+        startTrial: true,
+        successUrl: window.location.origin + '/app/dashboard?trial=activated',
+        cancelUrl: window.location.origin + '/app/billing?billing=canceled'
+      })
+    });
+    if (res.status === 401) { localStorage.removeItem('autoshop_jwt'); localStorage.removeItem('autoshop_session'); window.location.replace('/login'); return; }
+    var data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Could not start trial — please try again.'); return; }
+    if (data.url) { window.location.href = data.url; }
+  } catch (err) {
+    console.error('Trial checkout error:', err);
+    showToast('Connection error — please try again.');
+  }
+}
+
+// Gate live-only actions: show upgrade modal instead
+function requireLiveAccount(actionName) {
+  if (tenantState.isDemo) {
+    showUpgradeModal();
+    return false;
+  }
+  return true;
 }
 
 // ════════════════════════════════════════════
@@ -3092,14 +3258,15 @@ function renderBookings() {
 // ════════════════════════════════════════════
 function renderBillingPage() {
   const s = tenantState;
+  const isDemo = s.isDemo || s.status === 'demo';
   const isTrial = s.status === 'trial';
   const isSuspended = ['suspended','canceled','trial_expired'].includes(s.status);
-  const limit = isTrial ? s.trialLimit : s.convLimit;
+  const limit = isDemo ? 0 : isTrial ? s.trialLimit : s.convLimit;
   const pct = limit != null ? Math.min((s.convUsed / limit) * 100, 100) : 0;
   const barCls = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : '';
 
-  const planNames = {starter:'Starter',pro:'Professional',premium:'Enterprise',trial:'Trial'};
-  const currentName = planNames[s.plan] || s.plan.charAt(0).toUpperCase()+s.plan.slice(1);
+  const planNames = {starter:'Starter',pro:'Professional',premium:'Enterprise',trial:'Trial',demo:'Demo'};
+  const currentName = isDemo ? 'Demo (Free)' : planNames[s.plan] || s.plan.charAt(0).toUpperCase()+s.plan.slice(1);
 
   const svgCheck = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
   const svgMsg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>';
@@ -3108,7 +3275,9 @@ function renderBillingPage() {
   const svgDl = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
 
   let warningsHtml = '';
-  if (isSuspended) {
+  if (isDemo) {
+    warningsHtml = `<div class="billing-warning" style="background:#F0F4FF;border-color:#4A6CF7;"><div class="billing-warning-icon" style="color:#4A6CF7;">ℹ</div><div class="billing-warning-text"><strong>Demo Mode — No Active Subscription</strong><p>You're exploring the dashboard with sample data. Add a card to start your 14-day free trial with up to 50 AI conversations. No charge today.</p></div><button class="btn-start-trial" onclick="showUpgradeModal()">Start Free Trial</button></div>`;
+  } else if (isSuspended) {
     warningsHtml = `<div class="billing-warning red"><div class="billing-warning-icon">⚠</div><div class="billing-warning-text"><strong>Service Paused</strong><p>Your account is ${s.status.replace('_',' ')}. Reactivate to resume recovering missed-call revenue.</p></div></div>`;
   } else if (pct >= 100 && !isTrial && s.warnings.at100) {
     warningsHtml = `<div class="billing-warning red"><div class="billing-warning-icon">⚠</div><div class="billing-warning-text"><strong>Usage Limit Reached</strong><p>All ${limit} conversations used. Service continues — upgrade to increase your limit.</p></div></div>`;
@@ -3116,12 +3285,14 @@ function renderBillingPage() {
     warningsHtml = `<div class="billing-warning amber"><div class="billing-warning-icon">⚡</div><div class="billing-warning-text"><strong>Approaching Usage Limit</strong><p>${s.convUsed} of ${limit} conversations used.</p></div></div>`;
   }
 
-  const statusBadge = isSuspended
-    ? `<span class="billing-status-badge" style="background:var(--red-bg);color:var(--red);">${svgCheck} ${s.status.replace('_',' ')}</span>`
-    : `<span class="billing-status-badge">${svgCheck} Active</span>`;
+  const statusBadge = isDemo
+    ? `<span class="billing-status-badge" style="background:#E8EEFF;color:#4A6CF7;">${svgCheck} Demo</span>`
+    : isSuspended
+      ? `<span class="billing-status-badge" style="background:var(--red-bg);color:var(--red);">${svgCheck} ${s.status.replace('_',' ')}</span>`
+      : `<span class="billing-status-badge">${svgCheck} Active</span>`;
 
-  const billingDate = isTrial ? s.trialEndsAt : (s.billingRenewalDate || '—');
-  const nextLabel = isTrial ? 'Trial ends' : 'Next billing date';
+  const billingDate = isDemo ? '—' : isTrial ? s.trialEndsAt : (s.billingRenewalDate || '—');
+  const nextLabel = isDemo ? 'Start trial to activate' : isTrial ? 'Trial ends' : 'Next billing date';
 
   // Plans definition — feature lists only, no hardcoded prices or conversation counts.
   // Pricing is managed via Stripe and will be populated when Stripe integration is live.
@@ -3135,11 +3306,13 @@ function renderBillingPage() {
   const invoices = [];
 
   let plansHtml = plans.map(p => {
-    const isCurrent = p.key === s.plan;
+    const isCurrent = !isDemo && p.key === s.plan;
     const featuresHtml = p.features.map(f => `<li>${svgCheck}<span>${f}</span></li>`).join('');
     let btnHtml;
     if (isCurrent) {
       btnHtml = `<button class="billing-btn-disabled">Current Plan</button>`;
+    } else if (isDemo) {
+      btnHtml = `<button class="billing-btn-primary" onclick="showUpgradeModal()">Start Free Trial</button>`;
     } else {
       btnHtml = `<button class="billing-btn-primary" onclick="startCheckout('${p.key}')">Upgrade</button>`;
     }
@@ -3152,8 +3325,10 @@ function renderBillingPage() {
     </div>`;
   }).join('');
 
-  const invoiceRows = isTrial
-    ? `<tr><td colspan="6" style="text-align:center;color:var(--text-tertiary);padding:32px 20px;">No invoices yet — upgrade to start your subscription</td></tr>`
+  const invoiceRows = isDemo
+    ? `<tr><td colspan="6" style="text-align:center;color:var(--text-tertiary);padding:32px 20px;">No invoices — start your free trial to activate billing</td></tr>`
+    : isTrial
+    ? `<tr><td colspan="6" style="text-align:center;color:var(--text-tertiary);padding:32px 20px;">No invoices yet — your trial is active</td></tr>`
     : invoices.length === 0
       ? `<tr><td colspan="6" style="text-align:center;color:var(--text-tertiary);padding:32px 20px;">No invoice history available yet — invoices will appear here once billing is processed</td></tr>`
       : invoices.map(inv => `<tr>
@@ -3262,6 +3437,7 @@ async function startCheckout(plan) {
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({
         plan: plan,
+        startTrial: tenantState.isDemo,
         successUrl: window.location.origin + '/app/billing?billing=success',
         cancelUrl: window.location.origin + '/app/billing?billing=canceled'
       })
@@ -3704,6 +3880,7 @@ async function submitCompleteAppointment() {
 // GOOGLE CALENDAR CONNECT (Task C)
 // ════════════════════════════════════════════
 async function connectGoogleCalendar() {
+  if (!requireLiveAccount('connect Google Calendar')) return;
   var token = localStorage.getItem('autoshop_jwt');
   if (!token) {
     showToast('Session expired — please log in again.');
@@ -4408,6 +4585,7 @@ function exportConversationsCsv() {
 
 var sendingMessage = false;
 async function sendConversationMessage() {
+  if (!requireLiveAccount('send messages')) return;
   if (sendingMessage) return;
   if (!selectedConversationId) { showToast('Select a conversation first'); return; }
   var input = document.getElementById('convMessageInput');

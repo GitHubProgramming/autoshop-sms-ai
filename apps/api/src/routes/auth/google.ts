@@ -431,16 +431,20 @@ export async function googleAuthRoute(app: FastifyInstance) {
       let isNewAccount = false;
 
       if (!tenant && isSignup) {
-        // ── Create new tenant via Google signup ──────────────────────────────
+        // ── Create new tenant in demo mode via Google signup ─────────────────
+        // Demo accounts have no trial timer, no provisioning.
+        // Trial starts only after billing activation (card capture).
         try {
           const created = await query<{ id: string }>(
             `INSERT INTO tenants
                (shop_name, owner_name, owner_email, timezone, billing_status,
                 trial_started_at, trial_ends_at, trial_conv_limit,
-                conv_limit_this_cycle, conv_used_this_cycle)
-             VALUES ($1, $2, $3, 'America/Chicago', 'trial',
-                     NOW(), NOW() + INTERVAL '14 days', 50,
-                     50, 0)
+                conv_limit_this_cycle, conv_used_this_cycle,
+                workspace_mode, provisioning_state)
+             VALUES ($1, $2, $3, 'America/Chicago', 'demo',
+                     NULL, NULL, 50,
+                     0, 0,
+                     'demo', 'not_started')
              RETURNING id`,
             ["My Shop", "", normalizedEmail]
           );
@@ -463,7 +467,7 @@ export async function googleAuthRoute(app: FastifyInstance) {
 
           request.log.info(
             { tenantId, googleEmail: normalizedEmail },
-            "New tenant created via Google signup — trial started"
+            "New tenant created via Google signup — demo mode"
           );
 
           tenant = { id: tenantId, shop_name: "My Shop", owner_email: normalizedEmail };

@@ -23,8 +23,11 @@ function makeTenant(overrides: Partial<Tenant> = {}): Tenant {
     conv_used_this_cycle: 0,
     conv_limit_this_cycle: 400,
     trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+    trial_started_at: new Date(),
     warned_80pct: false,
     warned_100pct: false,
+    workspace_mode: "live_active",
+    provisioning_state: "ready",
     ...overrides,
   };
 }
@@ -32,6 +35,10 @@ function makeTenant(overrides: Partial<Tenant> = {}): Tenant {
 describe("getBlockReason", () => {
   it("returns null for active tenant within limits", () => {
     expect(getBlockReason(makeTenant())).toBeNull();
+  });
+
+  it("blocks demo tenants", () => {
+    expect(getBlockReason(makeTenant({ billing_status: "demo" }))).toBe("demo_mode");
   });
 
   it("blocks canceled tenants", () => {

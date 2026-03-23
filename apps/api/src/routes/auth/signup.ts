@@ -82,17 +82,21 @@ export async function signupRoute(app: FastifyInstance) {
     // ── Hash password ────────────────────────────────────────────────────────
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // ── Create tenant with trial state ───────────────────────────────────────
+    // ── Create tenant in demo mode ────────────────────────────────────────────
+    // Demo accounts have no trial timer, no usage counting, no provisioning.
+    // Trial starts only after billing activation (card capture).
     let tenantId: string;
     try {
       const rows = await query<{ id: string }>(
         `INSERT INTO tenants
            (shop_name, owner_name, owner_email, timezone, billing_status, password_hash,
             trial_started_at, trial_ends_at, trial_conv_limit,
-            conv_limit_this_cycle, conv_used_this_cycle)
-         VALUES ($1, $2, $3, $4, 'trial', $5,
-                 NOW(), NOW() + INTERVAL '14 days', 50,
-                 50, 0)
+            conv_limit_this_cycle, conv_used_this_cycle,
+            workspace_mode, provisioning_state)
+         VALUES ($1, $2, $3, $4, 'demo', $5,
+                 NULL, NULL, 50,
+                 0, 0,
+                 'demo', 'not_started')
          RETURNING id`,
         [shopName.trim(), ownerName.trim(), normalizedEmail, timezone, passwordHash]
       );
@@ -138,14 +142,15 @@ export async function signupRoute(app: FastifyInstance) {
       { expiresIn: "24h" }
     );
 
-    request.log.info({ tenantId, email: normalizedEmail }, "New tenant created via email signup — trial started");
+    request.log.info({ tenantId, email: normalizedEmail }, "New tenant created via email signup — demo mode");
 
     return reply.status(201).send({
       token,
       tenantId,
       shopName: shopName.trim(),
-      trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-      message: "Account created. Your 14-day free trial has started.",
+      billingStatus: "demo",
+      workspaceMode: "demo",
+      message: "Account created. Explore the dashboard with sample data — start your free trial when ready.",
     });
   });
 

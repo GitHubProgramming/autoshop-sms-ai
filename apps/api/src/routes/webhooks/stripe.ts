@@ -1,13 +1,13 @@
 import { FastifyInstance, FastifyRequest } from "fastify";
 import Stripe from "stripe";
 import { query } from "../../db/client";
-import { updateBillingStatus } from "../../db/tenants";
+import { updateBillingStatus, activateTrial } from "../../db/tenants";
 import { billingQueue, provisionNumberQueue } from "../../queues/redis";
 import { deduplicateWebhook } from "../../db/webhook-events";
 import { getSharedTestNumber } from "../../utils/test-tenant";
 
 type BillingStatus =
-  | "trial" | "trial_expired" | "active" | "scheduled_cancel"
+  | "demo" | "trial" | "trial_expired" | "active" | "scheduled_cancel"
   | "past_due" | "past_due_blocked" | "canceled" | "paused";
 
 const PLAN_LIMITS: Record<string, number> = {
@@ -102,17 +102,21 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
       const planId = getPlanFromStripePrice(priceId);
       const convLimit = PLAN_LIMITS[planId] ?? 150;
 
-      // Determine billing status: if cancel_at_period_end is set, the subscription
-      // is still active (customer keeps service) but scheduled to cancel.
-      // MRR must include scheduled_cancel tenants until the period actually ends.
-      const billingStatus =
-        sub.status === "active" && sub.cancel_at_period_end
-          ? "scheduled_cancel"
-          : sub.status === "active"
-            ? "active"
-            : sub.status === "past_due"
-              ? "past_due"
-              : "active"; // default for other active-like states
+      // Determine billing status from Stripe subscription state.
+      // 'trialing' = card captured with trial_period_days (demo→trial upgrade).
+      // 'active' + cancel_at_period_end = scheduled_cancel (still counts for MRR).
+      let billingStatus: BillingStatus;
+      if (sub.status === "trialing") {
+        billingStatus = "trial";
+      } else if (sub.status === "active" && sub.cancel_at_period_end) {
+        billingStatus = "scheduled_cancel";
+      } else if (sub.status === "active") {
+        billingStatus = "active";
+      } else if (sub.status === "past_due") {
+        billingStatus = "past_due";
+      } else {
+        billingStatus = "active"; // default for other active-like states
+      }
 
       // Extract real subscription amount from Stripe (cents)
       const priceItem = sub.items.data[0]?.price;
@@ -123,9 +127,20 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
         ? sub.current_period_end
         : null;
 
-      // On subscription.created: reset usage counters.
+      // On subscription.created: reset usage counters + handle demo→trial transition.
       // On subscription.updated: preserve usage (user may just be changing cancel state).
       if (event.type === "customer.subscription.created") {
+        // Check if this is a demo→trial upgrade
+        const currentTenant = await query<{ billing_status: string }>(
+          `SELECT billing_status FROM tenants WHERE id = $1`, [tenantId]
+        );
+        const wasDemo = currentTenant[0]?.billing_status === "demo";
+
+        // Compute trial_ends_at from Stripe's trial_end (if trial sub) or use 14-day default
+        const trialEnd = sub.trial_end
+          ? new Date(sub.trial_end * 1000).toISOString()
+          : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
         await query(
           `UPDATE tenants SET
              billing_status     = $1, plan_id = $2, stripe_subscription_id = $3,
@@ -134,12 +149,21 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
              cycle_reset_at = to_timestamp($5),
              subscription_amount_cents = $6, subscription_currency = $7,
              subscription_interval = $8, cancel_at = $9,
+             trial_started_at = COALESCE(trial_started_at, NOW()),
+             trial_ends_at = CASE WHEN billing_status = 'demo' OR trial_ends_at IS NULL THEN $11::timestamptz ELSE trial_ends_at END,
+             workspace_mode = CASE WHEN workspace_mode = 'demo' THEN 'live_empty' ELSE workspace_mode END,
+             provisioning_state = CASE WHEN provisioning_state = 'not_started' THEN 'pending_setup' ELSE provisioning_state END,
              updated_at = NOW()
            WHERE id = $10`,
           [billingStatus, planId, sub.id, convLimit, sub.current_period_end,
            subscriptionAmountCents, subscriptionCurrency, subscriptionInterval,
-           cancelAt ? new Date(cancelAt * 1000).toISOString() : null, tenantId]
+           cancelAt ? new Date(cancelAt * 1000).toISOString() : null, tenantId,
+           trialEnd]
         );
+
+        if (wasDemo) {
+          console.info(`[stripe] Demo→trial transition for tenant ${tenantId}`);
+        }
       } else {
         await query(
           `UPDATE tenants SET
