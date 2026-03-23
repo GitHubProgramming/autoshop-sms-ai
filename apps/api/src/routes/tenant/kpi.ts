@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { query } from "../../db/client";
 import { requireAuth } from "../../middleware/require-auth";
+import { deleteCalendarEvent } from "../../services/google-calendar";
 
 /**
  * Tenant KPI endpoints — all values come from real data only.
@@ -142,23 +143,24 @@ export async function tenantKpiRoute(app: FastifyInstance) {
            AND completed_at >= NOW() - INTERVAL '30 days'`,
         [tenantId]
       ),
-      // AI-booked appointments this month (have conversation_id, exclude FAILED)
+      // AI-booked appointments this month (have conversation_id, exclude FAILED + CANCELLED)
       query<{ count: string }>(
         `SELECT COUNT(*)::text AS count
          FROM appointments
          WHERE tenant_id = $1
            AND conversation_id IS NOT NULL
-           AND booking_state NOT IN ('FAILED')
+           AND booking_state NOT IN ('FAILED', 'CANCELLED')
            AND created_at >= date_trunc('month', CURRENT_DATE)`,
         [tenantId]
       ),
-      // Appointments today
+      // Appointments today (exclude cancelled/failed)
       query<{ count: string }>(
         `SELECT COUNT(*)::text AS count
          FROM appointments
          WHERE tenant_id = $1
            AND scheduled_at >= CURRENT_DATE
-           AND scheduled_at < CURRENT_DATE + INTERVAL '1 day'`,
+           AND scheduled_at < CURRENT_DATE + INTERVAL '1 day'
+           AND booking_state NOT IN ('CANCELLED', 'FAILED')`,
         [tenantId]
       ),
       // Active conversations
@@ -341,19 +343,23 @@ export async function tenantKpiRoute(app: FastifyInstance) {
    * PATCH /tenant/appointments/:id/cancel
    *
    * Cancel an appointment. Sets booking_state to CANCELLED.
+   * If a Google Calendar event exists and the tenant has calendar tokens,
+   * attempts to delete the event from Google Calendar.
+   *
    * Only allowed on appointments that are not already completed or cancelled.
    */
   app.patch("/appointments/:id/cancel", { preHandler: [requireAuth] }, async (request, reply) => {
     const { tenantId } = request.user as { tenantId: string; email: string };
     const { id } = request.params as { id: string };
 
-    const rows = await query<{ id: string; booking_state: string }>(
+    // 1. Cancel in DB and return the google_event_id for calendar cleanup
+    const rows = await query<{ id: string; google_event_id: string | null }>(
       `UPDATE appointments
        SET booking_state = 'CANCELLED'
        WHERE id = $1 AND tenant_id = $2
          AND completed_at IS NULL
          AND booking_state NOT IN ('CANCELLED')
-       RETURNING id, booking_state`,
+       RETURNING id, google_event_id`,
       [id, tenantId]
     );
 
@@ -361,6 +367,22 @@ export async function tenantKpiRoute(app: FastifyInstance) {
       return reply.status(404).send({ error: "Appointment not found or already completed/cancelled" });
     }
 
-    return reply.status(200).send({ id: rows[0].id, status: "cancelled" });
+    const googleEventId = rows[0].google_event_id;
+    let calendar_event_deleted = false;
+    let calendar_error: string | null = null;
+
+    // 2. If there's a Google Calendar event, attempt to delete it
+    if (googleEventId) {
+      const result = await deleteCalendarEvent(tenantId, id, googleEventId);
+      calendar_event_deleted = result.success;
+      calendar_error = result.error;
+    }
+
+    return reply.status(200).send({
+      id: rows[0].id,
+      status: "cancelled",
+      calendar_event_deleted,
+      calendar_error,
+    });
   });
 }

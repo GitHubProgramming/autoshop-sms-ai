@@ -58,12 +58,13 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
          WHERE tenant_id = $1 AND opened_at >= CURRENT_DATE`,
         [tenantId]
       ),
-      // Appointments scheduled for today
+      // Appointments scheduled for today (exclude cancelled)
       query(
         `SELECT COUNT(*)::int AS count FROM appointments
          WHERE tenant_id = $1
            AND scheduled_at >= CURRENT_DATE
-           AND scheduled_at < CURRENT_DATE + INTERVAL '1 day'`,
+           AND scheduled_at < CURRENT_DATE + INTERVAL '1 day'
+           AND booking_state NOT IN ('CANCELLED', 'FAILED')`,
         [tenantId]
       ),
       // Active conversations
@@ -79,11 +80,12 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
            AND opened_at >= date_trunc('month', CURRENT_DATE)`,
         [tenantId]
       ),
-      // Appointments this month
+      // Appointments this month (exclude cancelled/failed)
       query(
         `SELECT COUNT(*)::int AS count FROM appointments
          WHERE tenant_id = $1
-           AND created_at >= date_trunc('month', CURRENT_DATE)`,
+           AND created_at >= date_trunc('month', CURRENT_DATE)
+           AND booking_state NOT IN ('CANCELLED', 'FAILED')`,
         [tenantId]
       ),
       // Total conversations (all time)

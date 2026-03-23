@@ -272,3 +272,98 @@ export async function createCalendarEvent(
     calendarSynced: true,
   };
 }
+
+// ── Calendar Event Deletion (for cancellation) ────────────────────────────
+
+export interface DeleteCalendarEventResult {
+  success: boolean;
+  error: string | null;
+}
+
+/**
+ * Deletes a Google Calendar event for a cancelled appointment.
+ *
+ * Flow:
+ * 1. Fetch calendar tokens for tenant
+ * 2. DELETE the event via Google Calendar API
+ * 3. Clear google_event_id + calendar_synced on the appointment
+ *
+ * Returns a structured result (never throws).
+ */
+export async function deleteCalendarEvent(
+  tenantId: string,
+  appointmentId: string,
+  googleEventId: string,
+  fetchFn: typeof fetch = fetch
+): Promise<DeleteCalendarEventResult> {
+  // 1. Get tokens
+  let tokens: { accessToken: string; calendarId: string } | null;
+  try {
+    tokens = await getCalendarTokens(tenantId);
+  } catch (err) {
+    return {
+      success: false,
+      error: `Token retrieval failed: ${(err as Error).message}`,
+    };
+  }
+
+  if (!tokens) {
+    return {
+      success: false,
+      error: "No calendar tokens found for tenant",
+    };
+  }
+
+  // 2. DELETE event via Google Calendar API (with 401 retry)
+  try {
+    const url = `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(tokens.calendarId)}/events/${encodeURIComponent(googleEventId)}`;
+    let res = await fetchFn(url, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${tokens.accessToken}`,
+      },
+    });
+
+    // 401 → token may have expired; force-refresh and retry once
+    if (res.status === 401) {
+      const refreshed = await forceRefreshToken(tenantId);
+      if (refreshed) {
+        res = await fetchFn(url, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${refreshed}`,
+          },
+        });
+      }
+    }
+
+    // 204 = deleted, 410 = already deleted (gone) — both are success
+    if (res.status !== 204 && res.status !== 410 && !res.ok) {
+      const body = await res.text().catch(() => "");
+      return {
+        success: false,
+        error: `Google Calendar API error ${res.status}: ${body}`,
+      };
+    }
+  } catch (err) {
+    return {
+      success: false,
+      error: `Google Calendar API request failed: ${(err as Error).message}`,
+    };
+  }
+
+  // 3. Clear google_event_id on appointment (event is gone from calendar)
+  try {
+    await query(
+      `UPDATE appointments
+       SET google_event_id = NULL, calendar_synced = FALSE
+       WHERE id = $1 AND tenant_id = $2`,
+      [appointmentId, tenantId]
+    );
+  } catch {
+    // Event was deleted but DB update failed — still a success
+    // The event is gone from Google Calendar which is what matters
+  }
+
+  return { success: true, error: null };
+}

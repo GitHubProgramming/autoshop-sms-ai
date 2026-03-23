@@ -4235,16 +4235,27 @@ async function cancelAppointment(apptId) {
       showToast(err.error || 'Failed to cancel appointment.');
       return;
     }
+    var data = await res.json().catch(function() { return {}; });
     // Update local data
     var b = bookingsData.find(function(x) { return x.id === apptId; });
     if (b) {
       b.bookingState = 'CANCELLED';
       b.syncStatus = 'failed';
       b.syncLabel = 'Cancelled';
+      if (data.calendar_event_deleted) {
+        b.calendarSynced = false;
+      }
     }
     renderBookings();
     renderAppointmentsPage();
-    showToast('Appointment cancelled.');
+    // Surface calendar result
+    if (data.calendar_error) {
+      showToast('Appointment cancelled. Calendar event could not be removed: ' + data.calendar_error);
+    } else if (data.calendar_event_deleted) {
+      showToast('Appointment cancelled and removed from Google Calendar.');
+    } else {
+      showToast('Appointment cancelled.');
+    }
   } catch (e) {
     showToast('Network error — please try again.');
   }
