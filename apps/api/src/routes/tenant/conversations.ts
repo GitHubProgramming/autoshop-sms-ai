@@ -23,6 +23,8 @@ export async function tenantConversationsRoute(app: FastifyInstance) {
       [tenantId]
     );
 
+    request.log.info({ tenantId, rowCount: (rows as any[]).length }, "GET /tenant/conversations");
+
     return reply.status(200).send({
       conversations: rows,
       count: (rows as any[]).length,
