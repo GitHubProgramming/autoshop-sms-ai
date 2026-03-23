@@ -30,7 +30,7 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
     ] = await Promise.all([
       // Tenant identity + billing + business hours (for onboarding check)
       query(
-        `SELECT id, shop_name, owner_email, billing_status, plan_id,
+        `SELECT id, shop_name, owner_email, owner_phone, billing_status, plan_id,
                 conv_used_this_cycle, conv_limit_this_cycle,
                 trial_started_at, trial_ends_at,
                 warned_80pct, warned_100pct, created_at,
@@ -193,6 +193,8 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
         warned_80pct: tenant.warned_80pct,
         warned_100pct: tenant.warned_100pct,
         created_at: tenant.created_at,
+        business_hours: tenant.business_hours ?? null,
+        owner_phone: tenant.owner_phone ?? null,
       },
       integrations: {
         google_calendar: {

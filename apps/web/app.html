@@ -1316,7 +1316,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
         <div class="appt-panel">
           <div class="appt-panel-header">
             <div class="appt-panel-title" id="apptTodayTitle">Today</div>
-            <button class="btn-sm primary" onclick="showToast('Add appointment coming soon.')">Add Appointment</button>
           </div>
           <div id="apptTodayCards">
             <div style="padding:24px 0;text-align:center;font-size:13px;color:var(--text-tertiary);">No appointments today</div>
@@ -1357,7 +1356,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
     <div class="view" id="view-customers">
       <div class="page-header">
         <div><div class="page-title">Customers</div><div class="page-subtitle">Manage your customer database and service history</div></div>
-        <div class="page-actions"><button class="btn-sm" onclick="showToast('Export coming soon.')">Export</button></div>
       </div>
 
       <!-- Stats Row -->
@@ -1383,7 +1381,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
               <option value="new">First-time</option>
               <option value="inactive">No bookings</option>
             </select>
-            <button class="cust-add-btn" onclick="showToast('Add customer coming soon.')">Add Customer</button>
           </div>
         </div>
 
@@ -1418,7 +1415,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
       <div class="page-header">
         <div><div class="page-title">Analytics & Reporting</div><div class="page-subtitle" id="revenueSubtitle">Track performance metrics and business insights</div></div>
         <div class="page-actions">
-          <button class="btn-sm" onclick="showToast('Export coming soon.')">Export Report</button>
         </div>
       </div>
 
@@ -1601,10 +1597,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
             AI Behavior
           </button>
-          <button class="settings-nav-btn" onclick="switchSettingsTab(this,'sp-notifications')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            Notifications
-          </button>
         </div>
 
         <!-- Right content area -->
@@ -1614,28 +1606,18 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
           <div class="settings-panel active" id="sp-shop">
             <div class="settings-card">
               <div class="settings-card-title">Shop Profile</div>
-              <div class="settings-card-sub">Update your shop information and contact details</div>
-              <div class="settings-field-row">
-                <div class="settings-field">
-                  <label>Shop Name</label>
-                  <input type="text" id="shop-name-input" value="" placeholder="Your Shop Name">
-                </div>
-                <div class="settings-field">
-                  <label>Phone Number</label>
-                  <input type="tel" value="" placeholder="(555) 123-4567">
-                </div>
+              <div class="settings-card-sub">Update your shop name</div>
+              <div class="settings-field">
+                <label>Shop Name</label>
+                <input type="text" id="shop-name-input" value="" placeholder="Your Shop Name">
               </div>
               <div class="settings-field">
-                <label>Email Address</label>
-                <input type="email" value="" placeholder="contact@yourshop.com">
+                <label>Owner Email</label>
+                <input type="email" id="settingsOwnerEmail" value="" readonly style="background:var(--surface-alt,var(--bg));color:var(--text-tertiary);cursor:default;">
               </div>
               <div class="settings-field">
-                <label>Address</label>
-                <input type="text" value="" placeholder="123 Main St, City, TX 78701">
-              </div>
-              <div class="settings-field">
-                <label>Shop Description</label>
-                <textarea rows="4" placeholder="Describe your shop's services and specialties..."></textarea>
+                <label>SMS Phone Number</label>
+                <input type="text" id="settingsTwilioNumber" value="" readonly style="background:var(--surface-alt,var(--bg));color:var(--text-tertiary);cursor:default;">
               </div>
               <button class="settings-save-btn" id="save-settings-btn">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -1658,9 +1640,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
                 <div class="hours-row"><div class="hours-day">Saturday</div><div class="hours-inputs"><input type="time" value="08:00"><span>to</span><input type="time" value="17:00"></div><label class="hours-closed"><input type="checkbox"><span>Closed</span></label></div>
                 <div class="hours-row"><div class="hours-day">Sunday</div><div class="hours-inputs"><input type="time" value="" disabled><span>to</span><input type="time" value="" disabled></div><label class="hours-closed"><input type="checkbox" checked><span>Closed</span></label></div>
               </div>
-              <button class="settings-save-btn" disabled style="margin-top:20px;opacity:0.5;cursor:not-allowed;" title="Business hours persistence coming soon">
+              <button class="settings-save-btn" id="save-hours-btn" style="margin-top:20px;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                Save Hours <span style="font-size:11px;opacity:0.7;">(coming soon)</span>
+                Save Hours
               </button>
             </div>
           </div>
@@ -1669,28 +1651,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
           <div class="settings-panel" id="sp-sms">
             <div class="settings-card">
               <div class="settings-card-title">SMS Configuration</div>
-              <div class="settings-card-sub">Configure SMS messaging settings and templates</div>
+              <div class="settings-card-sub">Your SMS phone number and messaging settings</div>
               <div class="settings-field">
                 <label>SMS From Number</label>
-                <input type="text" id="settingsTwilioNumber2" value="" placeholder="(555) 123-4567">
+                <input type="text" id="settingsTwilioNumber2" value="" placeholder="Not provisioned" readonly style="background:var(--surface-alt,var(--bg));color:var(--text-tertiary);cursor:default;">
               </div>
-              <div class="settings-field">
-                <label>Welcome Message Template</label>
-                <textarea rows="3" placeholder="Thanks for contacting us! How can we help you today?"></textarea>
-              </div>
-              <div class="settings-field">
-                <label>Appointment Confirmation Template</label>
-                <textarea rows="3" placeholder="Your appointment is confirmed for {date} at {time}. We look forward to seeing you!"></textarea>
-              </div>
-              <hr class="settings-divider">
-              <div class="settings-section-title">Messaging Options</div>
-              <div class="settings-check-row"><input type="checkbox" checked><span>Send appointment reminders 24 hours before</span></div>
-              <div class="settings-check-row"><input type="checkbox" checked><span>Allow customers to reschedule via SMS</span></div>
-              <div class="settings-check-row"><input type="checkbox" checked><span>Send follow-up messages after service</span></div>
-              <button class="settings-save-btn" disabled style="margin-top:20px;opacity:0.5;cursor:not-allowed;" title="SMS configuration persistence coming soon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                Save Configuration <span style="font-size:11px;opacity:0.7;">(coming soon)</span>
-              </button>
+              <div style="font-size:12px;color:var(--text-tertiary);margin-top:8px;">SMS templates and AI behavior are configured in the <a style="color:var(--rust);cursor:pointer;font-weight:600;" onclick="switchSettingsTab(document.querySelector('[onclick*=&quot;sp-ai&quot;]'),'sp-ai')">AI Behavior</a> tab.</div>
             </div>
           </div>
 
@@ -1714,14 +1680,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
                 </div>
                 <button class="calendar-disconnect-btn" id="settingsCalendarAction">Disconnect</button>
               </div>
-              <div class="settings-section-title">Sync Settings</div>
-              <div class="settings-check-row"><input type="checkbox" checked><span>Two-way sync (updates in both directions)</span></div>
-              <div class="settings-check-row"><input type="checkbox" checked><span>Block time slots that are unavailable</span></div>
-              <div class="settings-check-row"><input type="checkbox" checked><span>Include customer details in calendar events</span></div>
-              <button class="settings-save-btn" disabled style="margin-top:20px;opacity:0.5;cursor:not-allowed;" title="Calendar sync settings persistence coming soon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                Save Settings <span style="font-size:11px;opacity:0.7;">(coming soon)</span>
-              </button>
             </div>
           </div>
 
@@ -1906,62 +1864,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
             </div>
           </div>
 
-          <!-- Notifications -->
-          <div class="settings-panel" id="sp-notifications">
-            <div class="settings-card">
-              <div class="settings-card-title">Notification Settings</div>
-              <div class="settings-card-sub">Choose how and when you want to be notified</div>
-              <div class="settings-section-title">Email Notifications</div>
-              <div class="notif-row">
-                <div class="notif-row-left">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                  <span>New appointment booked</span>
-                </div>
-                <input type="checkbox" checked>
-              </div>
-              <div class="notif-row">
-                <div class="notif-row-left">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                  <span>Conversation needs operator</span>
-                </div>
-                <input type="checkbox" checked>
-              </div>
-              <div class="notif-row">
-                <div class="notif-row-left">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                  <span>Daily summary report</span>
-                </div>
-                <input type="checkbox" checked>
-              </div>
-              <div class="notif-row">
-                <div class="notif-row-left">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                  <span>Weekly analytics report</span>
-                </div>
-                <input type="checkbox">
-              </div>
-              <hr class="settings-divider">
-              <div class="settings-section-title">SMS Notifications</div>
-              <div class="notif-row">
-                <div class="notif-row-left">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                  <span>Urgent escalations only</span>
-                </div>
-                <input type="checkbox" checked>
-              </div>
-              <div class="notif-row">
-                <div class="notif-row-left">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                  <span>System alerts</span>
-                </div>
-                <input type="checkbox" checked>
-              </div>
-              <button class="settings-save-btn" disabled style="margin-top:20px;opacity:0.5;cursor:not-allowed;" title="Notification preferences persistence coming soon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                Save Preferences <span style="font-size:11px;opacity:0.7;">(coming soon)</span>
-              </button>
-            </div>
-          </div>
 
         </div><!-- /settings-content -->
       </div><!-- /settings-layout -->
@@ -2202,6 +2104,8 @@ async function loadDashboardData() {
     tenantState._calendarId = cal.calendar_id || null;
     tenantState._calendarEmail = cal.google_account_email || null;
     tenantState.created_at = t.created_at;
+    tenantState._businessHours = t.business_hours || null;
+    tenantState._ownerEmail = t.owner_email || null;
 
     // Server-side onboarding state (single source of truth)
     tenantState.onboarding = data.onboarding || {};
@@ -2599,6 +2503,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   renderCustomers();
   renderAppointmentsPage();
   updateSidebarBadge();
+  populateSettingsFromDashboard();
 
   // ── Route-based view switch on initial load ──
   var initialView = getViewFromPath();
@@ -2777,6 +2682,14 @@ function renderNav() {
   if (smsNum && s.integrations.twilioNumber === 'active' && s._twilioPhone) {
     smsNum.value = s._twilioPhone;
   }
+
+  // Settings — Owner email (read-only)
+  var ownerEmailEl = document.getElementById('settingsOwnerEmail');
+  if (ownerEmailEl && s._ownerEmail) ownerEmailEl.value = s._ownerEmail;
+
+  // Settings — Shop profile phone (read-only)
+  var shopPhoneEl = document.getElementById('settingsTwilioNumber');
+  if (shopPhoneEl) shopPhoneEl.value = s._twilioPhone || 'Not provisioned';
 }
 
 // ════════════════════════════════════════════
@@ -3132,22 +3045,28 @@ function renderBookingsCalendarAlert() {
 function renderBookings() {
   const html = bookingsData.map(b => {
     const isCompleted = !!b.completedAt;
-    const syncEl = isCompleted
-      ? `<span class="status-pill synced">Completed</span>`
-      : `<span class="status-pill ${b.syncStatus}">${b.syncLabel || b.syncStatus.charAt(0).toUpperCase() + b.syncStatus.slice(1)}</span>`;
+    const isCancelledSync = b.bookingState === 'CANCELLED';
+    const syncEl = isCancelledSync
+      ? `<span class="status-pill failed">Cancelled</span>`
+      : isCompleted
+        ? `<span class="status-pill synced">Completed</span>`
+        : `<span class="status-pill ${b.syncStatus}">${b.syncLabel || b.syncStatus.charAt(0).toUpperCase() + b.syncStatus.slice(1)}</span>`;
     const failNote = b.failNote && !isCompleted ? `<div style="font-family:var(--mono);font-size:11px;color:var(--red);margin-top:4px;">${b.failNote}</div>` : '';
     const priceCell = b.finalPrice != null
       ? `<span style="font-family:var(--mono);font-weight:600;color:var(--navy);">$${b.finalPrice.toFixed(2)}</span>`
       : `<span style="font-family:var(--mono);font-size:11px;color:var(--steel);">—</span>`;
     let action;
-    if (isCompleted) {
+    var isCancelled = b.bookingState === 'CANCELLED';
+    if (isCancelled) {
+      action = `<span style="font-family:var(--mono);font-size:11px;color:var(--red);font-weight:600;">Cancelled</span>`;
+    } else if (isCompleted) {
       action = `<span style="font-family:var(--mono);font-size:11px;color:var(--navy);font-weight:600;">Done</span>`;
     } else if (b.syncStatus === 'failed') {
-      action = `<button class="view-btn red" onclick="showToast('Retrying calendar sync...')">Retry Sync</button>`;
+      action = `<span style="font-family:var(--mono);font-size:11px;color:var(--red);font-weight:600;">Failed</span>`;
     } else if (b.syncStatus === 'pending') {
       action = `<span style="font-family:var(--mono);font-size:11px;color:var(--rust);font-weight:600;">Action Needed</span>`;
     } else {
-      action = `<button class="view-btn" onclick="openCompleteModal('${b.id}')">Complete</button>`;
+      action = `<div class="row-actions"><button class="view-btn" onclick="openCompleteModal('${b.id}')">Complete</button><button class="view-btn red" onclick="cancelAppointment('${b.id}')">Cancel</button></div>`;
     }
     return `<tr data-appt-id="${b.id}">
       <td class="td-date">${b.date}</td>
@@ -3967,7 +3886,7 @@ function renderSystemHero() {
     label.className = 'hero-status red';
     label.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> SMS Delivery Issue';
     desc.textContent = 'Twilio webhook degraded — some missed calls may not trigger SMS.';
-    metr.innerHTML = '<a onclick="showToast(\'Opening Twilio diagnostics...\')">View diagnostics →</a>';
+    metr.innerHTML = '<a onclick="switchView(\'settings\')" style="cursor:pointer;">Check settings →</a>';
   } else if (aiDegraded) {
     strip.className = 'system-hero error';
     label.className = 'hero-status red';
@@ -4295,6 +4214,94 @@ function checkActivationState() {
     if (subEl) subEl.textContent = 'Send a test message to see it in action';
   }
   // else keep the default "Revenue Intelligence Dashboard" title
+}
+
+// ════════════════════════════════════════════
+// CANCEL APPOINTMENT
+// ════════════════════════════════════════════
+async function cancelAppointment(apptId) {
+  if (!confirm('Cancel this appointment? This action cannot be undone.')) return;
+
+  var token = localStorage.getItem('autoshop_jwt');
+  if (!token) { showToast('Session expired — please log in again.'); return; }
+
+  try {
+    var res = await fetch('/tenant/appointments/' + apptId + '/cancel', {
+      method: 'PATCH',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) {
+      var err = await res.json().catch(function() { return {}; });
+      showToast(err.error || 'Failed to cancel appointment.');
+      return;
+    }
+    // Update local data
+    var b = bookingsData.find(function(x) { return x.id === apptId; });
+    if (b) {
+      b.bookingState = 'CANCELLED';
+      b.syncStatus = 'failed';
+      b.syncLabel = 'Cancelled';
+    }
+    renderBookings();
+    renderAppointmentsPage();
+    showToast('Appointment cancelled.');
+  } catch (e) {
+    showToast('Network error — please try again.');
+  }
+}
+
+// ════════════════════════════════════════════
+// BUSINESS HOURS — save/load
+// ════════════════════════════════════════════
+function readBusinessHoursForm() {
+  var days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  var rows = document.querySelectorAll('#hoursRows .hours-row');
+  var hours = {};
+  rows.forEach(function(row, idx) {
+    var inputs = row.querySelectorAll('input[type="time"]');
+    var closed = row.querySelector('input[type="checkbox"]');
+    hours[days[idx]] = {
+      open: inputs[0] ? inputs[0].value : '',
+      close: inputs[1] ? inputs[1].value : '',
+      closed: closed ? closed.checked : false
+    };
+  });
+  return JSON.stringify(hours);
+}
+
+function populateBusinessHoursForm(hoursStr) {
+  if (!hoursStr) return;
+  try {
+    var hours = JSON.parse(hoursStr);
+    var days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+    var rows = document.querySelectorAll('#hoursRows .hours-row');
+    rows.forEach(function(row, idx) {
+      var day = days[idx];
+      if (!hours[day]) return;
+      var inputs = row.querySelectorAll('input[type="time"]');
+      var closed = row.querySelector('input[type="checkbox"]');
+      if (inputs[0]) { inputs[0].value = hours[day].open || ''; inputs[0].disabled = !!hours[day].closed; }
+      if (inputs[1]) { inputs[1].value = hours[day].close || ''; inputs[1].disabled = !!hours[day].closed; }
+      if (closed) closed.checked = !!hours[day].closed;
+    });
+  } catch (e) { /* ignore parse errors */ }
+}
+
+// ════════════════════════════════════════════
+// POPULATE SETTINGS FIELDS FROM DASHBOARD DATA
+// ════════════════════════════════════════════
+function populateSettingsFromDashboard() {
+  // Owner email
+  var emailEl = document.getElementById('settingsOwnerEmail');
+  if (emailEl) {
+    var session = JSON.parse(localStorage.getItem('autoshop_session') || '{}');
+    emailEl.value = session.email || tenantState._ownerEmail || '';
+  }
+  // Twilio phone in shop profile
+  var phoneEl = document.getElementById('settingsTwilioNumber');
+  if (phoneEl) phoneEl.value = tenantState._twilioPhone || 'Not provisioned';
+  // Business hours
+  populateBusinessHoursForm(tenantState._businessHours || null);
 }
 
 </script>
@@ -5300,6 +5307,43 @@ document.addEventListener('DOMContentLoaded', function() {
   if (saveBtn) saveBtn.addEventListener('click', aiSaveSettings);
   var resetBtn = document.getElementById('ai-reset-btn');
   if (resetBtn) resetBtn.addEventListener('click', aiResetSettings);
+
+  // ── Business Hours save button ──
+  var hoursBtn = document.getElementById('save-hours-btn');
+  if (hoursBtn) {
+    hoursBtn.addEventListener('click', async function() {
+      hoursBtn.disabled = true;
+      hoursBtn.textContent = 'Saving...';
+      try {
+        var token = localStorage.getItem('autoshop_jwt') || '';
+        var hoursData = readBusinessHoursForm();
+        var res = await fetch('/tenant/settings', {
+          method: 'PUT',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ business_hours: hoursData })
+        });
+        if (!res.ok) throw new Error('Save failed');
+        tenantState._businessHours = hoursData;
+        showToast('Business hours saved.');
+      } catch (e) {
+        showToast('Failed to save business hours.', 'error');
+      } finally {
+        hoursBtn.disabled = false;
+        hoursBtn.textContent = 'Save Hours';
+      }
+    });
+  }
+
+  // ── Business Hours: toggle disabled inputs when "Closed" is checked ──
+  document.querySelectorAll('#hoursRows .hours-row').forEach(function(row) {
+    var cb = row.querySelector('input[type="checkbox"]');
+    var inputs = row.querySelectorAll('input[type="time"]');
+    if (cb) {
+      cb.addEventListener('change', function() {
+        inputs.forEach(function(input) { input.disabled = cb.checked; if (cb.checked) input.value = ''; });
+      });
+    }
+  });
 });
 </script>
 

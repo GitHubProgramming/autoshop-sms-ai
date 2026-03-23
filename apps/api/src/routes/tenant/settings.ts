@@ -7,6 +7,7 @@ import { mergeWithDefaults, getTenantAiPolicy } from "../../services/ai-settings
 const UpdateSettingsSchema = z.object({
   shop_name: z.string().min(1).max(200).optional(),
   ai_settings: z.record(z.unknown()).optional(),
+  business_hours: z.string().max(2000).optional(),
 });
 
 /**
@@ -27,13 +28,13 @@ export async function tenantSettingsRoute(app: FastifyInstance) {
       });
     }
 
-    const { shop_name, ai_settings } = parsed.data;
+    const { shop_name, ai_settings, business_hours } = parsed.data;
 
     // At least one field must be provided
-    if (!shop_name && !ai_settings) {
+    if (!shop_name && !ai_settings && business_hours === undefined) {
       return reply.status(400).send({
         error: "Validation failed",
-        details: ["At least shop_name or ai_settings must be provided"],
+        details: ["At least shop_name, ai_settings, or business_hours must be provided"],
       });
     }
 
@@ -56,6 +57,12 @@ export async function tenantSettingsRoute(app: FastifyInstance) {
       paramIdx++;
     }
 
+    if (business_hours !== undefined) {
+      setClauses.push(`business_hours = $${paramIdx}`);
+      params.push(business_hours);
+      paramIdx++;
+    }
+
     params.push(tenantId);
 
     await query(
@@ -66,6 +73,7 @@ export async function tenantSettingsRoute(app: FastifyInstance) {
     const result: Record<string, unknown> = { success: true };
     if (shop_name) result.shop_name = shop_name;
     if (ai_settings) result.ai_settings = mergeWithDefaults(ai_settings);
+    if (business_hours !== undefined) result.business_hours = business_hours;
 
     return reply.status(200).send(result);
   });
