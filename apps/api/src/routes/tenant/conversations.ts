@@ -16,9 +16,19 @@ export async function tenantConversationsRoute(app: FastifyInstance) {
     const rows = await query(
       `SELECT c.id, c.customer_phone, c.status, c.turn_count,
               c.opened_at, c.last_message_at, c.closed_at, c.close_reason,
-              cu.name AS customer_name
+              COALESCE(a.customer_name, cu.name) AS customer_name,
+              a.car_model,
+              a.issue_description,
+              a.license_plate
        FROM conversations c
        LEFT JOIN customers cu ON cu.tenant_id = c.tenant_id AND cu.phone = c.customer_phone
+       LEFT JOIN LATERAL (
+         SELECT customer_name, car_model, issue_description, license_plate
+         FROM appointments
+         WHERE conversation_id = c.id AND tenant_id = c.tenant_id
+         ORDER BY created_at DESC
+         LIMIT 1
+       ) a ON true
        WHERE c.tenant_id = $1
        ORDER BY c.last_message_at DESC`,
       [tenantId]
@@ -44,9 +54,19 @@ export async function tenantConversationsRoute(app: FastifyInstance) {
       query(
         `SELECT c.id, c.tenant_id, c.customer_phone, c.status, c.turn_count,
                 c.opened_at, c.last_message_at, c.closed_at, c.close_reason,
-                cu.name AS customer_name
+                COALESCE(a.customer_name, cu.name) AS customer_name,
+                a.car_model,
+                a.issue_description,
+                a.license_plate
          FROM conversations c
          LEFT JOIN customers cu ON cu.tenant_id = c.tenant_id AND cu.phone = c.customer_phone
+         LEFT JOIN LATERAL (
+           SELECT customer_name, car_model, issue_description, license_plate
+           FROM appointments
+           WHERE conversation_id = c.id AND tenant_id = c.tenant_id
+           ORDER BY created_at DESC
+           LIMIT 1
+         ) a ON true
          WHERE c.id = $1 AND c.tenant_id = $2`,
         [id, tenantId]
       ),

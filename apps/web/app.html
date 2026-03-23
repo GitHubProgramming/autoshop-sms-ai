@@ -2304,11 +2304,12 @@ async function loadConversationsData() {
         customerName: c.customer_name || '',
         email: c.customer_email || '',
         location: c.customer_location || '',
-        vehicleModel: c.vehicle_model || '',
+        vehicleModel: c.car_model || '',
         vin: c.vin || '',
         mileage: c.mileage || '',
-        issue: c.close_reason || 'SMS Conversation',
-        lastMessage: c.last_message || c.close_reason || 'SMS Conversation',
+        licensePlate: c.license_plate || '',
+        issue: c.issue_description || 'SMS Conversation',
+        lastMessage: c.last_message || c.issue_description || 'SMS Conversation',
         lastMessageAt: c.last_message_at || c.opened_at || null,
         timeAgo: fmtDate(c.last_message_at || c.opened_at),
         status: status,
@@ -3502,7 +3503,7 @@ async function loadConversationPanel(id, conv, booking) {
     }
 
     // ── SECTION 4: Vehicle / Service Block ──
-    var hasVehicle = conv.vehicleModel || conv.vin || conv.mileage;
+    var hasVehicle = conv.vehicleModel || conv.vin || conv.mileage || conv.licensePlate;
     if (hasVehicle) {
       html += '<div class="conv-panel-info-block">' +
         '<div class="conv-panel-block-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Vehicle</div>';
@@ -3511,6 +3512,9 @@ async function loadConversationPanel(id, conv, booking) {
       }
       if (conv.vin) {
         html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">VIN</span><span class="conv-panel-info-value">' + conv.vin + '</span></div>';
+      }
+      if (conv.licensePlate) {
+        html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Plate</span><span class="conv-panel-info-value">' + conv.licensePlate + '</span></div>';
       }
       if (conv.mileage) {
         html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Mileage</span><span class="conv-panel-info-value">' + conv.mileage + '</span></div>';
@@ -3588,6 +3592,14 @@ async function loadConversationPanel(id, conv, booking) {
     });
     if (res.ok) {
       var data = await res.json();
+      // Enrich conv object with detail-level fields from API
+      if (data.conversation && conv) {
+        var dc = data.conversation;
+        if (dc.customer_name) conv.customerName = dc.customer_name;
+        if (dc.car_model) conv.vehicleModel = dc.car_model;
+        if (dc.issue_description) conv.issue = dc.issue_description;
+        if (dc.license_plate) conv.licensePlate = dc.license_plate;
+      }
       if (data.messages && data.messages.length > 0) {
         convThreads[id] = {
           title: conv ? (conv.customerName || conv.phone) : 'Conversation',
@@ -4501,9 +4513,10 @@ function selectConversation(el, id) {
     var vehicleModel = conv.vehicleModel || conv.vehicle || '';
     var vin = conv.vin || '';
     var mileage = conv.mileage || '';
+    var licensePlate = conv.licensePlate || '';
     var email = conv.email || '';
     var location = conv.location || '';
-    var hasVehicle = vehicleModel || vin || mileage;
+    var hasVehicle = vehicleModel || vin || mileage || licensePlate;
 
     // Find appointments matching this conversation's phone
     var convAppts = bookingsData.filter(function(b) { return b.phone === conv.phone; });
@@ -4530,6 +4543,7 @@ function selectConversation(el, id) {
       html += '<div class="conv-detail-vehicle"><div class="conv-detail-vehicle-row">' + carSvg + '<div>' +
         (vehicleModel ? '<div class="conv-detail-vehicle-name">' + vehicleModel + '</div>' : '') +
         (vin ? '<div class="conv-detail-vehicle-sub">VIN: ' + vin + '</div>' : '') +
+        (licensePlate ? '<div class="conv-detail-vehicle-sub">Plate: ' + licensePlate + '</div>' : '') +
         (mileage ? '<div class="conv-detail-vehicle-sub">' + mileage + '</div>' : '') +
       '</div></div></div>';
     } else {
