@@ -2285,6 +2285,7 @@ async function loadConversationsData() {
       return;
     }
     var data = await res.json();
+    console.log('[CONV-DEBUG] GET /tenant/conversations →', res.status, 'rows:', (data.conversations || []).length, data);
     conversationsLoadError = false;
     conversationsData = (data.conversations || []).map(function(c) {
       var status = c.status === 'booked' ? 'booked' : c.status === 'expired' ? 'expired' : c.status === 'closed' ? 'lost' : (c.turn_count <= 1 ? 'no-response' : 'active');
