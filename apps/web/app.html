@@ -718,6 +718,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .conv-list-preview{font-size:12px;color:var(--text-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
 .conv-list-preview.unread{font-weight:600;color:var(--text)}
 .conv-unread-dot{width:8px;height:8px;background:var(--rust);border-radius:50%;flex-shrink:0}
+.conv-row-menu-wrap{position:relative;flex-shrink:0;align-self:center;margin-left:auto}
+.conv-row-menu-btn{padding:4px;border-radius:6px;border:none;background:none;cursor:pointer;color:var(--text-tertiary);opacity:0;transition:opacity .12s,background .12s}
+.conv-list-item:hover .conv-row-menu-btn{opacity:1}
+.conv-row-menu-btn:hover{background:var(--bg);opacity:1}
+.conv-row-dropdown{display:none;position:absolute;right:0;top:100%;margin-top:2px;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow-md);min-width:150px;z-index:100;overflow:hidden}
+.conv-row-dropdown button{display:block;width:100%;text-align:left;padding:9px 14px;font-size:13px;font-weight:500;color:var(--text);background:none;border:none;cursor:pointer;transition:background .12s}
+.conv-row-dropdown button:hover{background:var(--bg)}
 .conv-status-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
 .conv-status-badge.ai{background:var(--rust-tint);color:var(--rust)}
 .conv-status-badge.booked{background:rgba(13,27,42,.06);color:var(--navy)}
@@ -1993,6 +2000,27 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
         <textarea id="completeNotesInput" rows="2" placeholder="Service notes..." style="width:100%;padding:10px 12px;font-size:13px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);outline:none;resize:vertical;font-family:inherit"></textarea>
       </div>
       <button id="completeSubmitBtn" onclick="submitCompleteAppointment()" style="width:100%;padding:10px;font-size:14px;font-weight:600;background:var(--rust);color:#fff;border:none;border-radius:8px;cursor:pointer;transition:opacity .15s">Mark as Completed</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT CONTACT MODAL -->
+<div class="modal-overlay" id="editContactModal" onclick="if(event.target===this)closeEditContactModal()">
+  <div class="modal" style="width:380px">
+    <div class="modal-header">
+      <div><div class="modal-title">Edit Contact</div><div class="modal-meta" id="editContactPhone"></div></div>
+      <button class="modal-close" onclick="closeEditContactModal()">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">Name</label>
+        <input type="text" id="editContactNameInput" maxlength="200" placeholder="Enter contact name" style="width:100%;padding:10px 12px;font-size:15px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);outline:none;font-family:var(--body);box-sizing:border-box" />
+      </div>
+      <div style="margin-bottom:20px">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">Phone</label>
+        <input type="text" id="editContactPhoneDisplay" readonly style="width:100%;padding:10px 12px;font-size:15px;border:1px solid var(--border);border-radius:8px;background:var(--surface-alt,var(--bg));color:var(--text-tertiary);outline:none;font-family:var(--mono);box-sizing:border-box;cursor:default" />
+      </div>
+      <button id="editContactSaveBtn" onclick="saveEditContact()" style="width:100%;padding:10px;font-size:14px;font-weight:600;background:var(--rust);color:#fff;border:none;border-radius:8px;cursor:pointer;transition:opacity .15s">Save</button>
     </div>
   </div>
 </div>
@@ -4294,6 +4322,7 @@ function convInitial(name) {
   if (!name) return '?';
   return name.charAt(0).toUpperCase();
 }
+function escHtml(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 function renderConvInbox() {
   var list = document.getElementById('convInboxList');
   if (!list) return;
@@ -4307,18 +4336,30 @@ function renderConvInbox() {
   }
   var html = '';
   conversationsData.forEach(function(c, idx) {
-    var name = c.customerName || c.phone;
+    var displayName = c.customerName || c.phone;
+    var showPhone = c.customerName ? c.phone : '';
     var isUnread = c.status === 'active';
     var preview = c.issue || c.lastMessage || '';
     var timeAgo = c.timeAgo || c.date || '';
-    html += '<div class="conv-list-item' + (idx === 0 ? ' selected' : '') + '" data-id="' + c.id + '" data-status="' + c.status + '" data-phone="' + c.phone + '" data-name="' + (name || '') + '" onclick="selectConversation(this,\'' + c.id + '\')">' +
+    var safeName = escHtml(displayName);
+    var safePhone = escHtml(showPhone);
+    var safePreview = escHtml(preview);
+    html += '<div class="conv-list-item' + (idx === 0 ? ' selected' : '') + '" data-id="' + c.id + '" data-status="' + c.status + '" data-phone="' + escHtml(c.phone) + '" data-name="' + escHtml(displayName) + '" onclick="selectConversation(this,\'' + c.id + '\')">' +
       '<div class="conv-list-row">' +
-        '<div class="conv-avatar">' + convInitial(name) + '</div>' +
+        '<div class="conv-avatar">' + escHtml(convInitial(displayName)) + '</div>' +
         '<div class="conv-list-body">' +
-          '<div class="conv-list-top"><span class="conv-list-name">' + name + '</span><span class="conv-list-time">' + timeAgo + '</span></div>' +
-          '<div class="conv-list-phone">' + c.phone + '</div>' +
-          '<div class="conv-list-preview-row"><span class="conv-list-preview' + (isUnread ? ' unread' : '') + '">' + preview + '</span>' + (isUnread ? '<span class="conv-unread-dot"></span>' : '') + '</div>' +
+          '<div class="conv-list-top"><span class="conv-list-name">' + safeName + '</span><span class="conv-list-time">' + timeAgo + '</span></div>' +
+          (safePhone ? '<div class="conv-list-phone">' + safePhone + '</div>' : '') +
+          '<div class="conv-list-preview-row"><span class="conv-list-preview' + (isUnread ? ' unread' : '') + '">' + safePreview + '</span>' + (isUnread ? '<span class="conv-unread-dot"></span>' : '') + '</div>' +
           '<div>' + convStatusBadge(c.status) + '</div>' +
+        '</div>' +
+        '<div class="conv-row-menu-wrap">' +
+          '<button class="conv-row-menu-btn" onclick="toggleRowMenu(event,\'' + c.id + '\')" title="Actions">' +
+            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>' +
+          '</button>' +
+          '<div class="conv-row-dropdown" id="rowMenu_' + c.id + '">' +
+            '<button onclick="event.stopPropagation();openEditContactModal(\'' + c.id + '\')">Edit contact</button>' +
+          '</div>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -4564,6 +4605,83 @@ function selectConversation(el, id) {
     // without save would silently lose user data.
 
     detail.innerHTML = html;
+  }
+}
+
+// ── Row 3-dots menu & Edit Contact ────────────────────────────────
+var _openRowMenuId = null;
+function toggleRowMenu(e, convId) {
+  e.stopPropagation();
+  // Close any open menu first
+  closeRowMenu();
+  var dd = document.getElementById('rowMenu_' + convId);
+  if (!dd) return;
+  dd.style.display = 'block';
+  _openRowMenuId = convId;
+  setTimeout(function() {
+    document.addEventListener('click', closeRowMenu, { once: true });
+  }, 0);
+}
+function closeRowMenu() {
+  if (_openRowMenuId) {
+    var dd = document.getElementById('rowMenu_' + _openRowMenuId);
+    if (dd) dd.style.display = 'none';
+    _openRowMenuId = null;
+  }
+}
+
+var _editContactConvId = null;
+function openEditContactModal(convId) {
+  closeRowMenu();
+  var conv = conversationsData.find(function(c) { return c.id === convId; });
+  if (!conv) return;
+  _editContactConvId = convId;
+  document.getElementById('editContactPhone').textContent = conv.phone;
+  document.getElementById('editContactNameInput').value = conv.customerName || '';
+  document.getElementById('editContactPhoneDisplay').value = conv.phone;
+  document.getElementById('editContactModal').classList.add('open');
+  setTimeout(function() { document.getElementById('editContactNameInput').focus(); }, 100);
+}
+function closeEditContactModal() {
+  document.getElementById('editContactModal').classList.remove('open');
+  _editContactConvId = null;
+}
+
+async function saveEditContact() {
+  var convId = _editContactConvId;
+  if (!convId) return;
+  var nameInput = document.getElementById('editContactNameInput');
+  var name = (nameInput.value || '').trim();
+  if (!name) { showToast('Name is required'); return; }
+  var btn = document.getElementById('editContactSaveBtn');
+  btn.disabled = true; btn.style.opacity = '0.5'; btn.textContent = 'Saving...';
+  try {
+    var token = localStorage.getItem('autoshop_jwt');
+    var res = await fetch('/tenant/conversations/' + convId + '/contact', {
+      method: 'PATCH',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name })
+    });
+    if (!res.ok) {
+      var err = await res.json().catch(function() { return {}; });
+      showToast(err.error || 'Failed to save contact');
+      return;
+    }
+    // Update local data
+    var conv = conversationsData.find(function(c) { return c.id === convId; });
+    if (conv) {
+      conv.customerName = name;
+      renderConvInbox();
+      // Re-select the edited conversation to preserve selection
+      selectConversation(null, convId);
+    }
+    closeEditContactModal();
+    showToast('Contact saved');
+  } catch (e) {
+    console.error('Save contact failed:', e);
+    showToast('Network error');
+  } finally {
+    btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'Save';
   }
 }
 
