@@ -4328,6 +4328,35 @@ function renderConvInbox() {
   });
   list.innerHTML = html;
   console.log('[CONV-DEBUG] renderConvInbox done — children:', list.children.length, 'viewActive:', document.getElementById('view-conversations')?.classList.contains('active'));
+  // ── DOM visibility diagnostic (remove after debug) ──
+  setTimeout(function() {
+    var item = list.children[0];
+    if (!item) { console.log('[CONV-VIS] no children'); return; }
+    var rect = item.getBoundingClientRect();
+    var cs = window.getComputedStyle(item);
+    var listRect = list.getBoundingClientRect();
+    var view = document.getElementById('view-conversations');
+    var viewRect = view ? view.getBoundingClientRect() : null;
+    // Walk ancestors for display:none
+    var hiddenAncestor = null;
+    var el = item;
+    while (el && el !== document.body) {
+      if (window.getComputedStyle(el).display === 'none') { hiddenAncestor = el.tagName + '#' + el.id + '.' + el.className.split(' ').join('.'); break; }
+      el = el.parentElement;
+    }
+    console.log('[CONV-VIS] item0:', {
+      outerHTML: item.outerHTML.substring(0, 200),
+      text: item.textContent.trim().substring(0, 100),
+      offsetH: item.offsetHeight, offsetW: item.offsetWidth,
+      rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
+      display: cs.display, visibility: cs.visibility, opacity: cs.opacity,
+      color: cs.color, bg: cs.backgroundColor,
+      offsetParentNull: item.offsetParent === null
+    });
+    console.log('[CONV-VIS] list:', { h: listRect.height, w: listRect.width, top: listRect.top, left: listRect.left });
+    console.log('[CONV-VIS] view:', viewRect ? { h: viewRect.height, w: viewRect.width, top: viewRect.top } : 'null');
+    console.log('[CONV-VIS] hiddenAncestor:', hiddenAncestor);
+  }, 500);
   // Select first conversation
   if (conversationsData.length > 0) selectConversation(null, conversationsData[0].id);
 }
