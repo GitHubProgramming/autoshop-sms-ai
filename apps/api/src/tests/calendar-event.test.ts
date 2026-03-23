@@ -29,6 +29,7 @@ import {
   createCalendarEvent,
   buildEventBody,
   getCalendarTokens,
+  deleteCalendarEvent,
 } from "../services/google-calendar";
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -602,5 +603,100 @@ describe("POST /internal/calendar-event", () => {
 
     fetchSpy.mockRestore();
     await app.close();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// deleteCalendarEvent — unit tests
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe("deleteCalendarEvent", () => {
+  it("deletes event and clears appointment google_event_id", async () => {
+    // getCalendarTokens → returns tokens
+    mocks.query.mockResolvedValueOnce([tokenRow()]);
+    mocks.decryptToken.mockReturnValue(ACCESS_TOKEN);
+    mocks.isTokenExpired.mockReturnValue(false);
+
+    // DB update to clear google_event_id
+    mocks.query.mockResolvedValueOnce([]);
+
+    const mockFetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 204,
+      text: () => Promise.resolve(""),
+    });
+
+    const result = await deleteCalendarEvent(
+      TENANT_ID,
+      APPT_ID,
+      GOOGLE_EVENT_ID,
+      mockFetch as any
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.error).toBe(null);
+    // Verify DELETE was called with correct URL
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [url, opts] = mockFetch.mock.calls[0];
+    expect(url).toContain(GOOGLE_EVENT_ID);
+    expect(opts.method).toBe("DELETE");
+  });
+
+  it("treats 410 Gone as success (event already deleted)", async () => {
+    mocks.query.mockResolvedValueOnce([tokenRow()]);
+    mocks.decryptToken.mockReturnValue(ACCESS_TOKEN);
+    mocks.isTokenExpired.mockReturnValue(false);
+    mocks.query.mockResolvedValueOnce([]); // DB clear
+
+    const mockFetch = vi.fn().mockResolvedValueOnce({
+      ok: false,
+      status: 410,
+      text: () => Promise.resolve("Gone"),
+    });
+
+    const result = await deleteCalendarEvent(
+      TENANT_ID,
+      APPT_ID,
+      GOOGLE_EVENT_ID,
+      mockFetch as any
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.error).toBe(null);
+  });
+
+  it("returns error when Google API returns 403", async () => {
+    mocks.query.mockResolvedValueOnce([tokenRow()]);
+    mocks.decryptToken.mockReturnValue(ACCESS_TOKEN);
+    mocks.isTokenExpired.mockReturnValue(false);
+
+    const mockFetch = vi.fn().mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      text: () => Promise.resolve("Forbidden"),
+    });
+
+    const result = await deleteCalendarEvent(
+      TENANT_ID,
+      APPT_ID,
+      GOOGLE_EVENT_ID,
+      mockFetch as any
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("403");
+  });
+
+  it("returns error when no calendar tokens exist", async () => {
+    mocks.query.mockResolvedValueOnce([]); // no tokens
+
+    const result = await deleteCalendarEvent(
+      TENANT_ID,
+      APPT_ID,
+      GOOGLE_EVENT_ID
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("No calendar tokens");
   });
 });
