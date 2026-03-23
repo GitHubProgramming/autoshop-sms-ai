@@ -694,7 +694,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 
 /* ── CONVERSATIONS 3-PANEL ── */
 .conv-layout{display:grid;grid-template-columns:320px 1fr 320px;gap:0;height:calc(100vh - 200px);border:1px solid #E6E1D9;border-radius:var(--radius);overflow:hidden;background:#FFFFFF}
-@media(max-width:1200px){.conv-layout{grid-template-columns:280px 1fr;}.conv-detail-panel{display:none}}
+@media(max-width:1400px){.conv-layout{grid-template-columns:280px 1fr;}.conv-detail-panel{display:none}}
+@media(max-width:1100px){.conv-layout{grid-template-columns:240px 1fr}}
+@media(max-width:768px){.conv-layout{grid-template-columns:1fr;height:auto;min-height:calc(100vh - 200px)}.conv-inbox{border-right:none;border-bottom:1px solid var(--border);max-height:40vh}.conv-thread-panel{min-height:50vh}}
 .conv-inbox{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;min-width:0;min-height:0}
 .conv-inbox-header{padding:16px;border-bottom:1px solid var(--border)}
 .conv-inbox-title{font-family:var(--display);font-size:19px;font-weight:700;color:var(--navy);margin-bottom:12px;letter-spacing:.01em;text-transform:uppercase}
