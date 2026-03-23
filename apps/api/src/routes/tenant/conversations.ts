@@ -14,11 +14,13 @@ export async function tenantConversationsRoute(app: FastifyInstance) {
     const { tenantId } = request.user as { tenantId: string; email: string };
 
     const rows = await query(
-      `SELECT id, customer_phone, status, turn_count,
-              opened_at, last_message_at, closed_at, close_reason
-       FROM conversations
-       WHERE tenant_id = $1
-       ORDER BY last_message_at DESC
+      `SELECT c.id, c.customer_phone, c.status, c.turn_count,
+              c.opened_at, c.last_message_at, c.closed_at, c.close_reason,
+              cu.name AS customer_name
+       FROM conversations c
+       LEFT JOIN customers cu ON cu.tenant_id = c.tenant_id AND cu.phone = c.customer_phone
+       WHERE c.tenant_id = $1
+       ORDER BY c.last_message_at DESC
        LIMIT 200`,
       [tenantId]
     );
@@ -41,10 +43,12 @@ export async function tenantConversationsRoute(app: FastifyInstance) {
 
     const [convRows, messagesRows] = await Promise.all([
       query(
-        `SELECT id, tenant_id, customer_phone, status, turn_count,
-                opened_at, last_message_at, closed_at, close_reason
-         FROM conversations
-         WHERE id = $1 AND tenant_id = $2`,
+        `SELECT c.id, c.tenant_id, c.customer_phone, c.status, c.turn_count,
+                c.opened_at, c.last_message_at, c.closed_at, c.close_reason,
+                cu.name AS customer_name
+         FROM conversations c
+         LEFT JOIN customers cu ON cu.tenant_id = c.tenant_id AND cu.phone = c.customer_phone
+         WHERE c.id = $1 AND c.tenant_id = $2`,
         [id, tenantId]
       ),
       query(
@@ -154,6 +158,60 @@ export async function tenantConversationsRoute(app: FastifyInstance) {
         body: msg.body,
         sent_at: msg.sent_at,
         provider_message_id: twilioResult.sid,
+      },
+    });
+  });
+
+  /**
+   * PATCH /tenant/conversations/:id/contact
+   *
+   * Updates the display name for the customer in this conversation.
+   * Upserts into customers table keyed by (tenant_id, phone).
+   */
+  app.patch("/conversations/:id/contact", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { tenantId } = request.user as { tenantId: string; email: string };
+    const { id } = request.params as { id: string };
+    const { name } = (request.body as { name?: string }) || {};
+
+    // Validate name
+    const trimmed = (name ?? "").trim();
+    if (!trimmed) {
+      return reply.status(400).send({ error: "Name is required" });
+    }
+    if (trimmed.length > 200) {
+      return reply.status(400).send({ error: "Name too long (max 200 characters)" });
+    }
+
+    // Verify conversation exists and belongs to tenant
+    const convRows = await query(
+      `SELECT id, customer_phone FROM conversations WHERE id = $1 AND tenant_id = $2`,
+      [id, tenantId]
+    );
+
+    if (!(convRows as any[]).length) {
+      return reply.status(404).send({ error: "Conversation not found" });
+    }
+
+    const conv = (convRows as any[])[0];
+
+    // Upsert customer name (tenant-scoped)
+    const result = await query(
+      `INSERT INTO customers (tenant_id, phone, name, updated_at)
+       VALUES ($1, $2, $3, NOW())
+       ON CONFLICT (tenant_id, phone)
+       DO UPDATE SET name = $3, updated_at = NOW()
+       RETURNING id, phone, name`,
+      [tenantId, conv.customer_phone, trimmed]
+    );
+
+    const customer = (result as any[])[0];
+
+    return reply.status(200).send({
+      ok: true,
+      customer: {
+        id: customer.id,
+        phone: customer.phone,
+        name: customer.name,
       },
     });
   });
