@@ -336,4 +336,31 @@ export async function tenantKpiRoute(app: FastifyInstance) {
 
     return reply.status(200).send({ id: rows[0].id, status: "completed", final_price });
   });
+
+  /**
+   * PATCH /tenant/appointments/:id/cancel
+   *
+   * Cancel an appointment. Sets booking_state to CANCELLED.
+   * Only allowed on appointments that are not already completed or cancelled.
+   */
+  app.patch("/appointments/:id/cancel", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { tenantId } = request.user as { tenantId: string; email: string };
+    const { id } = request.params as { id: string };
+
+    const rows = await query<{ id: string; booking_state: string }>(
+      `UPDATE appointments
+       SET booking_state = 'CANCELLED'
+       WHERE id = $1 AND tenant_id = $2
+         AND completed_at IS NULL
+         AND booking_state NOT IN ('CANCELLED')
+       RETURNING id, booking_state`,
+      [id, tenantId]
+    );
+
+    if (rows.length === 0) {
+      return reply.status(404).send({ error: "Appointment not found or already completed/cancelled" });
+    }
+
+    return reply.status(200).send({ id: rows[0].id, status: "cancelled" });
+  });
 }

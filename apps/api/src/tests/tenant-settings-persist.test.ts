@@ -187,6 +187,8 @@ describe("tenant name persistence round-trip", () => {
       // 11. recent conversations
       .mockResolvedValueOnce([])
       // 12. recent bookings
+      .mockResolvedValueOnce([])
+      // 13. live conversations
       .mockResolvedValueOnce([]);
 
     const getRes = await app.inject({
