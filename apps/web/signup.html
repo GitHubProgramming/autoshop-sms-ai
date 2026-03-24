@@ -426,8 +426,8 @@ function startGoogleSignup() {
           loginAt: Date.now()
         }));
         if (result.data.shopName) localStorage.setItem('tenant_name', result.data.shopName);
-        // Route based on whether this is a new or existing account
-        var destination = result.data.isNewAccount ? '/onboarding' : '/app/dashboard';
+        // New accounts go straight to dashboard in demo mode (ADR-010); existing accounts also go to dashboard
+        var destination = '/app/dashboard';
         document.getElementById('signupForm').style.display = 'none';
         document.querySelector('.btn-google').style.display = 'none';
         document.querySelector('.divider').style.display = 'none';
@@ -505,11 +505,11 @@ async function handleSignup(e) {
         loginAt:     Date.now()
       }));
 
-      // Show success then redirect to onboarding
+      // Show success then redirect to dashboard (demo mode — onboarding deferred until trial activation per ADR-010)
       document.getElementById('signupForm').style.display = 'none';
       document.getElementById('successCard').style.display = 'block';
       setTimeout(function() {
-        window.location.href = '/onboarding';
+        window.location.href = '/app/dashboard';
       }, 1200);
     } else if (res.status === 409) {
       showError(data.error || 'An account with this email already exists.');

@@ -2593,9 +2593,13 @@ document.addEventListener('DOMContentLoaded', async function() {
   var billingParam = urlParams.get('billing');
   var trialParam = urlParams.get('trial');
   if (trialParam === 'activated') {
-    showToast('Trial activated! Your 14-day trial has started. Setting up your workspace...');
-    switchView('dashboard');
+    // ADR-010: Trial just activated — send user to onboarding wizard for real setup
+    // (phone provisioning, call forwarding, calendar connection)
+    showToast('Trial activated! Redirecting to complete your setup...');
     window.history.replaceState({}, '', window.location.pathname);
+    setTimeout(function() {
+      window.location.href = '/onboarding';
+    }, 1500);
   } else if (billingParam === 'success') {
     showToast('Subscription activated! Your plan will update shortly.');
     switchView('billing');
@@ -4969,11 +4973,24 @@ function renderTodayAppointments() {
 var custPageState = { all: [], filtered: [], page: 1, perPage: 10 };
 
 async function renderCustomers() {
-  // Fetch real customer data from API
+  // Demo mode: use sample customer data
   var token = localStorage.getItem('autoshop_jwt');
   var customers = [];
 
-  if (token) {
+  if (tenantState.isDemo) {
+    customers = DEMO_SAMPLE_DATA.customers.map(function(c) {
+      return {
+        phone: c.phone || '—',
+        name: c.name || '—',
+        vehicle: c.vehicle || null,
+        lastDate: c.lastVisit || null,
+        apptCount: c.apptCount || 0,
+        status: c.status === 'returning' ? 'active' : 'new',
+        issue: null,
+        totalSpent: c.totalSpent ? parseFloat(c.totalSpent.replace('$','')) : null
+      };
+    });
+  } else if (token) {
     try {
       var res = await fetch('/tenant/customers/list', {
         headers: { 'Authorization': 'Bearer ' + token }
