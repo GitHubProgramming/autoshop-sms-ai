@@ -2593,13 +2593,36 @@ document.addEventListener('DOMContentLoaded', async function() {
   var billingParam = urlParams.get('billing');
   var trialParam = urlParams.get('trial');
   if (trialParam === 'activated') {
-    // ADR-010: Trial just activated — send user to onboarding wizard for real setup
-    // (phone provisioning, call forwarding, calendar connection)
-    showToast('Trial activated! Redirecting to complete your setup...');
+    // ADR-010: Trial activated — poll server state before redirecting to onboarding.
+    // Stripe webhook may lag, so we verify billing_status is actually trial/active
+    // before sending the user to onboarding. Prevents redirect loops.
     window.history.replaceState({}, '', window.location.pathname);
-    setTimeout(function() {
-      window.location.href = '/onboarding';
-    }, 1500);
+    (async function waitForActivation() {
+      var banner = document.getElementById('bannerContainer');
+      if (banner) banner.innerHTML = '<div class="banner demo" style="justify-content:center;text-align:center;"><div class="banner-left"><span class="banner-label blue">ACTIVATING</span><span class="banner-msg blue">Activating your workspace\u2026 this takes a few seconds.</span></div></div>';
+      var maxAttempts = 10;
+      for (var attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          var token = localStorage.getItem('autoshop_jwt');
+          var res = await fetch('/tenant/dashboard', { headers: { 'Authorization': 'Bearer ' + token } });
+          if (res.ok) {
+            var data = await res.json();
+            var status = data.tenant && data.tenant.billing_status;
+            if (status && status !== 'demo') {
+              // Server confirms activation — redirect to onboarding for real setup
+              showToast('Trial activated! Redirecting to complete your setup\u2026');
+              setTimeout(function() { window.location.href = '/onboarding'; }, 800);
+              return;
+            }
+          }
+        } catch (e) { /* retry */ }
+        await new Promise(function(r) { setTimeout(r, 2000); });
+      }
+      // Webhook still hasn't arrived — show success and stay on dashboard
+      showToast('Trial activated! Your workspace is being set up \u2014 refresh in a moment to continue setup.');
+      await loadDashboardData();
+      renderBanners();
+    })();
   } else if (billingParam === 'success') {
     showToast('Subscription activated! Your plan will update shortly.');
     switchView('billing');
