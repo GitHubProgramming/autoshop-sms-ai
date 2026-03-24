@@ -285,7 +285,7 @@ export async function tenantKpiRoute(app: FastifyInstance) {
            COUNT(id) AS appointments_count,
            SUM(final_price) FILTER (WHERE completed_at IS NOT NULL) AS total_spent,
            MAX(completed_at) AS last_visit,
-           MIN(id) AS first_id,
+           MIN(id::text) AS first_id,
            MIN(created_at) AS first_created
          FROM appointments
          WHERE tenant_id = $1
