@@ -275,22 +275,47 @@ export async function tenantKpiRoute(app: FastifyInstance) {
       email: string | null;
       last_visit: string | null;
       appointments_count: string;
-      total_spent: string;
+      total_spent: string | null;
       created_at: string;
+      car_model: string | null;
+      issue_description: string | null;
     }>(
-      `SELECT
-         MIN(a.id)::text AS id,
-         MAX(a.customer_name) AS name,
-         a.customer_phone AS phone,
+      `WITH customer_agg AS (
+         SELECT
+           customer_phone AS phone,
+           COUNT(id) AS appointments_count,
+           SUM(final_price) FILTER (WHERE completed_at IS NOT NULL) AS total_spent,
+           MAX(completed_at) AS last_visit,
+           MIN(id) AS first_id,
+           MIN(created_at) AS first_created
+         FROM appointments
+         WHERE tenant_id = $1 AND is_test = FALSE
+         GROUP BY customer_phone
+       ),
+       latest_appt AS (
+         SELECT DISTINCT ON (customer_phone)
+           customer_phone,
+           customer_name,
+           car_model,
+           issue_description
+         FROM appointments
+         WHERE tenant_id = $1 AND is_test = FALSE
+         ORDER BY customer_phone, created_at DESC
+       )
+       SELECT
+         ca.first_id::text AS id,
+         la.customer_name AS name,
+         ca.phone,
          NULL::text AS email,
-         MAX(a.completed_at)::text AS last_visit,
-         COUNT(a.id)::text AS appointments_count,
-         COALESCE(SUM(a.final_price) FILTER (WHERE a.completed_at IS NOT NULL), 0)::text AS total_spent,
-         MIN(a.created_at)::text AS created_at
-       FROM appointments a
-       WHERE a.tenant_id = $1
-       GROUP BY a.customer_phone
-       ORDER BY MAX(a.completed_at) DESC NULLS LAST, MIN(a.created_at) DESC
+         ca.last_visit::text AS last_visit,
+         ca.appointments_count::text AS appointments_count,
+         ca.total_spent::text AS total_spent,
+         ca.first_created::text AS created_at,
+         la.car_model,
+         la.issue_description
+       FROM customer_agg ca
+       LEFT JOIN latest_appt la ON la.customer_phone = ca.phone
+       ORDER BY ca.last_visit DESC NULLS LAST, ca.first_created DESC
        LIMIT 100`,
       [tenantId]
     );
@@ -303,8 +328,10 @@ export async function tenantKpiRoute(app: FastifyInstance) {
         email: r.email,
         last_visit: r.last_visit,
         appointments_count: parseInt(r.appointments_count, 10),
-        total_spent: parseFloat(r.total_spent),
+        total_spent: r.total_spent != null ? parseFloat(r.total_spent) : null,
         created_at: r.created_at,
+        car_model: r.car_model,
+        issue_description: r.issue_description,
       })),
     });
   });
