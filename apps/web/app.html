@@ -5003,12 +5003,9 @@ function renderActionNeeded() {
 }
 
 function renderTodayAppointments() {
-  var today = new Date().toDateString();
-  var todayAppts = bookingsData.filter(function(b) {
-    if (!b.rawScheduledAt) return false;
-    var d = new Date(b.rawScheduledAt);
-    return !isNaN(d.getTime()) && d.toDateString() === today;
-  });
+  // Use backend-provided today dataset — same source as appointments page
+  var s = apptSummary || {};
+  var todayAppts = s.today_appointments || [];
 
   var body = document.getElementById('todayApptsBody');
   if (!body) return;
@@ -5027,12 +5024,11 @@ function renderTodayAppointments() {
     var statusCls = (b.syncStatus === 'synced' || b.syncStatus === 'confirmed') ? 'confirmed' : 'pending';
     var statusLabel = (b.syncStatus === 'synced' || b.syncStatus === 'confirmed') ? 'confirmed' : (b.syncLabel || b.syncStatus || 'pending');
     var timeStr = b.rawScheduledAt ? new Date(b.rawScheduledAt).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}) : '';
-    var source = b.source || 'AI';
     return '<div class="appt-card-item">' +
       '<div class="appt-card-top"><div class="appt-card-time">' + timeStr + '</div><span class="appt-card-status ' + statusCls + '">' + statusLabel + '</span></div>' +
-      '<div class="appt-card-customer">' + (b.phone || 'Customer') + '</div>' +
+      '<div class="appt-card-customer">' + (b.customerName || b.phone || 'Customer') + '</div>' +
       '<div class="appt-card-service">' + (b.service || 'Service') + '</div>' +
-      '<div class="appt-card-source">Source: ' + source + '</div>' +
+      '<div class="appt-card-source">Source: ' + b.source + '</div>' +
     '</div>';
   }).join('') + '</div>';
 }
