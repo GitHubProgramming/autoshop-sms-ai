@@ -5071,11 +5071,11 @@ async function renderCustomers() {
           return {
             phone: c.phone || '—',
             name: c.name || '—',
-            vehicle: null,
+            vehicle: c.car_model || null,
             lastDate: c.last_visit ? c.last_visit.substring(0, 10) : null,
             apptCount: c.appointments_count || 0,
             status: c.appointments_count >= 2 ? 'active' : (c.appointments_count === 1 ? 'new' : 'inactive'),
-            issue: null,
+            issue: c.issue_description || null,
             totalSpent: c.total_spent != null ? c.total_spent : null
           };
         });
@@ -5130,7 +5130,7 @@ function renderCustomerPage() {
       var displayName = (c.name && c.name !== '—') ? c.name : 'Customer';
       var statusClass = (c.apptCount >= 2) ? 'active' : (c.apptCount === 1 ? 'new' : 'inactive');
       var statusLabel = statusClass === 'active' ? 'Returning' : (statusClass === 'new' ? 'First-time' : 'No bookings');
-      var vehicle = c.vehicle ? c.vehicle : 'Not collected';
+      var vehicle = c.vehicle ? c.vehicle : 'Not provided';
       var spent = c.totalSpent != null ? '$' + c.totalSpent : 'No completed jobs yet';
       var lastDateDisplay = c.lastDate ? c.lastDate : 'No visits yet';
       return '<tr data-phone="' + c.phone + '" data-status="' + statusClass + '">' +
