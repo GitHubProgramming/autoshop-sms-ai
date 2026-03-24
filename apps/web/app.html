@@ -2331,7 +2331,7 @@ async function loadApptSummary() {
   if (tenantState.isDemo || tenantState.status === 'demo') {
     apptSummary = {
       total_today: 0, total_week: 1, ai_booked_count: 2, ai_booked_pct: 67,
-      upcoming_count: 3, total_non_test: 3,
+      ai_booked_this_month: 2, upcoming_count: 3, total_non_test: 3,
       today_appointments: [],
       upcoming_appointments: DEMO_SAMPLE_DATA.appointments
     };
@@ -4170,7 +4170,8 @@ function renderLiveKPIs() {
   var s = dashboardStats || {};
 
   var recoveredRev = k.recovered_revenue || 0;
-  var aiBooked = k.ai_booked_this_month || 0;
+  var as = apptSummary || {};
+  var aiBooked = as.ai_booked_this_month || 0;
   var activeConvs = k.active_conversations || s.active_conversations || 0;
   var apptToday = k.appointments_today || s.appointments_today || 0;
   var convsMonth = k.conversations_this_month || s.conversations_this_month || 0;
@@ -4363,6 +4364,7 @@ function renderLiveRevenueBlocks() {
 
   // Update analytics KPIs with real data from KPI summary
   var k = kpiSummary || {};
+  var as = apptSummary || {};
   var akr = document.getElementById('anKpiRecovery');
   if (akr) akr.textContent = '—';
   var akrc = document.getElementById('anKpiRecoveryChange');
@@ -4403,7 +4405,7 @@ function renderLiveRevenueBlocks() {
   var anAiPerfBody = document.getElementById('anAiPerfBody');
   if (anAiPerfBody) {
     var convsAn = k.conversations_this_month || s.conversations_this_month || 0;
-    var bookedAn = k.ai_booked_this_month || s.appointments_this_month || 0;
+    var bookedAn = as.ai_booked_this_month || 0;
     if (convsAn > 0) {
       var convPct = 100;
       var bookedPct = convsAn > 0 ? Math.round((bookedAn / convsAn) * 100) : 0;
@@ -4428,7 +4430,7 @@ function renderLiveRevenueBlocks() {
   var anSrcManual = document.getElementById('anSrcManualPct');
   if (anSrcAi && anSrcManual) {
     var totalApptsSrc = s.total_appointments || 0;
-    var aiBookedSrc = k.ai_booked_this_month || 0;
+    var aiBookedSrc = as.ai_booked_this_month || 0;
     var manualSrc = Math.max(0, (s.appointments_this_month || 0) - aiBookedSrc);
     var totalSrc = aiBookedSrc + manualSrc;
     if (totalSrc > 0) {

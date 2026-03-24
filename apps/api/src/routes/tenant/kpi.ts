@@ -143,13 +143,14 @@ export async function tenantKpiRoute(app: FastifyInstance) {
            AND completed_at >= NOW() - INTERVAL '30 days'`,
         [tenantId]
       ),
-      // AI-booked appointments this month (have conversation_id, exclude FAILED + CANCELLED)
+      // AI-booked appointments this month (have conversation_id, exclude FAILED + CANCELLED + test)
       query<{ count: string }>(
         `SELECT COUNT(*)::text AS count
          FROM appointments
          WHERE tenant_id = $1
            AND conversation_id IS NOT NULL
            AND booking_state NOT IN ('FAILED', 'CANCELLED')
+           AND is_test = FALSE
            AND created_at >= date_trunc('month', CURRENT_DATE)`,
         [tenantId]
       ),
@@ -408,6 +409,7 @@ export async function tenantKpiRoute(app: FastifyInstance) {
       aiBookedRows,
       totalRows,
       upcomingRows,
+      aiBookedMonthRows,
       todayApptRows,
       upcomingApptRows,
     ] = await Promise.all([
@@ -462,6 +464,17 @@ export async function tenantKpiRoute(app: FastifyInstance) {
            AND is_test = FALSE`,
         [tenantId]
       ),
+      // AI-booked this month (same filters as all-time, scoped to current month)
+      query<{ count: string }>(
+        `SELECT COUNT(*)::text AS count
+         FROM appointments
+         WHERE tenant_id = $1
+           AND conversation_id IS NOT NULL
+           AND booking_state NOT IN ('FAILED', 'CANCELLED')
+           AND is_test = FALSE
+           AND created_at >= date_trunc('month', CURRENT_DATE)`,
+        [tenantId]
+      ),
       // Today's appointment rows for card rendering
       query(
         `SELECT ${appointmentFields}
@@ -498,6 +511,7 @@ export async function tenantKpiRoute(app: FastifyInstance) {
       total_week: parseInt(weekRows[0]?.count ?? "0", 10),
       ai_booked_count: aiBooked,
       ai_booked_pct: aiPct,
+      ai_booked_this_month: parseInt(aiBookedMonthRows[0]?.count ?? "0", 10),
       upcoming_count: parseInt(upcomingRows[0]?.count ?? "0", 10),
       total_non_test: total,
       today_appointments: todayApptRows,
