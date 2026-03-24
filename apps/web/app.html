@@ -4057,6 +4057,9 @@ function switchView(view, opts) {
   if (navTitle) navTitle.textContent = t[0];
   if (navSub) navSub.textContent = t[1];
 
+  // Refresh data when switching to customers view
+  if (view === 'customers') renderCustomers();
+
   // Update URL without reload (skip on popstate or initial load)
   if (!(opts && opts.skipPush)) {
     var newPath = '/app/' + view;
