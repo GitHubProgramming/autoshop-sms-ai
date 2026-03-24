@@ -385,4 +385,88 @@ export async function tenantKpiRoute(app: FastifyInstance) {
       calendar_error,
     });
   });
+
+  /**
+   * GET /tenant/appointments-summary
+   *
+   * Single source of truth for the /app/appointments page KPIs.
+   * All calculations done server-side using a consistent timezone (DB server).
+   * Frontend must render these values directly — no recomputation.
+   */
+  app.get("/appointments-summary", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { tenantId } = request.user as { tenantId: string; email: string };
+
+    const [
+      todayRows,
+      weekRows,
+      aiBookedRows,
+      totalRows,
+      upcomingRows,
+    ] = await Promise.all([
+      // Today's appointments (exclude cancelled/failed/test)
+      query<{ count: string }>(
+        `SELECT COUNT(*)::text AS count
+         FROM appointments
+         WHERE tenant_id = $1
+           AND scheduled_at >= CURRENT_DATE
+           AND scheduled_at < CURRENT_DATE + INTERVAL '1 day'
+           AND booking_state NOT IN ('CANCELLED', 'FAILED')
+           AND is_test = FALSE`,
+        [tenantId]
+      ),
+      // This week (Monday-relative for consistency)
+      query<{ count: string }>(
+        `SELECT COUNT(*)::text AS count
+         FROM appointments
+         WHERE tenant_id = $1
+           AND scheduled_at >= date_trunc('week', CURRENT_DATE)
+           AND scheduled_at < date_trunc('week', CURRENT_DATE) + INTERVAL '7 days'
+           AND booking_state NOT IN ('CANCELLED', 'FAILED')
+           AND is_test = FALSE`,
+        [tenantId]
+      ),
+      // AI-booked (have conversation_id, exclude failed/cancelled/test)
+      query<{ count: string }>(
+        `SELECT COUNT(*)::text AS count
+         FROM appointments
+         WHERE tenant_id = $1
+           AND conversation_id IS NOT NULL
+           AND booking_state NOT IN ('FAILED', 'CANCELLED')
+           AND is_test = FALSE`,
+        [tenantId]
+      ),
+      // Total non-test appointments (for AI %)
+      query<{ count: string }>(
+        `SELECT COUNT(*)::text AS count
+         FROM appointments
+         WHERE tenant_id = $1
+           AND booking_state NOT IN ('FAILED', 'CANCELLED')
+           AND is_test = FALSE`,
+        [tenantId]
+      ),
+      // Upcoming (future, not today, exclude cancelled/failed/test)
+      query<{ count: string }>(
+        `SELECT COUNT(*)::text AS count
+         FROM appointments
+         WHERE tenant_id = $1
+           AND scheduled_at > CURRENT_DATE + INTERVAL '1 day'
+           AND booking_state NOT IN ('CANCELLED', 'FAILED')
+           AND is_test = FALSE`,
+        [tenantId]
+      ),
+    ]);
+
+    const aiBooked = parseInt(aiBookedRows[0]?.count ?? "0", 10);
+    const total = parseInt(totalRows[0]?.count ?? "0", 10);
+    const aiPct = total > 0 ? Math.round((aiBooked / total) * 100) : 0;
+
+    return reply.status(200).send({
+      total_today: parseInt(todayRows[0]?.count ?? "0", 10),
+      total_week: parseInt(weekRows[0]?.count ?? "0", 10),
+      ai_booked_count: aiBooked,
+      ai_booked_pct: aiPct,
+      upcoming_count: parseInt(upcomingRows[0]?.count ?? "0", 10),
+      total_non_test: total,
+    });
+  });
 }
