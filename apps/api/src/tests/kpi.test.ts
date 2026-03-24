@@ -261,7 +261,7 @@ describe("GET /tenant/customers/list", () => {
 
 describe("PATCH /tenant/appointments/:id/complete", () => {
   it("marks appointment as completed with final_price", async () => {
-    mocks.query.mockResolvedValueOnce([{ id: "appt-1" }]);
+    mocks.query.mockResolvedValueOnce([{ id: "appt-1", final_price: 540 }]);
 
     const app = buildApp();
     const res = await app.inject({
@@ -277,7 +277,8 @@ describe("PATCH /tenant/appointments/:id/complete", () => {
     const call = mocks.query.mock.calls[0];
     expect(call[0]).toContain("UPDATE appointments");
     expect(call[0]).toContain("final_price = $1");
-    expect(call[0]).toContain("completed_at = NOW()");
+    expect(call[0]).toContain("COALESCE(completed_at, NOW())");
+    expect(call[0]).toContain("booking_state NOT IN ('CANCELLED')");
     expect(call[1]).toEqual([540, "appt-1", TENANT_ID]);
   });
 
@@ -290,6 +291,57 @@ describe("PATCH /tenant/appointments/:id/complete", () => {
     });
 
     expect(res.statusCode).toBe(400);
+  });
+
+  it("rejects NaN final_price", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/tenant/appointments/appt-1/complete",
+      payload: { final_price: "not-a-number" },
+    });
+
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("rejects Infinity final_price", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/tenant/appointments/appt-1/complete",
+      payload: { final_price: Infinity },
+    });
+
+    // JSON.stringify(Infinity) → null, so typeof !== "number"
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("rounds price to 2 decimal places", async () => {
+    mocks.query.mockResolvedValueOnce([{ id: "appt-1", final_price: 100 }]);
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/tenant/appointments/appt-1/complete",
+      payload: { final_price: 99.999 },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const call = mocks.query.mock.calls[0];
+    expect(call[1][0]).toBe(100);
+  });
+
+  it("returns 404 for cancelled appointment", async () => {
+    mocks.query.mockResolvedValueOnce([]);
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/tenant/appointments/appt-cancelled/complete",
+      payload: { final_price: 200 },
+    });
+
+    expect(res.statusCode).toBe(404);
   });
 
   it("returns 404 for non-existent appointment", async () => {
