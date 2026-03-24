@@ -2,23 +2,27 @@ import { describe, it, expect } from "vitest";
 import { isTestSignupEmail } from "../utils/test-tenant";
 
 describe("isTestSignupEmail", () => {
-  it("matches exact base email", () => {
-    expect(isTestSignupEmail("mantas.gipiskis@gmail.com")).toBe(true);
+  it("does NOT match the pilot base email (real tenant)", () => {
+    expect(isTestSignupEmail("mantas.gipiskis@gmail.com")).toBe(false);
   });
 
-  it("matches plus-alias variants", () => {
+  it("matches plus-alias variants (test tenants)", () => {
     expect(isTestSignupEmail("mantas.gipiskis+test@gmail.com")).toBe(true);
     expect(isTestSignupEmail("mantas.gipiskis+shop1@gmail.com")).toBe(true);
     expect(isTestSignupEmail("mantas.gipiskis+anything123@gmail.com")).toBe(true);
   });
 
+  it("rejects plus with empty alias", () => {
+    expect(isTestSignupEmail("mantas.gipiskis+@gmail.com")).toBe(false);
+  });
+
   it("is case-insensitive", () => {
-    expect(isTestSignupEmail("Mantas.Gipiskis@Gmail.com")).toBe(true);
+    expect(isTestSignupEmail("Mantas.Gipiskis+TEST@Gmail.com")).toBe(true);
     expect(isTestSignupEmail("MANTAS.GIPISKIS+TEST@GMAIL.COM")).toBe(true);
   });
 
   it("handles whitespace", () => {
-    expect(isTestSignupEmail("  mantas.gipiskis@gmail.com  ")).toBe(true);
+    expect(isTestSignupEmail("  mantas.gipiskis+test@gmail.com  ")).toBe(true);
   });
 
   it("rejects non-test emails", () => {
