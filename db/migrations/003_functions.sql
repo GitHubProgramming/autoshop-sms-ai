@@ -35,10 +35,12 @@ BEGIN
   END IF;
 
   -- Step 2: Increment tenant usage counter (same transaction)
+  -- Skip for demo tenants — demo conversations must never count toward trial/paid usage
   UPDATE tenants
   SET conv_used_this_cycle = conv_used_this_cycle + 1,
       updated_at           = NOW()
-  WHERE id = p_tenant_id;
+  WHERE id = p_tenant_id
+    AND billing_status != 'demo';
 
   RETURN TRUE;
 END;

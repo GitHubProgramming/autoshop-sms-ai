@@ -81,13 +81,18 @@ export async function raiseAlert(
 
     const alertId = rows[0]?.id ?? null;
 
-    // Notify owner via SMS if tenant has owner_phone
+    // Notify owner via SMS if tenant has owner_phone (skip demo accounts)
     if (input.tenantId && input.severity === "critical") {
       try {
-        const tenantRows = await query<{ owner_phone: string | null; shop_name: string | null }>(
-          `SELECT owner_phone, shop_name FROM tenants WHERE id = $1`,
+        const tenantRows = await query<{ owner_phone: string | null; shop_name: string | null; billing_status: string }>(
+          `SELECT owner_phone, shop_name, billing_status FROM tenants WHERE id = $1`,
           [input.tenantId]
         );
+
+        // Demo tenants must never receive real SMS — alert record is enough
+        if (tenantRows[0]?.billing_status === "demo") {
+          return alertId;
+        }
 
         const ownerPhone = tenantRows[0]?.owner_phone;
         if (ownerPhone) {
