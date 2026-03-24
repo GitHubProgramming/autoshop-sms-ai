@@ -289,7 +289,7 @@ export async function tenantKpiRoute(app: FastifyInstance) {
            MIN(id) AS first_id,
            MIN(created_at) AS first_created
          FROM appointments
-         WHERE tenant_id = $1 AND is_test = FALSE
+         WHERE tenant_id = $1
          GROUP BY customer_phone
        ),
        latest_appt AS (
@@ -299,7 +299,7 @@ export async function tenantKpiRoute(app: FastifyInstance) {
            car_model,
            issue_description
          FROM appointments
-         WHERE tenant_id = $1 AND is_test = FALSE
+         WHERE tenant_id = $1
          ORDER BY customer_phone, created_at DESC
        )
        SELECT
