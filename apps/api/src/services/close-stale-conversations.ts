@@ -22,6 +22,7 @@ export async function closeStaleConversations(): Promise<number> {
        WHERE status         = 'open'
          AND counted        = FALSE
          AND last_message_at < NOW() - INTERVAL '24 hours'
+         AND tenant_id NOT IN (SELECT id FROM tenants WHERE billing_status = 'demo')
        RETURNING tenant_id
      )
      UPDATE tenants
