@@ -46,6 +46,7 @@ import { startProvisionNumberWorker } from "./workers/provision-number.worker";
 import { startBillingEventsWorker } from "./workers/billing-events.worker";
 import { startCalendarSyncWorker } from "./workers/calendar-sync.worker";
 import { startCloseStaleWorker } from "./workers/close-stale.worker";
+import { startTrialExpiryWorker } from "./workers/trial-expiry.worker";
 
 const app = Fastify({
   logger: {
@@ -100,6 +101,7 @@ async function bootstrap() {
   const billingWorker = startBillingEventsWorker();
   const calendarSyncWorker = startCalendarSyncWorker();
   const closeStaleWorker = startCloseStaleWorker();
+  const trialExpiryWorker = startTrialExpiryWorker();
 
   // ── Security ──────────────────────────────────────────────
   await app.register(helmet, {
@@ -273,6 +275,7 @@ async function bootstrap() {
         await billingWorker.close();
         await calendarSyncWorker.close();
         await closeStaleWorker.close();
+        await trialExpiryWorker.close();
         await deadLetterQueue.close();
         await db.end();
         redis.disconnect();

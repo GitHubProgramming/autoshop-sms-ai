@@ -1,4 +1,5 @@
 import { query } from "../db/client";
+import { checkAndNotifyUsage } from "./usage-warnings";
 
 /**
  * Close stale open conversations that have had no activity for 24+ hours.
@@ -9,10 +10,11 @@ import { query } from "../db/client";
  * - Sets status = 'closed', close_reason = 'inactivity_24h'
  * - Uses counted = FALSE guard for idempotency (matches close_conversation() semantics)
  * - Increments tenant conv_used_this_cycle for each closed conversation
+ * - Fires usage warnings for affected tenants after counting
  * - Safe to run repeatedly — already-closed rows are not touched
  */
 export async function closeStaleConversations(): Promise<number> {
-  const result = await query<{ closed_count: number }>(
+  const result = await query<{ closed_count: number; tenant_id: string }>(
     `WITH stale AS (
        UPDATE conversations
        SET status       = 'closed',
@@ -34,9 +36,19 @@ export async function closeStaleConversations(): Promise<number> {
        GROUP BY tenant_id
      ) sub
      WHERE tenants.id = sub.tenant_id
-     RETURNING sub.cnt AS closed_count`
+     RETURNING sub.cnt AS closed_count, sub.tenant_id`
   );
 
   const total = result.reduce((sum, r) => sum + r.closed_count, 0);
+
+  // Fire usage warnings for each affected tenant (non-fatal)
+  for (const row of result) {
+    try {
+      await checkAndNotifyUsage(row.tenant_id);
+    } catch {
+      // Non-fatal: warning failure must not break stale closer
+    }
+  }
+
   return total;
 }

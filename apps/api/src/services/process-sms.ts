@@ -18,6 +18,7 @@ import { createAppointment, type BookingState } from "./appointments";
 import { createCalendarEvent } from "./google-calendar";
 import { sendTwilioSms } from "./missed-call-sms";
 import { calendarQueue } from "../queues/redis";
+import { checkAndNotifyUsage } from "./usage-warnings";
 import {
   getTenantAiPolicy,
   buildPromptPolicySection,
@@ -183,6 +184,8 @@ export async function processSms(
           "turn_limit",
         ]);
         result.conversationClosed = true;
+        // Fire usage warnings after counting
+        await checkAndNotifyUsage(input.tenantId, fetchFn);
       } catch {
         // Non-fatal: conversation may already be closed
       }
@@ -622,6 +625,8 @@ export async function processSms(
         "booking_completed",
       ]);
       result.conversationClosed = true;
+      // Fire usage warnings after counting
+      await checkAndNotifyUsage(input.tenantId, fetchFn);
     } catch {
       // Non-fatal: appointment was created even if close fails
     }
@@ -637,6 +642,8 @@ export async function processSms(
         "user_closed",
       ]);
       result.conversationClosed = true;
+      // Fire usage warnings after counting
+      await checkAndNotifyUsage(input.tenantId, fetchFn);
     } catch {
       // Non-fatal
     }
