@@ -158,9 +158,9 @@ export async function adminRoute(app: FastifyInstance) {
       query(`SELECT billing_status, COUNT(*) as count FROM tenants WHERE is_test = FALSE AND billing_status != 'demo' GROUP BY billing_status`),
       query(`SELECT COUNT(*)::int FROM tenants WHERE created_at > NOW() - INTERVAL '7 days' AND is_test = FALSE AND billing_status != 'demo'`),
       query(`SELECT status, COUNT(*)::int as count FROM signup_attempts WHERE created_at > NOW() - INTERVAL '7 days' GROUP BY status`),
-      query(`SELECT COUNT(*)::int FROM conversations c JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE WHERE c.opened_at >= CURRENT_DATE`),
-      query(`SELECT COUNT(*)::int FROM appointments a JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE WHERE a.created_at >= CURRENT_DATE`),
-      query(`SELECT COUNT(*)::int FROM appointments a JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE WHERE a.calendar_synced = false AND a.created_at < NOW() - INTERVAL '1 hour' AND a.booking_state NOT IN ('CONFIRMED_MANUAL', 'RESOLVED')`),
+      query(`SELECT COUNT(*)::int FROM conversations c JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE AND t.billing_status != 'demo' WHERE c.opened_at >= CURRENT_DATE`),
+      query(`SELECT COUNT(*)::int FROM appointments a JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE AND t.billing_status != 'demo' WHERE a.created_at >= CURRENT_DATE`),
+      query(`SELECT COUNT(*)::int FROM appointments a JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE AND t.billing_status != 'demo' WHERE a.calendar_synced = false AND a.created_at < NOW() - INTERVAL '1 hour' AND a.booking_state NOT IN ('CONFIRMED_MANUAL', 'RESOLVED')`),
       query(`SELECT COUNT(*)::int FROM tenants t WHERE t.is_test = FALSE AND t.billing_status != 'demo' AND NOT EXISTS (SELECT 1 FROM tenant_phone_numbers tpn WHERE tpn.tenant_id = t.id AND tpn.status = 'active')`),
       query(`SELECT COUNT(*)::int FROM tenants t WHERE t.is_test = FALSE AND t.billing_status != 'demo' AND NOT EXISTS (SELECT 1 FROM tenant_calendar_tokens tct WHERE tct.tenant_id = t.id)`),
       query(`SELECT COUNT(*)::int FROM tenants WHERE is_test = FALSE AND billing_status = 'trial' AND trial_ends_at > NOW() AND trial_ends_at <= NOW() + INTERVAL '3 days'`),
@@ -182,22 +182,22 @@ export async function adminRoute(app: FastifyInstance) {
          ORDER BY be.processed_at DESC LIMIT 5`),
       query(`SELECT c.id, c.tenant_id, t.shop_name, c.customer_phone, c.status, c.opened_at, c.turn_count
          FROM conversations c JOIN tenants t ON t.id = c.tenant_id
-         WHERE t.is_test = FALSE
+         WHERE t.is_test = FALSE AND t.billing_status != 'demo'
          ORDER BY c.opened_at DESC LIMIT 5`),
-      query(`SELECT COUNT(*)::int FROM appointments a JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE WHERE a.booking_state = 'PENDING_MANUAL_CONFIRMATION'`),
-      query(`SELECT COUNT(*)::int FROM appointments a JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE WHERE a.booking_state = 'FAILED'`),
+      query(`SELECT COUNT(*)::int FROM appointments a JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE AND t.billing_status != 'demo' WHERE a.booking_state = 'PENDING_MANUAL_CONFIRMATION'`),
+      query(`SELECT COUNT(*)::int FROM appointments a JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE AND t.billing_status != 'demo' WHERE a.booking_state = 'FAILED'`),
       query(`SELECT COUNT(*)::int FROM pipeline_alerts WHERE acknowledged = FALSE`),
       // ── Funnel: 30d conversations ──
       query(`SELECT COUNT(*)::int FROM conversations c
-         JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE
+         JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE AND t.billing_status != 'demo'
          WHERE c.opened_at > NOW() - INTERVAL '30 days'`),
       // ── Funnel: 30d bookings ──
       query(`SELECT COUNT(*)::int FROM appointments a
-         JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE
+         JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE AND t.billing_status != 'demo'
          WHERE a.created_at > NOW() - INTERVAL '30 days'`),
       // ── Funnel: 30d synced bookings ──
       query(`SELECT COUNT(*)::int FROM appointments a
-         JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE
+         JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE AND t.billing_status != 'demo'
          WHERE a.created_at > NOW() - INTERVAL '30 days' AND a.calendar_synced = true`),
       // ── System health: pipeline failures 24h ──
       query(`SELECT COUNT(*)::int FROM pipeline_traces
@@ -207,11 +207,11 @@ export async function adminRoute(app: FastifyInstance) {
          ORDER BY created_at DESC LIMIT 1`),
       // ── System health: failed bookings 24h ──
       query(`SELECT COUNT(*)::int FROM appointments a
-         JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE
+         JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE AND t.billing_status != 'demo'
          WHERE a.booking_state = 'FAILED' AND a.created_at > NOW() - INTERVAL '24 hours'`),
       // ── System health: failed calendar syncs 24h ──
       query(`SELECT COUNT(*)::int FROM appointments a
-         JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE
+         JOIN tenants t ON t.id = a.tenant_id AND t.is_test = FALSE AND t.billing_status != 'demo'
          WHERE a.calendar_synced = false AND a.created_at > NOW() - INTERVAL '24 hours'
          AND a.booking_state NOT IN ('CONFIRMED_MANUAL', 'RESOLVED')`),
       // ── Revenue: active tenants with plan (includes scheduled_cancel — still paying) ──
@@ -224,7 +224,7 @@ export async function adminRoute(app: FastifyInstance) {
       query(`SELECT COALESCE(SUM(m.tokens_used), 0)::bigint as total_tokens
          FROM messages m
          JOIN conversations c ON c.id = m.conversation_id
-         JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE
+         JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE AND t.billing_status != 'demo'
          WHERE m.sent_at > NOW() - INTERVAL '30 days'`),
       // ── Cost: SMS segments 30d (real segment counts where available) ──
       query(`SELECT
@@ -233,14 +233,14 @@ export async function adminRoute(app: FastifyInstance) {
            COUNT(*) FILTER (WHERE m.sms_segments IS NULL OR m.sms_segments = 0)::int as fallback_count
          FROM messages m
          JOIN conversations c ON c.id = m.conversation_id
-         JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE
+         JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE AND t.billing_status != 'demo'
          WHERE m.sent_at > NOW() - INTERVAL '30 days'
            AND m.direction IN ('inbound', 'outbound')`),
       // ── Cost: AI tokens today ──
       query(`SELECT COALESCE(SUM(m.tokens_used), 0)::bigint as total_tokens
          FROM messages m
          JOIN conversations c ON c.id = m.conversation_id
-         JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE
+         JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE AND t.billing_status != 'demo'
          WHERE m.sent_at >= CURRENT_DATE`),
       // ── Cost: SMS segments today (real segment counts where available) ──
       query(`SELECT
@@ -249,7 +249,7 @@ export async function adminRoute(app: FastifyInstance) {
            COUNT(*) FILTER (WHERE m.sms_segments IS NULL OR m.sms_segments = 0)::int as fallback_count
          FROM messages m
          JOIN conversations c ON c.id = m.conversation_id
-         JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE
+         JOIN tenants t ON t.id = c.tenant_id AND t.is_test = FALSE AND t.billing_status != 'demo'
          WHERE m.sent_at >= CURRENT_DATE
            AND m.direction IN ('inbound', 'outbound')`),
       // ── Funnel: missed calls 30d (from pipeline_traces) ──
