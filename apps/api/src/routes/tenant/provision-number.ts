@@ -4,6 +4,7 @@ import { requireAuth } from "../../middleware/require-auth";
 import { provisionNumberQueue } from "../../queues/redis";
 import { query } from "../../db/client";
 import { getSharedTestNumber } from "../../utils/test-tenant";
+import { getTenantById, isDemoMode } from "../../db/tenants";
 
 const ProvisionBody = z.object({
   areaCode: z.string().regex(/^\d{3}$/, "Area code must be 3 digits"),
@@ -29,6 +30,17 @@ export async function tenantProvisionNumberRoute(app: FastifyInstance) {
     }
 
     const { areaCode } = parsed.data;
+
+    // ── Demo mode gate: provisioning requires trial or active account ────────
+    const tenant = await getTenantById(tenantId);
+    if (!tenant) {
+      return reply.status(404).send({ error: "Tenant not found" });
+    }
+    if (isDemoMode(tenant)) {
+      return reply.status(403).send({
+        error: "Provisioning requires an active trial or subscription. Start your free trial to activate.",
+      });
+    }
 
     // Check if tenant already has an active number
     const existing = await query<{ id: string }>(

@@ -16,6 +16,8 @@ const CheckoutBody = z.object({
   plan: z.enum(["starter", "pro", "premium"]),
   successUrl: z.string().url(),
   cancelUrl: z.string().url(),
+  // When true, creates a Stripe trial subscription (card captured, no charge today)
+  startTrial: z.boolean().optional().default(false),
 });
 
 export async function billingCheckoutRoute(app: FastifyInstance) {
@@ -37,7 +39,7 @@ export async function billingCheckoutRoute(app: FastifyInstance) {
       return reply.status(400).send({ error: parsed.error.flatten() });
     }
 
-    const { plan, successUrl, cancelUrl } = parsed.data;
+    const { plan, successUrl, cancelUrl, startTrial } = parsed.data;
     const { tenantId } = request.user as { tenantId: string };
 
     const priceId = PLAN_PRICE_MAP[plan];
@@ -83,15 +85,23 @@ export async function billingCheckoutRoute(app: FastifyInstance) {
       request.log.info({ tenantId, customerId }, "Created Stripe customer");
     }
 
+    // Demo→trial upgrade: 14-day Stripe trial (card captured, no charge today).
+    // Direct plan purchase (already trialing or upgrading): charge immediately.
+    const isDemoUpgrade = startTrial || tenant.billing_status === "demo";
+    const subscriptionData: Record<string, unknown> = {
+      metadata: { tenant_id: tenantId },
+    };
+    if (isDemoUpgrade) {
+      subscriptionData.trial_period_days = 14;
+    }
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: successUrl,
       cancel_url: cancelUrl,
-      subscription_data: {
-        metadata: { tenant_id: tenantId },
-      },
+      subscription_data: subscriptionData as any,
       metadata: { tenant_id: tenantId },
     });
 

@@ -28,13 +28,14 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
       recentBookingRows,
       liveConvRows,
     ] = await Promise.all([
-      // Tenant identity + billing + business hours (for onboarding check)
+      // Tenant identity + billing + business hours + lifecycle state
       query(
         `SELECT id, shop_name, owner_email, owner_phone, billing_status, plan_id,
                 conv_used_this_cycle, conv_limit_this_cycle,
                 trial_started_at, trial_ends_at,
                 warned_80pct, warned_100pct, created_at,
-                business_hours, is_test
+                business_hours, is_test,
+                workspace_mode, provisioning_state
          FROM tenants WHERE id = $1`,
         [tenantId]
       ),
@@ -182,6 +183,9 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
     // with default hours and manual calendar. Phone + activity = system is live.
     const onboardingComplete = phoneConnected && hasActivity;
 
+    // ── Demo mode: return empty stats + demo indicator ────────────────────
+    const isDemo = tenant.billing_status === "demo";
+
     return reply.status(200).send({
       tenant: {
         id: tenant.id,
@@ -192,11 +196,14 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
         conv_used_this_cycle: tenant.conv_used_this_cycle,
         conv_limit_this_cycle: tenant.conv_limit_this_cycle,
         trial_ends_at: tenant.trial_ends_at,
+        trial_started_at: tenant.trial_started_at ?? null,
         warned_80pct: tenant.warned_80pct,
         warned_100pct: tenant.warned_100pct,
         created_at: tenant.created_at,
         business_hours: tenant.business_hours ?? null,
         owner_phone: tenant.owner_phone ?? null,
+        workspace_mode: tenant.workspace_mode ?? "live_active",
+        provisioning_state: tenant.provisioning_state ?? "ready",
       },
       integrations: {
         google_calendar: {
@@ -231,6 +238,7 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
       recent_bookings: recentBookingRows,
       live_conversations: liveConvRows,
       live_conversations_count: (liveConvRows as any[]).length,
+      is_demo: isDemo,
     });
   });
 }

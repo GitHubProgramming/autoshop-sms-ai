@@ -148,6 +148,17 @@ export async function tenantConversationsRoute(app: FastifyInstance) {
 
     const conv = (convRows as any[])[0];
 
+    // Demo accounts cannot send real SMS
+    const tenantRows = await query<{ billing_status: string }>(
+      `SELECT billing_status FROM tenants WHERE id = $1`,
+      [tenantId]
+    );
+    if (tenantRows[0]?.billing_status === "demo") {
+      return reply.status(403).send({
+        error: "Demo mode — start your free trial to send live messages.",
+      });
+    }
+
     // Send SMS via Twilio
     const twilioResult = await sendTwilioSms(conv.customer_phone, trimmed);
 

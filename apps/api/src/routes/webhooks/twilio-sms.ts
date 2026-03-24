@@ -174,6 +174,12 @@ export function getBlockedAutoReply(
   const name = shopName ?? "this business";
 
   switch (blockReason) {
+    case "demo_mode":
+      // Demo tenants should never have a phone number, but handle defensively
+      return (
+        `Thank you for reaching out! ${name}'s automated messaging ` +
+        `service is not yet activated. Please call them directly.`
+      );
     case "trial_expired":
     case "trial_limit_reached":
       return (

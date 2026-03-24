@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { provisionNumberQueue } from "../../queues/redis";
 import { requireInternal } from "../../middleware/require-internal";
+import { getTenantById, isDemoMode } from "../../db/tenants";
 
 const ProvisionBody = z.object({
   tenantId: z.string().uuid(),
@@ -28,6 +29,15 @@ export async function provisionNumberRoute(app: FastifyInstance) {
     }
 
     const { tenantId, areaCode, shopName } = parsed.data;
+
+    // Gate: demo accounts cannot provision infrastructure
+    const tenant = await getTenantById(tenantId);
+    if (tenant && isDemoMode(tenant)) {
+      request.log.warn({ tenantId }, "Blocked provisioning for demo tenant");
+      return reply.status(403).send({
+        error: "Cannot provision for demo accounts — trial activation required",
+      });
+    }
 
     const job = await provisionNumberQueue.add(
       "provision-twilio-number",
