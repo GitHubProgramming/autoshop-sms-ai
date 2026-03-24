@@ -320,24 +320,28 @@ export async function tenantKpiRoute(app: FastifyInstance) {
     const { id } = request.params as { id: string };
     const { final_price } = request.body as { final_price: number };
 
-    if (typeof final_price !== "number" || final_price < 0) {
-      return reply.status(400).send({ error: "final_price must be a non-negative number" });
+    if (typeof final_price !== "number" || !Number.isFinite(final_price) || final_price < 0) {
+      return reply.status(400).send({ error: "final_price must be a non-negative finite number" });
     }
 
-    const rows = await query<{ id: string }>(
+    // Round to 2 decimal places for NUMERIC(10,2) column
+    const rounded_price = Math.round(final_price * 100) / 100;
+
+    const rows = await query<{ id: string; final_price: number }>(
       `UPDATE appointments
        SET final_price = $1,
-           completed_at = NOW()
+           completed_at = COALESCE(completed_at, NOW())
        WHERE id = $2 AND tenant_id = $3
-       RETURNING id`,
-      [final_price, id, tenantId]
+         AND booking_state NOT IN ('CANCELLED')
+       RETURNING id, final_price`,
+      [rounded_price, id, tenantId]
     );
 
     if (rows.length === 0) {
-      return reply.status(404).send({ error: "Appointment not found" });
+      return reply.status(404).send({ error: "Appointment not found or is cancelled" });
     }
 
-    return reply.status(200).send({ id: rows[0].id, status: "completed", final_price });
+    return reply.status(200).send({ id: rows[0].id, status: "completed", final_price: rows[0].final_price });
   });
 
   /**
