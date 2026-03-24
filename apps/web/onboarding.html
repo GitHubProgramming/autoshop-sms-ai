@@ -608,6 +608,21 @@ if (!jwt) {
   window.location.replace('/signup');
 }
 
+// ── Demo guard (ADR-010): demo users skip onboarding, go straight to dashboard ──
+// Only allow onboarding for activated tenants (trial/active). Demo users explore dashboard first.
+(function() {
+  if (!jwt) return;
+  fetch('/tenant/dashboard', { headers: { 'Authorization': 'Bearer ' + jwt } })
+    .then(function(res) { return res.ok ? res.json() : null; })
+    .then(function(data) {
+      if (!data || !data.tenant) return;
+      if (data.tenant.billing_status === 'demo') {
+        window.location.replace('/app/dashboard');
+      }
+    })
+    .catch(function() { /* network error — let onboarding load normally */ });
+})();
+
 // ── Prefill from session / hash (legacy compat) ──
 (function() {
   var hash = window.location.hash.slice(1);
