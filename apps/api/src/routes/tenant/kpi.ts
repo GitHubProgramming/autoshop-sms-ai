@@ -396,14 +396,22 @@ export async function tenantKpiRoute(app: FastifyInstance) {
   app.get("/appointments-summary", { preHandler: [requireAuth] }, async (request, reply) => {
     const { tenantId } = request.user as { tenantId: string; email: string };
 
+    const appointmentFields = `id, conversation_id, customer_phone, customer_name,
+                service_type, scheduled_at, calendar_synced,
+                google_event_id, booking_state, created_at,
+                completed_at, final_price, car_model, is_test,
+                CASE WHEN conversation_id IS NOT NULL THEN 'AI' ELSE 'Manual' END AS source`;
+
     const [
       todayRows,
       weekRows,
       aiBookedRows,
       totalRows,
       upcomingRows,
+      todayApptRows,
+      upcomingApptRows,
     ] = await Promise.all([
-      // Today's appointments (exclude cancelled/failed/test)
+      // Today's appointments count (exclude cancelled/failed/test)
       query<{ count: string }>(
         `SELECT COUNT(*)::text AS count
          FROM appointments
@@ -444,14 +452,39 @@ export async function tenantKpiRoute(app: FastifyInstance) {
            AND is_test = FALSE`,
         [tenantId]
       ),
-      // Upcoming (future, not today, exclude cancelled/failed/test)
+      // Upcoming count (future, not today, exclude cancelled/failed/test)
       query<{ count: string }>(
         `SELECT COUNT(*)::text AS count
          FROM appointments
          WHERE tenant_id = $1
-           AND scheduled_at > CURRENT_DATE + INTERVAL '1 day'
+           AND scheduled_at >= CURRENT_DATE + INTERVAL '1 day'
            AND booking_state NOT IN ('CANCELLED', 'FAILED')
            AND is_test = FALSE`,
+        [tenantId]
+      ),
+      // Today's appointment rows for card rendering
+      query(
+        `SELECT ${appointmentFields}
+         FROM appointments
+         WHERE tenant_id = $1
+           AND scheduled_at >= CURRENT_DATE
+           AND scheduled_at < CURRENT_DATE + INTERVAL '1 day'
+           AND booking_state NOT IN ('CANCELLED', 'FAILED')
+           AND is_test = FALSE
+         ORDER BY scheduled_at ASC
+         LIMIT 20`,
+        [tenantId]
+      ),
+      // Upcoming appointment rows for card rendering (next 7 days, not today)
+      query(
+        `SELECT ${appointmentFields}
+         FROM appointments
+         WHERE tenant_id = $1
+           AND scheduled_at >= CURRENT_DATE + INTERVAL '1 day'
+           AND booking_state NOT IN ('CANCELLED', 'FAILED')
+           AND is_test = FALSE
+         ORDER BY scheduled_at ASC
+         LIMIT 8`,
         [tenantId]
       ),
     ]);
@@ -467,6 +500,8 @@ export async function tenantKpiRoute(app: FastifyInstance) {
       ai_booked_pct: aiPct,
       upcoming_count: parseInt(upcomingRows[0]?.count ?? "0", 10),
       total_non_test: total,
+      today_appointments: todayApptRows,
+      upcoming_appointments: upcomingApptRows,
     });
   });
 }
