@@ -3299,7 +3299,7 @@ function renderBookings() {
     if (isCancelled) {
       action = `<span style="font-family:var(--mono);font-size:11px;color:#6B7280;font-weight:600;">Cancelled</span>`;
     } else if (isCompleted) {
-      action = `<span style="font-family:var(--mono);font-size:11px;color:var(--navy);font-weight:600;">Done</span>`;
+      action = `<div class="row-actions"><button class="view-btn" onclick="openCompleteModal('${b.id}')">Edit Price</button></div>`;
     } else if (b.syncStatus === 'failed') {
       action = `<span style="font-family:var(--mono);font-size:11px;color:var(--red);font-weight:600;">Failed</span>`;
     } else if (b.syncStatus === 'pending') {
@@ -3854,12 +3854,14 @@ function openCompleteModal(apptId) {
   _completeApptId = apptId;
   _completeSubmitting = false;
   var b = bookingsData.find(function(x) { return x.id === apptId; });
+  var isEdit = b && b.completedAt && b.finalPrice != null;
   document.getElementById('completeModalMeta').textContent = b ? b.service + ' — ' + b.phone : '';
-  document.getElementById('completePriceInput').value = '';
+  document.getElementById('completePriceInput').value = isEdit ? b.finalPrice.toFixed(2) : '';
   document.getElementById('completeNotesInput').value = '';
   document.getElementById('completePriceError').style.display = 'none';
   document.getElementById('completeSubmitBtn').disabled = false;
-  document.getElementById('completeSubmitBtn').textContent = 'Mark as Completed';
+  document.getElementById('completeSubmitBtn').textContent = isEdit ? 'Update Price' : 'Mark as Completed';
+  document.querySelector('#completeModal .modal-title').textContent = isEdit ? 'Edit Price' : 'Complete Appointment';
   document.getElementById('completeModal').classList.add('open');
   document.getElementById('completePriceInput').focus();
 }
@@ -3885,12 +3887,13 @@ async function submitCompleteAppointment() {
   }
 
   var price = parseFloat(val);
-  if (isNaN(price) || price < 0) {
+  if (isNaN(price) || !isFinite(price) || price < 0) {
     errorEl.textContent = 'Price must be a non-negative number.';
     errorEl.style.display = 'block';
     priceInput.focus();
     return;
   }
+  price = Math.round(price * 100) / 100;
 
   errorEl.style.display = 'none';
   _completeSubmitting = true;
@@ -3923,20 +3926,22 @@ async function submitCompleteAppointment() {
       return;
     }
 
-    // Update local data
+    // Update local data — preserve existing completedAt for price edits
     var b = bookingsData.find(function(x) { return x.id === _completeApptId; });
+    var wasEdit = b && !!b.completedAt;
     if (b) {
-      b.completedAt = new Date().toISOString();
+      if (!b.completedAt) b.completedAt = new Date().toISOString();
       b.finalPrice = price;
     }
 
     closeCompleteModal();
     renderBookings();
-    showToast('Appointment completed — $' + price.toFixed(2) + ' recorded.');
+    showToast(wasEdit
+      ? 'Price updated — $' + price.toFixed(2)
+      : 'Appointment completed — $' + price.toFixed(2) + ' recorded.');
 
-    // Refresh KPI data and re-render all dependent blocks
-    await loadKpiData();
-    await loadApptSummary();
+    // Refresh all dependent data and re-render every block that uses final_price
+    await Promise.all([loadKpiData(), loadApptSummary(), loadDashboardData()]);
     renderLiveKPIs();
     renderLiveRevenueBlocks();
     renderLivePipeline();
