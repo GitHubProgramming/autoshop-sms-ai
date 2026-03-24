@@ -143,14 +143,13 @@ export async function tenantKpiRoute(app: FastifyInstance) {
            AND completed_at >= NOW() - INTERVAL '30 days'`,
         [tenantId]
       ),
-      // AI-booked appointments this month (have conversation_id, exclude FAILED + CANCELLED + test)
+      // AI-booked appointments this month (have conversation_id, exclude FAILED + CANCELLED)
       query<{ count: string }>(
         `SELECT COUNT(*)::text AS count
          FROM appointments
          WHERE tenant_id = $1
            AND conversation_id IS NOT NULL
            AND booking_state NOT IN ('FAILED', 'CANCELLED')
-           AND is_test = FALSE
            AND created_at >= date_trunc('month', CURRENT_DATE)`,
         [tenantId]
       ),
@@ -445,15 +444,14 @@ export async function tenantKpiRoute(app: FastifyInstance) {
       todayApptRows,
       upcomingApptRows,
     ] = await Promise.all([
-      // Today's appointments count (exclude cancelled/failed/test)
+      // Today's appointments count (exclude cancelled/failed)
       query<{ count: string }>(
         `SELECT COUNT(*)::text AS count
          FROM appointments
          WHERE tenant_id = $1
            AND scheduled_at >= CURRENT_DATE
            AND scheduled_at < CURRENT_DATE + INTERVAL '1 day'
-           AND booking_state NOT IN ('CANCELLED', 'FAILED')
-           AND is_test = FALSE`,
+           AND booking_state NOT IN ('CANCELLED', 'FAILED')`,
         [tenantId]
       ),
       // This week (Monday-relative for consistency)
@@ -463,37 +461,33 @@ export async function tenantKpiRoute(app: FastifyInstance) {
          WHERE tenant_id = $1
            AND scheduled_at >= date_trunc('week', CURRENT_DATE)
            AND scheduled_at < date_trunc('week', CURRENT_DATE) + INTERVAL '7 days'
-           AND booking_state NOT IN ('CANCELLED', 'FAILED')
-           AND is_test = FALSE`,
+           AND booking_state NOT IN ('CANCELLED', 'FAILED')`,
         [tenantId]
       ),
-      // AI-booked (have conversation_id, exclude failed/cancelled/test)
+      // AI-booked (have conversation_id, exclude failed/cancelled)
       query<{ count: string }>(
         `SELECT COUNT(*)::text AS count
          FROM appointments
          WHERE tenant_id = $1
            AND conversation_id IS NOT NULL
-           AND booking_state NOT IN ('FAILED', 'CANCELLED')
-           AND is_test = FALSE`,
+           AND booking_state NOT IN ('FAILED', 'CANCELLED')`,
         [tenantId]
       ),
-      // Total non-test appointments (for AI %)
+      // Total appointments (for AI %)
       query<{ count: string }>(
         `SELECT COUNT(*)::text AS count
          FROM appointments
          WHERE tenant_id = $1
-           AND booking_state NOT IN ('FAILED', 'CANCELLED')
-           AND is_test = FALSE`,
+           AND booking_state NOT IN ('FAILED', 'CANCELLED')`,
         [tenantId]
       ),
-      // Upcoming count (future, not today, exclude cancelled/failed/test)
+      // Upcoming count (future, not today, exclude cancelled/failed)
       query<{ count: string }>(
         `SELECT COUNT(*)::text AS count
          FROM appointments
          WHERE tenant_id = $1
            AND scheduled_at >= CURRENT_DATE + INTERVAL '1 day'
-           AND booking_state NOT IN ('CANCELLED', 'FAILED')
-           AND is_test = FALSE`,
+           AND booking_state NOT IN ('CANCELLED', 'FAILED')`,
         [tenantId]
       ),
       // AI-booked this month (same filters as all-time, scoped to current month)
@@ -503,7 +497,6 @@ export async function tenantKpiRoute(app: FastifyInstance) {
          WHERE tenant_id = $1
            AND conversation_id IS NOT NULL
            AND booking_state NOT IN ('FAILED', 'CANCELLED')
-           AND is_test = FALSE
            AND created_at >= date_trunc('month', CURRENT_DATE)`,
         [tenantId]
       ),
@@ -513,7 +506,6 @@ export async function tenantKpiRoute(app: FastifyInstance) {
          FROM appointments
          WHERE tenant_id = $1
            AND booking_state NOT IN ('FAILED', 'CANCELLED')
-           AND is_test = FALSE
            AND created_at >= date_trunc('month', CURRENT_DATE)`,
         [tenantId]
       ),
@@ -525,7 +517,6 @@ export async function tenantKpiRoute(app: FastifyInstance) {
            AND scheduled_at >= CURRENT_DATE
            AND scheduled_at < CURRENT_DATE + INTERVAL '1 day'
            AND booking_state NOT IN ('CANCELLED', 'FAILED')
-           AND is_test = FALSE
          ORDER BY scheduled_at ASC
          LIMIT 20`,
         [tenantId]
@@ -537,7 +528,6 @@ export async function tenantKpiRoute(app: FastifyInstance) {
          WHERE tenant_id = $1
            AND scheduled_at >= CURRENT_DATE + INTERVAL '1 day'
            AND booking_state NOT IN ('CANCELLED', 'FAILED')
-           AND is_test = FALSE
          ORDER BY scheduled_at ASC
          LIMIT 8`,
         [tenantId]
