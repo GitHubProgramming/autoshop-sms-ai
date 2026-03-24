@@ -2329,7 +2329,12 @@ async function loadApptSummary() {
   if (!token) return;
   // Demo mode: use synthetic summary matching demo sample data
   if (tenantState.isDemo || tenantState.status === 'demo') {
-    apptSummary = { total_today: 0, total_week: 1, ai_booked_count: 2, ai_booked_pct: 67, upcoming_count: 3, total_non_test: 3 };
+    apptSummary = {
+      total_today: 0, total_week: 1, ai_booked_count: 2, ai_booked_pct: 67,
+      upcoming_count: 3, total_non_test: 3,
+      today_appointments: [],
+      upcoming_appointments: DEMO_SAMPLE_DATA.appointments
+    };
     return;
   }
   try {
@@ -2337,7 +2342,11 @@ async function loadApptSummary() {
       headers: { 'Authorization': 'Bearer ' + token }
     });
     if (res.ok) {
-      apptSummary = await res.json();
+      var data = await res.json();
+      // Map raw backend rows through the single mapping function
+      data.today_appointments = (data.today_appointments || []).map(mapAppointment);
+      data.upcoming_appointments = (data.upcoming_appointments || []).map(mapAppointment);
+      apptSummary = data;
     }
   } catch (err) {
     console.error('Appointments summary fetch failed:', err);
@@ -5190,23 +5199,11 @@ function filterCustomers(filterVal) {
 // ════════════════════════════════════════════
 function renderAppointmentsPage() {
   var today = new Date();
-  var todayStr = today.toDateString();
 
-  // Filter for card rendering only — NOT for KPI computation
-  var todayAppts = bookingsData.filter(function(b) {
-    if (!b.rawScheduledAt || b.isTest) return false;
-    var d = new Date(b.rawScheduledAt);
-    return !isNaN(d.getTime()) && d.toDateString() === todayStr;
-  });
-
-  var upcomingAppts = bookingsData.filter(function(b) {
-    if (!b.rawScheduledAt || b.isTest) return false;
-    var d = new Date(b.rawScheduledAt);
-    return !isNaN(d.getTime()) && d > today && d.toDateString() !== todayStr;
-  }).sort(function(a, b) { return new Date(a.rawScheduledAt) - new Date(b.rawScheduledAt); });
-
-  // ── KPIs: ALL from backend (apptSummary), ZERO frontend recomputation ──
+  // ── ALL data from backend — no client-side date filtering ──
   var s = apptSummary || {};
+  var todayAppts = s.today_appointments || [];
+  var upcomingAppts = s.upcoming_appointments || [];
   var todayCount = s.total_today || 0;
   var weekCount = s.total_week || 0;
   var aiCount = s.ai_booked_count || 0;
@@ -5287,7 +5284,7 @@ function renderAppointmentsPage() {
     if (!upcomingAppts.length) {
       upcomingContainer.innerHTML = '<div style="padding:24px 0;text-align:center;font-size:13px;color:var(--text-tertiary);">No upcoming appointments</div>';
     } else {
-      upcomingContainer.innerHTML = upcomingAppts.slice(0, 8).map(function(b) {
+      upcomingContainer.innerHTML = upcomingAppts.map(function(b) {
         var d = new Date(b.rawScheduledAt);
         var dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         var timeStr = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
