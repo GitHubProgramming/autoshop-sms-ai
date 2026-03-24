@@ -4425,18 +4425,15 @@ function renderLiveRevenueBlocks() {
     }
   }
 
-  // Booking Sources — show real AI vs manual ratio
+  // Booking Sources — use backend-computed AI vs Manual ratio (same filters applied)
   var anSrcAi = document.getElementById('anSrcAiPct');
   var anSrcManual = document.getElementById('anSrcManualPct');
   if (anSrcAi && anSrcManual) {
-    var totalApptsSrc = s.total_appointments || 0;
-    var aiBookedSrc = as.ai_booked_this_month || 0;
-    var manualSrc = Math.max(0, (s.appointments_this_month || 0) - aiBookedSrc);
-    var totalSrc = aiBookedSrc + manualSrc;
-    if (totalSrc > 0) {
-      anSrcAi.textContent = Math.round((aiBookedSrc / totalSrc) * 100) + '%';
-      anSrcManual.textContent = Math.round((manualSrc / totalSrc) * 100) + '%';
-    }
+    var totalMonth = as.total_this_month || 0;
+    var aiMonthPct = as.ai_booked_this_month_pct || 0;
+    var manualMonthPct = totalMonth > 0 ? (100 - aiMonthPct) : 0;
+    anSrcAi.textContent = aiMonthPct + '%';
+    anSrcManual.textContent = manualMonthPct + '%';
   }
 
   // Conversation volume total

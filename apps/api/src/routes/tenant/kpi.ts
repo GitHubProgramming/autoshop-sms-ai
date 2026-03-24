@@ -410,6 +410,7 @@ export async function tenantKpiRoute(app: FastifyInstance) {
       totalRows,
       upcomingRows,
       aiBookedMonthRows,
+      totalMonthRows,
       todayApptRows,
       upcomingApptRows,
     ] = await Promise.all([
@@ -475,6 +476,16 @@ export async function tenantKpiRoute(app: FastifyInstance) {
            AND created_at >= date_trunc('month', CURRENT_DATE)`,
         [tenantId]
       ),
+      // Total valid appointments this month (AI + Manual — same filters, no conversation_id filter)
+      query<{ count: string }>(
+        `SELECT COUNT(*)::text AS count
+         FROM appointments
+         WHERE tenant_id = $1
+           AND booking_state NOT IN ('FAILED', 'CANCELLED')
+           AND is_test = FALSE
+           AND created_at >= date_trunc('month', CURRENT_DATE)`,
+        [tenantId]
+      ),
       // Today's appointment rows for card rendering
       query(
         `SELECT ${appointmentFields}
@@ -506,12 +517,20 @@ export async function tenantKpiRoute(app: FastifyInstance) {
     const total = parseInt(totalRows[0]?.count ?? "0", 10);
     const aiPct = total > 0 ? Math.round((aiBooked / total) * 100) : 0;
 
+    const aiBookedMonth = parseInt(aiBookedMonthRows[0]?.count ?? "0", 10);
+    const totalMonth = parseInt(totalMonthRows[0]?.count ?? "0", 10);
+    const manualMonth = totalMonth - aiBookedMonth;
+    const aiBookedMonthPct = totalMonth > 0 ? Math.round((aiBookedMonth / totalMonth) * 100) : 0;
+
     return reply.status(200).send({
       total_today: parseInt(todayRows[0]?.count ?? "0", 10),
       total_week: parseInt(weekRows[0]?.count ?? "0", 10),
       ai_booked_count: aiBooked,
       ai_booked_pct: aiPct,
-      ai_booked_this_month: parseInt(aiBookedMonthRows[0]?.count ?? "0", 10),
+      ai_booked_this_month: aiBookedMonth,
+      manual_booked_this_month: manualMonth,
+      total_this_month: totalMonth,
+      ai_booked_this_month_pct: aiBookedMonthPct,
       upcoming_count: parseInt(upcomingRows[0]?.count ?? "0", 10),
       total_non_test: total,
       today_appointments: todayApptRows,
