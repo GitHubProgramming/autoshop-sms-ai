@@ -2076,6 +2076,7 @@ let convThreads = {};
 let selectedConversationId = null;
 let dashboardStats = {};
 let kpiSummary = null; // Real KPI data from /tenant/kpi/summary
+let apptSummary = null; // Real appointment KPIs from /tenant/appointments-summary
 
 // ════════════════════════════════════════════
 // FORMAT HELPERS
@@ -2096,6 +2097,39 @@ function fmtPhone(phone) {
   if (clean.length === 11 && clean[0] === '1') clean = clean.slice(1);
   if (clean.length === 10) return '(' + clean.slice(0,3) + ') ' + clean.slice(3,6) + '-' + clean.slice(6);
   return phone;
+}
+
+// ── Single appointment mapping function — all consumers must use this ──
+var BOOKING_STATE_MAP = {
+  'CONFIRMED_CALENDAR': { status: 'synced', label: 'Confirmed (Calendar)', note: '' },
+  'CONFIRMED_MANUAL': { status: 'synced', label: 'Confirmed (Manual)', note: '' },
+  'PENDING_MANUAL_CONFIRMATION': { status: 'pending', label: 'Needs Manual Confirmation', note: 'Calendar sync failed — confirm this booking manually.' },
+  'FAILED': { status: 'failed', label: 'Failed', note: 'Booking failed — contact customer to reschedule.' },
+  'CANCELLED': { status: 'cancelled', label: 'Cancelled', note: '' },
+  'RESOLVED': { status: 'resolved', label: 'Resolved', note: '' },
+};
+
+function mapAppointment(b) {
+  var mapped = BOOKING_STATE_MAP[b.booking_state] || { status: b.calendar_synced ? 'synced' : 'failed', label: b.calendar_synced ? 'Confirmed' : 'Failed', note: '' };
+  return {
+    id: b.id,
+    conversationId: b.conversation_id || null,
+    date: fmtDate(b.scheduled_at || b.created_at),
+    rawScheduledAt: b.scheduled_at || null,
+    phone: fmtPhone(b.customer_phone || ''),
+    customerName: b.customer_name || '',
+    service: b.service_type || 'Appointment',
+    vehicle: b.car_model || '—',
+    source: b.source || 'Unknown',
+    isTest: !!b.is_test,
+    syncStatus: mapped.status,
+    syncLabel: mapped.label,
+    failNote: mapped.note,
+    completedAt: b.completed_at || null,
+    finalPrice: b.final_price != null ? parseFloat(b.final_price) : null,
+    calendarSynced: !!b.calendar_synced,
+    bookingState: b.booking_state || null
+  };
 }
 
 function mapConvStatus(dbStatus) {
@@ -2187,40 +2221,8 @@ async function loadDashboardData() {
       };
     });
 
-    // ── Map bookings ──
-    bookingsData = (data.recent_bookings || []).map(function(b) {
-      var stateMap = {
-        'CONFIRMED_CALENDAR': { status: 'synced', label: 'Confirmed (Calendar)', note: '' },
-        'CONFIRMED_MANUAL': { status: 'synced', label: 'Confirmed (Manual)', note: '' },
-        'PENDING_MANUAL_CONFIRMATION': { status: 'pending', label: 'Needs Manual Confirmation', note: 'Calendar sync failed — confirm this booking manually.' },
-        'FAILED': { status: 'failed', label: 'Failed', note: 'Booking failed — contact customer to reschedule.' },
-        'CANCELLED': { status: 'cancelled', label: 'Cancelled', note: '' },
-        'RESOLVED': { status: 'resolved', label: 'Resolved', note: '' },
-      };
-      var mapped = stateMap[b.booking_state] || { status: b.calendar_synced ? 'synced' : 'failed', label: b.calendar_synced ? 'Confirmed' : 'Failed', note: '' };
-      var rawPhone = b.customer_phone || '';
-      var rawName = (b.customer_name || '').toLowerCase();
-      var isTest = rawPhone.startsWith('+3706000000') || rawName.indexOf('e2e') !== -1 || rawName.indexOf('test customer') !== -1 || /^\(512\) 555-\d{4}$/.test(fmtPhone(rawPhone));
-      return {
-        id: b.id,
-        conversationId: b.conversation_id || null,
-        date: fmtDate(b.scheduled_at || b.created_at),
-        rawScheduledAt: b.scheduled_at || null,
-        phone: fmtPhone(rawPhone),
-        customerName: b.customer_name || '',
-        service: b.service_type || 'Appointment',
-        vehicle: b.car_model || '—',
-        source: b.source || (b.conversation_id ? 'AI' : 'Manual'),
-        isTest: isTest,
-        syncStatus: mapped.status,
-        syncLabel: mapped.label,
-        failNote: mapped.note,
-        completedAt: b.completed_at || null,
-        finalPrice: b.final_price != null ? parseFloat(b.final_price) : null,
-        calendarSynced: !!b.calendar_synced,
-        bookingState: b.booking_state || null
-      };
-    });
+    // ── Map bookings using single source mapping function ──
+    bookingsData = (data.recent_bookings || []).map(mapAppointment);
 
     // Update session storage with real shop name
     var session = JSON.parse(localStorage.getItem('autoshop_session') || '{}');
@@ -2316,6 +2318,29 @@ async function loadKpiData() {
     }
   } catch (err) {
     console.error('KPI data fetch failed:', err);
+  }
+}
+
+// ════════════════════════════════════════════
+// APPOINTMENTS SUMMARY — backend-computed KPIs for /app/appointments
+// ════════════════════════════════════════════
+async function loadApptSummary() {
+  var token = localStorage.getItem('autoshop_jwt');
+  if (!token) return;
+  // Demo mode: use synthetic summary matching demo sample data
+  if (tenantState.isDemo || tenantState.status === 'demo') {
+    apptSummary = { total_today: 0, total_week: 1, ai_booked_count: 2, ai_booked_pct: 67, upcoming_count: 3, total_non_test: 3 };
+    return;
+  }
+  try {
+    var res = await fetch('/tenant/appointments-summary', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (res.ok) {
+      apptSummary = await res.json();
+    }
+  } catch (err) {
+    console.error('Appointments summary fetch failed:', err);
   }
 }
 
@@ -2539,6 +2564,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   await loadDashboardData();
   await loadConversationsData();
   await loadKpiData();
+  await loadApptSummary();
 
   // ── Admin access probe (non-blocking) ──
   (function checkAdminAccess() {
@@ -3901,9 +3927,11 @@ async function submitCompleteAppointment() {
 
     // Refresh KPI data and re-render all dependent blocks
     await loadKpiData();
+    await loadApptSummary();
     renderLiveKPIs();
     renderLiveRevenueBlocks();
     renderLivePipeline();
+    renderAppointmentsPage();
   } catch (e) {
     showToast('Network error — please try again.');
     _completeSubmitting = false;
@@ -4466,6 +4494,7 @@ async function cancelAppointment(apptId) {
       }
     }
     renderBookings();
+    await loadApptSummary();
     renderAppointmentsPage();
     // Surface calendar result
     if (data.calendar_error) {
@@ -5162,36 +5191,35 @@ function filterCustomers(filterVal) {
 function renderAppointmentsPage() {
   var today = new Date();
   var todayStr = today.toDateString();
+
+  // Filter for card rendering only — NOT for KPI computation
   var todayAppts = bookingsData.filter(function(b) {
-    if (!b.rawScheduledAt) return false;
+    if (!b.rawScheduledAt || b.isTest) return false;
     var d = new Date(b.rawScheduledAt);
     return !isNaN(d.getTime()) && d.toDateString() === todayStr;
   });
 
-  // Upcoming = future, not today
   var upcomingAppts = bookingsData.filter(function(b) {
-    if (!b.rawScheduledAt) return false;
+    if (!b.rawScheduledAt || b.isTest) return false;
     var d = new Date(b.rawScheduledAt);
     return !isNaN(d.getTime()) && d > today && d.toDateString() !== todayStr;
   }).sort(function(a, b) { return new Date(a.rawScheduledAt) - new Date(b.rawScheduledAt); });
 
-  // Stats
-  var todayCount = todayAppts.length || (dashboardStats.appointments_today || 0);
-  var weekStart = new Date(today); weekStart.setDate(today.getDate() - today.getDay());
-  var weekAppts = bookingsData.filter(function(b) { return b.rawScheduledAt && new Date(b.rawScheduledAt) >= weekStart; });
-  var weekCount = weekAppts.length || todayCount;
-  var aiCount = bookingsData.filter(function(b) { return b.source === 'AI'; }).length;
-  var aiPct = bookingsData.length > 0 ? Math.round((aiCount / bookingsData.length) * 100) : 0;
-  var confirmedCount = todayAppts.filter(function(b) { return b.syncStatus === 'synced' || b.syncStatus === 'confirmed'; }).length;
+  // ── KPIs: ALL from backend (apptSummary), ZERO frontend recomputation ──
+  var s = apptSummary || {};
+  var todayCount = s.total_today || 0;
+  var weekCount = s.total_week || 0;
+  var aiCount = s.ai_booked_count || 0;
+  var aiPct = s.ai_booked_pct || 0;
 
   var el = function(id) { return document.getElementById(id); };
   if (el('apptStatToday')) el('apptStatToday').textContent = todayCount;
-  if (el('apptStatTodaySub')) el('apptStatTodaySub').textContent = confirmedCount === todayCount && todayCount > 0 ? 'All confirmed' : confirmedCount + ' confirmed';
+  if (el('apptStatTodaySub')) el('apptStatTodaySub').textContent = todayCount + ' confirmed';
   if (el('apptStatWeek')) el('apptStatWeek').textContent = weekCount;
   if (el('apptStatWeekSub')) el('apptStatWeekSub').textContent = weekCount + ' this week';
   if (el('apptStatAI')) el('apptStatAI').textContent = aiPct > 0 ? aiPct + '%' : '—';
   if (el('apptStatAISub')) el('apptStatAISub').textContent = aiCount > 0 ? aiCount + ' AI booked' : '—';
-  if (el('apptStatShowup')) el('apptStatShowup').textContent = todayCount > 0 ? '—' : '—';
+  if (el('apptStatShowup')) el('apptStatShowup').textContent = '—';
   if (el('apptStatShowupSub')) el('apptStatShowupSub').textContent = 'Tracking soon';
 
   // Today title with date
@@ -5200,7 +5228,7 @@ function renderAppointmentsPage() {
 
   // Helper: source icon SVG
   function srcIcon(source) {
-    var s = (source || 'AI').toLowerCase();
+    var s = (source || 'Unknown').toLowerCase();
     if (s === 'ai') return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>';
     if (s === 'phone') return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.362 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>';
     return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
@@ -5234,13 +5262,13 @@ function renderAppointmentsPage() {
         var ampm = hour >= 12 ? 'PM' : 'AM';
         var h = hour % 12 || 12;
         var timeStr = h + ':' + String(d.getMinutes()).padStart(2, '0') + ' ' + ampm;
-        var source = b.source || 'AI';
+        var source = b.source;
         var sc = statusCls(b.syncStatus);
         var sl = statusLabel(b.syncStatus);
         return '<div class="appt-today-card">' +
           '<div class="appt-time-block">' + h + '<span class="appt-time-ampm">' + ampm + '</span></div>' +
           '<div class="appt-today-body">' +
-            '<div class="appt-today-top"><div><div class="appt-today-name">' + (b.customer || b.phone || 'Customer') + '</div><div class="appt-today-service">' + (b.service || 'Service') + '</div></div>' +
+            '<div class="appt-today-top"><div><div class="appt-today-name">' + (b.customerName || b.phone || 'Customer') + '</div><div class="appt-today-service">' + (b.service || 'Service') + '</div></div>' +
             '<span class="appt-status-badge ' + sc + '">' + sl + '</span></div>' +
             '<div class="appt-today-meta">' +
               '<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.362 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>' + (b.phone || '—') + '</span>' +
@@ -5260,10 +5288,10 @@ function renderAppointmentsPage() {
       upcomingContainer.innerHTML = '<div style="padding:24px 0;text-align:center;font-size:13px;color:var(--text-tertiary);">No upcoming appointments</div>';
     } else {
       upcomingContainer.innerHTML = upcomingAppts.slice(0, 8).map(function(b) {
-        var d = new Date(b.date);
+        var d = new Date(b.rawScheduledAt);
         var dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         var timeStr = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-        var source = b.source || 'AI';
+        var source = b.source;
         var sc = statusCls(b.syncStatus);
         var sl = statusLabel(b.syncStatus);
         return '<div class="appt-upcoming-card">' +
@@ -5272,7 +5300,7 @@ function renderAppointmentsPage() {
             '<span class="date-text">' + dateStr + '</span>' +
             '<span class="time-text">at ' + timeStr + '</span>' +
           '</div>' +
-          '<div class="appt-upcoming-name">' + (b.customer || b.phone || 'Customer') + '</div>' +
+          '<div class="appt-upcoming-name">' + (b.customerName || b.phone || 'Customer') + '</div>' +
           '<div class="appt-upcoming-service">' + (b.service || 'Service') + '</div>' +
           '<div class="appt-upcoming-tags">' +
             '<span class="appt-status-badge ' + sc + '">' + sl + '</span>' +

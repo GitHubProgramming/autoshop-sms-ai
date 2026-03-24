@@ -108,12 +108,12 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
          ORDER BY opened_at DESC LIMIT 20`,
         [tenantId]
       ),
-      // Recent bookings (last 50, with vehicle + derived source)
+      // Recent bookings (last 50, all fields explicit, no frontend derivation needed)
       query(
         `SELECT id, conversation_id, customer_phone, customer_name,
                 service_type, scheduled_at, calendar_synced,
                 google_event_id, booking_state, created_at,
-                completed_at, final_price, car_model,
+                completed_at, final_price, car_model, is_test,
                 CASE WHEN conversation_id IS NOT NULL THEN 'AI' ELSE 'Manual' END AS source
          FROM appointments
          WHERE tenant_id = $1
