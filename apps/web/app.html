@@ -1376,11 +1376,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
         </div>
       </div>
 
-      <!-- All Appointments (table, preserved for data) -->
-      <div class="section-label" style="margin-top:32px;">All Appointments</div>
+      <!-- Recent Appointments (last 50 by scheduled date) -->
+      <div class="section-label" style="margin-top:32px;">Recent Appointments</div>
       <div class="log-wrap">
         <div class="log-header">
-          <div class="log-title">Appointment Log</div>
+          <div class="log-title">Appointment Log <span style="font-weight:400;font-size:12px;color:var(--steel);">(most recent 50)</span></div>
           <div class="log-filters">
             <button class="filter-chip active" onclick="filterAppts(this,'all')">All</button>
             <button class="filter-chip" onclick="filterAppts(this,'synced')">Confirmed</button>
@@ -2198,15 +2198,20 @@ async function loadDashboardData() {
         'RESOLVED': { status: 'resolved', label: 'Resolved', note: '' },
       };
       var mapped = stateMap[b.booking_state] || { status: b.calendar_synced ? 'synced' : 'failed', label: b.calendar_synced ? 'Confirmed' : 'Failed', note: '' };
+      var rawPhone = b.customer_phone || '';
+      var rawName = (b.customer_name || '').toLowerCase();
+      var isTest = rawPhone.startsWith('+3706000000') || rawName.indexOf('e2e') !== -1 || rawName.indexOf('test customer') !== -1 || /^\(512\) 555-\d{4}$/.test(fmtPhone(rawPhone));
       return {
         id: b.id,
         conversationId: b.conversation_id || null,
         date: fmtDate(b.scheduled_at || b.created_at),
         rawScheduledAt: b.scheduled_at || null,
-        phone: fmtPhone(b.customer_phone),
+        phone: fmtPhone(rawPhone),
         customerName: b.customer_name || '',
         service: b.service_type || 'Appointment',
-        vehicle: b.customer_name || '—',
+        vehicle: b.car_model || '—',
+        source: b.source || (b.conversation_id ? 'AI' : 'Manual'),
+        isTest: isTest,
         syncStatus: mapped.status,
         syncLabel: mapped.label,
         failNote: mapped.note,
@@ -2714,9 +2719,9 @@ const DEMO_SAMPLE_DATA = {
     { id:'demo-4', phone:'(512) 555-0331', status:'no-response', issue:'Tire rotation', lastMessage:'What are your prices for tire rotation?', date:'Yesterday', duration:'1 msg', timeAgo:'1 day ago' },
   ],
   appointments: [
-    { id:'demo-a1', customerName:'Maria Garcia', phone:'(512) 555-0198', service:'Brake Inspection', rawScheduledAt:new Date(Date.now()+86400000).toISOString(), date:'Tomorrow, 10:00 AM', syncStatus:'synced', syncLabel:'Confirmed', bookingState:'CONFIRMED_CALENDAR' },
-    { id:'demo-a2', customerName:'James Wilson', phone:'(512) 555-0455', service:'Oil Change + Filter', rawScheduledAt:new Date(Date.now()+172800000).toISOString(), date:'In 2 days, 2:00 PM', syncStatus:'synced', syncLabel:'Confirmed', bookingState:'CONFIRMED_CALENDAR' },
-    { id:'demo-a3', customerName:'Sarah Chen', phone:'(512) 555-0512', service:'A/C Diagnostic', rawScheduledAt:new Date(Date.now()+259200000).toISOString(), date:'In 3 days, 9:00 AM', syncStatus:'pending', syncLabel:'Pending', bookingState:'PENDING_MANUAL_CONFIRMATION' },
+    { id:'demo-a1', customerName:'Maria Garcia', phone:'(512) 555-0198', service:'Brake Inspection', vehicle:'2021 Honda Civic', source:'AI', isTest:false, rawScheduledAt:new Date(Date.now()+86400000).toISOString(), date:'Tomorrow, 10:00 AM', syncStatus:'synced', syncLabel:'Confirmed', bookingState:'CONFIRMED_CALENDAR' },
+    { id:'demo-a2', customerName:'James Wilson', phone:'(512) 555-0455', service:'Oil Change + Filter', vehicle:'2019 Ford F-150', source:'AI', isTest:false, rawScheduledAt:new Date(Date.now()+172800000).toISOString(), date:'In 2 days, 2:00 PM', syncStatus:'synced', syncLabel:'Confirmed', bookingState:'CONFIRMED_CALENDAR' },
+    { id:'demo-a3', customerName:'Sarah Chen', phone:'(512) 555-0512', service:'A/C Diagnostic', vehicle:'2022 Toyota RAV4', source:'Manual', isTest:false, rawScheduledAt:new Date(Date.now()+259200000).toISOString(), date:'In 3 days, 9:00 AM', syncStatus:'pending', syncLabel:'Pending', bookingState:'PENDING_MANUAL_CONFIRMATION' },
   ],
   stats: {
     conversations_today: 4,
@@ -3255,6 +3260,7 @@ function renderBookings() {
       : `<span style="font-family:var(--mono);font-size:11px;color:var(--steel);">—</span>`;
     let action;
     var isCancelled = b.bookingState === 'CANCELLED';
+    var isStale = b.rawScheduledAt && (Date.now() - new Date(b.rawScheduledAt).getTime() > 48 * 60 * 60 * 1000);
     if (isCancelled) {
       action = `<span style="font-family:var(--mono);font-size:11px;color:#6B7280;font-weight:600;">Cancelled</span>`;
     } else if (isCompleted) {
@@ -3263,14 +3269,17 @@ function renderBookings() {
       action = `<span style="font-family:var(--mono);font-size:11px;color:var(--red);font-weight:600;">Failed</span>`;
     } else if (b.syncStatus === 'pending') {
       action = `<span style="font-family:var(--mono);font-size:11px;color:var(--rust);font-weight:600;">Action Needed</span>`;
+    } else if (isStale) {
+      action = `<span style="font-family:var(--mono);font-size:11px;color:#9CA3AF;font-weight:600;">Overdue</span>`;
     } else {
       action = `<div class="row-actions"><button class="view-btn" onclick="openCompleteModal('${b.id}')">Complete</button><button class="view-btn red" onclick="cancelAppointment('${b.id}')">Cancel</button></div>`;
     }
-    return `<tr data-appt-id="${b.id}">
+    const testBadge = b.isTest ? ' <span style="font-size:9px;font-weight:700;color:#D97706;background:#FEF3C7;padding:1px 4px;border-radius:3px;margin-left:4px;">TEST</span>' : '';
+    return `<tr data-appt-id="${b.id}"${b.isTest ? ' style="opacity:0.6"' : ''}>
       <td class="td-date">${b.date}</td>
-      <td class="td-phone">${b.phone}</td>
+      <td class="td-phone">${b.phone}${testBadge}</td>
       <td class="td-issue">${b.service}</td>
-      <td><span class="source-tag ai">AI</span></td>
+      <td><span class="source-tag ${b.source === 'AI' ? 'ai' : 'manual'}">${b.source}</span></td>
       <td class="td-date">${b.vehicle}</td>
       <td>${priceCell}</td>
       <td>${syncEl}${failNote}</td>
@@ -5171,7 +5180,7 @@ function renderAppointmentsPage() {
   var weekStart = new Date(today); weekStart.setDate(today.getDate() - today.getDay());
   var weekAppts = bookingsData.filter(function(b) { return b.rawScheduledAt && new Date(b.rawScheduledAt) >= weekStart; });
   var weekCount = weekAppts.length || todayCount;
-  var aiCount = bookingsData.filter(function(b) { return (b.source || 'AI').toLowerCase() === 'ai'; }).length;
+  var aiCount = bookingsData.filter(function(b) { return b.source === 'AI'; }).length;
   var aiPct = bookingsData.length > 0 ? Math.round((aiCount / bookingsData.length) * 100) : 0;
   var confirmedCount = todayAppts.filter(function(b) { return b.syncStatus === 'synced' || b.syncStatus === 'confirmed'; }).length;
 
