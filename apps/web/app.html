@@ -1575,17 +1575,19 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
         </div>
       </div>
 
-      <!-- Conversation Volume -->
-      <div class="an-card" style="margin-bottom:0;">
-        <div class="an-card-head">
-          <div>
-            <div class="an-card-title">Conversation Volume</div>
-            <div class="an-card-sub">AI conversation activity this month</div>
+      <!-- Conversation Volume — chart with period toggles -->
+      <div class="log-wrap" style="margin-bottom:0;">
+        <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+          <div class="log-title" style="font-size:16px;font-weight:700;">Conversation Volume</div>
+          <div class="rev-period-control" id="anConvPeriodControl">
+            <button class="rev-period-btn" data-days="7" onclick="setAnConvPeriod(7)">7D</button>
+            <button class="rev-period-btn active" data-days="30" onclick="setAnConvPeriod(30)">30D</button>
+            <button class="rev-period-btn" data-days="90" onclick="setAnConvPeriod(90)">90D</button>
           </div>
-          <div class="an-vol-stat" id="anConvVolStat">Total: <strong id="anConvVolTotal">0</strong></div>
         </div>
-        <div id="anConvVolBody" style="padding:40px 0;text-align:center;color:#7A8A9E;font-size:14px;">
-          No conversation data yet.
+        <div id="anConvSummaryBar" class="rev-summary" style="display:none;"></div>
+        <div id="anConvChartContainer" style="height:280px;padding:20px 24px 30px;position:relative;overflow:visible;">
+          <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-tertiary);font-size:14px;">Loading chart…</div>
         </div>
       </div>
 
@@ -2379,6 +2381,8 @@ var _revenueChartInstance = null;
 var _revPeriodDays = 30;
 var _anRevenueChartInstance = null;
 var _anRevPeriodDays = 30;
+var _anConvChartInstance = null;
+var _anConvPeriodDays = 30;
 
 // Vertical hover line plugin
 var verticalLinePlugin = {
@@ -2745,6 +2749,167 @@ async function loadAnRevenueChart(periodDays) {
 }
 
 // ════════════════════════════════════════════
+// ANALYTICS CONVERSATION VOLUME CHART
+// ════════════════════════════════════════════
+function setAnConvPeriod(days) {
+  _anConvPeriodDays = days;
+  var btns = document.querySelectorAll('#anConvPeriodControl .rev-period-btn');
+  btns.forEach(function(btn) {
+    btn.classList.toggle('active', Number(btn.getAttribute('data-days')) === days);
+  });
+  loadAnConversationChart(days);
+}
+
+async function loadAnConversationChart(periodDays) {
+  var numDays = periodDays || _anConvPeriodDays || 30;
+  var container = document.getElementById('anConvChartContainer');
+  var summaryBar = document.getElementById('anConvSummaryBar');
+  if (!container) return;
+  var token = localStorage.getItem('autoshop_jwt');
+  if (!token) return;
+
+  try {
+    var res = await fetch('/tenant/kpi/daily-conversations?days=' + numDays, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) throw new Error('fetch failed');
+    var data = await res.json();
+    var days = data.days || [];
+
+    if (shouldShowEmptyState(days)) {
+      container.innerHTML = '<div class="rev-empty">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="#7A8A9E" stroke-width="1.5" style="width:40px;height:40px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>' +
+        '<div class="rev-empty-title">No conversations yet</div>' +
+        '<div class="rev-empty-text">Conversations will appear here as your AI handles calls.</div>' +
+      '</div>';
+      if (summaryBar) summaryBar.style.display = 'none';
+      return;
+    }
+
+    var totalConvs = 0;
+    for (var i = 0; i < days.length; i++) totalConvs += days[i].total;
+
+    if (summaryBar) {
+      summaryBar.style.display = 'flex';
+      summaryBar.innerHTML =
+        '<div class="rev-metric"><div class="rev-metric-label">Total Conversations (' + numDays + 'd)</div><div class="rev-metric-value">' + totalConvs.toLocaleString() + '</div></div>';
+    }
+
+    var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var labels = days.map(function(d) {
+      var parts = d.date.split('-');
+      return monthNames[parseInt(parts[1], 10) - 1] + ' ' + parseInt(parts[2], 10);
+    });
+    var values = days.map(function(d) { return d.total; });
+
+    // Build cumulative for tooltip (matches revenue chart pattern)
+    var cumulative = [];
+    var runningTotal = 0;
+    for (var i = 0; i < days.length; i++) {
+      runningTotal += days[i].total;
+      cumulative.push(runningTotal);
+    }
+
+    if (_anConvChartInstance) {
+      _anConvChartInstance.destroy();
+      _anConvChartInstance = null;
+    }
+
+    container.innerHTML = '<canvas id="anConvChartCanvas" style="width:100%;height:100%;"></canvas>';
+    var canvas = document.getElementById('anConvChartCanvas');
+    var ctx = canvas.getContext('2d');
+
+    var gradient = ctx.createLinearGradient(0, 0, 0, canvas.parentElement.offsetHeight || 280);
+    gradient.addColorStop(0, 'rgba(13, 27, 42, 0.12)');
+    gradient.addColorStop(1, 'rgba(13, 27, 42, 0.01)');
+
+    var maxTicks = numDays <= 7 ? 7 : numDays <= 30 ? 10 : 12;
+
+    _anConvChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Conversations',
+          data: values,
+          borderColor: '#0D1B2A',
+          backgroundColor: gradient,
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.35,
+          pointRadius: numDays <= 7 ? 5 : numDays <= 30 ? 3 : 0,
+          pointBackgroundColor: '#0D1B2A',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointHoverRadius: 7,
+          pointHoverBackgroundColor: '#0D1B2A',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 3
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            enabled: true,
+            backgroundColor: '#FFFFFF',
+            titleColor: '#0D1B2A',
+            bodyColor: '#3D4F65',
+            borderColor: '#E3DDD5',
+            borderWidth: 1,
+            titleFont: { family: 'Barlow', size: 13, weight: '600' },
+            bodyFont: { family: 'Barlow', size: 12 },
+            padding: { top: 10, right: 14, bottom: 10, left: 14 },
+            cornerRadius: 8,
+            displayColors: false,
+            caretSize: 6,
+            caretPadding: 8,
+            callbacks: {
+              title: function(items) { return items[0].label; },
+              label: function(item) {
+                var dayVal = values[item.dataIndex];
+                var cumVal = cumulative[item.dataIndex];
+                return ['Day: ' + dayVal + ' conversations', 'Total: ' + cumVal + ' conversations'];
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(0, 0, 0, 0.04)', drawBorder: false },
+            border: { display: false },
+            ticks: {
+              font: { family: 'Barlow', size: 11 },
+              color: '#7A8A9E',
+              maxTicksLimit: 5,
+              precision: 0
+            }
+          },
+          x: {
+            grid: { display: false },
+            border: { display: false },
+            ticks: {
+              font: { family: 'Barlow', size: 11 },
+              color: '#7A8A9E',
+              maxTicksLimit: maxTicks,
+              maxRotation: 0
+            }
+          }
+        }
+      },
+      plugins: [verticalLinePlugin]
+    });
+  } catch (err) {
+    console.error('Conversation volume chart load failed:', err);
+    container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-tertiary);font-size:14px;">Unable to load chart data</div>';
+  }
+}
+
+// ════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', async function() {
@@ -2784,6 +2949,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   renderLiveRevenueBlocks();
   loadRevenueChart();
   loadAnRevenueChart();
+  loadAnConversationChart();
   renderActionNeeded();
   renderTodayAppointments();
   renderAppointmentsPage();
@@ -4633,18 +4799,7 @@ function renderLiveRevenueBlocks() {
     }
   }
 
-  // Conversation volume total
-  var anConvVolTotal = document.getElementById('anConvVolTotal');
-  if (anConvVolTotal) {
-    anConvVolTotal.textContent = k.conversations_this_month || s.conversations_this_month || 0;
-  }
-  var anConvVolBody = document.getElementById('anConvVolBody');
-  if (anConvVolBody) {
-    var convVolCount = k.conversations_this_month || s.conversations_this_month || 0;
-    if (convVolCount > 0) {
-      anConvVolBody.innerHTML = '<div style="padding:24px;text-align:center;"><div style="font-size:32px;font-weight:700;color:#0F172A;">' + convVolCount + '</div><div style="font-size:14px;color:#64748B;margin-top:4px;">conversations this month</div></div>';
-    }
-  }
+  // Conversation volume — now handled by loadAnConversationChart() (Chart.js with period toggles)
 }
 
 // ════════════════════════════════════════════

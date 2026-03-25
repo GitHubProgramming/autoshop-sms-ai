@@ -258,6 +258,44 @@ export async function tenantKpiRoute(app: FastifyInstance) {
   });
 
   /**
+   * GET /tenant/kpi/daily-conversations?days=30
+   *
+   * Daily conversation count for the last N days.
+   * Accepts ?days=7|30|90 (default 30).
+   * Returns an array of { date, total } entries, one per day.
+   * Days with no conversations return total: 0.
+   */
+  app.get("/kpi/daily-conversations", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { tenantId } = request.user as { tenantId: string; email: string };
+    const rawDays = (request.query as Record<string, string>).days;
+    const allowed = [7, 30, 90];
+    const numDays = allowed.includes(Number(rawDays)) ? Number(rawDays) : 30;
+
+    const rows = await query<{ day: string; total: string }>(
+      `SELECT d.day::date::text AS day,
+              COUNT(c.id)::text AS total
+       FROM generate_series(
+              CURRENT_DATE - INTERVAL '${numDays - 1} days',
+              CURRENT_DATE,
+              '1 day'
+            ) AS d(day)
+       LEFT JOIN conversations c
+         ON c.tenant_id = $1
+         AND c.opened_at::date = d.day::date
+       GROUP BY d.day
+       ORDER BY d.day`,
+      [tenantId]
+    );
+
+    return reply.status(200).send({
+      days: rows.map((r) => ({
+        date: r.day,
+        total: parseInt(r.total, 10),
+      })),
+    });
+  });
+
+  /**
    * GET /tenant/customers/list
    *
    * Customer list derived from appointments table.
