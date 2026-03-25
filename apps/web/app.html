@@ -1522,28 +1522,32 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 
       <!-- Middle: AI Performance + Booking Sources -->
       <div class="an-mid-grid">
-        <!-- AI Performance & Conversion (2/3) — log-wrap pattern -->
-        <div class="log-wrap" style="margin-bottom:0;">
-          <div style="padding:20px 24px;border-bottom:1px solid var(--border);">
-            <div class="log-title" style="font-size:16px;font-weight:700;">AI Performance & Conversion</div>
-            <div style="font-size:13px;color:var(--text-tertiary);margin-top:2px;">Conversation capture and booking conversion</div>
+        <!-- AI Performance & Conversion (2/3) -->
+        <div class="an-card" style="margin-bottom:0;">
+          <div class="an-card-head">
+            <div>
+              <div class="an-card-title">AI Performance & Conversion</div>
+              <div class="an-card-sub">Conversation capture and booking conversion</div>
+            </div>
           </div>
-          <div id="anAiPerfBody" style="padding:20px 24px;min-height:200px;display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:14px;">
+          <div id="anAiPerfBody" style="padding:40px 0;text-align:center;color:#7A8A9E;font-size:14px;">
             No conversation data yet. Data will appear as AI handles calls.
           </div>
-          <div style="padding:12px 24px;border-top:1px solid var(--border);display:flex;align-items:center;gap:20px;">
-            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-tertiary);"><div style="width:10px;height:10px;border-radius:2px;background:var(--rust);flex-shrink:0;"></div>Conversations</div>
-            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-tertiary);"><div style="width:10px;height:10px;border-radius:2px;background:var(--navy);flex-shrink:0;"></div>Booked</div>
+          <div class="an-legend" style="margin-top:16px;">
+            <div class="an-legend-item"><div class="an-legend-dot" style="background:var(--rust);"></div>Conversations</div>
+            <div class="an-legend-item"><div class="an-legend-dot" style="background:var(--navy);"></div>Booked</div>
           </div>
         </div>
 
-        <!-- Booking Sources (1/3) — log-wrap pattern -->
-        <div class="log-wrap" style="margin-bottom:0;">
-          <div style="padding:20px 24px;border-bottom:1px solid var(--border);">
-            <div class="log-title" style="font-size:16px;font-weight:700;">Booking Sources</div>
-            <div style="font-size:13px;color:var(--text-tertiary);margin-top:2px;">Distribution this month</div>
+        <!-- Booking Sources (1/3) -->
+        <div class="an-card" style="margin-bottom:0;">
+          <div class="an-card-head" style="margin-bottom:8px;">
+            <div>
+              <div class="an-card-title">Booking Sources</div>
+              <div class="an-card-sub">Distribution this month</div>
+            </div>
           </div>
-          <div id="anBookingSourcesBody" style="padding:20px 24px;">
+          <div id="anBookingSourcesBody">
             <div class="an-donut-wrap">
               <svg width="180" height="180" viewBox="0 0 180 180">
                 <circle cx="90" cy="90" r="70" fill="none" stroke="#E3DDD5" stroke-width="20"/>
@@ -1571,16 +1575,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
         </div>
       </div>
 
-      <!-- Conversation Volume — log-wrap pattern -->
-      <div class="log-wrap" style="margin-bottom:0;">
-        <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+      <!-- Conversation Volume -->
+      <div class="an-card" style="margin-bottom:0;">
+        <div class="an-card-head">
           <div>
-            <div class="log-title" style="font-size:16px;font-weight:700;">Conversation Volume</div>
-            <div style="font-size:13px;color:var(--text-tertiary);margin-top:2px;">AI conversation activity this month</div>
+            <div class="an-card-title">Conversation Volume</div>
+            <div class="an-card-sub">AI conversation activity this month</div>
           </div>
-          <div style="font-size:13px;color:var(--text-tertiary);" id="anConvVolStat">Total: <strong id="anConvVolTotal" style="color:var(--text);font-weight:600;">0</strong></div>
+          <div class="an-vol-stat" id="anConvVolStat">Total: <strong id="anConvVolTotal">0</strong></div>
         </div>
-        <div id="anConvVolBody" style="padding:20px 24px;min-height:200px;display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:14px;">
+        <div id="anConvVolBody" style="padding:40px 0;text-align:center;color:#7A8A9E;font-size:14px;">
           No conversation data yet.
         </div>
       </div>
@@ -4579,18 +4583,17 @@ function renderLiveRevenueBlocks() {
     if (convsAn > 0) {
       var convPct = 100;
       var bookedPct = convsAn > 0 ? Math.round((bookedAn / convsAn) * 100) : 0;
-      anAiPerfBody.style.display = 'block';
       anAiPerfBody.innerHTML =
         '<div style="display:flex;align-items:flex-end;justify-content:center;gap:24px;height:180px;padding:0 16px;">' +
           '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">' +
-            '<div style="font-size:13px;font-weight:600;color:var(--text);">' + convsAn + '</div>' +
+            '<div style="font-size:13px;font-weight:600;color:#0F172A;">' + convsAn + '</div>' +
             '<div style="width:40px;height:' + Math.max(convPct, 5) + '%;background:var(--rust);border-radius:4px 4px 0 0;"></div>' +
-            '<span style="font-size:11px;color:var(--text-tertiary);">Conversations</span>' +
+            '<span style="font-size:11px;color:#64748B;">Conversations</span>' +
           '</div>' +
           '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">' +
-            '<div style="font-size:13px;font-weight:600;color:var(--text);">' + bookedAn + '</div>' +
+            '<div style="font-size:13px;font-weight:600;color:#0F172A;">' + bookedAn + '</div>' +
             '<div style="width:40px;height:' + Math.max(bookedPct, 5) + '%;background:var(--navy);border-radius:4px 4px 0 0;"></div>' +
-            '<span style="font-size:11px;color:var(--text-tertiary);">Booked (' + bookedPct + '%)</span>' +
+            '<span style="font-size:11px;color:#64748B;">Booked (' + bookedPct + '%)</span>' +
           '</div>' +
         '</div>';
     }
@@ -4616,8 +4619,7 @@ function renderLiveRevenueBlocks() {
   if (anConvVolBody) {
     var convVolCount = k.conversations_this_month || s.conversations_this_month || 0;
     if (convVolCount > 0) {
-      anConvVolBody.style.display = 'block';
-      anConvVolBody.innerHTML = '<div style="padding:24px;text-align:center;"><div style="font-size:32px;font-weight:700;color:var(--text);">' + convVolCount + '</div><div style="font-size:14px;color:var(--text-tertiary);margin-top:4px;">conversations this month</div></div>';
+      anConvVolBody.innerHTML = '<div style="padding:24px;text-align:center;"><div style="font-size:32px;font-weight:700;color:#0F172A;">' + convVolCount + '</div><div style="font-size:14px;color:#64748B;margin-top:4px;">conversations this month</div></div>';
     }
   }
 }
