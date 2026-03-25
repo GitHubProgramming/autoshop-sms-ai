@@ -319,17 +319,29 @@ export async function tenantKpiRoute(app: FastifyInstance) {
    * GET /tenant/kpi/response-time
    *
    * Average, median, and p95 AI response time in seconds.
-   * Measures: customer inbound message → next assistant outbound message
-   * in the same conversation. Excludes synthetic inbound messages
-   * (missed-call log entries starting with '[').
+   *
+   * One sample per AI reply event. For each AI outbound message this month,
+   * finds the earliest real customer inbound message that preceded it
+   * (since the previous outbound in that conversation). This ensures a
+   * burst of customer messages before one AI reply produces exactly one
+   * sample, not one per inbound.
+   *
+   * AI replies identified by: model_version IS NOT NULL (set only by
+   * OpenAI-powered process-sms; NULL for manual sends and system templates).
+   *
+   * Synthetic inbound messages excluded: body NOT LIKE '[%' (catches
+   * [Missed call: ...] log entries — the only synthetic inbound pattern).
+   *
    * Scoped to current calendar month.
    */
   app.get("/kpi/response-time", { preHandler: [requireAuth] }, async (request, reply) => {
     const { tenantId } = request.user as { tenantId: string; email: string };
 
-    // For each real inbound message this month, find the next outbound
-    // message in the same conversation via LATERAL subquery.
-    // Compute delta in seconds. Exclude negatives and nulls.
+    // For each AI outbound message this month:
+    // 1. Find the previous outbound in the same conversation (if any)
+    // 2. Find the earliest real inbound after that previous outbound
+    // 3. Delta = outbound.sent_at - first_inbound.sent_at
+    // One sample per AI reply, not per inbound message.
     const rows = await query<{
       avg_seconds: string | null;
       median_seconds: string | null;
@@ -337,21 +349,29 @@ export async function tenantKpiRoute(app: FastifyInstance) {
       sample_size: string;
     }>(
       `WITH pairs AS (
-         SELECT EXTRACT(EPOCH FROM (reply.sent_at - inb.sent_at)) AS delta
-         FROM messages inb
+         SELECT EXTRACT(EPOCH FROM (ob.sent_at - first_inb.sent_at)) AS delta
+         FROM messages ob
          CROSS JOIN LATERAL (
-           SELECT sent_at
+           SELECT MAX(sent_at) AS sent_at
            FROM messages
-           WHERE conversation_id = inb.conversation_id
+           WHERE conversation_id = ob.conversation_id
              AND direction = 'outbound'
-             AND sent_at > inb.sent_at
-           ORDER BY sent_at ASC
-           LIMIT 1
-         ) reply
-         WHERE inb.tenant_id = $1
-           AND inb.direction = 'inbound'
-           AND inb.body NOT LIKE '[%'
-           AND inb.sent_at >= date_trunc('month', CURRENT_DATE)
+             AND sent_at < ob.sent_at
+         ) prev_ob
+         CROSS JOIN LATERAL (
+           SELECT MIN(sent_at) AS sent_at
+           FROM messages
+           WHERE conversation_id = ob.conversation_id
+             AND direction = 'inbound'
+             AND body NOT LIKE '[%'
+             AND sent_at < ob.sent_at
+             AND sent_at > COALESCE(prev_ob.sent_at, '1970-01-01'::timestamptz)
+         ) first_inb
+         WHERE ob.tenant_id = $1
+           AND ob.direction = 'outbound'
+           AND ob.model_version IS NOT NULL
+           AND ob.sent_at >= date_trunc('month', CURRENT_DATE)
+           AND first_inb.sent_at IS NOT NULL
        )
        SELECT
          ROUND(AVG(delta))::text AS avg_seconds,
