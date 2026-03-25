@@ -223,6 +223,18 @@ export async function handleMissedCallSms(
     };
   }
 
+  // 3c. Record missed call for recovery funnel analytics
+  try {
+    await query(
+      `INSERT INTO missed_calls (tenant_id, customer_phone, call_sid, call_status, conversation_id)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (call_sid) DO NOTHING`,
+      [input.tenantId, input.customerPhone, input.callSid, input.callStatus, conversationId]
+    );
+  } catch {
+    // Non-fatal: analytics tracking must never break the pipeline
+  }
+
   // 3b. If conversation already existed, don't send another initial SMS.
   // The customer already has an open thread — appending a duplicate
   // "we missed your call" message is confusing and spammy.

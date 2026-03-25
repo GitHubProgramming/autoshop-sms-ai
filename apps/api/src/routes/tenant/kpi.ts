@@ -258,6 +258,47 @@ export async function tenantKpiRoute(app: FastifyInstance) {
   });
 
   /**
+   * GET /tenant/kpi/missed-call-recovery
+   *
+   * Missed call recovery funnel: missed → conversation → booking.
+   * Uses missed_calls table joined to conversations and appointments.
+   * Scoped to current calendar month.
+   */
+  app.get("/kpi/missed-call-recovery", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { tenantId } = request.user as { tenantId: string; email: string };
+
+    const rows = await query<{
+      missed_total: string;
+      recovered_conversations: string;
+      recovered_bookings: string;
+    }>(
+      `SELECT
+         COUNT(mc.id)::text AS missed_total,
+         COUNT(mc.conversation_id)::text AS recovered_conversations,
+         COUNT(a.id)::text AS recovered_bookings
+       FROM missed_calls mc
+       LEFT JOIN appointments a
+         ON a.conversation_id = mc.conversation_id
+         AND a.booking_state NOT IN ('FAILED', 'CANCELLED')
+       WHERE mc.tenant_id = $1
+         AND mc.created_at >= date_trunc('month', CURRENT_DATE)`,
+      [tenantId]
+    );
+
+    const missed = parseInt(rows[0]?.missed_total ?? "0", 10);
+    const convs = parseInt(rows[0]?.recovered_conversations ?? "0", 10);
+    const bookings = parseInt(rows[0]?.recovered_bookings ?? "0", 10);
+
+    return reply.status(200).send({
+      missed_calls_total: missed,
+      recovered_conversations: convs,
+      recovered_bookings: bookings,
+      recovery_rate_pct: missed > 0 ? Math.round((convs / missed) * 100) : 0,
+      booking_rate_pct: missed > 0 ? Math.round((bookings / missed) * 100) : 0,
+    });
+  });
+
+  /**
    * GET /tenant/kpi/daily-conversations?days=30
    *
    * Daily conversation count for the last N days.
