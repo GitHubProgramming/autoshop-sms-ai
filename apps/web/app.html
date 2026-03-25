@@ -953,6 +953,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .an-source-pct{font-size:13px;font-weight:600;color:var(--text)}
 .an-vol-stat{font-size:13px;color:var(--text-tertiary)}
 .an-vol-stat strong{color:var(--text);font-weight:600}
+.an-funnel{display:flex;flex-direction:column;gap:16px;padding:8px 0}
+.an-funnel-stage{display:flex;align-items:center;gap:14px}
+.an-funnel-bar-wrap{flex:1;height:32px;background:var(--bg-hover);border-radius:6px;overflow:hidden;position:relative}
+.an-funnel-bar{height:100%;border-radius:6px;transition:width .4s ease}
+.an-funnel-label{width:100px;flex-shrink:0;font-size:13px;font-weight:600;color:var(--text)}
+.an-funnel-count{min-width:44px;text-align:right;font-size:15px;font-weight:700;color:var(--text)}
+.an-funnel-arrow{display:flex;align-items:center;gap:8px;padding-left:114px;font-size:12px;color:var(--text-tertiary)}
+.an-funnel-arrow svg{width:14px;height:14px;flex-shrink:0}
+.an-funnel-conv{font-size:12px;font-weight:600;color:var(--rust)}
+.an-funnel-drop{font-size:11px;color:var(--text-tertiary)}
 
 /* ── DASHBOARD LOWER (overridden by TSX layout above) ── */
 .dash-right{display:flex;flex-direction:column;gap:12px}
@@ -4741,25 +4751,31 @@ function renderLiveRevenueBlocks() {
 
   // Revenue trend — now handled by loadAnRevenueChart() (Chart.js with period toggles)
 
-  // AI Performance — show real conversation vs booking counts
+  // AI Performance — horizontal conversion funnel (conversations → booked)
   var anAiPerfBody = document.getElementById('anAiPerfBody');
   if (anAiPerfBody) {
     var convsAn = k.conversations_this_month || s.conversations_this_month || 0;
     var bookedAn = as.ai_booked_this_month || 0;
     if (convsAn > 0) {
-      var convPct = 100;
-      var bookedPct = convsAn > 0 ? Math.round((bookedAn / convsAn) * 100) : 0;
+      var bookedPct = Math.round((bookedAn / convsAn) * 100);
+      var lostAn = convsAn - bookedAn;
+      var lostPct = 100 - bookedPct;
       anAiPerfBody.innerHTML =
-        '<div style="display:flex;align-items:flex-end;justify-content:center;gap:24px;height:180px;padding:0 16px;">' +
-          '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">' +
-            '<div style="font-size:13px;font-weight:600;color:#0F172A;">' + convsAn + '</div>' +
-            '<div style="width:40px;height:' + Math.max(convPct, 5) + '%;background:var(--rust);border-radius:4px 4px 0 0;"></div>' +
-            '<span style="font-size:11px;color:#64748B;">Conversations</span>' +
+        '<div class="an-funnel">' +
+          '<div class="an-funnel-stage">' +
+            '<div class="an-funnel-label">Conversations</div>' +
+            '<div class="an-funnel-bar-wrap"><div class="an-funnel-bar" style="width:100%;background:var(--rust);"></div></div>' +
+            '<div class="an-funnel-count">' + convsAn + '</div>' +
           '</div>' +
-          '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">' +
-            '<div style="font-size:13px;font-weight:600;color:#0F172A;">' + bookedAn + '</div>' +
-            '<div style="width:40px;height:' + Math.max(bookedPct, 5) + '%;background:var(--navy);border-radius:4px 4px 0 0;"></div>' +
-            '<span style="font-size:11px;color:#64748B;">Booked (' + bookedPct + '%)</span>' +
+          '<div class="an-funnel-arrow">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>' +
+            '<span class="an-funnel-conv">' + bookedPct + '% converted</span>' +
+            (lostAn > 0 ? '<span class="an-funnel-drop">&middot; ' + lostAn + ' lost (' + lostPct + '%)</span>' : '') +
+          '</div>' +
+          '<div class="an-funnel-stage">' +
+            '<div class="an-funnel-label">Booked</div>' +
+            '<div class="an-funnel-bar-wrap"><div class="an-funnel-bar" style="width:' + Math.max(bookedPct, 3) + '%;background:var(--navy);"></div></div>' +
+            '<div class="an-funnel-count">' + bookedAn + '</div>' +
           '</div>' +
         '</div>';
     }
