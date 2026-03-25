@@ -108,12 +108,12 @@ export async function adminRoute(app: FastifyInstance) {
   });
 
   // ── Plan pricing for MRR calculation ──
-  const PLAN_PRICES: Record<string, number> = {
-    plan_starter: 149,
-    plan_pro: 299,
-    plan_enterprise: 499,
-  };
-  const DEFAULT_PLAN_PRICE = 149; // Fallback for unknown plans
+  // Uses canonical plan config as fallback; prefers real Stripe amounts from DB.
+  const { PLANS, DEFAULT_PLAN_PRICE_DOLLARS } = await import("../../config/plans");
+  const PLAN_PRICES: Record<string, number> = Object.fromEntries(
+    Object.entries(PLANS).map(([k, v]) => [k, v.priceDollars])
+  );
+  const DEFAULT_PLAN_PRICE = DEFAULT_PLAN_PRICE_DOLLARS;
 
   // Cost-per-unit estimates (USD)
   const OPENAI_COST_PER_1K_TOKENS = 0.003; // GPT-4o-mini avg input+output blend

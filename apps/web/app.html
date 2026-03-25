@@ -2078,6 +2078,12 @@ let tenantState = {
   convLimit:   null,
   trialLimit:  null,
   billingRenewalDate: '',
+  subscriptionAmountCents: null,
+  overageCapPct: 120,
+  pendingConvLimit: null,
+  availablePlans: [],
+  _invoices: [],
+  _invoiceStatus: null,
   warnings:    { at80: false, at100: false },
   workspaceMode: 'demo',
   provisioningState: 'not_started',
@@ -2208,6 +2214,10 @@ async function loadDashboardData() {
     tenantState.convLimit = t.conv_limit_this_cycle != null ? t.conv_limit_this_cycle : null;
     tenantState.trialLimit = t.conv_limit_this_cycle != null ? t.conv_limit_this_cycle : null;
     tenantState.warnings = { at80: !!t.warned_80pct, at100: !!t.warned_100pct };
+    tenantState.subscriptionAmountCents = t.subscription_amount_cents ?? null;
+    tenantState.overageCapPct = t.overage_cap_pct ?? 120;
+    tenantState.pendingConvLimit = t.pending_conv_limit ?? null;
+    tenantState.availablePlans = data.available_plans || [];
 
     // Integrations
     var cal = data.integrations.google_calendar;
@@ -3816,6 +3826,24 @@ function renderBookings() {
 // ════════════════════════════════════════════
 // BILLING PAGE
 // ════════════════════════════════════════════
+async function loadBillingInvoices() {
+  var token = localStorage.getItem('token');
+  if (!token) return;
+  tenantState._invoiceStatus = 'loading';
+  renderBillingPage();
+  try {
+    var res = await fetch('/billing/invoices', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!res.ok) { tenantState._invoiceStatus = 'error'; renderBillingPage(); return; }
+    var data = await res.json();
+    tenantState._invoices = data.invoices || [];
+    tenantState._invoiceStatus = 'loaded';
+    renderBillingPage();
+  } catch (e) {
+    tenantState._invoiceStatus = 'error';
+    renderBillingPage();
+  }
+}
+
 function renderBillingPage() {
   const s = tenantState;
   const isDemo = s.isDemo || s.status === 'demo';
@@ -3834,15 +3862,21 @@ function renderBillingPage() {
   const svgCard = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>';
   const svgDl = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
 
+  const overageCap = limit > 0 ? Math.floor(limit * s.overageCapPct / 100) : 0;
+  const atHardCap = !isDemo && !isTrial && limit > 0 && s.convUsed >= overageCap;
+  const pendingNote = s.pendingConvLimit != null ? ` Your plan limit will change to ${s.pendingConvLimit} conversations next billing cycle.` : '';
+
   let warningsHtml = '';
   if (isDemo) {
     warningsHtml = `<div class="billing-warning" style="background:#F0F4FF;border-color:#4A6CF7;"><div class="billing-warning-icon" style="color:#4A6CF7;">ℹ</div><div class="billing-warning-text"><strong>Demo Mode — No Active Subscription</strong><p>You're exploring the dashboard with sample data. Add a card to start your 14-day free trial with up to 50 AI conversations. No charge today.</p></div><button class="btn-start-trial" onclick="showUpgradeModal()">Start Free Trial</button></div>`;
   } else if (isSuspended) {
     warningsHtml = `<div class="billing-warning red"><div class="billing-warning-icon">⚠</div><div class="billing-warning-text"><strong>Service Paused</strong><p>Your account is ${s.status.replace('_',' ')}. Reactivate to resume recovering missed-call revenue.</p></div></div>`;
+  } else if (atHardCap) {
+    warningsHtml = `<div class="billing-warning red"><div class="billing-warning-icon">⚠</div><div class="billing-warning-text"><strong>Service Paused — Monthly Limit Reached</strong><p>You've used ${s.convUsed} of ${limit} included conversations (${overageCap} max with overage buffer). New messages are blocked until your next billing cycle. Upgrade now to restore service immediately.</p></div><button class="billing-btn-primary" onclick="switchView('billing')" style="white-space:nowrap;">Upgrade Plan</button></div>`;
   } else if (pct >= 100 && !isTrial && s.warnings.at100) {
-    warningsHtml = `<div class="billing-warning red"><div class="billing-warning-icon">⚠</div><div class="billing-warning-text"><strong>Usage Limit Reached</strong><p>All ${limit} conversations used. Service continues — upgrade to increase your limit.</p></div></div>`;
+    warningsHtml = `<div class="billing-warning red"><div class="billing-warning-icon">⚠</div><div class="billing-warning-text"><strong>Usage Limit Reached</strong><p>All ${limit} conversations used. Service continues with a grace buffer up to ${overageCap} — upgrade to increase your limit.${pendingNote}</p></div></div>`;
   } else if (pct >= 80 && !isTrial && s.warnings.at80) {
-    warningsHtml = `<div class="billing-warning amber"><div class="billing-warning-icon">⚡</div><div class="billing-warning-text"><strong>Approaching Usage Limit</strong><p>${s.convUsed} of ${limit} conversations used.</p></div></div>`;
+    warningsHtml = `<div class="billing-warning amber"><div class="billing-warning-icon">⚡</div><div class="billing-warning-text"><strong>Approaching Usage Limit</strong><p>${s.convUsed} of ${limit} conversations used.${pendingNote}</p></div></div>`;
   }
 
   const statusBadge = isDemo
@@ -3854,16 +3888,14 @@ function renderBillingPage() {
   const billingDate = isDemo ? '—' : isTrial ? s.trialEndsAt : (s.billingRenewalDate || '—');
   const nextLabel = isDemo ? 'Start trial to activate' : isTrial ? 'Trial ends' : 'Next billing date';
 
-  // Plans definition — feature lists only, no hardcoded prices or conversation counts.
-  // Pricing is managed via Stripe and will be populated when Stripe integration is live.
-  const plans = [
-    { key:'starter', name:'Starter', features:['AI conversations','Basic SMS automation','Email support','Calendar integration','Basic analytics'] },
-    { key:'pro', name:'Professional', features:['More AI conversations','Advanced SMS automation','Priority phone support','Calendar & CRM integration','Advanced analytics','Custom AI responses'] },
-    { key:'premium', name:'Enterprise', features:['High-volume AI conversations','Enterprise automation','Dedicated account manager','Full API access','White-label options','Custom integrations','Advanced reporting'] }
-  ];
+  // Plan data sourced from backend API (config/plans.ts is the single source of truth)
+  const plans = s.availablePlans || [];
+  const planPriceMap = {};
+  plans.forEach(function(p) { planPriceMap[p.key] = p; });
 
-  // Invoice history — no real Stripe data wired yet
-  const invoices = [];
+  // Invoice history — fetched async from /billing/invoices (Stripe-backed)
+  const invoices = s._invoices || [];
+  const invoiceStatus = s._invoiceStatus; // null | 'loading' | 'loaded' | 'error'
 
   let plansHtml = plans.map(p => {
     const isCurrent = !isDemo && p.key === s.plan;
@@ -3879,7 +3911,8 @@ function renderBillingPage() {
     return `<div class="billing-plan-card${isCurrent ? ' current' : ''}">
       ${isCurrent ? '<div class="plan-current-tag">Current Plan</div>' : ''}
       <div class="billing-plan-card-name">${p.name}</div>
-      <div class="billing-plan-card-price" style="color:var(--text-secondary);font-size:14px;">Managed via Stripe</div>
+      <div class="billing-plan-card-price" style="font-size:28px;font-weight:700;color:var(--text);margin:8px 0;">$${p.price_dollars}<span style="font-size:14px;font-weight:400;color:var(--text-tertiary);">/mo</span></div>
+      <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">${p.conv_limit.toLocaleString()} conversations included</div>
       <ul class="billing-plan-features">${featuresHtml}</ul>
       ${btnHtml}
     </div>`;
@@ -3889,6 +3922,10 @@ function renderBillingPage() {
     ? `<tr><td colspan="6" style="text-align:center;color:var(--text-tertiary);padding:32px 20px;">No invoices — start your free trial to activate billing</td></tr>`
     : isTrial
     ? `<tr><td colspan="6" style="text-align:center;color:var(--text-tertiary);padding:32px 20px;">No invoices yet — your trial is active</td></tr>`
+    : invoiceStatus === null || invoiceStatus === 'loading'
+      ? `<tr><td colspan="6" style="text-align:center;color:var(--text-tertiary);padding:32px 20px;">Loading invoices…</td></tr>`
+    : invoiceStatus === 'error'
+      ? `<tr><td colspan="6" style="text-align:center;color:var(--text-tertiary);padding:32px 20px;">Could not load invoices. <a href="#" onclick="tenantState._invoiceStatus=null;loadBillingInvoices();return false;" style="color:var(--rust);">Retry</a></td></tr>`
     : invoices.length === 0
       ? `<tr><td colspan="6" style="text-align:center;color:var(--text-tertiary);padding:32px 20px;">No invoice history available yet — invoices will appear here once billing is processed</td></tr>`
       : invoices.map(inv => `<tr>
@@ -3897,7 +3934,7 @@ function renderBillingPage() {
       <td>${inv.date}</td>
       <td><span style="font-weight:500;">$${inv.amount.toFixed(2)}</span></td>
       <td><span class="billing-invoice-status">${inv.status}</span></td>
-      <td><button class="billing-invoice-dl" onclick="openBillingPortal()">${svgDl} Download</button></td>
+      <td>${inv.url ? `<a class="billing-invoice-dl" href="${inv.url}" target="_blank" rel="noopener">${svgDl} View</a>` : `<button class="billing-invoice-dl" onclick="openBillingPortal()">${svgDl} Portal</button>`}</td>
     </tr>`).join('');
 
   const html = `
@@ -3932,7 +3969,7 @@ function renderBillingPage() {
               <div class="billing-next-date">${billingDate}</div>
             </div>
           </div>
-          <div class="billing-next-amount">${isTrial ? 'Free' : 'See Stripe'}</div>
+          <div class="billing-next-amount">${isDemo ? '' : isTrial ? 'Free during trial' : s.subscriptionAmountCents ? '$' + (s.subscriptionAmountCents / 100).toFixed(2) + '/mo' : (planPriceMap[s.plan] ? '$' + planPriceMap[s.plan].price_dollars + '/mo' : '—')}</div>
         </div>
       </div>
 
@@ -4548,6 +4585,9 @@ function switchView(view, opts) {
 
   // Refresh data when switching to customers view
   if (view === 'customers') renderCustomers();
+
+  // Lazy-load invoices on first billing view open
+  if (view === 'billing' && tenantState._invoiceStatus === null) loadBillingInvoices();
 
   // Update URL without reload (skip on popstate or initial load)
   if (!(opts && opts.skipPush)) {

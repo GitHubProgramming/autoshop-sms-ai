@@ -165,19 +165,54 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
           console.info(`[stripe] Demo→trial transition for tenant ${tenantId}`);
         }
       } else {
-        await query(
-          `UPDATE tenants SET
-             billing_status     = $1, plan_id = $2, stripe_subscription_id = $3,
-             conv_limit_this_cycle = $4,
-             cycle_reset_at = to_timestamp($5),
-             subscription_amount_cents = $6, subscription_currency = $7,
-             subscription_interval = $8, cancel_at = $9,
-             updated_at = NOW()
-           WHERE id = $10`,
-          [billingStatus, planId, sub.id, convLimit, sub.current_period_end,
-           subscriptionAmountCents, subscriptionCurrency, subscriptionInterval,
-           cancelAt ? new Date(cancelAt * 1000).toISOString() : null, tenantId]
+        // Downgrade protection: if the new plan limit is lower than current usage,
+        // defer the limit change to next cycle so the customer isn't immediately
+        // cut off mid-cycle after paying for the current one.
+        const currentTenantRow = await query<{
+          conv_used_this_cycle: number;
+          conv_limit_this_cycle: number;
+        }>(
+          `SELECT conv_used_this_cycle, conv_limit_this_cycle FROM tenants WHERE id = $1`,
+          [tenantId]
         );
+        const currentUsed = currentTenantRow[0]?.conv_used_this_cycle ?? 0;
+        const currentLimit = currentTenantRow[0]?.conv_limit_this_cycle ?? 0;
+        const isDowngrade = convLimit < currentLimit && currentUsed > convLimit;
+
+        if (isDowngrade) {
+          // Store the lower limit as pending — applied on next invoice.payment_succeeded
+          await query(
+            `UPDATE tenants SET
+               billing_status     = $1, plan_id = $2, stripe_subscription_id = $3,
+               pending_conv_limit = $4,
+               cycle_reset_at = to_timestamp($5),
+               subscription_amount_cents = $6, subscription_currency = $7,
+               subscription_interval = $8, cancel_at = $9,
+               updated_at = NOW()
+             WHERE id = $10`,
+            [billingStatus, planId, sub.id, convLimit, sub.current_period_end,
+             subscriptionAmountCents, subscriptionCurrency, subscriptionInterval,
+             cancelAt ? new Date(cancelAt * 1000).toISOString() : null, tenantId]
+          );
+          console.info(
+            `[stripe] Downgrade deferred for tenant ${tenantId}: ` +
+            `current ${currentUsed}/${currentLimit}, new limit ${convLimit} pending next cycle`
+          );
+        } else {
+          await query(
+            `UPDATE tenants SET
+               billing_status     = $1, plan_id = $2, stripe_subscription_id = $3,
+               conv_limit_this_cycle = $4, pending_conv_limit = NULL,
+               cycle_reset_at = to_timestamp($5),
+               subscription_amount_cents = $6, subscription_currency = $7,
+               subscription_interval = $8, cancel_at = $9,
+               updated_at = NOW()
+             WHERE id = $10`,
+            [billingStatus, planId, sub.id, convLimit, sub.current_period_end,
+             subscriptionAmountCents, subscriptionCurrency, subscriptionInterval,
+             cancelAt ? new Date(cancelAt * 1000).toISOString() : null, tenantId]
+          );
+        }
       }
 
       // On first subscription: provision a Twilio number if tenant doesn't have one yet
@@ -223,10 +258,14 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
 
     case "invoice.payment_succeeded": {
       const inv = event.data.object as Stripe.Invoice;
+      // Apply pending_conv_limit (from mid-cycle downgrade) on cycle reset.
+      // COALESCE: if pending exists, apply it and clear; otherwise keep current limit.
       await query(
         `UPDATE tenants SET
            billing_status       = 'active',
            conv_used_this_cycle = 0,
+           conv_limit_this_cycle = COALESCE(pending_conv_limit, conv_limit_this_cycle),
+           pending_conv_limit   = NULL,
            warned_80pct         = FALSE,
            warned_100pct        = FALSE,
            cycle_reset_at       = to_timestamp($1),

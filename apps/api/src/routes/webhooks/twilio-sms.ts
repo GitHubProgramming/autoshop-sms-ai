@@ -202,6 +202,11 @@ export function getBlockedAutoReply(
         `Thank you for your message. ${name}'s messaging service is ` +
         `temporarily paused. Please call them directly.`
       );
+    case "paid_limit_reached":
+      return (
+        `Thank you for reaching out! ${name} has reached its monthly ` +
+        `messaging limit. Please call them directly to schedule your appointment.`
+      );
     default:
       return (
         `Thank you for reaching out! ${name} is currently unavailable ` +
