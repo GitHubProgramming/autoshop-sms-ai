@@ -187,8 +187,20 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
     // with default hours and manual calendar. Phone + activity = system is live.
     const onboardingComplete = phoneConnected && hasActivity;
 
-    // ── Demo mode: return empty stats + demo indicator ────────────────────
+    // ── Activation state machine ──
+    // Exactly one of these is true for any tenant — the frontend uses this to
+    // show the single correct CTA at every point in the signup→live journey.
     const isDemo = tenant.billing_status === "demo";
+    const isTrialOrActive = ["trial", "active", "scheduled_cancel"].includes(
+      tenant.billing_status
+    );
+    const needsOnboarding = isTrialOrActive && !phoneConnected;
+    const needsFirstConversation = isTrialOrActive && phoneConnected && !hasActivity;
+    const isLive = isTrialOrActive && phoneConnected && hasActivity;
+
+    // Provisioning status — surface the real DB value, not a masked default.
+    // This lets the frontend show accurate provisioning feedback.
+    const provisioningState = tenant.provisioning_state ?? "not_started";
 
     return reply.status(200).send({
       tenant: {
@@ -207,7 +219,7 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
         business_hours: tenant.business_hours ?? null,
         owner_phone: tenant.owner_phone ?? null,
         workspace_mode: tenant.workspace_mode ?? "live_active",
-        provisioning_state: tenant.provisioning_state ?? "ready",
+        provisioning_state: provisioningState,
         subscription_amount_cents: tenant.subscription_amount_cents ?? null,
         overage_cap_pct: tenant.overage_cap_pct ?? 120,
         pending_conv_limit: tenant.pending_conv_limit ?? null,
@@ -240,6 +252,19 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
         calendar_connected: calendarConnected,
         has_activity: hasActivity,
         onboarding_complete: onboardingComplete,
+      },
+      activation: {
+        state: isDemo
+          ? "demo"
+          : needsOnboarding
+            ? "needs_onboarding"
+            : needsFirstConversation
+              ? "needs_first_conversation"
+              : isLive
+                ? "live"
+                : "suspended",
+        needs_onboarding: needsOnboarding,
+        provisioning_state: provisioningState,
       },
       recent_conversations: recentConvRows,
       recent_bookings: recentBookingRows,

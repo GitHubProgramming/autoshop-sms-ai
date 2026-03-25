@@ -667,6 +667,17 @@ if (!jwt) {
     if (tw.phone_number && tw.status === 'active') {
       assignedPhone = tw.phone_number;
       showAssignedNumber();
+    } else {
+      // Phone not yet active — check if provisioning is already in progress
+      // (Stripe webhook auto-enqueues provisioning on trial activation)
+      var act = data.activation || {};
+      var provState = act.provisioning_state;
+      if (provState === 'provisioning' || provState === 'pending_setup') {
+        // Already provisioning — auto-start polling when user reaches step 2
+        window._autoProvisionPoll = true;
+      } else if (provState === 'error') {
+        window._provisionFailed = true;
+      }
     }
     // Check for existing calendar
     var cal = (data.integrations || {}).google_calendar || {};
@@ -718,6 +729,7 @@ function goStep(n) {
   window.scrollTo(0, 0);
 
   // Step-specific setup
+  if (n === 2) checkAutoProvision();
   if (n === 3) updateFwdNumber();
   if (n === 4) checkCalendarOnEntry();
   if (n === 5) updateTestNumber();
@@ -818,6 +830,27 @@ async function saveProfile(e) {
 // ════════════════════════════════════════════
 // STEP 2: NUMBER PROVISIONING
 // ════════════════════════════════════════════
+function checkAutoProvision() {
+  // If the Stripe webhook already triggered phone provisioning,
+  // skip the manual request and start polling for the number.
+  if (window._autoProvisionPoll) {
+    var btn = document.getElementById('provisionBtn');
+    var statusEl = document.getElementById('provisionStatus');
+    if (btn) btn.disabled = true;
+    if (statusEl) {
+      statusEl.style.display = 'block';
+      statusEl.innerHTML = '<span class="spinner"></span> Your phone number is being set up automatically. Checking status...';
+    }
+    pollForNumber(0);
+  } else if (window._provisionFailed) {
+    var errorEl = document.getElementById('step2Error');
+    if (errorEl) {
+      errorEl.textContent = 'Phone provisioning failed. Enter your preferred area code and try again.';
+      errorEl.classList.add('visible');
+    }
+  }
+}
+
 async function requestNumber() {
   var areaCode = document.getElementById('areaCode').value.trim();
   var errorEl = document.getElementById('step2Error');
@@ -862,9 +895,14 @@ async function requestNumber() {
 
 function pollForNumber(attempts) {
   if (attempts > 30) {
-    // 30 attempts * 3s = 90s max
+    // 30 attempts * 3s = 90s max — show status with retry option
     var statusEl = document.getElementById('provisionStatus');
-    statusEl.innerHTML = '<div class="info-box">Number provisioning is still in progress. You can continue setup and check your dashboard later.</div>';
+    statusEl.innerHTML = '<div class="info-box">' +
+      'Number provisioning is still in progress. This can take a few minutes.' +
+      '<br><br>You can continue setup — your number will appear on the dashboard when ready.' +
+      '<br><button type="button" class="btn-sm" style="margin-top:12px;" ' +
+      'onclick="pollForNumber(0)">Check again</button>' +
+      '</div>';
     document.getElementById('provisionBtn').style.display = 'none';
     return;
   }

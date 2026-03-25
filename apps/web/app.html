@@ -2202,7 +2202,7 @@ async function loadDashboardData() {
 
     tenantState.isDemo = isDemo;
     tenantState.workspaceMode = t.workspace_mode || (isDemo ? 'demo' : 'live_active');
-    tenantState.provisioningState = t.provisioning_state || 'ready';
+    tenantState.provisioningState = t.provisioning_state || 'not_started';
     tenantState.shopName = t.shop_name || getTenantName();
     // Sync API shop name → localStorage (API is authoritative on first load)
     if (t.shop_name) localStorage.setItem('tenant_name', t.shop_name);
@@ -2235,6 +2235,8 @@ async function loadDashboardData() {
 
     // Server-side onboarding state (single source of truth)
     tenantState.onboarding = data.onboarding || {};
+    // Activation state machine (server-computed)
+    tenantState.activation = data.activation || {};
 
     // Health — derive from integration status
     tenantState.health.calendarSync.status = cal.status === 'connected' ? 'healthy' : (cal.status === 'token_expired' ? 'token_expired' : 'failing');
@@ -3157,10 +3159,20 @@ document.addEventListener('DOMContentLoaded', async function() {
         } catch (e) { /* retry */ }
         await new Promise(function(r) { setTimeout(r, 2000); });
       }
-      // Webhook still hasn't arrived — show success and stay on dashboard
-      showToast('Trial activated! Your workspace is being set up \u2014 refresh in a moment to continue setup.');
+      // Webhook still hasn't arrived — reload data and let banner system handle routing.
+      // The "SETUP REQUIRED" banner will appear once billing_status flips from demo,
+      // giving the user a persistent link to /onboarding even if this poll exhausted.
+      showToast('Trial activated! Your workspace is being set up \u2014 the setup banner will appear shortly.');
       await loadDashboardData();
       renderBanners();
+      // Re-check after another 10s in case webhook just landed
+      setTimeout(async function() {
+        await loadDashboardData();
+        if (tenantState.activation && tenantState.activation.state === 'needs_onboarding') {
+          renderBanners();
+          showToast('Setup is ready \u2014 click "Complete Setup" to continue.');
+        }
+      }, 10000);
     })();
   } else if (billingParam === 'success') {
     showToast('Subscription activated! Your plan will update shortly.');
@@ -3190,6 +3202,18 @@ function renderBanners() {
     // Demo mode banner — prominent, always visible
     html += `<div class="banner demo"><div class="banner-left"><span class="banner-label blue">DEMO MODE</span><span class="banner-msg blue">You're viewing sample data. No live number, no live messages. Start your free trial to activate.</span></div><button class="btn-start-trial" onclick="showUpgradeModal()">Start 14-Day Free Trial</button></div>`;
     if (headerBtn) { headerBtn.style.display = 'inline-block'; headerBtn.textContent = 'Start Trial'; headerBtn.onclick = function(){ showUpgradeModal(); return false; }; }
+  } else if (s.activation && s.activation.state === 'needs_onboarding') {
+    // Trial/active user without a phone number — must complete setup
+    var provState = s.activation.provisioning_state;
+    var isProvisioning = provState === 'provisioning' || provState === 'pending_setup';
+    var provFailed = provState === 'error';
+    var msg = provFailed
+      ? 'Phone provisioning failed. Complete setup to retry.'
+      : isProvisioning
+        ? 'Your phone number is being set up. Complete the remaining steps while you wait.'
+        : 'Complete setup to start receiving missed-call bookings.';
+    html += `<div class="banner demo"><div class="banner-left"><span class="banner-label rust">SETUP REQUIRED</span><span class="banner-msg rust">${msg}</span></div><a href="/onboarding" class="btn-start-trial" style="text-decoration:none;">Complete Setup</a></div>`;
+    if (headerBtn) { headerBtn.style.display = 'inline-block'; headerBtn.textContent = 'Complete Setup'; headerBtn.onclick = function(){ window.location.href='/onboarding'; return false; }; }
   } else if (isSuspended) {
     // State 4: Suspended / canceled / trial_expired — show banner CTA only, hide header CTA
     const msgs = { suspended:'Your account has been suspended. Service is paused — no new conversations will be started.', canceled:'Your subscription is canceled. Reactivate to resume missed-call recovery.', trial_expired:'Your trial has expired. Upgrade to continue recovering missed-call revenue.' };
@@ -3450,8 +3474,8 @@ function renderChecklist() {
       done: phoneConnected,
       statusDone: 'Connected',
       statusPending: phoneConnected ? 'Connected' : 'Not connected',
-      action: phoneConnected ? null : function() { switchView('settings'); setTimeout(function(){ var btn = document.querySelector('[onclick*="sp-sms"]'); if(btn) switchSettingsTab(btn,'sp-sms'); }, 100); },
-      actionLabel: 'Connect SMS number'
+      action: phoneConnected ? null : function() { window.location.href = '/onboarding'; },
+      actionLabel: 'Complete Setup'
     },
     {
       num: 2,
