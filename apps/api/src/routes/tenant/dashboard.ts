@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { query } from "../../db/client";
 import { requireAuth } from "../../middleware/require-auth";
+import { getAvailablePlans } from "../../config/plans";
 
 /**
  * GET /tenant/dashboard
@@ -35,7 +36,9 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
                 trial_started_at, trial_ends_at,
                 warned_80pct, warned_100pct, created_at,
                 business_hours, is_test,
-                workspace_mode, provisioning_state
+                workspace_mode, provisioning_state,
+                subscription_amount_cents, overage_cap_pct,
+                pending_conv_limit
          FROM tenants WHERE id = $1`,
         [tenantId]
       ),
@@ -205,6 +208,9 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
         owner_phone: tenant.owner_phone ?? null,
         workspace_mode: tenant.workspace_mode ?? "live_active",
         provisioning_state: tenant.provisioning_state ?? "ready",
+        subscription_amount_cents: tenant.subscription_amount_cents ?? null,
+        overage_cap_pct: tenant.overage_cap_pct ?? 120,
+        pending_conv_limit: tenant.pending_conv_limit ?? null,
       },
       integrations: {
         google_calendar: {
@@ -240,6 +246,7 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
       live_conversations: liveConvRows,
       live_conversations_count: (liveConvRows as any[]).length,
       is_demo: isDemo,
+      available_plans: getAvailablePlans(),
     });
   });
 }

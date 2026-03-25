@@ -24,6 +24,7 @@ import { adminBootstrapRoute } from "./routes/auth/admin-bootstrap";
 import { passwordResetRoute } from "./routes/auth/password-reset";
 import { billingCheckoutRoute } from "./routes/billing/checkout";
 import { billingPortalRoute } from "./routes/billing/portal";
+import { billingInvoicesRoute } from "./routes/billing/invoices";
 import { tenantDashboardRoute } from "./routes/tenant/dashboard";
 import { tenantKpiRoute } from "./routes/tenant/kpi";
 import { tenantSettingsRoute } from "./routes/tenant/settings";
@@ -158,6 +159,7 @@ async function bootstrap() {
   await app.register(passwordResetRoute, { prefix: "/auth" });
   await app.register(billingCheckoutRoute, { prefix: "/billing" });
   await app.register(billingPortalRoute, { prefix: "/billing" });
+  await app.register(billingInvoicesRoute, { prefix: "/billing" });
   await app.register(tenantDashboardRoute, { prefix: "/tenant" });
   await app.register(tenantKpiRoute, { prefix: "/tenant" });
   await app.register(tenantSettingsRoute, { prefix: "/tenant" });

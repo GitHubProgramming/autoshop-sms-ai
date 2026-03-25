@@ -22,6 +22,8 @@ function makeTenant(overrides: Partial<Tenant> = {}): Tenant {
     plan_id: "pro",
     conv_used_this_cycle: 0,
     conv_limit_this_cycle: 400,
+    pending_conv_limit: null,
+    overage_cap_pct: 120,
     trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
     trial_started_at: new Date(),
     warned_80pct: false,
@@ -84,14 +86,44 @@ describe("getBlockReason", () => {
     expect(getBlockReason(tenant)).toBeNull();
   });
 
-  it("does NOT hard-block active paid tenant at 100% limit", () => {
+  it("does NOT hard-block active paid tenant at 100% limit (soft limit zone)", () => {
     const tenant = makeTenant({
       billing_status: "active",
       conv_used_this_cycle: 400,
       conv_limit_this_cycle: 400,
     });
-    // Paid plans: soft block only (AI sends upgrade message, no hard block)
+    // Paid plans: soft limit at 100%, not hard blocked until overage cap
     expect(getBlockReason(tenant)).toBeNull();
+  });
+
+  it("hard-blocks active paid tenant at overage cap (120%)", () => {
+    const tenant = makeTenant({
+      billing_status: "active",
+      conv_used_this_cycle: 480, // 120% of 400
+      conv_limit_this_cycle: 400,
+      overage_cap_pct: 120,
+    });
+    expect(getBlockReason(tenant)).toBe("paid_limit_reached");
+  });
+
+  it("does NOT hard-block active paid tenant below overage cap", () => {
+    const tenant = makeTenant({
+      billing_status: "active",
+      conv_used_this_cycle: 479, // just under 120% of 400
+      conv_limit_this_cycle: 400,
+      overage_cap_pct: 120,
+    });
+    expect(getBlockReason(tenant)).toBeNull();
+  });
+
+  it("hard-blocks scheduled_cancel tenant at overage cap", () => {
+    const tenant = makeTenant({
+      billing_status: "scheduled_cancel",
+      conv_used_this_cycle: 480,
+      conv_limit_this_cycle: 400,
+      overage_cap_pct: 120,
+    });
+    expect(getBlockReason(tenant)).toBe("paid_limit_reached");
   });
 });
 

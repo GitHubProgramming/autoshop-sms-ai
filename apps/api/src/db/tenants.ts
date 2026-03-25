@@ -22,6 +22,8 @@ export interface Tenant {
   plan_id: string | null;
   conv_used_this_cycle: number;
   conv_limit_this_cycle: number;
+  pending_conv_limit: number | null;
+  overage_cap_pct: number;
   trial_ends_at: Date | null;
   trial_started_at: Date | null;
   warned_80pct: boolean;
@@ -65,9 +67,17 @@ export async function getTenantById(id: string): Promise<Tenant | null> {
 
 /**
  * Enforcement check — returns reason if blocked, null if allowed.
+ *
+ * Policy:
+ *   - Trial: hard-blocked at plan limit or expiry
+ *   - Paid: soft-limited at 100% (sends polite message, see atSoftLimit in SMS webhook)
+ *           hard-blocked at overage_cap_pct (default 120%) to bound cost exposure
  */
 export function getBlockReason(tenant: Tenant): string | null {
-  const { billing_status, conv_used_this_cycle, conv_limit_this_cycle, trial_ends_at } = tenant;
+  const {
+    billing_status, conv_used_this_cycle, conv_limit_this_cycle,
+    trial_ends_at, overage_cap_pct,
+  } = tenant;
 
   // Demo accounts are always blocked from live processing
   if (billing_status === "demo") return "demo_mode";
@@ -81,7 +91,15 @@ export function getBlockReason(tenant: Tenant): string | null {
     if (conv_used_this_cycle >= conv_limit_this_cycle) return "trial_limit_reached";
   }
 
-  // Paid active — soft limit only (no hard block)
+  // Paid active — hard block at overage cap (default 120% of plan limit)
+  if (
+    (billing_status === "active" || billing_status === "scheduled_cancel") &&
+    conv_limit_this_cycle > 0
+  ) {
+    const cap = Math.floor(conv_limit_this_cycle * (overage_cap_pct ?? 120) / 100);
+    if (conv_used_this_cycle >= cap) return "paid_limit_reached";
+  }
+
   return null;
 }
 
