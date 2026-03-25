@@ -2932,6 +2932,46 @@ async function loadAnConversationChart(periodDays) {
 }
 
 // ════════════════════════════════════════════
+// AVG RESPONSE TIME — KPI from /tenant/kpi/response-time
+// ════════════════════════════════════════════
+function formatResponseTime(sec) {
+  if (sec < 60) return sec + 's';
+  if (sec < 3600) return Math.round(sec / 60) + 'm';
+  var h = Math.floor(sec / 3600);
+  var m = Math.round((sec % 3600) / 60);
+  return h + 'h' + (m > 0 ? ' ' + m + 'm' : '');
+}
+
+async function loadResponseTime() {
+  var token = localStorage.getItem('autoshop_jwt');
+  if (!token) return;
+  var val = document.getElementById('anKpiResponseTime');
+  var sub = document.getElementById('anKpiResponseTimeChange');
+  if (!val || !sub) return;
+
+  try {
+    var res = await fetch('/tenant/kpi/response-time', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) throw new Error('fetch failed');
+    var d = await res.json();
+
+    if (d.sample_size === 0 || d.avg_seconds == null) {
+      val.textContent = '—';
+      sub.textContent = 'No response-time data yet';
+      return;
+    }
+
+    val.textContent = formatResponseTime(d.avg_seconds);
+    var parts = [d.sample_size + ' messages'];
+    if (d.median_seconds != null) parts.push('median ' + formatResponseTime(d.median_seconds));
+    sub.textContent = parts.join(' · ');
+  } catch {
+    val.textContent = '—';
+    sub.textContent = 'Unable to load response time';
+  }
+}
+
 // MISSED CALL RECOVERY — KPI + mini funnel
 // ════════════════════════════════════════════
 async function loadMissedCallRecovery() {
@@ -3054,6 +3094,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   loadAnRevenueChart();
   loadAnConversationChart();
   loadMissedCallRecovery();
+  loadResponseTime();
   renderActionNeeded();
   renderTodayAppointments();
   renderAppointmentsPage();

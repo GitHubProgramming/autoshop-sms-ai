@@ -316,6 +316,67 @@ export async function tenantKpiRoute(app: FastifyInstance) {
   });
 
   /**
+   * GET /tenant/kpi/response-time
+   *
+   * Average, median, and p95 AI response time in seconds.
+   * Measures: customer inbound message → next assistant outbound message
+   * in the same conversation. Excludes synthetic inbound messages
+   * (missed-call log entries starting with '[').
+   * Scoped to current calendar month.
+   */
+  app.get("/kpi/response-time", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { tenantId } = request.user as { tenantId: string; email: string };
+
+    // For each real inbound message this month, find the next outbound
+    // message in the same conversation via LATERAL subquery.
+    // Compute delta in seconds. Exclude negatives and nulls.
+    const rows = await query<{
+      avg_seconds: string | null;
+      median_seconds: string | null;
+      p95_seconds: string | null;
+      sample_size: string;
+    }>(
+      `WITH pairs AS (
+         SELECT EXTRACT(EPOCH FROM (reply.sent_at - inb.sent_at)) AS delta
+         FROM messages inb
+         CROSS JOIN LATERAL (
+           SELECT sent_at
+           FROM messages
+           WHERE conversation_id = inb.conversation_id
+             AND direction = 'outbound'
+             AND sent_at > inb.sent_at
+           ORDER BY sent_at ASC
+           LIMIT 1
+         ) reply
+         WHERE inb.tenant_id = $1
+           AND inb.direction = 'inbound'
+           AND inb.body NOT LIKE '[%'
+           AND inb.sent_at >= date_trunc('month', CURRENT_DATE)
+       )
+       SELECT
+         ROUND(AVG(delta))::text AS avg_seconds,
+         ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY delta))::text AS median_seconds,
+         ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY delta))::text AS p95_seconds,
+         COUNT(*)::text AS sample_size
+       FROM pairs
+       WHERE delta > 0`,
+      [tenantId]
+    );
+
+    const avg = rows[0]?.avg_seconds != null ? parseInt(rows[0].avg_seconds, 10) : null;
+    const median = rows[0]?.median_seconds != null ? parseInt(rows[0].median_seconds, 10) : null;
+    const p95 = rows[0]?.p95_seconds != null ? parseInt(rows[0].p95_seconds, 10) : null;
+    const sampleSize = parseInt(rows[0]?.sample_size ?? "0", 10);
+
+    return reply.status(200).send({
+      avg_seconds: sampleSize > 0 ? avg : null,
+      median_seconds: sampleSize > 0 ? median : null,
+      p95_seconds: sampleSize > 0 ? p95 : null,
+      sample_size: sampleSize,
+    });
+  });
+
+  /**
    * GET /tenant/kpi/daily-conversations?days=30
    *
    * Daily conversation count for the last N days.
