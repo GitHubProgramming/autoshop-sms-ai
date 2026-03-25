@@ -2920,6 +2920,42 @@ async function loadAnConversationChart(periodDays) {
 }
 
 // ════════════════════════════════════════════
+// MISSED CALL RECOVERY — KPI + mini funnel
+// ════════════════════════════════════════════
+async function loadMissedCallRecovery() {
+  var token = localStorage.getItem('autoshop_jwt');
+  if (!token) return;
+  var akr = document.getElementById('anKpiRecovery');
+  var akrc = document.getElementById('anKpiRecoveryChange');
+  if (!akr || !akrc) return;
+
+  try {
+    var res = await fetch('/tenant/kpi/missed-call-recovery', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) throw new Error('fetch failed');
+    var d = await res.json();
+
+    if (d.missed_calls_total === 0) {
+      akr.textContent = '—';
+      akrc.textContent = 'No missed calls tracked yet';
+      return;
+    }
+
+    akr.textContent = d.recovery_rate_pct + '%';
+    akrc.innerHTML =
+      '<span>' + d.missed_calls_total + ' missed</span>' +
+      '<span style="margin:0 4px;">→</span>' +
+      '<span>' + d.recovered_conversations + ' replied</span>' +
+      '<span style="margin:0 4px;">→</span>' +
+      '<span>' + d.recovered_bookings + ' booked</span>';
+  } catch {
+    akr.textContent = '—';
+    akrc.textContent = 'Unable to load recovery data';
+  }
+}
+
+// ════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', async function() {
@@ -2960,6 +2996,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   loadRevenueChart();
   loadAnRevenueChart();
   loadAnConversationChart();
+  loadMissedCallRecovery();
   renderActionNeeded();
   renderTodayAppointments();
   renderAppointmentsPage();
@@ -4727,10 +4764,7 @@ function renderLiveRevenueBlocks() {
   // Update analytics KPIs with real data from KPI summary
   var k = kpiSummary || {};
   var as = apptSummary || {};
-  var akr = document.getElementById('anKpiRecovery');
-  if (akr) akr.textContent = '—';
-  var akrc = document.getElementById('anKpiRecoveryChange');
-  if (akrc) akrc.textContent = 'Unavailable — requires call attribution';
+  // Missed Call Recovery — now handled by loadMissedCallRecovery() from /tenant/kpi/missed-call-recovery
 
 
   // Revenue Per Booking — total_revenue / total_completed_bookings (all sources, aligned)
