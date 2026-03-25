@@ -1508,6 +1508,18 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
         </div>
       </div>
 
+      <!-- Missed Call Recovery Funnel -->
+      <div class="an-card" id="anMissedCallFunnel" style="display:none;">
+        <div class="an-card-head">
+          <div>
+            <div class="an-card-title">Missed Call Recovery</div>
+            <div class="an-card-sub">Missed calls recovered through AI SMS this month</div>
+          </div>
+        </div>
+        <div id="anMcrFunnelBody" style="padding:20px 0;">
+        </div>
+      </div>
+
       <!-- Revenue Trend — matches dashboard Revenue Analytics chart pattern -->
       <div class="log-wrap" style="margin-bottom:24px;">
         <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
@@ -2927,6 +2939,8 @@ async function loadMissedCallRecovery() {
   if (!token) return;
   var akr = document.getElementById('anKpiRecovery');
   var akrc = document.getElementById('anKpiRecoveryChange');
+  var funnelCard = document.getElementById('anMissedCallFunnel');
+  var funnelBody = document.getElementById('anMcrFunnelBody');
   if (!akr || !akrc) return;
 
   try {
@@ -2939,19 +2953,60 @@ async function loadMissedCallRecovery() {
     if (d.missed_calls_total === 0) {
       akr.textContent = '—';
       akrc.textContent = 'No missed calls tracked yet';
+      if (funnelCard) funnelCard.style.display = 'none';
       return;
     }
 
+    // KPI card: recovery rate
     akr.textContent = d.recovery_rate_pct + '%';
-    akrc.innerHTML =
-      '<span>' + d.missed_calls_total + ' missed</span>' +
-      '<span style="margin:0 4px;">→</span>' +
-      '<span>' + d.recovered_conversations + ' replied</span>' +
-      '<span style="margin:0 4px;">→</span>' +
-      '<span>' + d.recovered_bookings + ' booked</span>';
+    akrc.textContent = d.recovered_conversations + ' of ' + d.missed_calls_total + ' missed calls replied';
+
+    // Mini-funnel card
+    if (funnelCard && funnelBody) {
+      funnelCard.style.display = '';
+      var missed = d.missed_calls_total;
+      var replied = d.recovered_conversations;
+      var booked = d.recovered_bookings;
+      var repliedPct = Math.round((replied / missed) * 100);
+      var bookedPct = replied > 0 ? Math.round((booked / replied) * 100) : 0;
+      var repliedBarW = Math.max(repliedPct, 3);
+      var bookedBarW = missed > 0 ? Math.max(Math.round((booked / missed) * 100), booked > 0 ? 3 : 0) : 0;
+      var lostAtReply = missed - replied;
+      var lostAtBook = replied - booked;
+
+      funnelBody.innerHTML =
+        '<div class="an-funnel">' +
+          '<div class="an-funnel-stage">' +
+            '<div class="an-funnel-label">Missed Calls</div>' +
+            '<div class="an-funnel-bar-wrap"><div class="an-funnel-bar" style="width:100%;background:var(--rust);"></div></div>' +
+            '<div class="an-funnel-count">' + missed + '</div>' +
+          '</div>' +
+          '<div class="an-funnel-arrow">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>' +
+            '<span class="an-funnel-conv">' + repliedPct + '% replied</span>' +
+            (lostAtReply > 0 ? '<span class="an-funnel-drop">&middot; ' + lostAtReply + ' no reply</span>' : '') +
+          '</div>' +
+          '<div class="an-funnel-stage">' +
+            '<div class="an-funnel-label">Replied</div>' +
+            '<div class="an-funnel-bar-wrap"><div class="an-funnel-bar" style="width:' + repliedBarW + '%;background:var(--navy);"></div></div>' +
+            '<div class="an-funnel-count">' + replied + '</div>' +
+          '</div>' +
+          '<div class="an-funnel-arrow">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>' +
+            '<span class="an-funnel-conv">' + bookedPct + '% booked</span>' +
+            (lostAtBook > 0 ? '<span class="an-funnel-drop">&middot; ' + lostAtBook + ' not booked</span>' : '') +
+          '</div>' +
+          '<div class="an-funnel-stage">' +
+            '<div class="an-funnel-label">Booked</div>' +
+            '<div class="an-funnel-bar-wrap"><div class="an-funnel-bar" style="width:' + bookedBarW + '%;background:#2E7D32;"></div></div>' +
+            '<div class="an-funnel-count">' + booked + '</div>' +
+          '</div>' +
+        '</div>';
+    }
   } catch {
     akr.textContent = '—';
     akrc.textContent = 'Unable to load recovery data';
+    if (funnelCard) funnelCard.style.display = 'none';
   }
 }
 
