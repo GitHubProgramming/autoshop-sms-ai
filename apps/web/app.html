@@ -2967,10 +2967,12 @@ async function loadMissedCallRecovery() {
       var missed = d.missed_calls_total;
       var replied = d.recovered_conversations;
       var booked = d.recovered_bookings;
+      // Arrow %: relative to previous stage (stage-over-stage conversion)
       var repliedPct = Math.round((replied / missed) * 100);
-      var bookedPct = replied > 0 ? Math.round((booked / replied) * 100) : 0;
-      var repliedBarW = Math.max(repliedPct, 3);
-      var bookedBarW = missed > 0 ? Math.max(Math.round((booked / missed) * 100), booked > 0 ? 3 : 0) : 0;
+      var bookedOfRepliedPct = replied > 0 ? Math.round((booked / replied) * 100) : 0;
+      // Bar widths: all relative to missed (absolute funnel narrowing)
+      var repliedBarW = replied > 0 ? Math.max(Math.round((replied / missed) * 100), 3) : 0;
+      var bookedBarW = booked > 0 ? Math.max(Math.round((booked / missed) * 100), 3) : 0;
       var lostAtReply = missed - replied;
       var lostAtBook = replied - booked;
 
@@ -2993,7 +2995,7 @@ async function loadMissedCallRecovery() {
           '</div>' +
           '<div class="an-funnel-arrow">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>' +
-            '<span class="an-funnel-conv">' + bookedPct + '% booked</span>' +
+            '<span class="an-funnel-conv">' + bookedOfRepliedPct + '% booked</span>' +
             (lostAtBook > 0 ? '<span class="an-funnel-drop">&middot; ' + lostAtBook + ' not booked</span>' : '') +
           '</div>' +
           '<div class="an-funnel-stage">' +

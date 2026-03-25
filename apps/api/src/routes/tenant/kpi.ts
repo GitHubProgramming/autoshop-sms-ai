@@ -267,8 +267,9 @@ export async function tenantKpiRoute(app: FastifyInstance) {
    * was recorded. This proves real customer engagement, not just that a
    * conversation record exists.
    *
-   * recovered_bookings = those conversations that also led to a non-failed
-   * appointment.
+   * recovered_bookings = subset of recovered_conversations that also led
+   * to a non-failed appointment. Requires BOTH inbound reply AND booking.
+   * Guarantees: booked <= replied <= missed.
    *
    * Scoped to current calendar month.
    */
@@ -286,7 +287,7 @@ export async function tenantKpiRoute(app: FastifyInstance) {
            WHEN m.id IS NOT NULL THEN mc.id
          END)::text AS recovered_conversations,
          COUNT(DISTINCT CASE
-           WHEN a.id IS NOT NULL THEN mc.id
+           WHEN m.id IS NOT NULL AND a.id IS NOT NULL THEN mc.id
          END)::text AS recovered_bookings
        FROM missed_calls mc
        LEFT JOIN messages m
