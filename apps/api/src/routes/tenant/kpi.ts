@@ -260,8 +260,16 @@ export async function tenantKpiRoute(app: FastifyInstance) {
   /**
    * GET /tenant/kpi/missed-call-recovery
    *
-   * Missed call recovery funnel: missed → conversation → booking.
-   * Uses missed_calls table joined to conversations and appointments.
+   * Missed call recovery funnel: missed → replied → booked.
+   *
+   * recovered_conversations = missed calls where the linked conversation
+   * received at least one inbound (customer) message after the missed call
+   * was recorded. This proves real customer engagement, not just that a
+   * conversation record exists.
+   *
+   * recovered_bookings = those conversations that also led to a non-failed
+   * appointment.
+   *
    * Scoped to current calendar month.
    */
   app.get("/kpi/missed-call-recovery", { preHandler: [requireAuth] }, async (request, reply) => {
@@ -274,9 +282,17 @@ export async function tenantKpiRoute(app: FastifyInstance) {
     }>(
       `SELECT
          COUNT(mc.id)::text AS missed_total,
-         COUNT(mc.conversation_id)::text AS recovered_conversations,
-         COUNT(a.id)::text AS recovered_bookings
+         COUNT(DISTINCT CASE
+           WHEN m.id IS NOT NULL THEN mc.id
+         END)::text AS recovered_conversations,
+         COUNT(DISTINCT CASE
+           WHEN a.id IS NOT NULL THEN mc.id
+         END)::text AS recovered_bookings
        FROM missed_calls mc
+       LEFT JOIN messages m
+         ON m.conversation_id = mc.conversation_id
+         AND m.direction = 'inbound'
+         AND m.sent_at >= mc.created_at
        LEFT JOIN appointments a
          ON a.conversation_id = mc.conversation_id
          AND a.booking_state NOT IN ('FAILED', 'CANCELLED')
