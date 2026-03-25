@@ -2202,7 +2202,7 @@ async function loadDashboardData() {
 
     tenantState.isDemo = isDemo;
     tenantState.workspaceMode = t.workspace_mode || (isDemo ? 'demo' : 'live_active');
-    tenantState.provisioningState = t.provisioning_state || 'ready';
+    tenantState.provisioningState = t.provisioning_state || 'not_started';
     tenantState.shopName = t.shop_name || getTenantName();
     // Sync API shop name → localStorage (API is authoritative on first load)
     if (t.shop_name) localStorage.setItem('tenant_name', t.shop_name);

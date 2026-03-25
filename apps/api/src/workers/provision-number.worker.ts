@@ -29,11 +29,36 @@ async function setProvisioningState(
 }
 
 /**
+ * Check tenant_phone_numbers for an active row — the only proof that
+ * Twilio actually purchased and registered a number for this tenant.
+ */
+async function hasActivePhoneNumber(tenantId: string): Promise<boolean> {
+  try {
+    const rows = await query(
+      `SELECT 1 FROM tenant_phone_numbers WHERE tenant_id = $1 AND status = 'active' LIMIT 1`,
+      [tenantId]
+    );
+    return (rows as any[]).length > 0;
+  } catch (err) {
+    console.error(
+      `[provision-worker] failed to check phone number for tenant ${tenantId}:`,
+      err
+    );
+    return false;
+  }
+}
+
+/**
  * BullMQ worker: consumes jobs from "provision-number" queue and forwards
  * each job's payload to the n8n WF-007 webhook trigger.
  *
  * Job type: "provision-twilio-number"
  * Payload: { tenantId, areaCode, shopName }
+ *
+ * State transitions:
+ *   pending_setup → provisioning  (job starts)
+ *   provisioning  → ready         (ONLY if tenant_phone_numbers has active row)
+ *   provisioning  → error         (n8n failed OR no active row after n8n returned)
  */
 export function startProvisionNumberWorker(): Worker {
   const worker = new Worker(
@@ -50,7 +75,7 @@ export function startProvisionNumberWorker(): Worker {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(job.data),
-        signal: AbortSignal.timeout(60_000), // provisioning may take longer than SMS
+        signal: AbortSignal.timeout(60_000),
       });
 
       if (!res.ok) {
@@ -58,15 +83,27 @@ export function startProvisionNumberWorker(): Worker {
         throw new Error(`n8n provision webhook returned ${res.status}: ${body}`);
       }
 
-      // n8n succeeded — mark tenant as ready.
-      // The actual phone number row is inserted by n8n; this tracks the tenant-level state.
+      // n8n returned 200 — but that only means the workflow ran.
+      // Verify the number was actually purchased and saved to DB.
       if (tenantId) {
-        await setProvisioningState(tenantId, "ready");
+        const active = await hasActivePhoneNumber(tenantId);
+        if (active) {
+          await setProvisioningState(tenantId, "ready");
+          console.info(
+            `[provision-worker] tenant ${tenantId}: phone number confirmed active`
+          );
+        } else {
+          // n8n said OK but no active number in DB — treat as failure
+          console.error(
+            `[provision-worker] tenant ${tenantId}: n8n returned 200 but no active phone number found in DB`
+          );
+          await setProvisioningState(tenantId, "error");
+        }
       }
     },
     {
       connection,
-      concurrency: 2, // provisioning is rare — low concurrency is fine
+      concurrency: 2,
     }
   );
 
