@@ -1498,51 +1498,52 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
         </div>
       </div>
 
-      <!-- Revenue Trend -->
-      <div class="an-card">
-        <div class="an-card-head">
-          <div>
-            <div class="an-card-title">Revenue Trend</div>
-            <div class="an-card-sub">Monthly revenue from completed appointments</div>
-          </div>
-          <div class="an-trend-badge" id="anRevTrendBadge" style="display:none;">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-            <span id="anRevTrendBadgeText"></span>
+      <!-- Revenue Trend — matches dashboard Revenue Analytics chart pattern -->
+      <div class="log-wrap" style="margin-bottom:24px;">
+        <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+          <div class="log-title" style="font-size:16px;font-weight:700;">Revenue Trend</div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div id="anRevTrendBadge" style="display:none;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--rust);">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+              <span id="anRevTrendBadgeText"></span>
+            </div>
+            <div class="rev-period-control" id="anRevPeriodControl">
+              <button class="rev-period-btn" data-days="7" onclick="setAnRevPeriod(7)">7D</button>
+              <button class="rev-period-btn active" data-days="30" onclick="setAnRevPeriod(30)">30D</button>
+              <button class="rev-period-btn" data-days="90" onclick="setAnRevPeriod(90)">90D</button>
+            </div>
           </div>
         </div>
-        <div id="anRevTrendBody" style="padding:40px 0;text-align:center;color:#7A8A9E;font-size:14px;">
-          No revenue data yet. Complete appointments to see trends.
+        <div id="anRevSummaryBar" class="rev-summary" style="display:none;"></div>
+        <div id="anRevenueChartContainer" style="height:280px;padding:20px 24px 30px;position:relative;overflow:visible;">
+          <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-tertiary);font-size:14px;">Loading chart…</div>
         </div>
       </div>
 
       <!-- Middle: AI Performance + Booking Sources -->
       <div class="an-mid-grid">
-        <!-- AI Performance & Conversion (2/3) -->
-        <div class="an-card" style="margin-bottom:0;">
-          <div class="an-card-head">
-            <div>
-              <div class="an-card-title">AI Performance & Conversion</div>
-              <div class="an-card-sub">Conversation capture and booking conversion</div>
-            </div>
+        <!-- AI Performance & Conversion (2/3) — log-wrap pattern -->
+        <div class="log-wrap" style="margin-bottom:0;">
+          <div style="padding:20px 24px;border-bottom:1px solid var(--border);">
+            <div class="log-title" style="font-size:16px;font-weight:700;">AI Performance & Conversion</div>
+            <div style="font-size:13px;color:var(--text-tertiary);margin-top:2px;">Conversation capture and booking conversion</div>
           </div>
-          <div id="anAiPerfBody" style="padding:40px 0;text-align:center;color:#7A8A9E;font-size:14px;">
+          <div id="anAiPerfBody" style="padding:20px 24px;min-height:200px;display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:14px;">
             No conversation data yet. Data will appear as AI handles calls.
           </div>
-          <div class="an-legend" style="margin-top:16px;">
-            <div class="an-legend-item"><div class="an-legend-dot" style="background:var(--rust);"></div>Conversations</div>
-            <div class="an-legend-item"><div class="an-legend-dot" style="background:var(--navy);"></div>Booked</div>
+          <div style="padding:12px 24px;border-top:1px solid var(--border);display:flex;align-items:center;gap:20px;">
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-tertiary);"><div style="width:10px;height:10px;border-radius:2px;background:var(--rust);flex-shrink:0;"></div>Conversations</div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-tertiary);"><div style="width:10px;height:10px;border-radius:2px;background:var(--navy);flex-shrink:0;"></div>Booked</div>
           </div>
         </div>
 
-        <!-- Booking Sources (1/3) -->
-        <div class="an-card" style="margin-bottom:0;">
-          <div class="an-card-head" style="margin-bottom:8px;">
-            <div>
-              <div class="an-card-title">Booking Sources</div>
-              <div class="an-card-sub">Distribution this month</div>
-            </div>
+        <!-- Booking Sources (1/3) — log-wrap pattern -->
+        <div class="log-wrap" style="margin-bottom:0;">
+          <div style="padding:20px 24px;border-bottom:1px solid var(--border);">
+            <div class="log-title" style="font-size:16px;font-weight:700;">Booking Sources</div>
+            <div style="font-size:13px;color:var(--text-tertiary);margin-top:2px;">Distribution this month</div>
           </div>
-          <div id="anBookingSourcesBody">
+          <div id="anBookingSourcesBody" style="padding:20px 24px;">
             <div class="an-donut-wrap">
               <svg width="180" height="180" viewBox="0 0 180 180">
                 <circle cx="90" cy="90" r="70" fill="none" stroke="#E3DDD5" stroke-width="20"/>
@@ -1570,16 +1571,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
         </div>
       </div>
 
-      <!-- Conversation Volume -->
-      <div class="an-card" style="margin-bottom:0;">
-        <div class="an-card-head">
+      <!-- Conversation Volume — log-wrap pattern -->
+      <div class="log-wrap" style="margin-bottom:0;">
+        <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
           <div>
-            <div class="an-card-title">Conversation Volume</div>
-            <div class="an-card-sub">AI conversation activity this month</div>
+            <div class="log-title" style="font-size:16px;font-weight:700;">Conversation Volume</div>
+            <div style="font-size:13px;color:var(--text-tertiary);margin-top:2px;">AI conversation activity this month</div>
           </div>
-          <div class="an-vol-stat" id="anConvVolStat">Total: <strong id="anConvVolTotal">0</strong></div>
+          <div style="font-size:13px;color:var(--text-tertiary);" id="anConvVolStat">Total: <strong id="anConvVolTotal" style="color:var(--text);font-weight:600;">0</strong></div>
         </div>
-        <div id="anConvVolBody" style="padding:40px 0;text-align:center;color:#7A8A9E;font-size:14px;">
+        <div id="anConvVolBody" style="padding:20px 24px;min-height:200px;display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:14px;">
           No conversation data yet.
         </div>
       </div>
@@ -2372,6 +2373,8 @@ function shouldShowEmptyState(days) {
 
 var _revenueChartInstance = null;
 var _revPeriodDays = 30;
+var _anRevenueChartInstance = null;
+var _anRevPeriodDays = 30;
 
 // Vertical hover line plugin
 var verticalLinePlugin = {
@@ -2395,7 +2398,7 @@ var verticalLinePlugin = {
 
 function setRevPeriod(days) {
   _revPeriodDays = days;
-  var btns = document.querySelectorAll('.rev-period-btn');
+  var btns = document.querySelectorAll('#revPeriodControl .rev-period-btn');
   btns.forEach(function(btn) {
     btn.classList.toggle('active', Number(btn.getAttribute('data-days')) === days);
   });
@@ -2567,6 +2570,177 @@ async function loadRevenueChart(periodDays) {
 }
 
 // ════════════════════════════════════════════
+// ANALYTICS REVENUE CHART — mirrors dashboard pattern
+// ════════════════════════════════════════════
+function setAnRevPeriod(days) {
+  _anRevPeriodDays = days;
+  var btns = document.querySelectorAll('#anRevPeriodControl .rev-period-btn');
+  btns.forEach(function(btn) {
+    btn.classList.toggle('active', Number(btn.getAttribute('data-days')) === days);
+  });
+  loadAnRevenueChart(days);
+}
+
+async function loadAnRevenueChart(periodDays) {
+  var numDays = periodDays || _anRevPeriodDays || 30;
+  var container = document.getElementById('anRevenueChartContainer');
+  var summaryBar = document.getElementById('anRevSummaryBar');
+  if (!container) return;
+  var token = localStorage.getItem('autoshop_jwt');
+  if (!token) return;
+
+  try {
+    var res = await fetch('/tenant/kpi/daily-revenue?days=' + numDays, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) throw new Error('fetch failed');
+    var data = await res.json();
+    var days = data.days || [];
+
+    if (shouldShowEmptyState(days)) {
+      container.innerHTML = '<div class="rev-empty">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="#7A8A9E" stroke-width="1.5" style="width:40px;height:40px;"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 5-5"/></svg>' +
+        '<div class="rev-empty-title">No revenue yet</div>' +
+        '<div class="rev-empty-text">Complete appointments to see revenue trends.</div>' +
+      '</div>';
+      if (summaryBar) summaryBar.style.display = 'none';
+      // Update badge
+      var badge = document.getElementById('anRevTrendBadge');
+      if (badge) badge.style.display = 'none';
+      return;
+    }
+
+    var totalRev = 0;
+    for (var i = 0; i < days.length; i++) totalRev += days[i].total;
+
+    var cumulative = [];
+    var runningTotal = 0;
+    for (var i = 0; i < days.length; i++) {
+      runningTotal += days[i].total;
+      cumulative.push(runningTotal);
+    }
+
+    if (summaryBar) {
+      summaryBar.style.display = 'flex';
+      summaryBar.innerHTML =
+        '<div class="rev-metric"><div class="rev-metric-label">Total Revenue (' + numDays + 'd)</div><div class="rev-metric-value">' + formatCurrency(totalRev) + '</div></div>';
+    }
+
+    // Update badge
+    var badge = document.getElementById('anRevTrendBadge');
+    if (badge) {
+      var badgeText = document.getElementById('anRevTrendBadgeText');
+      if (badgeText) badgeText.textContent = formatCurrency(totalRev) + ' earned';
+      badge.style.display = 'flex';
+    }
+
+    var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var labels = days.map(function(d) {
+      var parts = d.date.split('-');
+      return monthNames[parseInt(parts[1], 10) - 1] + ' ' + parseInt(parts[2], 10);
+    });
+    var values = days.map(function(d) { return d.total; });
+
+    if (_anRevenueChartInstance) {
+      _anRevenueChartInstance.destroy();
+      _anRevenueChartInstance = null;
+    }
+
+    container.innerHTML = '<canvas id="anRevenueChartCanvas" style="width:100%;height:100%;"></canvas>';
+    var canvas = document.getElementById('anRevenueChartCanvas');
+    var ctx = canvas.getContext('2d');
+
+    var gradient = ctx.createLinearGradient(0, 0, 0, canvas.parentElement.offsetHeight || 280);
+    gradient.addColorStop(0, 'rgba(201, 75, 31, 0.14)');
+    gradient.addColorStop(1, 'rgba(201, 75, 31, 0.01)');
+
+    var maxTicks = numDays <= 7 ? 7 : numDays <= 30 ? 10 : 12;
+
+    _anRevenueChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Cumulative Revenue',
+          data: cumulative,
+          borderColor: '#C94B1F',
+          backgroundColor: gradient,
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.35,
+          pointRadius: numDays <= 7 ? 5 : numDays <= 30 ? 3 : 0,
+          pointBackgroundColor: '#C94B1F',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointHoverRadius: 7,
+          pointHoverBackgroundColor: '#C94B1F',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 3
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            enabled: true,
+            backgroundColor: '#FFFFFF',
+            titleColor: '#0D1B2A',
+            bodyColor: '#3D4F65',
+            borderColor: '#E3DDD5',
+            borderWidth: 1,
+            titleFont: { family: 'Barlow', size: 13, weight: '600' },
+            bodyFont: { family: 'Barlow', size: 12 },
+            padding: { top: 10, right: 14, bottom: 10, left: 14 },
+            cornerRadius: 8,
+            displayColors: false,
+            caretSize: 6,
+            caretPadding: 8,
+            callbacks: {
+              title: function(items) { return items[0].label; },
+              label: function(item) {
+                var dayRev = values[item.dataIndex];
+                var cumRev = cumulative[item.dataIndex];
+                return ['Day: ' + formatCurrency(dayRev), 'Total: ' + formatCurrency(cumRev)];
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(0, 0, 0, 0.04)', drawBorder: false },
+            border: { display: false },
+            ticks: {
+              font: { family: 'Barlow', size: 11 },
+              color: '#7A8A9E',
+              maxTicksLimit: 5,
+              callback: function(v) { return formatCompactCurrency(v); }
+            }
+          },
+          x: {
+            grid: { display: false },
+            border: { display: false },
+            ticks: {
+              font: { family: 'Barlow', size: 11 },
+              color: '#7A8A9E',
+              maxTicksLimit: maxTicks,
+              maxRotation: 0
+            }
+          }
+        }
+      },
+      plugins: [verticalLinePlugin]
+    });
+  } catch (err) {
+    console.error('Analytics revenue chart load failed:', err);
+    container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-tertiary);font-size:14px;">Unable to load chart data</div>';
+  }
+}
+
+// ════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', async function() {
@@ -2605,6 +2779,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   renderLivePipeline();
   renderLiveRevenueBlocks();
   loadRevenueChart();
+  loadAnRevenueChart();
   renderActionNeeded();
   renderTodayAppointments();
   renderAppointmentsPage();
@@ -4394,19 +4569,7 @@ function renderLiveRevenueBlocks() {
     anRevPerBookingChange.textContent = (k.total_revenue || 0) > 0 ? ('$' + k.total_revenue.toLocaleString() + ' total (30d)') : 'No data yet';
   }
 
-  // Revenue trend body — show real total if available
-  var anRevTrendBody = document.getElementById('anRevTrendBody');
-  if (anRevTrendBody) {
-    if ((k.total_revenue || 0) > 0) {
-      anRevTrendBody.innerHTML = '<div style="padding:24px;text-align:center;"><div style="font-size:32px;font-weight:700;color:#0F172A;">$' + k.total_revenue.toLocaleString() + '</div><div style="font-size:14px;color:#64748B;margin-top:4px;">Total revenue from completed appointments (30 days)</div></div>';
-    }
-  }
-  var anRevBadge = document.getElementById('anRevTrendBadge');
-  if (anRevBadge && (k.total_revenue || 0) > 0) {
-    var badgeText = document.getElementById('anRevTrendBadgeText');
-    if (badgeText) badgeText.textContent = '$' + k.total_revenue.toLocaleString() + ' earned';
-    anRevBadge.style.display = '';
-  }
+  // Revenue trend — now handled by loadAnRevenueChart() (Chart.js with period toggles)
 
   // AI Performance — show real conversation vs booking counts
   var anAiPerfBody = document.getElementById('anAiPerfBody');
@@ -4416,17 +4579,18 @@ function renderLiveRevenueBlocks() {
     if (convsAn > 0) {
       var convPct = 100;
       var bookedPct = convsAn > 0 ? Math.round((bookedAn / convsAn) * 100) : 0;
+      anAiPerfBody.style.display = 'block';
       anAiPerfBody.innerHTML =
         '<div style="display:flex;align-items:flex-end;justify-content:center;gap:24px;height:180px;padding:0 16px;">' +
           '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">' +
-            '<div style="font-size:13px;font-weight:600;color:#0F172A;">' + convsAn + '</div>' +
+            '<div style="font-size:13px;font-weight:600;color:var(--text);">' + convsAn + '</div>' +
             '<div style="width:40px;height:' + Math.max(convPct, 5) + '%;background:var(--rust);border-radius:4px 4px 0 0;"></div>' +
-            '<span style="font-size:11px;color:#64748B;">Conversations</span>' +
+            '<span style="font-size:11px;color:var(--text-tertiary);">Conversations</span>' +
           '</div>' +
           '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">' +
-            '<div style="font-size:13px;font-weight:600;color:#0F172A;">' + bookedAn + '</div>' +
+            '<div style="font-size:13px;font-weight:600;color:var(--text);">' + bookedAn + '</div>' +
             '<div style="width:40px;height:' + Math.max(bookedPct, 5) + '%;background:var(--navy);border-radius:4px 4px 0 0;"></div>' +
-            '<span style="font-size:11px;color:#64748B;">Booked (' + bookedPct + '%)</span>' +
+            '<span style="font-size:11px;color:var(--text-tertiary);">Booked (' + bookedPct + '%)</span>' +
           '</div>' +
         '</div>';
     }
@@ -4452,7 +4616,8 @@ function renderLiveRevenueBlocks() {
   if (anConvVolBody) {
     var convVolCount = k.conversations_this_month || s.conversations_this_month || 0;
     if (convVolCount > 0) {
-      anConvVolBody.innerHTML = '<div style="padding:24px;text-align:center;"><div style="font-size:32px;font-weight:700;color:#0F172A;">' + convVolCount + '</div><div style="font-size:14px;color:#64748B;margin-top:4px;">conversations this month</div></div>';
+      anConvVolBody.style.display = 'block';
+      anConvVolBody.innerHTML = '<div style="padding:24px;text-align:center;"><div style="font-size:32px;font-weight:700;color:var(--text);">' + convVolCount + '</div><div style="font-size:14px;color:var(--text-tertiary);margin-top:4px;">conversations this month</div></div>';
     }
   }
 }
