@@ -186,22 +186,23 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://bandomasis.app.n8n.cloud/webhook/lt-proteros-sms-log",
+        "url": "https://autoshop-api-7ek9.onrender.com/internal/lt-log-conversation",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
+            { "name": "x-internal-key", "value": "__INTERNAL_API_KEY__" },
             { "name": "Content-Type", "value": "application/json" }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ from: $json.customerPhone || '', message: $json.messageBody || '', apiKey: '__INTERNAL_API_KEY__' }) }}",
+        "jsonBody": "={{ JSON.stringify({ tenantId: '7d82ab25-e991-4d13-b4ac-846865f8b85a', customerPhone: $json.customerPhone || 'unknown', inboundBody: $json.messageBody || '[no message]', outboundBody: '[SMS logged via n8n]', bookingDetected: false, source: 'sms' }) }}",
         "options": {
-          "timeout": 10000
+          "timeout": 15000
         }
       },
       "id": "lt-sms-log-to-dashboard",
-      "name": "Forward to Dashboard Log",
+      "name": "Log to Dashboard API",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [500, 600],
