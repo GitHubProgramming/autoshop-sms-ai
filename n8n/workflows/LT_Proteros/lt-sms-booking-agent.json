@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse inbound SMS — handle both flat and nested body formats\nconst raw = $input.first().json;\nconst body = (typeof raw.body === 'object' && raw.body !== null) ? raw.body : raw;\nconst from = (body.caller_id || body.from || body.sender || body.caller_number || body.number || '').toString().replace(/[^+\\d]/g, '');\nconst message = (body.message || body.text || body.content || body.sms_text || '').toString().trim();\nconst messageId = body.message_id || body.sms_id || body.id || $execution.id;\n\nif (!from || !message) {\n  return [{ json: { valid: false, reason: 'Missing from or message', rawKeys: Object.keys(raw).join(','), bodyKeys: Object.keys(body).join(',') } }];\n}\n\nif (!/^\\+370\\d{7,8}$/.test(from)) {\n  return [{ json: { valid: false, reason: 'Invalid LT phone number', from } }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    customerPhone: from,\n    messageBody: message,\n    messageId: messageId,\n    receivedAt: new Date().toISOString()\n  }\n}];"
+        "jsCode": "// DEBUG: dump full input to understand n8n data structure\nconst items = $input.all();\nconst first = items.length > 0 ? items[0] : null;\nconst raw = first ? first.json : {};\nconst rawStr = JSON.stringify(raw).substring(0, 500);\nconst allKeys = Object.keys(raw);\n\n// Try all possible locations for body data\nconst body = (typeof raw.body === 'object' && raw.body !== null) ? raw.body : raw;\nconst from = (body.caller_id || body.from || body.sender || body.caller_number || body.number || '').toString().replace(/[^+\\d]/g, '');\nconst message = (body.message || body.text || body.content || body.sms_text || '').toString().trim();\nconst messageId = body.message_id || body.sms_id || body.id || $execution.id;\n\nif (!from || !message) {\n  return [{ json: { valid: false, reason: 'Missing from or message', debug: { rawStr, allKeys, itemCount: items.length, hasBody: 'body' in raw, bodyType: typeof raw.body } } }];\n}\n\nif (!/^\\+370\\d{7,8}$/.test(from)) {\n  return [{ json: { valid: false, reason: 'Invalid LT phone number', from } }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    customerPhone: from,\n    messageBody: message,\n    messageId: messageId,\n    receivedAt: new Date().toISOString()\n  }\n}];"
       },
       "id": "lt-sms-validate",
       "name": "Validate Inbound SMS",
@@ -344,8 +344,7 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ status: 'error', reason: $json.reason || 'invalid SMS payload', rawKeys: $json.rawKeys || '', bodyKeys: $json.bodyKeys || '', from: $json.from || '' }) }}",
+        "respondWith": "allIncomingItems",
         "options": {}
       },
       "id": "lt-sms-respond-invalid",
