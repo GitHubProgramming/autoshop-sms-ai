@@ -186,28 +186,27 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://autoshop-api-7ek9.onrender.com/internal/lt-log-conversation",
+        "url": "https://bandomasis.app.n8n.cloud/webhook/lt-proteros-sms-log",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-internal-key", "value": "__INTERNAL_API_KEY__" },
             { "name": "Content-Type", "value": "application/json" }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: '7d82ab25-e991-4d13-b4ac-846865f8b85a', customerPhone: $json.customerPhone || 'unknown', inboundBody: $json.messageBody || '[no message]', outboundBody: '[SMS flow logged]', bookingDetected: false, source: 'sms' }) }}",
+        "jsonBody": "={{ JSON.stringify({ from: $json.customerPhone, message: $json.messageBody, apiKey: '__INTERNAL_API_KEY__' }) }}",
         "options": {
-          "timeout": 15000
+          "timeout": 10000
         }
       },
       "id": "lt-sms-log-to-dashboard",
-      "name": "Log to Dashboard API",
+      "name": "Forward to Dashboard Log",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [2500, 700],
+      "position": [500, 600],
       "continueOnFail": true,
-      "notes": "Logs LT conversation to Postgres for dashboard visibility. continueOnFail=true — logging failure does not break SMS flow. API key injected at deploy time via GH Actions."
+      "notes": "Forwards validated SMS data to the dedicated LT dashboard logging workflow via internal webhook. Fire-and-forget — continueOnFail=true."
     },
     {
       "parameters": {
@@ -400,6 +399,11 @@
             "node": "Is Valid SMS?",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Forward to Dashboard Log",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -409,11 +413,6 @@
         [
           {
             "node": "Load Conversation History",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Log to Dashboard API",
             "type": "main",
             "index": 0
           }
