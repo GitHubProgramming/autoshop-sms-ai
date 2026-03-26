@@ -109,6 +109,8 @@ jobs:
         run: sleep 5
 
       - name: Execute LT Safe Log Test via webhook
+        env:
+          INTERNAL_API_KEY: ${{ secrets.INTERNAL_API_KEY }}
         run: |
           set -euo pipefail
           echo "=== Calling webhook ==="
@@ -116,7 +118,7 @@ jobs:
             -X POST \
             "https://bandomasis.app.n8n.cloud/webhook/lt-safe-log-test" \
             -H "Content-Type: application/json" \
-            -d '{}')"
+            -d "{\"apiKey\":\"${INTERNAL_API_KEY}\"}")"
 
           HTTP_CODE="$(echo "$RESULT" | tail -1)"
           BODY="$(echo "$RESULT" | sed '$d')"
