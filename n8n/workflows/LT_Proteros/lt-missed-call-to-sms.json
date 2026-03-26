@@ -211,19 +211,19 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.AUTOSHOP_API_URL || 'http://localhost:3000' }}/internal/lt-log-conversation",
+        "url": "https://autoshop-api-7ek9.onrender.com/internal/lt-log-conversation",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-internal-key", "value": "={{ $env.INTERNAL_API_KEY }}" },
+            { "name": "x-internal-key", "value": "__INTERNAL_API_KEY__" },
             { "name": "Content-Type", "value": "application/json" }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"tenantId\": \"{{ $env.LT_TENANT_ID }}\",\n  \"customerPhone\": \"{{ $('Deduplicate (30min window)').item.json.callerPhone }}\",\n  \"inboundBody\": \"[Missed call]\",\n  \"outboundBody\": {{ JSON.stringify($('Compose SMS').item.json.body) }},\n  \"source\": \"missed_call\"\n}",
+        "jsonBody": "={{ JSON.stringify({ tenantId: '7d82ab25-e991-4d13-b4ac-846865f8b85a', customerPhone: $('Deduplicate (30min window)').item.json.callerPhone, inboundBody: '[Missed call]', outboundBody: $('Compose SMS').item.json.body, source: 'missed_call' }) }}",
         "options": {
-          "timeout": 5000
+          "timeout": 15000
         }
       },
       "id": "lt-mc-log-to-dashboard",
@@ -232,7 +232,7 @@
       "typeVersion": 4.1,
       "position": [2500, 200],
       "continueOnFail": true,
-      "notes": "Logs LT missed call + SMS to Postgres for dashboard visibility. continueOnFail=true — logging failure does not break flow."
+      "notes": "Logs LT missed call + SMS to Postgres for dashboard visibility. continueOnFail=true — logging failure does not break flow. API key injected at deploy time via GH Actions."
     },
     {
       "parameters": {

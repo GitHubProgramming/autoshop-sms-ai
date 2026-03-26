@@ -191,19 +191,19 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.AUTOSHOP_API_URL || 'http://localhost:3000' }}/internal/lt-log-conversation",
+        "url": "https://autoshop-api-7ek9.onrender.com/internal/lt-log-conversation",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-internal-key", "value": "={{ $env.INTERNAL_API_KEY }}" },
+            { "name": "x-internal-key", "value": "__INTERNAL_API_KEY__" },
             { "name": "Content-Type", "value": "application/json" }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"tenantId\": \"{{ $env.LT_TENANT_ID }}\",\n  \"customerPhone\": \"{{ $('Parse AI Response').item.json.customerPhone }}\",\n  \"inboundBody\": {{ JSON.stringify($('Load Conversation History').item.json.messageBody) }},\n  \"outboundBody\": {{ JSON.stringify($('Parse AI Response').item.json.replyText || 'Registracija patvirtinta!') }},\n  \"bookingDetected\": {{ $('Parse AI Response').item.json.bookingReady }},\n  \"source\": \"sms\"\n}",
+        "jsonBody": "={{ JSON.stringify({ tenantId: '7d82ab25-e991-4d13-b4ac-846865f8b85a', customerPhone: $('Parse AI Response').item.json.customerPhone, inboundBody: $('Load Conversation History').item.json.messageBody, outboundBody: $('Parse AI Response').item.json.replyText || 'Registracija patvirtinta!', bookingDetected: $('Parse AI Response').item.json.bookingReady, source: 'sms' }) }}",
         "options": {
-          "timeout": 5000
+          "timeout": 15000
         }
       },
       "id": "lt-sms-log-to-dashboard",
@@ -212,7 +212,7 @@
       "typeVersion": 4.1,
       "position": [2500, 700],
       "continueOnFail": true,
-      "notes": "Logs LT conversation to Postgres for dashboard visibility. continueOnFail=true — logging failure does not break SMS flow. Requires env vars: AUTOSHOP_API_URL, INTERNAL_API_KEY, LT_TENANT_ID."
+      "notes": "Logs LT conversation to Postgres for dashboard visibility. continueOnFail=true — logging failure does not break SMS flow. API key injected at deploy time via GH Actions."
     },
     {
       "parameters": {

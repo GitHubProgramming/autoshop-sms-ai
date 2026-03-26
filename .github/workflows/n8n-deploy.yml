@@ -50,6 +50,19 @@ jobs:
             exit 1
           fi
 
+      - name: Inject secrets into LT workflow files before deploy
+        if: ${{ env.INTERNAL_API_KEY != '' }}
+        env:
+          INTERNAL_API_KEY: ${{ secrets.INTERNAL_API_KEY }}
+        run: |
+          echo "Injecting INTERNAL_API_KEY into LT workflow files..."
+          for f in n8n/workflows/LT_Proteros/*.json; do
+            if grep -q '__INTERNAL_API_KEY__' "$f" 2>/dev/null; then
+              sed -i "s|__INTERNAL_API_KEY__|${INTERNAL_API_KEY}|g" "$f"
+              echo "  Injected: $f"
+            fi
+          done
+
       - name: Deploy workflows to n8n
         env:
           N8N_URL: ${{ secrets.N8N_URL }}
