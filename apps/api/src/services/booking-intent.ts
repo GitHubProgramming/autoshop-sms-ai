@@ -482,7 +482,15 @@ export function detectBookingIntent(
   const isBooked = confidence === "high" || confidence === "medium";
 
   // Check if user wants to close
-  const userWantsClose = CLOSE_KEYWORDS.some((k) => lowerCustomer.includes(k));
+  // Only trigger on short messages where the close keyword IS the message intent.
+  // "stop" alone = opt-out; "brakes grind when I stop" = describing a problem.
+  const trimmed = lowerCustomer.trim();
+  const userWantsClose =
+    trimmed.split(/\s+/).length <= 5 &&
+    CLOSE_KEYWORDS.some((k) => {
+      const re = new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+      return re.test(trimmed);
+    });
 
   // Extract service type (check both AI response and customer message)
   const combined = lowerCustomer + " " + lowerAi;
