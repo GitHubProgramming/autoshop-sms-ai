@@ -31,19 +31,14 @@
     {
       "parameters": {
         "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose"
-          },
           "conditions": [
             {
               "id": "cond-valid-sms",
               "leftValue": "={{ $json.valid }}",
-              "rightValue": true,
+              "rightValue": "true",
               "operator": {
-                "type": "boolean",
-                "operation": "equal"
+                "type": "string",
+                "operation": "equals"
               }
             }
           ],
