@@ -6,7 +6,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "lt-proteros-missed-call",
-        "responseMode": "lastNode",
+        "responseMode": "responseNode",
         "options": {
           "rawBody": false
         }
