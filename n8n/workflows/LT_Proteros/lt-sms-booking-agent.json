@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// DEBUG: dump full input to understand n8n data structure\nconst items = $input.all();\nconst first = items.length > 0 ? items[0] : null;\nconst raw = first ? first.json : {};\nconst rawStr = JSON.stringify(raw).substring(0, 500);\nconst allKeys = Object.keys(raw);\n\n// Try all possible locations for body data\nconst body = (typeof raw.body === 'object' && raw.body !== null) ? raw.body : raw;\nconst from = (body.caller_id || body.from || body.sender || body.caller_number || body.number || '').toString().replace(/[^+\\d]/g, '');\nconst message = (body.message || body.text || body.content || body.sms_text || '').toString().trim();\nconst messageId = body.message_id || body.sms_id || body.id || $execution.id;\n\nif (!from || !message) {\n  return [{ json: { valid: false, reason: 'Missing from or message', debug: { rawStr, allKeys, itemCount: items.length, hasBody: 'body' in raw, bodyType: typeof raw.body } } }];\n}\n\nif (!/^\\+370\\d{7,8}$/.test(from)) {\n  return [{ json: { valid: false, reason: 'Invalid LT phone number', from } }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    customerPhone: from,\n    messageBody: message,\n    messageId: messageId,\n    receivedAt: new Date().toISOString()\n  }\n}];"
+        "jsCode": "// Parse inbound SMS — handle both flat and nested body formats\nconst raw = $input.first().json;\nconst body = (typeof raw.body === 'object' && raw.body !== null) ? raw.body : raw;\nconst from = (body.caller_id || body.from || body.sender || body.caller_number || body.number || '').toString().replace(/[^+\\d]/g, '');\nconst message = (body.message || body.text || body.content || body.sms_text || '').toString().trim();\nconst messageId = body.message_id || body.sms_id || body.id || $execution.id;\n\nif (!from || !message) {\n  return [{ json: { valid: false, reason: 'Missing from or message' } }];\n}\n\nif (!/^\\+370\\d{7,8}$/.test(from)) {\n  return [{ json: { valid: false, reason: 'Invalid LT phone number', from } }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    customerPhone: from,\n    messageBody: message,\n    messageId: messageId,\n    receivedAt: new Date().toISOString()\n  }\n}];"
       },
       "id": "lt-sms-validate",
       "name": "Validate Inbound SMS",
@@ -168,6 +168,7 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [2250, 500],
+      "continueOnFail": true,
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "APKOpIYNrXjjc3U7",
@@ -178,8 +179,7 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ { \"status\": \"ok\", \"action\": \"reply_sent\", \"customerPhone\": $('Parse AI Response').item.json.customerPhone } }}",
+        "respondWith": "allIncomingItems",
         "options": {}
       },
       "id": "lt-sms-respond-reply",
@@ -345,7 +345,9 @@
     {
       "parameters": {
         "respondWith": "allIncomingItems",
-        "options": {}
+        "options": {
+          "responseCode": 400
+        }
       },
       "id": "lt-sms-respond-invalid",
       "name": "Respond: Invalid",
