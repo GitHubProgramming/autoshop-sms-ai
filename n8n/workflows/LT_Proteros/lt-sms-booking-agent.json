@@ -196,7 +196,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: '7d82ab25-e991-4d13-b4ac-846865f8b85a', customerPhone: $('Parse AI Response').item.json.customerPhone, inboundBody: $('Load Conversation History').item.json.messageBody, outboundBody: $('Parse AI Response').item.json.replyText || 'Registracija patvirtinta!', bookingDetected: $('Parse AI Response').item.json.bookingReady, source: 'sms' }) }}",
+        "jsonBody": "={{ JSON.stringify({ tenantId: '7d82ab25-e991-4d13-b4ac-846865f8b85a', customerPhone: $('Validate Inbound SMS').item.json.customerPhone || 'unknown', inboundBody: $('Validate Inbound SMS').item.json.messageBody || '[no message]', outboundBody: '[SMS flow - AI reply pending]', bookingDetected: false, source: 'sms' }) }}",
         "options": {
           "timeout": 15000
         }
