@@ -34,7 +34,7 @@
           "conditions": [
             {
               "id": "cond-valid-sms",
-              "leftValue": "={{ $json.valid }}",
+              "leftValue": "={{ $('Validate Inbound SMS').item.json.valid }}",
               "rightValue": "true",
               "operator": {
                 "type": "string",
@@ -54,7 +54,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Load conversation history from static data (keyed by phone)\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.conversations) {\n  staticData.conversations = {};\n}\n\nconst phone = $input.first().json.customerPhone;\nconst now = new Date().toISOString();\n\nif (!staticData.conversations[phone]) {\n  staticData.conversations[phone] = {\n    messages: [],\n    startedAt: now,\n    bookingStatus: 'none'\n  };\n}\n\nconst conv = staticData.conversations[phone];\n\n// Add incoming message\nconv.messages.push({\n  role: 'customer',\n  content: $input.first().json.messageBody,\n  timestamp: now\n});\n\n// Keep last 20 messages to avoid overflow\nif (conv.messages.length > 20) {\n  conv.messages = conv.messages.slice(-20);\n}\n\nreturn [{\n  json: {\n    customerPhone: phone,\n    messageBody: $input.first().json.messageBody,\n    messageId: $input.first().json.messageId,\n    conversationHistory: conv.messages,\n    bookingStatus: conv.bookingStatus,\n    isNewConversation: conv.messages.length === 1\n  }\n}];"
+        "jsCode": "// Load conversation history from static data (keyed by phone)\n// Reference Validate node directly since HTTP Forward changes $input\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.conversations) {\n  staticData.conversations = {};\n}\n\nconst validated = $('Validate Inbound SMS').first().json;\nconst phone = validated.customerPhone;\nconst now = new Date().toISOString();\n\nif (!staticData.conversations[phone]) {\n  staticData.conversations[phone] = {\n    messages: [],\n    startedAt: now,\n    bookingStatus: 'none'\n  };\n}\n\nconst conv = staticData.conversations[phone];\n\n// Add incoming message\nconv.messages.push({\n  role: 'customer',\n  content: validated.messageBody,\n  timestamp: now\n});\n\n// Keep last 20 messages to avoid overflow\nif (conv.messages.length > 20) {\n  conv.messages = conv.messages.slice(-20);\n}\n\nreturn [{\n  json: {\n    customerPhone: phone,\n    messageBody: validated.messageBody,\n    messageId: validated.messageId,\n    conversationHistory: conv.messages,\n    bookingStatus: conv.bookingStatus,\n    isNewConversation: conv.messages.length === 1\n  }\n}];"
       },
       "id": "lt-sms-load-conv",
       "name": "Load Conversation History",
@@ -185,14 +185,28 @@
     },
     {
       "parameters": {
-        "jsCode": "// Forward to dashboard log webhook, then pass through original data\nconst data = $input.first().json;\ntry {\n  const resp = await this.helpers.httpRequest({\n    method: 'POST',\n    url: 'https://bandomasis.app.n8n.cloud/webhook/lt-proteros-sms-log',\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({\n      from: data.customerPhone || '',\n      message: data.messageBody || '',\n      apiKey: '__INTERNAL_API_KEY__'\n    }),\n    timeout: 10000\n  });\n} catch (e) {\n  // Ignore — logging failure must not block SMS flow\n}\n// Always return original data for downstream nodes\nreturn [{ json: data }];"
+        "method": "POST",
+        "url": "https://bandomasis.app.n8n.cloud/webhook/lt-proteros-sms-log",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ from: $json.customerPhone || '', message: $json.messageBody || '', apiKey: '__INTERNAL_API_KEY__' }) }}",
+        "options": {
+          "timeout": 10000
+        }
       },
       "id": "lt-sms-log-to-dashboard",
       "name": "Forward to Dashboard Log",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
       "position": [500, 600],
-      "notes": "Forwards validated SMS data to LT dashboard logging workflow. Always passes through original data regardless of logging result."
+      "continueOnFail": true,
+      "notes": "Calls dedicated LT dashboard log webhook. continueOnFail=true — never blocks main SMS flow."
     },
     {
       "parameters": {
