@@ -7,9 +7,7 @@
         "httpMethod": "POST",
         "path": "lt-safe-log-test",
         "responseMode": "responseNode",
-        "options": {
-          "rawBody": false
-        }
+        "options": {}
       },
       "id": "lt-safe-trigger",
       "name": "Webhook: LT Safe Log Test",
@@ -20,10 +18,10 @@
     },
     {
       "parameters": {
-        "jsCode": "// LT Safe Logging Test - static payload\n// No booking, no calendar, no SMS - dashboard logging only\nconst apiKey = $env.INTERNAL_API_KEY || '';\n\nreturn [{\n  json: {\n    apiKey: apiKey,\n    hasKey: !!apiKey,\n    tenantId: '7d82ab25-e991-4d13-b4ac-846865f8b85a',\n    customerPhone: '+37067577829',\n    inboundBody: 'LT safe logging test - no booking. Sveiki, noriu pasitikrinti ar sistema veikia.',\n    outboundBody: 'LT safe logging test - sistema veikia. Jokia registracija nesukurta.',\n    bookingDetected: false,\n    source: 'sms'\n  }\n}];"
+        "jsCode": "// Step 1: Build payload and check env\nlet apiKey = '';\nlet envError = null;\ntry {\n  apiKey = $env.INTERNAL_API_KEY || '';\n} catch (e) {\n  envError = e.message;\n}\n\nreturn [{\n  json: {\n    step: 'payload_built',\n    hasKey: !!apiKey,\n    keyLength: apiKey.length,\n    envError: envError,\n    payload: {\n      tenantId: '7d82ab25-e991-4d13-b4ac-846865f8b85a',\n      customerPhone: '+37067577829',\n      inboundBody: 'LT safe logging test - no booking',\n      outboundBody: 'LT safe test response - no booking',\n      bookingDetected: false,\n      source: 'sms'\n    }\n  }\n}];"
       },
       "id": "lt-safe-payload",
-      "name": "Build Static LT Test Payload",
+      "name": "Build Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [500, 400]
@@ -35,19 +33,19 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-internal-key", "value": "={{ $json.apiKey }}" },
+            { "name": "x-internal-key", "value": "={{ $('Build Payload').first().json.hasKey ? $env.INTERNAL_API_KEY : 'NO_KEY_SET' }}" },
             { "name": "Content-Type", "value": "application/json" }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: $json.tenantId, customerPhone: $json.customerPhone, inboundBody: $json.inboundBody, outboundBody: $json.outboundBody, bookingDetected: $json.bookingDetected, source: $json.source }) }}",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
         "options": {
           "timeout": 15000
         }
       },
       "id": "lt-safe-http",
-      "name": "POST to LT Dashboard Log",
+      "name": "POST to Dashboard",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [750, 400],
@@ -55,24 +53,14 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\nconst prevData = $('Build Static LT Test Payload').first().json;\nconst success = input.success === true;\n\nreturn [{\n  json: {\n    testResult: success ? 'PASSED' : 'FAILED',\n    hadApiKey: prevData.hasKey,\n    conversationId: input.conversationId || null,\n    messagesLogged: input.messagesLogged || 0,\n    bookingDetected: input.bookingDetected || false,\n    error: input.error || input.message || null,\n    httpStatusCode: input.statusCode || null,\n    rawResponse: input,\n    verifiedAt: new Date().toISOString(),\n    usaSafe: true,\n    bookingTriggered: false,\n    calendarTriggered: false\n  }\n}];"
-      },
-      "id": "lt-safe-verify",
-      "name": "Verify Response",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1000, 400]
-    },
-    {
-      "parameters": {
         "respondWith": "allIncomingItems",
         "options": {}
       },
       "id": "lt-safe-respond",
-      "name": "Respond: Result",
+      "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [1250, 400]
+      "position": [1000, 400]
     }
   ],
   "connections": {
@@ -80,40 +68,29 @@
       "main": [
         [
           {
-            "node": "Build Static LT Test Payload",
+            "node": "Build Payload",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Build Static LT Test Payload": {
+    "Build Payload": {
       "main": [
         [
           {
-            "node": "POST to LT Dashboard Log",
+            "node": "POST to Dashboard",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "POST to LT Dashboard Log": {
+    "POST to Dashboard": {
       "main": [
         [
           {
-            "node": "Verify Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Verify Response": {
-      "main": [
-        [
-          {
-            "node": "Respond: Result",
+            "node": "Respond",
             "type": "main",
             "index": 0
           }
