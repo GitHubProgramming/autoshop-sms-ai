@@ -206,7 +206,33 @@
       "name": "Respond: SMS Sent",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [2250, 200]
+      "position": [2750, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.AUTOSHOP_API_URL || 'http://localhost:3000' }}/internal/lt-log-conversation",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-internal-key", "value": "={{ $env.INTERNAL_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tenantId\": \"{{ $env.LT_TENANT_ID }}\",\n  \"customerPhone\": \"{{ $('Deduplicate (30min window)').item.json.callerPhone }}\",\n  \"inboundBody\": \"[Missed call]\",\n  \"outboundBody\": {{ JSON.stringify($('Compose SMS').item.json.body) }},\n  \"source\": \"missed_call\"\n}",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "lt-mc-log-to-dashboard",
+      "name": "Log to Dashboard API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2500, 200],
+      "continueOnFail": true,
+      "notes": "Logs LT missed call + SMS to Postgres for dashboard visibility. continueOnFail=true — logging failure does not break flow."
     },
     {
       "parameters": {
@@ -326,6 +352,17 @@
       ]
     },
     "Log: Missed Call (Google Sheets)": {
+      "main": [
+        [
+          {
+            "node": "Log to Dashboard API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Dashboard API": {
       "main": [
         [
           {
