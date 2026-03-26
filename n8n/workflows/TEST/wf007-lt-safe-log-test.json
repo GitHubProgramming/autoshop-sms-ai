@@ -65,8 +65,7 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}",
+        "respondWith": "allIncomingItems",
         "options": {}
       },
       "id": "lt-safe-respond",
