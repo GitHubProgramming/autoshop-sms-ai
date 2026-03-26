@@ -1821,4 +1821,113 @@ export async function adminRoute(app: FastifyInstance) {
       ) ? "CLEAN" : "ANOMALIES_DETECTED",
     });
   });
+
+  // ── POST /internal/admin/tenants/:id/reset-data ─────────────────────────
+  // Deletes all conversation, message, appointment, customer, and pipeline
+  // data for a single tenant. Preserves account, billing, integrations, and
+  // configuration. Resets usage counters.
+  app.post<{ Params: { id: string } }>(
+    "/admin/tenants/:id/reset-data",
+    { preHandler: [adminGuard] },
+    async (req, reply) => {
+      const tid = req.params.id;
+      if (!z.string().uuid().safeParse(tid).success) {
+        return reply.status(400).send({ error: "Invalid tenant ID" });
+      }
+
+      // Verify tenant exists
+      const [tenant] = await query<{ id: string; shop_name: string; owner_email: string }>(
+        `SELECT id, shop_name, owner_email FROM tenants WHERE id = $1`,
+        [tid]
+      );
+      if (!tenant) {
+        return reply.status(404).send({ error: "Tenant not found" });
+      }
+
+      // Pre-delete counts
+      const tables = [
+        "messages", "conversations", "appointments", "customers",
+        "vehicles", "bookings", "missed_calls", "pipeline_alerts",
+        "pipeline_traces", "conversation_cooldowns", "webhook_events",
+      ];
+      const preCounts: Record<string, number> = {};
+      for (const t of tables) {
+        const [row] = await query<{ n: number }>(
+          `SELECT count(*)::int AS n FROM ${t} WHERE tenant_id = $1`,
+          [tid]
+        );
+        preCounts[t] = row?.n ?? 0;
+      }
+
+      // Delete in FK-safe order inside a transaction
+      const client = await (await import("../../db/client")).db.connect();
+      try {
+        await client.query("BEGIN");
+
+        // Leaf tables
+        await client.query(`DELETE FROM pipeline_alerts WHERE tenant_id = $1`, [tid]);
+        await client.query(`DELETE FROM pipeline_traces WHERE tenant_id = $1`, [tid]);
+        await client.query(`DELETE FROM webhook_events WHERE tenant_id = $1`, [tid]);
+        await client.query(`DELETE FROM conversation_cooldowns WHERE tenant_id = $1`, [tid]);
+        await client.query(`DELETE FROM missed_calls WHERE tenant_id = $1`, [tid]);
+
+        // Messages depend on conversations
+        await client.query(`DELETE FROM messages WHERE tenant_id = $1`, [tid]);
+
+        // Bookings depend on customers, vehicles, conversations
+        await client.query(`DELETE FROM bookings WHERE tenant_id = $1`, [tid]);
+
+        // Null out conversation→appointment FK, then delete appointments
+        await client.query(`UPDATE conversations SET appointment_id = NULL WHERE tenant_id = $1`, [tid]);
+        await client.query(`DELETE FROM appointments WHERE tenant_id = $1`, [tid]);
+
+        // Conversations
+        await client.query(`DELETE FROM conversations WHERE tenant_id = $1`, [tid]);
+
+        // Vehicles depend on customers
+        await client.query(`DELETE FROM vehicles WHERE tenant_id = $1`, [tid]);
+
+        // Customers
+        await client.query(`DELETE FROM customers WHERE tenant_id = $1`, [tid]);
+
+        // Reset usage counters
+        await client.query(
+          `UPDATE tenants SET conv_used_this_cycle = 0, warned_80pct = FALSE, warned_100pct = FALSE WHERE id = $1`,
+          [tid]
+        );
+
+        // Audit log entry
+        await client.query(
+          `INSERT INTO audit_log (id, tenant_id, event_type, actor, metadata, created_at)
+           VALUES (gen_random_uuid(), $1, 'admin_tenant_data_reset', $2, $3, NOW())`,
+          [tid, (req as any).adminEmail || "admin", JSON.stringify({ pre_counts: preCounts })]
+        );
+
+        await client.query("COMMIT");
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      } finally {
+        client.release();
+      }
+
+      // Post-delete verification
+      const postCounts: Record<string, number> = {};
+      for (const t of tables) {
+        const [row] = await query<{ n: number }>(
+          `SELECT count(*)::int AS n FROM ${t} WHERE tenant_id = $1`,
+          [tid]
+        );
+        postCounts[t] = row?.n ?? 0;
+      }
+
+      return reply.send({
+        tenant: { id: tenant.id, shop_name: tenant.shop_name, email: tenant.owner_email },
+        pre_counts: preCounts,
+        post_counts: postCounts,
+        usage_reset: { conv_used_this_cycle: 0, warned_80pct: false, warned_100pct: false },
+        preserved: ["tenant", "users", "billing", "phone_numbers", "calendar_tokens", "system_prompts", "tenant_services"],
+      });
+    }
+  );
 }
