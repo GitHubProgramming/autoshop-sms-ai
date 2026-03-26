@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Step 1: Build payload and check env\nlet apiKey = '';\nlet envError = null;\ntry {\n  apiKey = $env.INTERNAL_API_KEY || '';\n} catch (e) {\n  envError = e.message;\n}\n\nreturn [{\n  json: {\n    step: 'payload_built',\n    hasKey: !!apiKey,\n    keyLength: apiKey.length,\n    envError: envError,\n    payload: {\n      tenantId: '7d82ab25-e991-4d13-b4ac-846865f8b85a',\n      customerPhone: '+37067577829',\n      inboundBody: 'LT safe logging test - no booking',\n      outboundBody: 'LT safe test response - no booking',\n      bookingDetected: false,\n      source: 'sms'\n    }\n  }\n}];"
+        "jsCode": "// LT Safe Logging Test\n// API key comes from webhook body (never stored in workflow)\nconst body = $input.first().json.body || $input.first().json;\nconst apiKey = body.apiKey || '';\n\nif (!apiKey) {\n  return [{ json: { error: 'apiKey missing from webhook body', hasKey: false } }];\n}\n\nreturn [{\n  json: {\n    apiKey: apiKey,\n    hasKey: true,\n    payload: {\n      tenantId: '7d82ab25-e991-4d13-b4ac-846865f8b85a',\n      customerPhone: '+37067577829',\n      inboundBody: 'LT safe logging test - no booking',\n      outboundBody: 'LT safe test response - no booking',\n      bookingDetected: false,\n      source: 'sms'\n    }\n  }\n}];"
       },
       "id": "lt-safe-payload",
       "name": "Build Payload",
@@ -33,7 +33,7 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-internal-key", "value": "={{ $('Build Payload').first().json.hasKey ? $env.INTERNAL_API_KEY : 'NO_KEY_SET' }}" },
+            { "name": "x-internal-key", "value": "={{ $json.apiKey }}" },
             { "name": "Content-Type", "value": "application/json" }
           ]
         },
