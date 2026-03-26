@@ -1,0 +1,150 @@
+name: LT Safe Log Test — Set n8n Env + Execute
+
+on:
+  workflow_dispatch:
+    inputs:
+      set_env_vars:
+        description: 'Set/update n8n Cloud environment variables before test'
+        required: false
+        default: 'true'
+        type: boolean
+      also_set_autoshop_url:
+        description: 'Also set AUTOSHOP_API_URL and LT_TENANT_ID in n8n'
+        required: false
+        default: 'true'
+        type: boolean
+
+jobs:
+  lt-safe-log-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set n8n Cloud variables via internal API
+        if: ${{ github.event.inputs.set_env_vars == 'true' }}
+        env:
+          N8N_URL: ${{ secrets.N8N_URL }}
+          N8N_EMAIL: ${{ secrets.N8N_EMAIL }}
+          N8N_PASSWORD: ${{ secrets.N8N_PASSWORD }}
+          INTERNAL_API_KEY: ${{ secrets.INTERNAL_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${INTERNAL_API_KEY:-}" ]; then
+            echo "ERROR: INTERNAL_API_KEY secret not set in GitHub."
+            echo "Add it: Settings → Secrets → Actions → New repository secret"
+            echo "Value: copy from Render Dashboard → autoshop-api → Environment → INTERNAL_API_KEY"
+            exit 1
+          fi
+
+          echo "=== Logging into n8n Cloud ==="
+          COOKIE_FILE="$(mktemp)"
+          LOGIN_BODY="{\"email\":\"${N8N_EMAIL}\",\"emailOrLdapLoginId\":\"${N8N_EMAIL}\",\"password\":\"${N8N_PASSWORD}\"}"
+
+          LOGIN_RESP="$(curl -s -w "\n%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -c "$COOKIE_FILE" \
+            -d "$LOGIN_BODY" \
+            "$N8N_URL/rest/login")"
+
+          LOGIN_CODE="$(echo "$LOGIN_RESP" | tail -1)"
+          if [ "$LOGIN_CODE" != "200" ]; then
+            echo "Login failed (HTTP $LOGIN_CODE)"
+            echo "$LOGIN_RESP" | sed '$d'
+            exit 1
+          fi
+          echo "Login OK"
+
+          # Function to create or update a variable
+          set_var() {
+            local key="$1"
+            local value="$2"
+            echo "--- Setting $key ---"
+
+            # Check if variable exists
+            EXISTING="$(curl -s -b "$COOKIE_FILE" "$N8N_URL/rest/variables" | \
+              node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); \
+                const v=(d.data||d).find(v=>v.key==='$key'); \
+                process.stdout.write(v ? v.id : '')" 2>/dev/null || echo "")"
+
+            if [ -n "$EXISTING" ]; then
+              # Update existing
+              RESP="$(curl -s -w "\n%{http_code}" \
+                -X PATCH \
+                -H "Content-Type: application/json" \
+                -b "$COOKIE_FILE" \
+                -d "{\"key\":\"$key\",\"value\":\"$value\"}" \
+                "$N8N_URL/rest/variables/$EXISTING")"
+              CODE="$(echo "$RESP" | tail -1)"
+              echo "  Updated existing (id=$EXISTING) → HTTP $CODE"
+            else
+              # Create new
+              RESP="$(curl -s -w "\n%{http_code}" \
+                -X POST \
+                -H "Content-Type: application/json" \
+                -b "$COOKIE_FILE" \
+                -d "{\"key\":\"$key\",\"value\":\"$value\"}" \
+                "$N8N_URL/rest/variables")"
+              CODE="$(echo "$RESP" | tail -1)"
+              echo "  Created new → HTTP $CODE"
+            fi
+
+            if [ "$CODE" != "200" ] && [ "$CODE" != "201" ]; then
+              echo "  WARNING: Unexpected status $CODE"
+              echo "  Response: $(echo "$RESP" | sed '$d')"
+            fi
+          }
+
+          set_var "INTERNAL_API_KEY" "$INTERNAL_API_KEY"
+
+          if [ "${{ github.event.inputs.also_set_autoshop_url }}" = "true" ]; then
+            set_var "AUTOSHOP_API_URL" "https://autoshop-api-7ek9.onrender.com"
+            set_var "LT_TENANT_ID" "7d82ab25-e991-4d13-b4ac-846865f8b85a"
+          fi
+
+          rm -f "$COOKIE_FILE"
+          echo ""
+          echo "=== n8n Cloud variables set ==="
+
+      - name: Wait for n8n to pick up new variables
+        run: sleep 5
+
+      - name: Execute LT Safe Log Test via webhook
+        run: |
+          set -euo pipefail
+          echo "=== Calling webhook ==="
+          RESULT="$(curl -s -w "\n%{http_code}" \
+            -X POST \
+            "https://bandomasis.app.n8n.cloud/webhook/lt-safe-log-test" \
+            -H "Content-Type: application/json" \
+            -d '{}')"
+
+          HTTP_CODE="$(echo "$RESULT" | tail -1)"
+          BODY="$(echo "$RESULT" | sed '$d')"
+
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response Body:"
+          echo "$BODY" | node -e "try{const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));console.log(JSON.stringify(d,null,2))}catch(e){process.stdin.pipe(process.stdout)}" 2>/dev/null || echo "$BODY"
+          echo ""
+
+          # Check for success
+          if echo "$BODY" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));const item=Array.isArray(d)?d[0]:d;process.exit(item.success===true?0:1)" 2>/dev/null; then
+            echo "========================================="
+            echo "  LT SAFE LOG TEST: PASSED"
+            echo "========================================="
+            echo ""
+            CONV_ID="$(echo "$BODY" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));const item=Array.isArray(d)?d[0]:d;process.stdout.write(item.conversationId||'unknown')" 2>/dev/null)"
+            echo "  conversationId: $CONV_ID"
+            echo "  Booking triggered: NO"
+            echo "  Calendar triggered: NO"
+            echo "  USA affected: NO"
+            echo "  Dashboard: check as mantas.gipiskis+lt@gmail.com"
+          else
+            echo "========================================="
+            echo "  LT SAFE LOG TEST: FAILED or INCONCLUSIVE"
+            echo "========================================="
+            echo ""
+            echo "  Check response body above for details."
+            echo "  If 403: INTERNAL_API_KEY value may be wrong."
+            echo "  If empty: n8n variable may not have propagated yet."
+            exit 1
+          fi
