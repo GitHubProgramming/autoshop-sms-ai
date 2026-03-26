@@ -1,0 +1,111 @@
+{
+  "id": "LT-WF-003-sms-dashboard-log",
+  "name": "LT Proteros: SMS Dashboard Log",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lt-proteros-sms-log",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "lt-log-trigger",
+      "name": "Webhook: SMS Log",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 400],
+      "webhookId": "lt-proteros-sms-log"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json;\nconst body = (typeof raw.body === 'object' && raw.body !== null) ? raw.body : raw;\nconst phone = (body.caller_id || body.from || body.sender || body.number || '').toString().replace(/[^+\\d]/g, '');\nconst message = (body.message || body.text || body.content || '').toString().trim();\nconst apiKey = body.apiKey || '';\n\nif (!phone || !message) {\n  return [{ json: { error: 'Missing phone or message', hasKey: !!apiKey } }];\n}\n\nreturn [{\n  json: {\n    apiKey: apiKey,\n    hasKey: !!apiKey,\n    payload: {\n      tenantId: '7d82ab25-e991-4d13-b4ac-846865f8b85a',\n      customerPhone: phone,\n      inboundBody: message,\n      outboundBody: '[SMS logged via n8n]',\n      bookingDetected: false,\n      source: 'sms'\n    }\n  }\n}];"
+      },
+      "id": "lt-log-build",
+      "name": "Build Log Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://autoshop-api-7ek9.onrender.com/internal/lt-log-conversation",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-internal-key", "value": "={{ $json.apiKey }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "lt-log-http",
+      "name": "POST to Dashboard",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [750, 400],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "lt-log-respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1000, 400]
+    }
+  ],
+  "connections": {
+    "Webhook: SMS Log": {
+      "main": [
+        [
+          {
+            "node": "Build Log Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Log Payload": {
+      "main": [
+        [
+          {
+            "node": "POST to Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST to Dashboard": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "errorWorkflow": ""
+  },
+  "active": true,
+  "tags": [
+    { "name": "LT_Proteros" },
+    { "name": "dashboard-logging" }
+  ]
+}
