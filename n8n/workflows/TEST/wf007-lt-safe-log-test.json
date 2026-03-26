@@ -6,7 +6,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "lt-safe-log-test",
-        "responseMode": "lastNode",
+        "responseMode": "responseNode",
         "options": {
           "rawBody": false
         }
