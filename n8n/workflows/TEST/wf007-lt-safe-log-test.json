@@ -20,43 +20,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// LT Safe Logging Test - static payload\n// No booking, no calendar, no SMS - dashboard logging only\n//\n// The API key is read from n8n environment variable INTERNAL_API_KEY.\n// If not set in n8n Cloud Settings > Variables, this will fail with 403.\n\nconst apiKey = $env.INTERNAL_API_KEY || '';\n\nif (!apiKey) {\n  return [{\n    json: {\n      error: 'INTERNAL_API_KEY not set in n8n environment variables',\n      fix: 'Go to n8n Cloud Settings > Variables and set INTERNAL_API_KEY to the value from Render Dashboard',\n      blocked: true\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    apiKey: apiKey,\n    payload: {\n      tenantId: '7d82ab25-e991-4d13-b4ac-846865f8b85a',\n      customerPhone: '+37067577829',\n      inboundBody: 'LT safe logging test - no booking. Sveiki, noriu pasitikrinti ar sistema veikia.',\n      outboundBody: 'LT safe logging test - sistema veikia. Jokia registracija nesukurta.',\n      bookingDetected: false,\n      source: 'sms'\n    }\n  }\n}];"
+        "jsCode": "// LT Safe Logging Test - static payload\n// No booking, no calendar, no SMS - dashboard logging only\nconst apiKey = $env.INTERNAL_API_KEY || '';\n\nreturn [{\n  json: {\n    apiKey: apiKey,\n    hasKey: !!apiKey,\n    tenantId: '7d82ab25-e991-4d13-b4ac-846865f8b85a',\n    customerPhone: '+37067577829',\n    inboundBody: 'LT safe logging test - no booking. Sveiki, noriu pasitikrinti ar sistema veikia.',\n    outboundBody: 'LT safe logging test - sistema veikia. Jokia registracija nesukurta.',\n    bookingDetected: false,\n    source: 'sms'\n  }\n}];"
       },
       "id": "lt-safe-payload",
       "name": "Build Static LT Test Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [500, 400],
-      "notes": "Static test payload for LT dashboard logging. Reads INTERNAL_API_KEY from n8n env. bookingDetected=false."
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "cond-has-key",
-              "leftValue": "={{ $json.blocked }}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "notEqual"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "lt-safe-check-key",
-      "name": "Has API Key?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [700, 400]
+      "position": [500, 400]
     },
     {
       "parameters": {
@@ -71,7 +41,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "jsonBody": "={{ JSON.stringify({ tenantId: $json.tenantId, customerPhone: $json.customerPhone, inboundBody: $json.inboundBody, outboundBody: $json.outboundBody, bookingDetected: $json.bookingDetected, source: $json.source }) }}",
         "options": {
           "timeout": 15000
         }
@@ -80,20 +50,18 @@
       "name": "POST to LT Dashboard Log",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [950, 350],
-      "continueOnFail": true,
-      "notes": "Calls Render production endpoint. API key comes from n8n env via Code node."
+      "position": [750, 400],
+      "continueOnFail": true
     },
     {
       "parameters": {
-        "jsCode": "const response = $input.first().json;\n\nconst success = response.success === true;\nconst httpError = response.error || response.message || null;\n\nreturn [{\n  json: {\n    testResult: success ? 'PASSED' : 'FAILED',\n    conversationId: response.conversationId || null,\n    messagesLogged: response.messagesLogged || 0,\n    bookingDetected: response.bookingDetected || false,\n    error: httpError,\n    rawResponse: response,\n    verifiedAt: new Date().toISOString(),\n    usaSafe: true,\n    bookingTriggered: false,\n    calendarTriggered: false\n  }\n}];"
+        "jsCode": "const input = $input.first().json;\nconst prevData = $('Build Static LT Test Payload').first().json;\nconst success = input.success === true;\n\nreturn [{\n  json: {\n    testResult: success ? 'PASSED' : 'FAILED',\n    hadApiKey: prevData.hasKey,\n    conversationId: input.conversationId || null,\n    messagesLogged: input.messagesLogged || 0,\n    bookingDetected: input.bookingDetected || false,\n    error: input.error || input.message || null,\n    httpStatusCode: input.statusCode || null,\n    rawResponse: input,\n    verifiedAt: new Date().toISOString(),\n    usaSafe: true,\n    bookingTriggered: false,\n    calendarTriggered: false\n  }\n}];"
       },
       "id": "lt-safe-verify",
       "name": "Verify Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1200, 350],
-      "notes": "Checks HTTP response. Success = { success: true, conversationId: ... }"
+      "position": [1000, 400]
     },
     {
       "parameters": {
@@ -101,25 +69,11 @@
         "responseBody": "={{ JSON.stringify($json) }}",
         "options": {}
       },
-      "id": "lt-safe-respond-ok",
-      "name": "Respond: Test Result",
+      "id": "lt-safe-respond",
+      "name": "Respond: Result",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [1450, 350]
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}",
-        "options": {
-          "responseCode": 500
-        }
-      },
-      "id": "lt-safe-respond-blocked",
-      "name": "Respond: Blocked (No Key)",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.4,
-      "position": [950, 550]
+      "position": [1250, 400]
     }
   ],
   "connections": {
@@ -138,25 +92,7 @@
       "main": [
         [
           {
-            "node": "Has API Key?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Has API Key?": {
-      "main": [
-        [
-          {
             "node": "POST to LT Dashboard Log",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond: Blocked (No Key)",
             "type": "main",
             "index": 0
           }
@@ -178,7 +114,7 @@
       "main": [
         [
           {
-            "node": "Respond: Test Result",
+            "node": "Respond: Result",
             "type": "main",
             "index": 0
           }
