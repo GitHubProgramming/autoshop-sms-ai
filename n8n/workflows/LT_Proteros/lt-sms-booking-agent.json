@@ -397,14 +397,14 @@
       "main": [
         [
           {
-            "node": "Forward to Dashboard Log",
+            "node": "Log to Dashboard API",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Forward to Dashboard Log": {
+    "Log to Dashboard API": {
       "main": [
         [
           {
