@@ -2,23 +2,28 @@
 --
 -- Strictly isolated Lithuania test tenant for pilot testing.
 -- Does NOT touch Texas tenant, Texas phone mapping, or any shared config.
+-- Uses +lt alias email to avoid UNIQUE conflict with existing Texas tenant.
 --
 -- Tenant: Proteros Servisas
--- Email:  mantas.gipiskis@gmail.com (freed by migration 039)
+-- Email:  mantas.gipiskis+lt@gmail.com (plus-alias, same Gmail inbox)
 -- Phone:  +37045512300 (Zadarma virtual number, not Twilio)
 -- Market: LT (Lithuania)
 --
 -- billing_status = 'trial' so conversations are not blocked by getBlockReason()
 -- workspace_mode = 'live_empty' so dashboard shows real data (not demo mode)
 -- is_test = FALSE so tenant can see own dashboard data without filtering issues
+--
+-- NOTE: isTestSignupEmail() pattern matches plus-aliases, but that function
+-- only runs at signup time (POST /auth/signup). This migration bypasses signup,
+-- so is_test is explicitly set to FALSE here.
 
 DO $$
 DECLARE
   v_tid UUID;
 BEGIN
   -- Only create if not exists
-  IF EXISTS (SELECT 1 FROM tenants WHERE owner_email = 'mantas.gipiskis@gmail.com') THEN
-    RAISE NOTICE 'LT tenant mantas.gipiskis@gmail.com already exists — skipping';
+  IF EXISTS (SELECT 1 FROM tenants WHERE owner_email = 'mantas.gipiskis+lt@gmail.com') THEN
+    RAISE NOTICE 'LT tenant mantas.gipiskis+lt@gmail.com already exists — skipping';
     RETURN;
   END IF;
 
@@ -42,7 +47,7 @@ BEGIN
     gen_random_uuid(),
     'Proteros Servisas',
     'Mantas',
-    'mantas.gipiskis@gmail.com',
+    'mantas.gipiskis+lt@gmail.com',
     '+37067577829',
     'Europe/Vilnius',
     'trial',
@@ -71,10 +76,9 @@ BEGIN
 
   -- Create user record for auth
   INSERT INTO users (tenant_id, email, auth_provider)
-  VALUES (v_tid, 'mantas.gipiskis@gmail.com', 'email')
+  VALUES (v_tid, 'mantas.gipiskis+lt@gmail.com', 'email')
   ON CONFLICT (email, auth_provider) DO NOTHING;
 
-  -- Set password hash (same bootstrap flow as Texas tenant — owner can reset via admin-bootstrap)
   -- Leave password_hash NULL; owner uses POST /auth/admin-bootstrap with INTERNAL_API_KEY to set password
 
   RAISE NOTICE 'LT pilot tenant created: Proteros Servisas (id=%, phone=+37045512300)', v_tid;
