@@ -18,37 +18,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse Zadarma inbound SMS — handle all known field names\nconst raw = $input.first().json;\nconst body = (typeof raw.body === 'object' && raw.body !== null) ? raw.body : raw;\n\nconst phone = (body.from || body.caller_id || body.sender || body.caller_number || body.number || '').toString().replace(/[^+\\d]/g, '');\nconst message = (body.message || body.text || body.content || body.sms_text || body.sms_body || '').toString().trim();\n\nif (!phone || !message) {\n  return [{ json: { ok: false, error: 'Missing phone or message', phone, message } }];\n}\n\nif (!/^\\+370\\d{7,8}$/.test(phone)) {\n  return [{ json: { ok: false, error: 'Not LT phone', phone } }];\n}\n\nreturn [{ json: { ok: true, phone, message } }];"
+        "jsCode": "// Parse Zadarma inbound SMS — handle all known field names\nconst raw = $input.first().json;\nconst body = (typeof raw.body === 'object' && raw.body !== null) ? raw.body : raw;\n\nconst phone = (body.from || body.caller_id || body.sender || body.caller_number || body.number || '').toString().replace(/[^+\\d]/g, '');\nconst message = (body.message || body.text || body.content || body.sms_text || body.sms_body || '').toString().trim();\n\nconst valid = !!phone && !!message && /^\\+370\\d{7,8}$/.test(phone);\n\nreturn [{ json: { valid, phone: phone || 'unknown', message: message || '[empty]' } }];"
       },
       "id": "lt-ingress-parse",
       "name": "Parse SMS",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [500, 400]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "conditions": [
-            {
-              "id": "cond-ok",
-              "leftValue": "={{ $json.ok }}",
-              "rightValue": "true",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "lt-ingress-check",
-      "name": "Valid?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [700, 400]
     },
     {
       "parameters": {
@@ -63,7 +39,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: '7d82ab25-e991-4d13-b4ac-846865f8b85a', customerPhone: $('Parse SMS').item.json.phone, inboundBody: $('Parse SMS').item.json.message, outboundBody: '[Logged via SMS Ingress]', bookingDetected: false, source: 'sms' }) }}",
+        "jsonBody": "={{ JSON.stringify({ tenantId: '7d82ab25-e991-4d13-b4ac-846865f8b85a', customerPhone: $json.phone, inboundBody: $json.message, outboundBody: '[Logged via SMS Ingress]', bookingDetected: false, source: 'sms' }) }}",
         "options": {
           "timeout": 20000
         }
@@ -72,7 +48,7 @@
       "name": "Log to Dashboard",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [950, 350],
+      "position": [750, 400],
       "continueOnFail": true
     },
     {
@@ -80,24 +56,11 @@
         "respondWith": "allIncomingItems",
         "options": {}
       },
-      "id": "lt-ingress-respond-ok",
-      "name": "Respond: Logged",
+      "id": "lt-ingress-respond",
+      "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [1200, 350]
-    },
-    {
-      "parameters": {
-        "respondWith": "allIncomingItems",
-        "options": {
-          "responseCode": 400
-        }
-      },
-      "id": "lt-ingress-respond-bad",
-      "name": "Respond: Invalid",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.4,
-      "position": [950, 550]
+      "position": [1000, 400]
     }
   ],
   "connections": {
@@ -116,25 +79,7 @@
       "main": [
         [
           {
-            "node": "Valid?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Valid?": {
-      "main": [
-        [
-          {
             "node": "Log to Dashboard",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond: Invalid",
             "type": "main",
             "index": 0
           }
@@ -145,7 +90,7 @@
       "main": [
         [
           {
-            "node": "Respond: Logged",
+            "node": "Respond",
             "type": "main",
             "index": 0
           }
