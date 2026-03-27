@@ -5,7 +5,7 @@
   "nodes": [
     {
       "parameters": {},
-      "id": "enrich-manual-trigger",
+      "id": "enrich-trigger",
       "name": "Manual Trigger",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
@@ -14,11 +14,11 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, business_name, website, domain, email, email_status, lead_status, outreach_status\nFROM lead_master\nWHERE lead_status IN ('new', 'needs_enrichment')\n  AND email_status IN ('missing', 'not_found_scrape')\n  AND website IS NOT NULL\n  AND domain IS NOT NULL\n  AND outreach_status = 'none'\nLIMIT 20",
+        "query": "SELECT id, business_name, website, domain, email, email_status, lead_status, outreach_status\nFROM lead_master\nWHERE lead_status IN ('new', 'needs_enrichment')\n  AND email_status IN ('missing', 'not_found_scrape')\n  AND website IS NOT NULL\n  AND domain IS NOT NULL\n  AND outreach_status = 'none'\nORDER BY created_at ASC\nLIMIT 20",
         "options": {}
       },
-      "id": "enrich-fetch-leads",
-      "name": "Postgres - Fetch leads needing email",
+      "id": "enrich-fetch",
+      "name": "Postgres - Fetch Leads",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.3,
       "position": [500, 300],
@@ -42,20 +42,20 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\n\nfunction normalizeDomain(value) {\n  if (!value || typeof value !== 'string') return null;\n\n  let v = value.trim().toLowerCase();\n\n  v = v.replace(/^https?:\\/\\//, '');\n  v = v.replace(/^www\\./, '');\n  v = v.split('/')[0];\n  v = v.split('?')[0];\n  v = v.split('#')[0];\n  v = v.replace(/:\\d+$/, '');\n\n  if (!v || !v.includes('.')) return null;\n  return v;\n}\n\nconst website = input.website || '';\nconst rawDomain = input.domain || website;\nconst domain = normalizeDomain(rawDomain);\n\nif (!domain) {\n  return [{\n    json: {\n      ...input,\n      domain: null,\n      url_candidates: [],\n      url_candidates_count: 0,\n      build_urls_error: 'missing_or_invalid_domain'\n    }\n  }];\n}\n\nconst urls = [\n  `https://${domain}`,\n  `https://${domain}/contact`,\n  `https://${domain}/contact-us`,\n  `https://${domain}/about`,\n  `https://${domain}/about-us`,\n  `https://${domain}/service`,\n  `https://${domain}/services`,\n];\n\nconst deduped = [...new Set(urls)];\n\nreturn [{\n  json: {\n    ...input,\n    domain,\n    url_candidates: deduped,\n    url_candidates_count: deduped.length\n  }\n}];"
+        "jsCode": "const input = $input.first().json;\n\nfunction normalizeDomain(val) {\n  if (!val || typeof val !== 'string') return null;\n  let v = val.trim().toLowerCase();\n  v = v.replace(/^https?:\\/\\//, '');\n  v = v.replace(/^www\\./, '');\n  v = v.split('/')[0].split('?')[0].split('#')[0];\n  v = v.replace(/:\\d+$/, '');\n  if (!v || !v.includes('.')) return null;\n  return v;\n}\n\nconst domain = normalizeDomain(input.domain || input.website || '');\n\nif (!domain) {\n  return [{\n    json: {\n      ...input,\n      domain: null,\n      url_candidates: [],\n      build_error: 'invalid_domain'\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    ...input,\n    domain,\n    url_candidates: [\n      `https://${domain}`,\n      `https://${domain}/contact`,\n      `https://${domain}/about`\n    ]\n  }\n}];"
       },
       "id": "enrich-build-urls",
-      "name": "Code - Build URL List",
+      "name": "Code - Build URLs",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1000, 300]
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\nconst urls = Array.isArray(input.url_candidates) ? input.url_candidates : [];\n\nif (urls.length === 0) {\n  return [{\n    json: {\n      ...input,\n      url_to_fetch: null,\n      url_expand_error: 'no_urls'\n    }\n  }];\n}\n\nreturn urls.map((url) => ({\n  json: {\n    ...input,\n    url_to_fetch: url\n  }\n}));"
+        "jsCode": "const input = $input.first().json;\nconst urls = input.url_candidates || [];\n\nif (urls.length === 0) {\n  return [{ json: { ...input, url_to_fetch: null } }];\n}\n\nreturn urls.map(url => ({ json: { ...input, url_to_fetch: url } }));"
       },
-      "id": "enrich-expand-urls",
-      "name": "Code - Expand URL Candidates",
+      "id": "enrich-expand",
+      "name": "Code - Expand URLs",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1250, 300]
@@ -87,10 +87,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\n\nconst html =\n  input.body ||\n  input.data ||\n  input.response ||\n  input.html ||\n  '';\n\nconst url = input.url_to_fetch || '';\nconst leadDomain = (input.domain || '').toLowerCase();\n\nfunction normalizeEmail(email) {\n  if (!email || typeof email !== 'string') return null;\n  let e = email.trim().toLowerCase();\n\n  e = e.replace(/^mailto:/i, '');\n  e = e.replace(/[),;]+$/, '');\n  e = e.replace(/^['\\\"<\\s]+|[>'\\\"\\s]+$/g, '');\n\n  const valid = /^[a-z0-9._%+\\-]+@[a-z0-9.\\-]+\\.[a-z]{2,}$/i.test(e);\n  return valid ? e : null;\n}\n\nfunction getEmailDomain(email) {\n  const parts = String(email).split('@');\n  return parts.length === 2 ? parts[1].toLowerCase() : null;\n}\n\nfunction classifyPage(urlValue) {\n  const u = (urlValue || '').toLowerCase();\n  if (u.includes('/contact')) return 'contact';\n  if (u.includes('/about')) return 'about';\n  if (u.includes('/service')) return 'service';\n  return 'home';\n}\n\nfunction extractEmails(htmlText, pageUrl) {\n  const results = [];\n  const seen = new Set();\n\n  if (!htmlText || typeof htmlText !== 'string') {\n    return results;\n  }\n\n  const mailtoRegex = /mailto:([a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,})/gi;\n  let match;\n  while ((match = mailtoRegex.exec(htmlText)) !== null) {\n    const email = normalizeEmail(match[1]);\n    if (!email) continue;\n\n    const key = `${email}|mailto|${pageUrl}`;\n    if (seen.has(key)) continue;\n    seen.add(key);\n\n    results.push({\n      email,\n      source_type: 'mailto',\n      source_url: pageUrl,\n      page_type: classifyPage(pageUrl),\n      email_domain: getEmailDomain(email)\n    });\n  }\n\n  const emailRegex = /([a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,})/g;\n  while ((match = emailRegex.exec(htmlText)) !== null) {\n    const email = normalizeEmail(match[1]);\n    if (!email) continue;\n\n    if (/\\.(png|jpg|jpeg|gif|svg|css|js|woff|woff2|ttf)$/i.test(email)) continue;\n    if (/^(noreply|no-reply|mailer-daemon|postmaster|webmaster)@/i.test(email)) continue;\n\n    const key = `${email}|text|${pageUrl}`;\n    if (seen.has(key)) continue;\n    seen.add(key);\n\n    results.push({\n      email,\n      source_type: 'text',\n      source_url: pageUrl,\n      page_type: classifyPage(pageUrl),\n      email_domain: getEmailDomain(email)\n    });\n  }\n\n  return results;\n}\n\nconst extracted = extractEmails(html, url);\n\nreturn [{\n  json: {\n    ...input,\n    extracted_emails: extracted,\n    extracted_email_count: extracted.length,\n    fetch_ok: !!html\n  }\n}];"
+        "jsCode": "const input = $input.first().json;\nconst html = input.body || input.data || input.response || input.html || '';\nconst url = input.url_to_fetch || '';\n\nfunction norm(e) {\n  if (!e || typeof e !== 'string') return null;\n  let v = e.trim().toLowerCase().replace(/^mailto:/i, '').replace(/[),;]+$/, '').replace(/^['\\\"><\\s]+|[>'\\\">\\s]+$/g, '');\n  return /^[a-z0-9._%+\\-]+@[a-z0-9.\\-]+\\.[a-z]{2,}$/.test(v) ? v : null;\n}\n\nfunction pageType(u) {\n  const l = (u || '').toLowerCase();\n  if (l.includes('/contact')) return 'contact';\n  if (l.includes('/about')) return 'about';\n  return 'home';\n}\n\nconst results = [];\nconst seen = new Set();\n\nif (html && typeof html === 'string') {\n  const mailtoRe = /mailto:([a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,})/gi;\n  let m;\n  while ((m = mailtoRe.exec(html)) !== null) {\n    const email = norm(m[1]);\n    if (!email || seen.has(email + '|mailto')) continue;\n    seen.add(email + '|mailto');\n    results.push({ email, source_type: 'mailto', source_url: url, page_type: pageType(url), email_domain: email.split('@')[1] });\n  }\n\n  const textRe = /([a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,})/g;\n  while ((m = textRe.exec(html)) !== null) {\n    const email = norm(m[1]);\n    if (!email || seen.has(email + '|text')) continue;\n    if (/\\.(png|jpg|jpeg|gif|svg|css|js|woff|woff2|ttf)$/i.test(email)) continue;\n    if (/^(noreply|no-reply|mailer-daemon|postmaster|webmaster)@/i.test(email)) continue;\n    seen.add(email + '|text');\n    results.push({ email, source_type: 'text', source_url: url, page_type: pageType(url), email_domain: email.split('@')[1] });\n  }\n}\n\nreturn [{ json: { ...input, extracted_emails: results, extracted_count: results.length } }];"
       },
-      "id": "enrich-extract-emails",
-      "name": "Code - Extract Emails From HTML",
+      "id": "enrich-extract",
+      "name": "Code - Extract Emails",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1750, 300]
@@ -101,27 +101,27 @@
         "options": {}
       },
       "id": "enrich-aggregate",
-      "name": "Aggregate All URL Results",
+      "name": "Aggregate URL Results",
       "type": "n8n-nodes-base.aggregate",
       "typeVersion": 1,
       "position": [2000, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Aggregate node wraps all items into { data: [...] }\n// We need to unwrap and process all extracted emails for this single lead\nconst aggregated = $input.first().json;\nconst allItems = Array.isArray(aggregated.data) ? aggregated.data : [aggregated];\n\nfunction getPrefix(email) {\n  return String(email).split('@')[0].toLowerCase();\n}\n\nfunction getDomain(email) {\n  const parts = String(email).split('@');\n  return parts.length === 2 ? parts[1].toLowerCase() : null;\n}\n\nfunction scoreEmail(record, leadDomain) {\n  let score = 0;\n\n  const email = record.email || '';\n  const prefix = getPrefix(email);\n  const emailDomain = getDomain(email);\n  const pageType = record.page_type || 'home';\n  const sourceType = record.source_type || 'text';\n  const url = record.source_url || '';\n\n  if (leadDomain && emailDomain === leadDomain) score += 50;\n  if (sourceType === 'mailto') score += 20;\n  if (pageType === 'contact') score += 15;\n  else if (pageType === 'home') score += 5;\n  else if (pageType === 'about') score += 3;\n\n  if (['info', 'contact', 'service', 'owner', 'manager', 'office'].includes(prefix)) {\n    score += 12;\n  }\n\n  if (['hello', 'support', 'admin'].includes(prefix)) {\n    score -= 10;\n  }\n\n  if (['noreply', 'no-reply', 'postmaster', 'webmaster'].includes(prefix)) {\n    score -= 50;\n  }\n\n  if (url.toLowerCase().includes('/contact')) score += 5;\n\n  return score;\n}\n\n// Get lead info from the first data item\nconst first = allItems[0] || {};\nconst leadDomain = (first.domain || '').toLowerCase();\n\nconst uniqueByEmail = new Map();\n\nfor (const item of allItems) {\n  const arr = Array.isArray(item.extracted_emails) ? item.extracted_emails : [];\n  for (const rec of arr) {\n    if (!rec?.email) continue;\n\n    const email = rec.email.toLowerCase();\n    const scored = {\n      ...rec,\n      priority_score: scoreEmail(rec, leadDomain)\n    };\n\n    if (!uniqueByEmail.has(email) || uniqueByEmail.get(email).priority_score < scored.priority_score) {\n      uniqueByEmail.set(email, scored);\n    }\n  }\n}\n\nconst ranked = [...uniqueByEmail.values()].sort((a, b) => b.priority_score - a.priority_score);\nconst best = ranked[0] || null;\n\nreturn [{\n  json: {\n    id: first.id,\n    business_name: first.business_name,\n    website: first.website,\n    domain: first.domain,\n    email: first.email,\n    email_status: first.email_status,\n    lead_status: first.lead_status,\n    outreach_status: first.outreach_status,\n    all_ranked_emails: ranked,\n    email_candidates_count: ranked.length,\n    best_email: best?.email || null,\n    best_email_source_url: best?.source_url || null,\n    best_email_source_type: best?.source_type || null,\n    best_email_score: best?.priority_score || null\n  }\n}];"
+        "jsCode": "const agg = $input.first().json;\nconst items = Array.isArray(agg.data) ? agg.data : [agg];\nconst lead = items[0] || {};\nconst leadDomain = (lead.domain || '').toLowerCase();\n\nfunction score(rec) {\n  let s = 0;\n  const prefix = rec.email.split('@')[0].toLowerCase();\n  const eDomain = rec.email.split('@')[1].toLowerCase();\n\n  if (leadDomain && eDomain === leadDomain) s += 50;\n  if (rec.source_type === 'mailto') s += 25;\n  if (rec.page_type === 'contact') s += 20;\n  else if (rec.page_type === 'home') s += 5;\n  else if (rec.page_type === 'about') s += 3;\n  if (['info', 'contact', 'service'].includes(prefix)) s += 10;\n  if (['support', 'hello', 'admin'].includes(prefix)) s -= 10;\n  if (['noreply', 'no-reply', 'postmaster', 'webmaster'].includes(prefix)) s -= 100;\n\n  return s;\n}\n\nconst unique = new Map();\nfor (const item of items) {\n  for (const rec of (item.extracted_emails || [])) {\n    if (!rec?.email) continue;\n    const e = rec.email.toLowerCase();\n    const scored = { ...rec, score: score(rec) };\n    if (!unique.has(e) || unique.get(e).score < scored.score) unique.set(e, scored);\n  }\n}\n\nconst ranked = [...unique.values()].sort((a, b) => b.score - a.score);\nconst best = ranked[0] || null;\n\nreturn [{\n  json: {\n    id: lead.id,\n    business_name: lead.business_name,\n    website: lead.website,\n    domain: lead.domain,\n    email: lead.email,\n    email_status: lead.email_status,\n    lead_status: lead.lead_status,\n    outreach_status: lead.outreach_status,\n    ranked_emails: ranked,\n    candidates_count: ranked.length,\n    best_email: best?.email || null,\n    best_email_source_url: best?.source_url || null,\n    best_email_score: best?.score || null\n  }\n}];"
       },
-      "id": "enrich-merge-rank",
-      "name": "Code - Merge And Rank Emails",
+      "id": "enrich-rank",
+      "name": "Code - Dedupe and Rank",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [2250, 300]
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\nconst email = (input.best_email || '').toLowerCase().trim();\n\nfunction parseEmail(emailValue) {\n  const valid = /^[a-z0-9._%+\\-]+@[a-z0-9.\\-]+\\.[a-z]{2,}$/i.test(emailValue);\n  if (!valid) return null;\n\n  const [local, domain] = emailValue.split('@');\n  return { local, domain };\n}\n\nconst parsed = parseEmail(email);\n\nif (!parsed) {\n  return [{\n    json: {\n      ...input,\n      email_validation_result: 'invalid_format',\n      email_is_valid_format: false,\n      email_local: null,\n      email_domain: null,\n      email_risk_level: 'high'\n    }\n  }];\n}\n\nconst disposableDomains = new Set([\n  'mailinator.com',\n  'guerrillamail.com',\n  '10minutemail.com',\n  'tempmail.com',\n  'yopmail.com'\n]);\n\nconst riskyPrefixes = new Set([\n  'hello',\n  'support',\n  'admin',\n  'sales',\n  'team'\n]);\n\nconst blockedPrefixes = new Set([\n  'noreply',\n  'no-reply',\n  'postmaster',\n  'webmaster',\n  'mailer-daemon'\n]);\n\nlet result = 'valid_format';\nlet risk = 'low';\n\nif (disposableDomains.has(parsed.domain)) {\n  result = 'disposable_domain';\n  risk = 'high';\n} else if (blockedPrefixes.has(parsed.local)) {\n  result = 'blocked_prefix';\n  risk = 'high';\n} else if (riskyPrefixes.has(parsed.local)) {\n  result = 'risky_prefix';\n  risk = 'medium';\n}\n\nreturn [{\n  json: {\n    ...input,\n    email_validation_result: result,\n    email_is_valid_format: result !== 'disposable_domain' && result !== 'blocked_prefix',\n    email_local: parsed.local,\n    email_domain: parsed.domain,\n    email_risk_level: risk\n  }\n}];"
+        "jsCode": "const input = $input.first().json;\nconst email = (input.best_email || '').toLowerCase().trim();\n\nif (!email) {\n  return [{ json: { ...input, valid_format: false, email_local: null, email_domain: null, risk: 'none' } }];\n}\n\nconst re = /^[a-z0-9._%+\\-]+@[a-z0-9.\\-]+\\.[a-z]{2,}$/;\nif (!re.test(email)) {\n  return [{ json: { ...input, valid_format: false, email_local: null, email_domain: null, risk: 'high' } }];\n}\n\nconst [local, domain] = email.split('@');\n\nconst disposable = new Set(['mailinator.com','guerrillamail.com','10minutemail.com','tempmail.com','yopmail.com']);\nconst blocked = new Set(['noreply','no-reply','postmaster','webmaster','mailer-daemon']);\nconst risky = new Set(['hello','support','admin','sales','team']);\n\nlet risk = 'low';\nlet valid = true;\n\nif (disposable.has(domain)) { risk = 'high'; valid = false; }\nelse if (blocked.has(local)) { risk = 'high'; valid = false; }\nelse if (risky.has(local)) { risk = 'medium'; }\n\nreturn [{ json: { ...input, valid_format: valid, email_local: local, email_domain: domain, risk } }];"
       },
-      "id": "enrich-validate-email",
-      "name": "Code - Basic Email Validation",
+      "id": "enrich-validate",
+      "name": "Code - Validate Format",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [2500, 300]
@@ -138,7 +138,7 @@
           }
         }
       },
-      "id": "enrich-mx-check",
+      "id": "enrich-mx",
       "name": "HTTP Request - MX Check",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -147,69 +147,29 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\n\nconst response =\n  input.body ||\n  input.data ||\n  input.response ||\n  {};\n\nconst answers = Array.isArray(response.Answer) ? response.Answer : [];\nconst hasMx = answers.some(a => Number(a.type) === 15);\n\nreturn [{\n  json: {\n    ...input,\n    mx_check_passed: hasMx,\n    mx_answers_count: answers.length,\n    mx_raw: response\n  }\n}];"
+        "jsCode": "const input = $input.first().json;\nconst resp = input.body || input.data || input.response || {};\nconst answers = Array.isArray(resp.Answer) ? resp.Answer : [];\nconst hasMx = answers.some(a => Number(a.type) === 15);\n\nconst hasBest = !!input.best_email;\nconst validFmt = !!input.valid_format;\nconst risk = input.risk || 'low';\n\nlet final_email_status = 'not_found_scrape';\nlet final_lead_status = 'needs_enrichment';\nlet final_needs_manual_review = false;\n\nif (!hasBest) {\n  final_email_status = 'not_found_scrape';\n  final_lead_status = 'needs_enrichment';\n} else if (!validFmt) {\n  final_email_status = 'invalid';\n  final_lead_status = 'rejected';\n  final_needs_manual_review = true;\n} else if (!hasMx) {\n  final_email_status = 'invalid';\n  final_lead_status = 'rejected';\n} else if (risk === 'medium') {\n  final_email_status = 'risky';\n  final_lead_status = 'approved';\n  final_needs_manual_review = true;\n} else {\n  final_email_status = 'verified';\n  final_lead_status = 'approved';\n}\n\nreturn [{\n  json: {\n    ...input,\n    mx_passed: hasMx,\n    final_email_status,\n    final_lead_status,\n    final_needs_manual_review,\n    final_email: hasBest ? input.best_email : null,\n    final_email_source_url: hasBest ? input.best_email_source_url : null\n  }\n}];"
       },
-      "id": "enrich-parse-mx",
-      "name": "Code - Parse MX Result",
+      "id": "enrich-finalize",
+      "name": "Code - Parse MX and Finalize",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [3000, 300]
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\n\nconst hasBestEmail = !!input.best_email;\nconst validFormat = !!input.email_is_valid_format;\nconst hasMx = !!input.mx_check_passed;\nconst risk = input.email_risk_level || 'low';\n\nlet email_status = 'missing';\nlet lead_status = 'needs_enrichment';\nlet needs_manual_review = false;\nlet rejection_reason = null;\n\nif (!hasBestEmail) {\n  email_status = 'not_found_scrape';\n  lead_status = 'needs_enrichment';\n  needs_manual_review = false;\n} else if (!validFormat) {\n  email_status = 'invalid';\n  lead_status = 'rejected';\n  needs_manual_review = true;\n  rejection_reason = input.email_validation_result || 'invalid_email';\n} else if (!hasMx) {\n  email_status = 'invalid';\n  lead_status = 'rejected';\n  needs_manual_review = true;\n  rejection_reason = 'mx_missing';\n} else if (risk === 'medium') {\n  email_status = 'risky';\n  lead_status = 'approved';\n  needs_manual_review = true;\n} else {\n  email_status = 'verified';\n  lead_status = 'approved';\n}\n\nreturn [{\n  json: {\n    ...input,\n    final_email_status: email_status,\n    final_lead_status: lead_status,\n    final_needs_manual_review: needs_manual_review,\n    final_rejection_reason: rejection_reason,\n    final_email: input.best_email || null,\n    final_email_source_url: input.best_email_source_url || null\n  }\n}];"
-      },
-      "id": "enrich-finalize",
-      "name": "Code - Finalize Lead Email Decision",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [3250, 300]
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE lead_master\nSET\n  email = CASE\n    WHEN '{{ $json.final_email_status }}' IN ('verified', 'risky')\n         AND '{{ $json.final_email }}' != ''\n         AND (email IS NULL OR email_status != 'verified')\n    THEN '{{ $json.final_email }}'\n    ELSE email\n  END,\n  email_source_url = CASE\n    WHEN '{{ $json.final_email_status }}' IN ('verified', 'risky')\n         AND '{{ $json.final_email_source_url }}' != ''\n         AND (email IS NULL OR email_status != 'verified')\n    THEN '{{ $json.final_email_source_url }}'\n    ELSE email_source_url\n  END,\n  email_found_at = CASE\n    WHEN '{{ $json.final_email_status }}' IN ('verified', 'risky')\n         AND '{{ $json.final_email }}' != ''\n         AND (email IS NULL OR email_status != 'verified')\n    THEN NOW()\n    ELSE email_found_at\n  END,\n  email_status = '{{ $json.final_email_status }}',\n  lead_status = '{{ $json.final_lead_status }}',\n  needs_manual_review = {{ $json.final_needs_manual_review }},\n  updated_at = NOW()\nWHERE id = '{{ $json.id }}'::uuid\n  AND NOT (email_status = 'verified' AND '{{ $json.final_email_status }}' = 'risky')\nRETURNING id, email, email_status, lead_status, needs_manual_review",
+        "query": "UPDATE lead_master\nSET\n  email = CASE\n    WHEN '{{ $json.final_email_status }}' IN ('verified', 'risky')\n         AND '{{ $json.final_email }}' IS NOT NULL\n         AND '{{ $json.final_email }}' != ''\n         AND (email IS NULL OR email_status != 'verified')\n    THEN '{{ $json.final_email }}'\n    ELSE email\n  END,\n  email_source_url = CASE\n    WHEN '{{ $json.final_email_status }}' IN ('verified', 'risky')\n         AND '{{ $json.final_email }}' IS NOT NULL\n         AND '{{ $json.final_email }}' != ''\n         AND (email IS NULL OR email_status != 'verified')\n    THEN '{{ $json.final_email_source_url }}'\n    ELSE email_source_url\n  END,\n  email_found_at = CASE\n    WHEN '{{ $json.final_email_status }}' IN ('verified', 'risky')\n         AND '{{ $json.final_email }}' IS NOT NULL\n         AND '{{ $json.final_email }}' != ''\n         AND (email IS NULL OR email_status != 'verified')\n    THEN NOW()\n    ELSE email_found_at\n  END,\n  email_status = '{{ $json.final_email_status }}',\n  lead_status = '{{ $json.final_lead_status }}',\n  needs_manual_review = {{ $json.final_needs_manual_review }},\n  updated_at = NOW()\nWHERE id = '{{ $json.id }}'::uuid\n  AND NOT (email_status = 'verified' AND '{{ $json.final_email_status }}' = 'risky')\nRETURNING id, email, email_status, lead_status, needs_manual_review",
         "options": {}
       },
-      "id": "enrich-update-lead",
+      "id": "enrich-update",
       "name": "Postgres - Update lead_master",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.3,
-      "position": [3500, 300],
+      "position": [3250, 300],
       "credentials": {
         "postgres": {
           "id": "postgres-creds",
           "name": "AutoShop Postgres"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Build summary from all processed leads\n// The Loop Over Leads node accumulates done items; access them via context\nconst items = $input.all();\n\nlet total = items.length;\nlet verified = 0;\nlet risky = 0;\nlet invalid = 0;\nlet notFound = 0;\nlet needsEnrichment = 0;\nlet emailsFound = 0;\n\nfor (const item of items) {\n  const status = item.json.final_email_status || item.json.email_status || 'unknown';\n  if (status === 'verified') { verified++; emailsFound++; }\n  else if (status === 'risky') { risky++; emailsFound++; }\n  else if (status === 'invalid') { invalid++; }\n  else if (status === 'not_found_scrape') { notFound++; needsEnrichment++; }\n  else { notFound++; needsEnrichment++; }\n}\n\nconst message = `\\u{1F4E7} Email enrichment complete\\nProcessed: ${total}\\nEmails found: ${emailsFound}\\nVerified: ${verified}\\nRisky: ${risky}\\nInvalid: ${invalid}\\nNot found: ${notFound}\\nNeeds enrichment: ${needsEnrichment}`;\n\nreturn [{\n  json: {\n    telegram_message: message,\n    total,\n    verified,\n    risky,\n    invalid,\n    notFound,\n    needsEnrichment,\n    emailsFound\n  }\n}];"
-      },
-      "id": "enrich-build-summary",
-      "name": "Code - Build Summary",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [3750, 500]
-    },
-    {
-      "parameters": {
-        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
-        "text": "={{ $json.telegram_message }}",
-        "additionalFields": {
-          "parse_mode": "Markdown"
-        }
-      },
-      "id": "enrich-telegram",
-      "name": "Telegram - Enrichment Summary",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [4000, 500],
-      "credentials": {
-        "telegramApi": {
-          "id": "telegram-creds",
-          "name": "AutoShop Telegram"
         }
       }
     }
@@ -218,172 +178,92 @@
     "Manual Trigger": {
       "main": [
         [
-          {
-            "node": "Postgres - Fetch leads needing email",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Postgres - Fetch Leads", "type": "main", "index": 0 }
         ]
       ]
     },
-    "Postgres - Fetch leads needing email": {
+    "Postgres - Fetch Leads": {
       "main": [
         [
-          {
-            "node": "Loop Over Leads",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Loop Over Leads", "type": "main", "index": 0 }
         ]
       ]
     },
     "Loop Over Leads": {
       "main": [
         [
-          {
-            "node": "Code - Build URL List",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Code - Build URLs", "type": "main", "index": 0 }
         ],
+        []
+      ]
+    },
+    "Code - Build URLs": {
+      "main": [
         [
-          {
-            "node": "Code - Build Summary",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Code - Expand URLs", "type": "main", "index": 0 }
         ]
       ]
     },
-    "Code - Build URL List": {
+    "Code - Expand URLs": {
       "main": [
         [
-          {
-            "node": "Code - Expand URL Candidates",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code - Expand URL Candidates": {
-      "main": [
-        [
-          {
-            "node": "HTTP Request - Fetch Page",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "HTTP Request - Fetch Page", "type": "main", "index": 0 }
         ]
       ]
     },
     "HTTP Request - Fetch Page": {
       "main": [
         [
-          {
-            "node": "Code - Extract Emails From HTML",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Code - Extract Emails", "type": "main", "index": 0 }
         ]
       ]
     },
-    "Code - Extract Emails From HTML": {
+    "Code - Extract Emails": {
       "main": [
         [
-          {
-            "node": "Aggregate All URL Results",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Aggregate URL Results", "type": "main", "index": 0 }
         ]
       ]
     },
-    "Aggregate All URL Results": {
+    "Aggregate URL Results": {
       "main": [
         [
-          {
-            "node": "Code - Merge And Rank Emails",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Code - Dedupe and Rank", "type": "main", "index": 0 }
         ]
       ]
     },
-    "Code - Merge And Rank Emails": {
+    "Code - Dedupe and Rank": {
       "main": [
         [
-          {
-            "node": "Code - Basic Email Validation",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Code - Validate Format", "type": "main", "index": 0 }
         ]
       ]
     },
-    "Code - Basic Email Validation": {
+    "Code - Validate Format": {
       "main": [
         [
-          {
-            "node": "HTTP Request - MX Check",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "HTTP Request - MX Check", "type": "main", "index": 0 }
         ]
       ]
     },
     "HTTP Request - MX Check": {
       "main": [
         [
-          {
-            "node": "Code - Parse MX Result",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Code - Parse MX and Finalize", "type": "main", "index": 0 }
         ]
       ]
     },
-    "Code - Parse MX Result": {
+    "Code - Parse MX and Finalize": {
       "main": [
         [
-          {
-            "node": "Code - Finalize Lead Email Decision",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code - Finalize Lead Email Decision": {
-      "main": [
-        [
-          {
-            "node": "Postgres - Update lead_master",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Postgres - Update lead_master", "type": "main", "index": 0 }
         ]
       ]
     },
     "Postgres - Update lead_master": {
       "main": [
         [
-          {
-            "node": "Loop Over Leads",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code - Build Summary": {
-      "main": [
-        [
-          {
-            "node": "Telegram - Enrichment Summary",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Loop Over Leads", "type": "main", "index": 0 }
         ]
       ]
     }
@@ -392,14 +272,7 @@
     "executionOrder": "v1"
   },
   "tags": [
-    {
-      "name": "enrichment"
-    },
-    {
-      "name": "email"
-    },
-    {
-      "name": "leads"
-    }
+    { "name": "enrichment" },
+    { "name": "email" }
   ]
 }
