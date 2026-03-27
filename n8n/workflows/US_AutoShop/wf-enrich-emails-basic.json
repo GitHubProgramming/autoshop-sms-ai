@@ -128,6 +128,44 @@
     },
     {
       "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-has-email",
+              "leftValue": "={{ $json.best_email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            },
+            {
+              "id": "cond-valid-format",
+              "leftValue": "={{ $json.valid_format }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "enrich-if-mx",
+      "name": "IF - Needs MX Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2750, 300]
+    },
+    {
+      "parameters": {
         "method": "GET",
         "url": "=https://dns.google/resolve?name={{ $json.email_domain }}&type=MX",
         "options": {
@@ -142,30 +180,30 @@
       "name": "HTTP Request - MX Check",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2750, 300],
+      "position": [3000, 200],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\nconst resp = input.body || input.data || input.response || {};\nconst answers = Array.isArray(resp.Answer) ? resp.Answer : [];\nconst hasMx = answers.some(a => Number(a.type) === 15);\n\nconst hasBest = !!input.best_email;\nconst validFmt = !!input.valid_format;\nconst risk = input.risk || 'low';\n\nlet final_email_status = 'not_found_scrape';\nlet final_lead_status = 'needs_enrichment';\nlet final_needs_manual_review = false;\n\nif (!hasBest) {\n  final_email_status = 'not_found_scrape';\n  final_lead_status = 'needs_enrichment';\n} else if (!validFmt) {\n  final_email_status = 'invalid';\n  final_lead_status = 'rejected';\n  final_needs_manual_review = true;\n} else if (!hasMx) {\n  final_email_status = 'invalid';\n  final_lead_status = 'rejected';\n} else if (risk === 'medium') {\n  final_email_status = 'risky';\n  final_lead_status = 'approved';\n  final_needs_manual_review = true;\n} else {\n  final_email_status = 'verified';\n  final_lead_status = 'approved';\n}\n\nreturn [{\n  json: {\n    ...input,\n    mx_passed: hasMx,\n    final_email_status,\n    final_lead_status,\n    final_needs_manual_review,\n    final_email: hasBest ? input.best_email : null,\n    final_email_source_url: hasBest ? input.best_email_source_url : null\n  }\n}];"
+        "jsCode": "const input = $input.first().json;\n\n// Parse MX response if present (absent when MX check was skipped)\nconst resp = input.body || input.data || input.response || {};\nconst answers = Array.isArray(resp.Answer) ? resp.Answer : [];\nconst hasMx = answers.some(a => Number(a.type) === 15);\n\nconst hasBest = !!input.best_email;\nconst validFmt = !!input.valid_format;\nconst risk = input.risk || 'low';\n\nlet final_email_status = 'not_found_scrape';\nlet final_lead_status = 'needs_enrichment';\nlet final_needs_manual_review = false;\n\nif (!hasBest) {\n  final_email_status = 'not_found_scrape';\n  final_lead_status = 'needs_enrichment';\n} else if (!validFmt) {\n  final_email_status = 'invalid';\n  final_lead_status = 'rejected';\n  final_needs_manual_review = true;\n} else if (!hasMx) {\n  final_email_status = 'invalid';\n  final_lead_status = 'rejected';\n} else if (risk === 'medium') {\n  final_email_status = 'risky';\n  final_lead_status = 'approved';\n  final_needs_manual_review = true;\n} else {\n  final_email_status = 'verified';\n  final_lead_status = 'approved';\n}\n\nreturn [{\n  json: {\n    id: input.id,\n    business_name: input.business_name,\n    website: input.website,\n    domain: input.domain,\n    best_email: input.best_email || null,\n    best_email_source_url: input.best_email_source_url || null,\n    mx_passed: hasMx,\n    final_email_status,\n    final_lead_status,\n    final_needs_manual_review,\n    final_email: hasBest ? input.best_email : null,\n    final_email_source_url: hasBest ? input.best_email_source_url : null\n  }\n}];"
       },
       "id": "enrich-finalize",
       "name": "Code - Parse MX and Finalize",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3000, 300]
+      "position": [3250, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE lead_master\nSET\n  email = CASE\n    WHEN '{{ $json.final_email_status }}' IN ('verified', 'risky')\n         AND '{{ $json.final_email }}' IS NOT NULL\n         AND '{{ $json.final_email }}' != ''\n         AND (email IS NULL OR email_status != 'verified')\n    THEN '{{ $json.final_email }}'\n    ELSE email\n  END,\n  email_source_url = CASE\n    WHEN '{{ $json.final_email_status }}' IN ('verified', 'risky')\n         AND '{{ $json.final_email }}' IS NOT NULL\n         AND '{{ $json.final_email }}' != ''\n         AND (email IS NULL OR email_status != 'verified')\n    THEN '{{ $json.final_email_source_url }}'\n    ELSE email_source_url\n  END,\n  email_found_at = CASE\n    WHEN '{{ $json.final_email_status }}' IN ('verified', 'risky')\n         AND '{{ $json.final_email }}' IS NOT NULL\n         AND '{{ $json.final_email }}' != ''\n         AND (email IS NULL OR email_status != 'verified')\n    THEN NOW()\n    ELSE email_found_at\n  END,\n  email_status = '{{ $json.final_email_status }}',\n  lead_status = '{{ $json.final_lead_status }}',\n  needs_manual_review = {{ $json.final_needs_manual_review }},\n  updated_at = NOW()\nWHERE id = '{{ $json.id }}'::uuid\n  AND NOT (email_status = 'verified' AND '{{ $json.final_email_status }}' = 'risky')\nRETURNING id, email, email_status, lead_status, needs_manual_review",
+        "query": "UPDATE lead_master\nSET\n  email = CASE\n    WHEN COALESCE('{{ $json.final_email_status }}', '') IN ('verified', 'risky')\n         AND COALESCE('{{ $json.final_email }}', '') != ''\n    THEN '{{ $json.final_email }}'\n    ELSE email\n  END,\n  email_source_url = CASE\n    WHEN COALESCE('{{ $json.final_email_status }}', '') IN ('verified', 'risky')\n         AND COALESCE('{{ $json.final_email }}', '') != ''\n    THEN '{{ $json.final_email_source_url }}'\n    ELSE email_source_url\n  END,\n  email_found_at = CASE\n    WHEN COALESCE('{{ $json.final_email_status }}', '') IN ('verified', 'risky')\n         AND COALESCE('{{ $json.final_email }}', '') != ''\n    THEN NOW()\n    ELSE email_found_at\n  END,\n  email_status = '{{ $json.final_email_status }}',\n  lead_status = '{{ $json.final_lead_status }}',\n  needs_manual_review = {{ $json.final_needs_manual_review }},\n  updated_at = NOW()\nWHERE id = '{{ $json.id }}'::uuid\n  AND NOT (email_status = 'verified' AND '{{ $json.final_email_status }}' != 'verified')\nRETURNING id, email, email_status, lead_status, needs_manual_review",
         "options": {}
       },
       "id": "enrich-update",
       "name": "Postgres - Update lead_master",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.3,
-      "position": [3250, 300],
+      "position": [3500, 300],
       "credentials": {
         "postgres": {
           "id": "postgres-creds",
@@ -242,7 +280,17 @@
     "Code - Validate Format": {
       "main": [
         [
+          { "node": "IF - Needs MX Check", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "IF - Needs MX Check": {
+      "main": [
+        [
           { "node": "HTTP Request - MX Check", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Code - Parse MX and Finalize", "type": "main", "index": 0 }
         ]
       ]
     },
