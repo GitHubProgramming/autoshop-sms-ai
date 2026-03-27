@@ -119,7 +119,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\nconst email = (input.best_email || '').toLowerCase().trim();\n\nif (!email) {\n  return [{ json: { ...input, valid_format: false, email_local: null, email_domain: null, risk: 'none' } }];\n}\n\nconst re = /^[a-z0-9._%+\\-]+@[a-z0-9.\\-]+\\.[a-z]{2,}$/;\nif (!re.test(email)) {\n  return [{ json: { ...input, valid_format: false, email_local: null, email_domain: null, risk: 'high' } }];\n}\n\nconst [local, domain] = email.split('@');\n\nconst disposable = new Set(['mailinator.com','guerrillamail.com','10minutemail.com','tempmail.com','yopmail.com']);\nconst blocked = new Set(['noreply','no-reply','postmaster','webmaster','mailer-daemon']);\nconst risky = new Set(['hello','support','admin','sales','team']);\n\nlet risk = 'low';\nlet valid = true;\n\nif (disposable.has(domain)) { risk = 'high'; valid = false; }\nelse if (blocked.has(local)) { risk = 'high'; valid = false; }\nelse if (risky.has(local)) { risk = 'medium'; }\n\nreturn [{ json: { ...input, valid_format: valid, email_local: local, email_domain: domain, risk } }];"
+        "jsCode": "const input = $input.first().json;\nconst email = (input.best_email || '').toLowerCase().trim();\n\nif (!email) {\n  return [{ json: { ...input, valid_format: false, needs_mx_check: false, email_local: null, email_domain: null, risk: 'none' } }];\n}\n\nconst re = /^[a-z0-9._%+\\-]+@[a-z0-9.\\-]+\\.[a-z]{2,}$/;\nif (!re.test(email)) {\n  return [{ json: { ...input, valid_format: false, needs_mx_check: false, email_local: null, email_domain: null, risk: 'high' } }];\n}\n\nconst [local, domain] = email.split('@');\n\nconst disposable = new Set(['mailinator.com','guerrillamail.com','10minutemail.com','tempmail.com','yopmail.com']);\nconst blocked = new Set(['noreply','no-reply','postmaster','webmaster','mailer-daemon']);\nconst risky = new Set(['hello','support','admin','sales','team']);\n\nlet risk = 'low';\nlet valid = true;\n\nif (disposable.has(domain)) { risk = 'high'; valid = false; }\nelse if (blocked.has(local)) { risk = 'high'; valid = false; }\nelse if (risky.has(local)) { risk = 'medium'; }\n\nreturn [{ json: { ...input, valid_format: valid, needs_mx_check: valid, email_local: local, email_domain: domain, risk } }];"
       },
       "id": "enrich-validate",
       "name": "Code - Validate Format",
@@ -130,39 +130,18 @@
     {
       "parameters": {
         "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
+          "boolean": [
             {
-              "id": "cond-has-email",
-              "leftValue": "={{ $json.best_email }}",
-              "rightValue": "",
-              "operator": {
-                "type": "string",
-                "operation": "isNotEmpty"
-              }
-            },
-            {
-              "id": "cond-valid-format",
-              "leftValue": "={{ $json.valid_format }}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "equal"
-              }
+              "value1": "={{ $json.needs_mx_check }}",
+              "value2": true
             }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
+          ]
+        }
       },
       "id": "enrich-if-mx",
       "name": "IF - Needs MX Check",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
+      "typeVersion": 1,
       "position": [2750, 300]
     },
     {
