@@ -1,0 +1,166 @@
+{
+  "id": "LT-WF-004-sms-ingress",
+  "name": "LT Proteros: SMS Ingress",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lt-proteros-sms-ingress",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "lt-ingress-webhook",
+      "name": "Webhook: Zadarma SMS",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 400],
+      "webhookId": "lt-proteros-sms-ingress"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Zadarma inbound SMS — handle all known field names\nconst raw = $input.first().json;\nconst body = (typeof raw.body === 'object' && raw.body !== null) ? raw.body : raw;\n\nconst phone = (body.from || body.caller_id || body.sender || body.caller_number || body.number || '').toString().replace(/[^+\\d]/g, '');\nconst message = (body.message || body.text || body.content || body.sms_text || body.sms_body || '').toString().trim();\n\nif (!phone || !message) {\n  return [{ json: { ok: false, error: 'Missing phone or message', phone, message } }];\n}\n\nif (!/^\\+370\\d{7,8}$/.test(phone)) {\n  return [{ json: { ok: false, error: 'Not LT phone', phone } }];\n}\n\nreturn [{ json: { ok: true, phone, message } }];"
+      },
+      "id": "lt-ingress-parse",
+      "name": "Parse SMS",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "cond-ok",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "lt-ingress-check",
+      "name": "Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [700, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://autoshop-api-7ek9.onrender.com/internal/lt-log-conversation",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-internal-key", "value": "__INTERNAL_API_KEY__" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: '7d82ab25-e991-4d13-b4ac-846865f8b85a', customerPhone: $('Parse SMS').item.json.phone, inboundBody: $('Parse SMS').item.json.message, outboundBody: '[Logged via SMS Ingress]', bookingDetected: false, source: 'sms' }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "lt-ingress-log",
+      "name": "Log to Dashboard",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [950, 350],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "lt-ingress-respond-ok",
+      "name": "Respond: Logged",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1200, 350]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "lt-ingress-respond-bad",
+      "name": "Respond: Invalid",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [950, 550]
+    }
+  ],
+  "connections": {
+    "Webhook: Zadarma SMS": {
+      "main": [
+        [
+          {
+            "node": "Parse SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse SMS": {
+      "main": [
+        [
+          {
+            "node": "Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid?": {
+      "main": [
+        [
+          {
+            "node": "Log to Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: Invalid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Dashboard": {
+      "main": [
+        [
+          {
+            "node": "Respond: Logged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "errorWorkflow": ""
+  },
+  "active": true,
+  "tags": [
+    { "name": "LT_Proteros" },
+    { "name": "ingress" }
+  ]
+}
