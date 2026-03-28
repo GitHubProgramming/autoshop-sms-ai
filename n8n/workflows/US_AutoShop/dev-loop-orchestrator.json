@@ -241,10 +241,10 @@
     },
     {
       "parameters": {
-        "jsCode": "// Auto-merge executor: validates ALL safety conditions\nconst review = $('Build Review Packet').first().json;\n\nconst safeToMerge =\n  review.goal_match === 'full' &&\n  review.risk_level !== 'high' &&\n  !review.critical_systems_touched &&\n  review.checks_passed &&\n  review.logical_gaps.length === 0;\n\nif (!safeToMerge) {\n  const reasons = [];\n  if (review.goal_match !== 'full') reasons.push('goal=' + review.goal_match);\n  if (review.risk_level === 'high') reasons.push('high_risk');\n  if (review.critical_systems_touched) reasons.push('critical_systems');\n  if (!review.checks_passed) reasons.push('checks_failed');\n  if (review.logical_gaps.length > 0) reasons.push('gaps: ' + review.logical_gaps.join('; '));\n  return [{ json: {\n    action: 'SAFE_AUTOMERGE',\n    merge_ready: false,\n    merge_executed: false,\n    reason: 'Safety conditions not met: ' + reasons.join(', '),\n    review_packet: review,\n    message: 'BLOCKED: ' + review.task_id + ' — ' + reasons.join(', ')\n  } }];\n}\n\n// Branch must exist on remote — orchestrator execution is sandboxed,\n// Claude does not push to GitHub. If branch doesn't exist on remote,\n// auto-merge cannot proceed.\nconst branch = review.branch || '';\nif (!branch || !branch.startsWith('ai/')) {\n  return [{ json: {\n    action: 'SAFE_AUTOMERGE',\n    merge_ready: false,\n    merge_executed: false,\n    reason: 'No valid branch — orchestrator sandbox does not push to remote',\n    review_packet: review,\n    message: 'BLOCKED: ' + review.task_id + ' — branch not on remote (sandbox execution)'\n  } }];\n}\n\nreturn [{ json: {\n  action: 'SAFE_AUTOMERGE',\n  merge_ready: true,\n  merge_executed: false,\n  branch: branch,\n  task_id: review.task_id,\n  review_packet: review,\n  message: 'Task ' + review.task_id + ' approved for auto-merge on ' + branch\n} }];"
+        "jsCode": "// Evaluate whether task qualifies for auto-merge.\n// IMPORTANT: The n8n Cloud orchestrator calls the Anthropic Messages API\n// (stateless text-in/text-out). Claude does NOT execute code, create branches,\n// or push to GitHub. The orchestrator is a DECISION ENGINE, not an execution engine.\n//\n// Auto-merge can only proceed when a real branch exists on the remote,\n// which happens when Claude Code (CLI) executes the task locally and pushes.\n// This node evaluates eligibility and records the decision for the operator.\n\nconst review = $('Build Review Packet').first().json;\n\nconst safeToMerge =\n  review.goal_match === 'full' &&\n  review.risk_level !== 'high' &&\n  !review.critical_systems_touched &&\n  review.checks_passed &&\n  review.logical_gaps.length === 0;\n\nif (!safeToMerge) {\n  const reasons = [];\n  if (review.goal_match !== 'full') reasons.push('goal=' + review.goal_match);\n  if (review.risk_level === 'high') reasons.push('high_risk');\n  if (review.critical_systems_touched) reasons.push('critical_systems');\n  if (!review.checks_passed) reasons.push('checks_failed');\n  if (review.logical_gaps.length > 0) reasons.push('gaps: ' + review.logical_gaps.join('; '));\n  return [{ json: {\n    action: 'SAFE_AUTOMERGE',\n    merge_eligible: false,\n    merge_executed: false,\n    block_reason: 'MERGE_BLOCKED_SAFETY: ' + reasons.join(', '),\n    review_packet: review,\n    message: 'BLOCKED: ' + review.task_id + ' — ' + reasons.join(', ')\n  } }];\n}\n\n// Task qualifies for merge, but orchestrator cannot push branches.\n// Record eligibility for operator action.\nreturn [{ json: {\n  action: 'SAFE_AUTOMERGE',\n  merge_eligible: true,\n  merge_executed: false,\n  block_reason: 'AUTO_MERGE_BLOCKED_NO_REMOTE_BRANCH: orchestrator is a decision engine (Anthropic Messages API), not an execution engine. Branch ' + review.branch + ' must be created by Claude Code CLI and pushed to GitHub before merge can proceed.',\n  branch: review.branch,\n  task_id: review.task_id,\n  review_packet: review,\n  message: 'ELIGIBLE but BLOCKED: ' + review.task_id + ' qualifies for auto-merge on ' + review.branch + ' — awaiting branch push from Claude Code CLI'\n} }];"
       },
       "id": "dl-merge-gate",
-      "name": "Execute Auto-Merge",
+      "name": "Evaluate Merge Eligibility",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -432,143 +432,6 @@
     },
     {
       "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "cond-merge-ready",
-              "leftValue": "={{ $json.merge_ready }}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "dl-merge-gate",
-      "name": "IF: Merge Ready?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        2850,
-        200
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.github.com/repos/GitHubProgramming/autoshop-sms-ai/pulls",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Accept",
-              "value": "application/vnd.github.v3+json"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ title: 'auto: ' + $json.task_id, head: $json.branch, base: 'main', body: 'Auto-merged by dev-loop.\\nDecision: SAFE_AUTOMERGE\\nGoal match: ' + $json.review_packet.goal_match }) }}",
-        "options": {
-          "timeout": 15000,
-          "response": {
-            "response": {
-              "neverError": true
-            }
-          }
-        },
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth"
-      },
-      "id": "dl-gh-create-pr",
-      "name": "GitHub: Create PR",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [
-        3050,
-        100
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "github-token",
-          "name": "GitHub Token"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "method": "PUT",
-        "url": "={{ 'https://api.github.com/repos/GitHubProgramming/autoshop-sms-ai/pulls/' + $json.number + '/merge' }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Accept",
-              "value": "application/vnd.github.v3+json"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ merge_method: 'squash', commit_title: 'auto: ' + $('Execute Auto-Merge').first().json.task_id }) }}",
-        "options": {
-          "timeout": 15000,
-          "response": {
-            "response": {
-              "neverError": true
-            }
-          }
-        },
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth"
-      },
-      "id": "dl-gh-merge-pr",
-      "name": "GitHub: Merge PR",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [
-        3250,
-        100
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "github-token",
-          "name": "GitHub Token"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const mergeNode = $('Execute Auto-Merge').first().json;\nconst prResult = $('GitHub: Create PR').first().json;\nconst mergeResult = $input.first().json;\nconst merged = mergeResult.merged === true;\nconst prNum = prResult.number || 'N/A';\n\nreturn [{ json: {\n  action: 'SAFE_AUTOMERGE',\n  merge_executed: merged,\n  pr_number: prNum,\n  branch: mergeNode.branch,\n  task_id: mergeNode.task_id,\n  review_packet: mergeNode.review_packet,\n  message: merged\n    ? 'Auto-merged PR #' + prNum + ' (' + mergeNode.branch + ')'\n    : 'Merge failed: ' + (mergeResult.message || JSON.stringify(mergeResult).substring(0,200))\n} }];"
-      },
-      "id": "dl-log-merge",
-      "name": "Log Merge Result",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        3450,
-        100
-      ]
-    },
-    {
-      "parameters": {
         "chatId": "8747048300",
         "text": "={{ $json.telegram_message }}",
         "additionalFields": {}
@@ -749,7 +612,7 @@
       "main": [
         [
           {
-            "node": "Execute Auto-Merge",
+            "node": "Evaluate Merge Eligibility",
             "type": "main",
             "index": 0
           }
@@ -790,51 +653,6 @@
         ]
       ]
     },
-    "Execute Auto-Merge": {
-      "main": [
-        [
-          {
-            "node": "IF: Merge Ready?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IF: Merge Ready?": {
-      "main": [
-        [
-          {
-            "node": "GitHub: Create PR",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        []
-      ]
-    },
-    "GitHub: Create PR": {
-      "main": [
-        [
-          {
-            "node": "GitHub: Merge PR",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "GitHub: Merge PR": {
-      "main": [
-        [
-          {
-            "node": "Log Merge Result",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Escalation Output": {
       "main": [
         [
@@ -844,6 +662,11 @@
             "index": 0
           }
         ]
+      ]
+    },
+    "Evaluate Merge Eligibility": {
+      "main": [
+        []
       ]
     }
   },
