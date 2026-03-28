@@ -18,7 +18,12 @@ $ErrorActionPreference = "Stop"
 
 $N8N_BASE_URL = if ($env:N8N_BASE_URL) { $env:N8N_BASE_URL } else { "http://localhost:5678" }
 $API_BASE_URL = if ($env:API_BASE_URL) { $env:API_BASE_URL } else { "http://localhost:3000" }
+$INTERNAL_API_KEY = $env:INTERNAL_API_KEY
 $WEBHOOK_PATH = "webhook/dev-loop-task"
+
+# Build headers for internal API calls
+$internalHeaders = @{ "Content-Type" = "application/json" }
+if ($INTERNAL_API_KEY) { $internalHeaders["x-internal-key"] = $INTERNAL_API_KEY }
 
 if ($Example) {
     @'
@@ -66,7 +71,7 @@ try {
 
     # Register task in API for operator visibility
     try {
-        Invoke-RestMethod -Uri "$API_BASE_URL/internal/dev-loop/task-submit" -Method POST -ContentType "application/json" -Body $body | Out-Null
+        Invoke-RestMethod -Uri "$API_BASE_URL/internal/dev-loop/task-submit" -Method POST -Headers $internalHeaders -Body $body | Out-Null
     } catch {
         Write-Host "Warning: Could not register task in API (non-fatal)" -ForegroundColor Yellow
     }
@@ -90,7 +95,7 @@ try {
             retry_count = if ($rp.retry_count) { $rp.retry_count } else { 0 }
             execution_summary = if ($rp.operator_notes) { $rp.operator_notes } else { $response.message }
         } | ConvertTo-Json
-        Invoke-RestMethod -Uri "$API_BASE_URL/internal/dev-loop/task-result" -Method POST -ContentType "application/json" -Body $resultPayload | Out-Null
+        Invoke-RestMethod -Uri "$API_BASE_URL/internal/dev-loop/task-result" -Method POST -Headers $internalHeaders -Body $resultPayload | Out-Null
         Write-Host "Result saved to operator dashboard." -ForegroundColor Green
     } catch {
         Write-Host "Warning: Could not save result to API (non-fatal)" -ForegroundColor Yellow

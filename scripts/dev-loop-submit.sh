@@ -14,6 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 N8N_BASE_URL="${N8N_BASE_URL:-http://localhost:5678}"
 API_BASE_URL="${API_BASE_URL:-http://localhost:3000}"
+INTERNAL_API_KEY="${INTERNAL_API_KEY:-}"
 WEBHOOK_PATH="webhook/dev-loop-task"
 RESULTS_DIR="${REPO_ROOT}/scripts/tasks/results"
 
@@ -56,8 +57,12 @@ fi
 
 # Register task in API for operator visibility
 echo "Registering task in API..."
+INTERNAL_HEADERS=(-H "Content-Type: application/json")
+if [ -n "$INTERNAL_API_KEY" ]; then
+  INTERNAL_HEADERS+=(-H "x-internal-key: $INTERNAL_API_KEY")
+fi
 curl -s -X POST \
-  -H "Content-Type: application/json" \
+  "${INTERNAL_HEADERS[@]}" \
   -d @"$TASK_FILE" \
   "${API_BASE_URL}/internal/dev-loop/task-submit" > /dev/null 2>&1 || echo "Warning: Could not register task in API (non-fatal)"
 
@@ -124,7 +129,7 @@ if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
 
   if [ "$RESULT_PAYLOAD" != "{}" ]; then
     curl -s -X POST \
-      -H "Content-Type: application/json" \
+      "${INTERNAL_HEADERS[@]}" \
       -d "$RESULT_PAYLOAD" \
       "${API_BASE_URL}/internal/dev-loop/task-result" > /dev/null 2>&1 || echo "Warning: Could not save result to API (non-fatal)"
     echo "Result saved to operator dashboard."

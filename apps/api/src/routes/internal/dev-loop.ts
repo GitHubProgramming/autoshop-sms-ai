@@ -17,6 +17,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { adminGuard } from "../../middleware/admin-guard";
+import { requireInternal } from "../../middleware/require-internal";
 import {
   createTask,
   updateTaskResult,
@@ -41,7 +42,7 @@ export async function devLoopRoute(app: FastifyInstance) {
     checks_required: z.array(z.string()).optional(),
   });
 
-  app.post("/dev-loop/task-submit", async (request, reply) => {
+  app.post("/dev-loop/task-submit", { preHandler: [requireInternal] }, async (request, reply) => {
     const parsed = TaskSubmitSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({
@@ -50,8 +51,14 @@ export async function devLoopRoute(app: FastifyInstance) {
       });
     }
 
-    const id = await createTask(parsed.data);
-    return reply.status(201).send({ id, task_id: parsed.data.task_id, status: "pending" });
+    try {
+      const id = await createTask(parsed.data);
+      request.log.info({ task_id: parsed.data.task_id, id }, "[dev-loop] Task registered");
+      return reply.status(201).send({ id, task_id: parsed.data.task_id, status: "pending" });
+    } catch (err) {
+      request.log.error({ task_id: parsed.data.task_id, err: (err as Error).message }, "[dev-loop] Failed to register task");
+      return reply.status(500).send({ error: "Failed to register task", detail: (err as Error).message });
+    }
   });
 
   // ── POST /internal/dev-loop/task-result ───────────────────────────────────
@@ -75,7 +82,7 @@ export async function devLoopRoute(app: FastifyInstance) {
     logical_gaps: z.array(z.string()).optional(),
   });
 
-  app.post("/dev-loop/task-result", async (request, reply) => {
+  app.post("/dev-loop/task-result", { preHandler: [requireInternal] }, async (request, reply) => {
     const parsed = TaskResultSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({
@@ -84,11 +91,18 @@ export async function devLoopRoute(app: FastifyInstance) {
       });
     }
 
-    const updated = await updateTaskResult(parsed.data);
-    if (!updated) {
-      return reply.status(404).send({ error: `Task ${parsed.data.task_id} not found` });
+    try {
+      const updated = await updateTaskResult(parsed.data);
+      if (!updated) {
+        request.log.warn({ task_id: parsed.data.task_id }, "[dev-loop] Task not found for result update");
+        return reply.status(404).send({ error: `Task ${parsed.data.task_id} not found` });
+      }
+      request.log.info({ task_id: parsed.data.task_id, status: parsed.data.status, decision: parsed.data.review_decision }, "[dev-loop] Result saved");
+      return reply.status(200).send({ task_id: parsed.data.task_id, status: parsed.data.status });
+    } catch (err) {
+      request.log.error({ task_id: parsed.data.task_id, err: (err as Error).message }, "[dev-loop] Failed to save task result");
+      return reply.status(500).send({ error: "Failed to save task result", detail: (err as Error).message });
     }
-    return reply.status(200).send({ task_id: parsed.data.task_id, status: parsed.data.status });
   });
 
   // ── GET /internal/admin/dev-loop/tasks ────────────────────────────────────
