@@ -128,7 +128,9 @@ export async function createAppointment(
 
   // 3. Insert or upsert appointment
   const duration = input.durationMinutes ?? 60;
-  const bookingState = input.bookingState ?? "CONFIRMED_CALENDAR";
+  // Safety-first: default to PENDING until calendar sync explicitly confirms.
+  // Only callers with verified sync should pass CONFIRMED_CALENDAR.
+  const bookingState = input.bookingState ?? "PENDING_MANUAL_CONFIRMATION";
 
   try {
     let rows: Array<{
