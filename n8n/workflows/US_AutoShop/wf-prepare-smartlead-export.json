@@ -14,7 +14,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n  id, business_name, website, domain, email,\n  email_status, lead_status, outreach_status,\n  export_status, smartlead_status,\n  needs_manual_review, created_at, updated_at\nFROM lead_master\nWHERE outreach_status = 'none'\n  AND lead_status = 'approved'\n  AND email_status IN ('verified', 'risky')\n  AND email IS NOT NULL\n  AND domain IS NOT NULL\n  AND COALESCE(smartlead_status, 'none') != 'exported'\nORDER BY created_at ASC\nLIMIT 50",
+        "query": "SELECT\n  id, business_name, website, domain, email,\n  email_status, lead_status, outreach_status,\n  export_status, smartlead_status,\n  needs_manual_review, created_at, updated_at\nFROM lead_master\nWHERE outreach_status = 'none'\n  AND lead_status = 'approved'\n  AND email_status IN ('verified', 'risky')\n  AND email IS NOT NULL\n  AND domain IS NOT NULL\n  AND COALESCE(smartlead_status, 'none') NOT IN ('exported', 'pending_export')\nORDER BY created_at ASC\nLIMIT 50",
         "options": {}
       },
       "id": "export-fetch",
