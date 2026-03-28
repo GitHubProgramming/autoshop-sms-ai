@@ -80,13 +80,47 @@
     },
     {
       "parameters": {
-        "jsCode": "// Write prompt to temp file and call claude-exec.sh\nconst input = $input.first().json;\nconst fs = require('fs');\nconst os = require('os');\nconst path = require('path');\nconst { execSync } = require('child_process');\n\nconst taskId = input.task.task_id;\nconst prompt = input.claude_prompt;\n\n// Write prompt to a temp file (avoids shell escaping issues)\nconst tmpDir = os.tmpdir();\nconst promptFile = path.join(tmpDir, `dev-loop-prompt-${taskId}.txt`);\nfs.writeFileSync(promptFile, prompt, 'utf8');\n\n// Determine repo root from REPO_ROOT env or default\nconst repoRoot = $env.REPO_ROOT || '/opt/autoshop-ai';\nconst scriptPath = path.join(repoRoot, 'scripts', 'claude-exec.sh');\nconst timeout = Number($env.CLAUDE_EXEC_TIMEOUT || 300) * 1000; // ms\n\nlet stdout = '';\nlet exitCode = 0;\n\ntry {\n  stdout = execSync(\n    `bash \"${scriptPath}\" \"${promptFile}\" \"${taskId}\"`,\n    {\n      cwd: repoRoot,\n      timeout: timeout + 10000, // buffer above script's own timeout\n      env: {\n        ...process.env,\n        REPO_ROOT: repoRoot,\n        CLAUDE_EXEC_TIMEOUT: String($env.CLAUDE_EXEC_TIMEOUT || 300),\n        CLAUDE_EXEC_BUDGET: String($env.CLAUDE_EXEC_BUDGET || '1.00')\n      },\n      encoding: 'utf8',\n      stdio: ['pipe', 'pipe', 'pipe']\n    }\n  );\n} catch (err) {\n  exitCode = err.status || 1;\n  stdout = err.stdout || '';\n}\n\n// Clean up temp file\ntry { fs.unlinkSync(promptFile); } catch(e) {}\n\n// Parse the JSON output from claude-exec.sh\nlet result;\ntry {\n  result = JSON.parse(stdout.trim());\n} catch(e) {\n  result = {\n    task_id: taskId,\n    status: 'failed',\n    files_changed: [],\n    checks_run: [],\n    critical_files_touched: [],\n    summary: `claude-exec.sh output was not valid JSON (exit ${exitCode}): ${stdout.substring(0, 500)}`,\n    open_issues: ['Execution adapter output parse error'],\n    retry_recommended: true\n  };\n}\n\nreturn [{ json: result }];"
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $env.CLAUDE_DEV_LOOP_MODEL || 'claude-sonnet-4-20250514', max_tokens: 4096, messages: [{ role: 'user', content: $json.claude_prompt }] }) }}",
+        "options": {
+          "timeout": 300000
+        }
       },
-      "id": "dl-claude-exec",
-      "name": "Claude Execution (Real)",
+      "id": "dl-claude-api",
+      "name": "Anthropic: Claude API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1500, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Anthropic API response into ExecutionResultContract\nconst task = $('Classify Task Risk').first().json;\nconst taskId = task.task_id;\nconst apiResponse = $input.first().json;\n\nfunction makeResult(status, summary, issues, retry) {\n  return {\n    task_id: taskId,\n    status: status,\n    files_changed: [],\n    checks_run: [],\n    critical_files_touched: [],\n    summary: String(summary).substring(0, 2000),\n    open_issues: issues,\n    retry_recommended: retry\n  };\n}\n\n// Handle API-level errors (missing key, billing, rate limit)\nif (apiResponse.error) {\n  const errMsg = apiResponse.error.message || JSON.stringify(apiResponse.error);\n  return [{ json: makeResult('blocked', `Anthropic API error: ${errMsg}`, [`API error: ${errMsg}`, 'Requires valid ANTHROPIC_API_KEY with sufficient credits'], false) }];\n}\n\n// Extract text from Anthropic response\nconst content = apiResponse.content;\nif (!Array.isArray(content) || content.length === 0) {\n  return [{ json: makeResult('blocked', 'Anthropic API returned empty content', ['No content in API response'], true) }];\n}\n\nconst text = content.filter(c => c.type === 'text').map(c => c.text).join('\\n');\n\nif (!text.trim()) {\n  return [{ json: makeResult('blocked', 'Anthropic API returned no text content', ['Empty text in API response'], true) }];\n}\n\n// Try to extract ```json ... ``` block (our prompt asks for this format)\nconst jsonMatch = text.match(/```json\\s*\\n?([\\s\\S]*?)\\n?\\s*```/);\nif (jsonMatch) {\n  try {\n    const parsed = JSON.parse(jsonMatch[1]);\n    if (parsed.task_id && parsed.status) {\n      return [{ json: {\n        task_id: parsed.task_id || taskId,\n        status: parsed.status,\n        files_changed: Array.isArray(parsed.files_changed) ? parsed.files_changed : [],\n        checks_run: Array.isArray(parsed.checks_run) ? parsed.checks_run : [],\n        critical_files_touched: Array.isArray(parsed.critical_files_touched) ? parsed.critical_files_touched : [],\n        summary: String(parsed.summary || ''),\n        open_issues: Array.isArray(parsed.open_issues) ? parsed.open_issues : [],\n        retry_recommended: Boolean(parsed.retry_recommended)\n      } }];\n    }\n  } catch(e) {\n    // JSON parse failed, fall through\n  }\n}\n\n// Try parsing the whole text as JSON directly\ntry {\n  const direct = JSON.parse(text.trim());\n  if (direct.task_id && direct.status) {\n    return [{ json: {\n      task_id: direct.task_id || taskId,\n      status: direct.status,\n      files_changed: Array.isArray(direct.files_changed) ? direct.files_changed : [],\n      checks_run: Array.isArray(direct.checks_run) ? direct.checks_run : [],\n      critical_files_touched: Array.isArray(direct.critical_files_touched) ? direct.critical_files_touched : [],\n      summary: String(direct.summary || ''),\n      open_issues: Array.isArray(direct.open_issues) ? direct.open_issues : [],\n      retry_recommended: Boolean(direct.retry_recommended)\n    } }];\n  }\n} catch(e) {\n  // not direct JSON\n}\n\n// Fallback: wrap raw response as execution result\nreturn [{ json: makeResult('done', text, ['Response did not contain structured ExecutionResultContract'], false) }];"
+      },
+      "id": "dl-parse-response",
+      "name": "Parse Claude Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1500, 200]
+      "position": [1750, 200]
     },
     {
       "parameters": {
@@ -96,7 +130,7 @@
       "name": "Build Review Packet",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1750, 200]
+      "position": [2000, 200]
     },
     {
       "parameters": {
@@ -125,7 +159,7 @@
       "name": "IF: FIX_AND_RETRY?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [2000, 200]
+      "position": [2250, 200]
     },
     {
       "parameters": {
@@ -135,7 +169,7 @@
       "name": "Retry Handler",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2250, 100]
+      "position": [2500, 100]
     },
     {
       "parameters": {
@@ -164,7 +198,7 @@
       "name": "IF: SAFE_AUTOMERGE?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [2250, 300]
+      "position": [2500, 300]
     },
     {
       "parameters": {
@@ -174,7 +208,7 @@
       "name": "Merge Gate (Default OFF)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2500, 200]
+      "position": [2750, 200]
     },
     {
       "parameters": {
@@ -184,7 +218,7 @@
       "name": "Escalation Output",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2500, 400]
+      "position": [2750, 400]
     },
     {
       "parameters": {
@@ -253,14 +287,25 @@
       "main": [
         [
           {
-            "node": "Claude Execution (Real)",
+            "node": "Anthropic: Claude API",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Claude Execution (Real)": {
+    "Anthropic: Claude API": {
+      "main": [
+        [
+          {
+            "node": "Parse Claude Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Claude Response": {
       "main": [
         [
           {
