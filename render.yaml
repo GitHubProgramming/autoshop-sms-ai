@@ -56,7 +56,7 @@ services:
       - key: N8N_INTERNAL_URL
         sync: false
       - key: INTERNAL_API_KEY
-        generateValue: true
+        value: "10aefb2a8e6e4046823ec8d83a4dfd2d36d83b79f2ff499d1d9faa4d77e8087c"
       - key: ADMIN_EMAILS
         value: "mantas.gipiskis@gmail.com"
       - key: SKIP_TWILIO_VALIDATION
