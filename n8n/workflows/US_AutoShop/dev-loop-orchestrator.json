@@ -65,7 +65,7 @@
       "id": "dl-risk-gate",
       "name": "IF: Risk Gate",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [1000, 300]
     },
     {
@@ -103,7 +103,12 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ model: $env.CLAUDE_DEV_LOOP_MODEL || 'claude-sonnet-4-20250514', max_tokens: 4096, messages: [{ role: 'user', content: $json.claude_prompt }] }) }}",
         "options": {
-          "timeout": 300000
+          "timeout": 300000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
         }
       },
       "id": "dl-claude-api",
@@ -158,7 +163,7 @@
       "id": "dl-decision-retry",
       "name": "IF: FIX_AND_RETRY?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [2250, 200]
     },
     {
@@ -197,7 +202,7 @@
       "id": "dl-decision-merge",
       "name": "IF: SAFE_AUTOMERGE?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [2500, 300]
     },
     {
