@@ -1,0 +1,224 @@
+{
+  "id": "WF-EXPORT-TO-SMARTLEAD",
+  "name": "WF-EXPORT-TO-SMARTLEAD",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "sl-export-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, business_name, website, domain, email\nFROM lead_master\nWHERE export_status = 'ready'\n  AND smartlead_status = 'pending_export'\n  AND outreach_status = 'none'\n  AND email IS NOT NULL\nORDER BY created_at ASC\nLIMIT 100",
+        "options": {}
+      },
+      "id": "sl-export-select",
+      "name": "Postgres - Select Exportable Leads",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [500, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "AutoShop Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.id ? 1 : 0 }}",
+              "operation": "equal",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "sl-export-check-empty",
+      "name": "IF - No Rows",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    exported_count: 0,\n    failed_count: 0,\n    rows: []\n  }\n}];"
+      },
+      "id": "sl-export-zero",
+      "name": "Code - Zero Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('Postgres - Select Exportable Leads').all();\n\nconst leadList = items.map(item => {\n  const r = item.json;\n  return {\n    email: r.email,\n    first_name: r.business_name || '',\n    company: r.business_name || '',\n    website: r.website || '',\n    domain: r.domain || ''\n  };\n});\n\nconst ids = items.map(item => item.json.id);\n\nreturn [{\n  json: {\n    lead_list: leadList,\n    lead_ids: ids,\n    count: leadList.length\n  }\n}];"
+      },
+      "id": "sl-export-build-payload",
+      "name": "Code - Build Smartlead Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://server.smartlead.ai/api/v1/campaigns/{{$env.SMARTLEAD_CAMPAIGN_ID}}/leads?api_key={{$env.SMARTLEAD_API_KEY}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ lead_list: $json.lead_list }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "sl-export-api",
+      "name": "HTTP - Smartlead Add Leads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const apiResponse = $input.first().json;\nconst payload = $('Code - Build Smartlead Payload').first().json;\nconst leadList = payload.lead_list;\nconst leadIds = payload.lead_ids;\nconst totalCount = payload.count;\n\n// Smartlead POST /campaigns/{id}/leads returns:\n// { upload_count: N, ... } or an array of per-lead results,\n// or { error: '...' } on failure.\n// We must only mark leads as exported if we can confirm per-lead success.\n\n// Hard fail: API returned an error field\nif (!apiResponse || apiResponse.error) {\n  return [{ json: { _success: false, _confirmed_ids: [], _failed_count: totalCount } }];\n}\n\n// Try to extract per-lead confirmation from response.\n// Smartlead may return an array of results with email + status,\n// or a simple { upload_count } summary.\nconst results = Array.isArray(apiResponse) ? apiResponse\n  : Array.isArray(apiResponse.data) ? apiResponse.data\n  : Array.isArray(apiResponse.results) ? apiResponse.results\n  : null;\n\nif (results && results.length > 0) {\n  // Per-lead results available — match back to IDs by email\n  const emailToId = new Map();\n  for (let i = 0; i < leadList.length; i++) {\n    emailToId.set(leadList[i].email, leadIds[i]);\n  }\n\n  const confirmedIds = [];\n  for (const r of results) {\n    const email = (r.email || '').trim().toLowerCase();\n    const status = (r.status || r.upload_status || '').toLowerCase();\n    // Accept only explicitly successful statuses\n    if (email && emailToId.has(email) && (status === 'uploaded' || status === 'success' || status === 'added')) {\n      confirmedIds.push(emailToId.get(email));\n    }\n  }\n\n  const failedCount = totalCount - confirmedIds.length;\n  return [{ json: { _success: confirmedIds.length > 0, _confirmed_ids: confirmedIds, _failed_count: failedCount } }];\n}\n\n// No per-lead results — check for bulk upload_count\nif (typeof apiResponse.upload_count === 'number' && apiResponse.upload_count === totalCount) {\n  // Bulk confirmation matches exactly — safe to proceed\n  return [{ json: { _success: true, _confirmed_ids: leadIds, _failed_count: 0 } }];\n}\n\n// Cannot confirm per-lead success — treat entire batch as unconfirmed\nreturn [{ json: { _success: false, _confirmed_ids: [], _failed_count: totalCount } }];"
+      },
+      "id": "sl-export-check-response",
+      "name": "Code - Check API Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json._success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "sl-export-if-success",
+      "name": "IF - API Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1750, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ 'UPDATE lead_master SET smartlead_status = \\x27exported\\x27, updated_at = NOW() WHERE id IN (' + $json._confirmed_ids.map(id => \"'\" + id + \"'::uuid\").join(', ') + ') AND smartlead_status = \\x27pending_export\\x27 AND export_status = \\x27ready\\x27 AND outreach_status = \\x27none\\x27 RETURNING id, business_name, email, domain, website, smartlead_status, export_status, updated_at' }}",
+        "options": {}
+      },
+      "id": "sl-export-update-db",
+      "name": "Postgres - Mark Exported",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [2000, 350],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "AutoShop Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(item => item.json).filter(r => r.id);\nconst failedCount = $('Code - Check API Response').first().json._failed_count || 0;\n\nreturn [{\n  json: {\n    exported_count: rows.length,\n    failed_count: failedCount,\n    rows: rows\n  }\n}];"
+      },
+      "id": "sl-export-final-output",
+      "name": "Code - Build Final Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2250, 350]
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $('Code - Build Smartlead Payload').first().json;\n\nreturn [{\n  json: {\n    exported_count: 0,\n    failed_count: payload.count,\n    rows: []\n  }\n}];"
+      },
+      "id": "sl-export-fail-output",
+      "name": "Code - Failure Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 500]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          { "node": "Postgres - Select Exportable Leads", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Postgres - Select Exportable Leads": {
+      "main": [
+        [
+          { "node": "IF - No Rows", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "IF - No Rows": {
+      "main": [
+        [
+          { "node": "Code - Zero Summary", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Code - Build Smartlead Payload", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Code - Build Smartlead Payload": {
+      "main": [
+        [
+          { "node": "HTTP - Smartlead Add Leads", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "HTTP - Smartlead Add Leads": {
+      "main": [
+        [
+          { "node": "Code - Check API Response", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Code - Check API Response": {
+      "main": [
+        [
+          { "node": "IF - API Success", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "IF - API Success": {
+      "main": [
+        [
+          { "node": "Postgres - Mark Exported", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Code - Failure Output", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Postgres - Mark Exported": {
+      "main": [
+        [
+          { "node": "Code - Build Final Output", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "export" },
+    { "name": "smartlead" }
+  ]
+}
