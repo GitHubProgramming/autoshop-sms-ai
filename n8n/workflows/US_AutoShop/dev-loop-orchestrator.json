@@ -1,0 +1,336 @@
+{
+  "id": "DEV-LOOP-ORCHESTRATOR",
+  "name": "US AutoShop: Dev-Loop Orchestrator",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dev-loop-task",
+        "responseMode": "lastNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "dl-webhook",
+      "name": "Webhook: Task Intake",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "dev-loop-task"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate and normalize the incoming task contract\nconst body = $input.first().json.body || $input.first().json;\n\nconst required = ['task_id', 'title', 'goal'];\nfor (const field of required) {\n  if (!body[field]) {\n    throw new Error(`Missing required field: ${field}`);\n  }\n}\n\nconst task = {\n  task_id: String(body.task_id),\n  title: String(body.title),\n  goal: String(body.goal),\n  scope_boundaries: Array.isArray(body.scope_boundaries) ? body.scope_boundaries : [],\n  files_allowed: Array.isArray(body.files_allowed) ? body.files_allowed : ['**/*'],\n  files_forbidden: Array.isArray(body.files_forbidden) ? body.files_forbidden : [],\n  critical_systems_risk: Boolean(body.critical_systems_risk),\n  expected_output: Array.isArray(body.expected_output) ? body.expected_output : [],\n  checks_required: Array.isArray(body.checks_required) ? body.checks_required : ['typecheck'],\n  retry_count: Number(body.retry_count) || 0,\n  max_retries: 2\n};\n\nreturn [{ json: task }];"
+      },
+      "id": "dl-validate-task",
+      "name": "Validate Task Contract",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Classify task risk level based on files and flags\nconst task = $input.first().json;\n\nconst CRITICAL_KEYWORDS = [\n  'stripe', 'billing', 'auth', 'login', 'session',\n  'twilio', 'oauth', 'token', 'rls', 'provisioning',\n  'signup', 'deploy', 'migration'\n];\n\nlet riskLevel = 'low';\nlet criticalSystemsFlag = task.critical_systems_risk;\n\n// Check files_allowed for critical system patterns\nconst allFiles = [...task.files_allowed, ...task.scope_boundaries];\nconst joinedFiles = allFiles.join(' ').toLowerCase();\nconst goalLower = task.goal.toLowerCase();\n\nfor (const keyword of CRITICAL_KEYWORDS) {\n  if (joinedFiles.includes(keyword) || goalLower.includes(keyword)) {\n    criticalSystemsFlag = true;\n    riskLevel = 'high';\n    break;\n  }\n}\n\n// If files_forbidden is empty, that's medium risk (no guardrails set)\nif (!criticalSystemsFlag && task.files_forbidden.length === 0) {\n  riskLevel = 'medium';\n}\n\nreturn [{ json: {\n  ...task,\n  classified_risk: riskLevel,\n  critical_systems_detected: criticalSystemsFlag,\n  branch_name: `ai/task-${task.task_id}`\n} }];"
+      },
+      "id": "dl-classify-risk",
+      "name": "Classify Task Risk",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-not-high-risk",
+              "leftValue": "={{ $json.classified_risk }}",
+              "rightValue": "high",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "dl-risk-gate",
+      "name": "IF: Risk Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build the Claude execution prompt from the task contract\nconst task = $('Classify Task Risk').first().json;\n\nconst prompt = `You are executing an autonomous dev-loop task.\n\nTASK: ${task.title}\nGOAL: ${task.goal}\nBRANCH: ${task.branch_name}\nTASK_ID: ${task.task_id}\n\nSCOPE BOUNDARIES:\n${task.scope_boundaries.map(s => '- ' + s).join('\\n') || '- No specific boundaries set'}\n\nFILES ALLOWED:\n${task.files_allowed.map(f => '- ' + f).join('\\n')}\n\nFILES FORBIDDEN (DO NOT TOUCH):\n${task.files_forbidden.map(f => '- ' + f).join('\\n') || '- None specified'}\n\nEXPECTED OUTPUT:\n${task.expected_output.map(o => '- ' + o).join('\\n') || '- Complete the goal'}\n\nCHECKS REQUIRED:\n${task.checks_required.map(c => '- ' + c).join('\\n')}\n\nINSTRUCTIONS:\n1. Create branch ${task.branch_name} from main\n2. Implement the smallest safe change to achieve the goal\n3. Run all required checks\n4. Return a JSON execution result with these exact fields:\n   - task_id: \"${task.task_id}\"\n   - status: \"done\" | \"failed\" | \"blocked\"\n   - files_changed: [list of changed files]\n   - checks_run: [{name, status: \"pass\"|\"fail\"|\"not_run\", details}]\n   - critical_files_touched: [any critical system files modified]\n   - summary: what was done\n   - open_issues: [unresolved issues]\n   - retry_recommended: boolean\n\nReturn ONLY the JSON result block wrapped in \\`\\`\\`json ... \\`\\`\\` tags.`;\n\nreturn [{ json: {\n  task,\n  claude_prompt: prompt\n} }];"
+      },
+      "id": "dl-build-prompt",
+      "name": "Build Claude Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Placeholder: Claude Code execution handoff\n// In production, this calls the Claude Code CLI or API\n// For now, it outputs the prompt and waits for manual execution\n//\n// Integration options:\n// 1. HTTP Request to Claude API with the prompt\n// 2. Execute Command node running: claude --task \"<prompt>\" --output json\n// 3. Webhook callback from external Claude runner\n\nconst input = $input.first().json;\n\n// This node should be replaced with actual Claude execution.\n// The output must conform to ExecutionResultContract.\nconst placeholderResult = {\n  task_id: input.task.task_id,\n  status: 'blocked',\n  files_changed: [],\n  checks_run: [],\n  critical_files_touched: [],\n  summary: 'Awaiting Claude execution — replace this node with actual Claude CLI/API call',\n  open_issues: ['Claude execution node not yet wired to real CLI/API'],\n  retry_recommended: false,\n  claude_prompt: input.claude_prompt\n};\n\nreturn [{ json: placeholderResult }];"
+      },
+      "id": "dl-claude-exec",
+      "name": "Claude Execution (Handoff)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collect execution result and build review packet\nconst exec = $input.first().json;\nconst task = $('Classify Task Risk').first().json;\n\n// Determine if critical files were touched\nconst CRITICAL_KEYWORDS = [\n  'stripe', 'billing', 'auth', 'login', 'session',\n  'twilio', 'oauth', 'token', 'rls', 'provisioning',\n  'signup', 'deploy', 'migration'\n];\n\nconst criticalTouched = (exec.critical_files_touched || []).length > 0 ||\n  (exec.files_changed || []).some(f => {\n    const lower = f.toLowerCase();\n    return CRITICAL_KEYWORDS.some(k => lower.includes(k));\n  });\n\n// Check if all checks passed\nconst allChecks = exec.checks_run || [];\nconst checksPassed = allChecks.length > 0 && allChecks.every(c => c.status === 'pass');\n\n// Determine goal match\nlet goalMatch = 'failed';\nif (exec.status === 'done' && checksPassed) {\n  goalMatch = (exec.open_issues || []).length === 0 ? 'full' : 'partial';\n} else if (exec.status === 'done') {\n  goalMatch = 'partial';\n}\n\n// Determine risk level\nlet riskLevel = task.classified_risk || 'low';\nif (criticalTouched) riskLevel = 'high';\n\n// Determine recommended decision\nlet decision = 'ESCALATE';\nconst retryCount = task.retry_count || 0;\n\nif (exec.status === 'done' && goalMatch === 'full' && !criticalTouched && checksPassed && riskLevel !== 'high') {\n  decision = 'SAFE_AUTOMERGE';\n} else if (exec.status === 'failed' && exec.retry_recommended && retryCount < task.max_retries) {\n  decision = 'FIX_AND_RETRY';\n} else {\n  decision = 'ESCALATE';\n}\n\n// Logical gaps\nconst gaps = [];\nif (!checksPassed && allChecks.length > 0) gaps.push('Some checks failed');\nif (exec.status !== 'done') gaps.push(`Execution status: ${exec.status}`);\nif ((exec.open_issues || []).length > 0) gaps.push(...exec.open_issues);\nif (criticalTouched) gaps.push('Critical system files were modified');\n\nconst reviewPacket = {\n  task_id: exec.task_id,\n  review_ready: true,\n  goal_match: goalMatch,\n  risk_level: riskLevel,\n  critical_systems_touched: criticalTouched,\n  checks_passed: checksPassed,\n  logical_gaps: gaps,\n  recommended_decision: decision,\n  operator_notes: `Task: ${task.title}. ${exec.summary}`,\n  retry_count: retryCount,\n  git_diff_summary: exec.files_changed ? exec.files_changed.join(', ') : 'no changes',\n  branch: task.branch_name\n};\n\nreturn [{ json: reviewPacket }];"
+      },
+      "id": "dl-build-review",
+      "name": "Build Review Packet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1750, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-fix-retry",
+              "leftValue": "={{ $json.recommended_decision }}",
+              "rightValue": "FIX_AND_RETRY",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "dl-decision-retry",
+      "name": "IF: FIX_AND_RETRY?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2000, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Retry path: increment counter and re-submit task\nconst review = $input.first().json;\nconst task = $('Classify Task Risk').first().json;\n\nconst retryTask = {\n  ...task,\n  retry_count: (task.retry_count || 0) + 1,\n  goal: task.goal + ` [RETRY ${(task.retry_count || 0) + 1}: Fix issues: ${review.logical_gaps.join('; ')}]`\n};\n\n// Output the retry task — in production, this would loop back\n// to the Claude Execution node or re-trigger the webhook\nreturn [{ json: {\n  action: 'RETRY',\n  retry_count: retryTask.retry_count,\n  max_retries: task.max_retries,\n  retry_task: retryTask,\n  message: `Retry ${retryTask.retry_count}/${task.max_retries} — fixing: ${review.logical_gaps.join('; ')}`\n} }];"
+      },
+      "id": "dl-retry-handler",
+      "name": "Retry Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2250, 100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-safe-merge",
+              "leftValue": "={{ $json.recommended_decision }}",
+              "rightValue": "SAFE_AUTOMERGE",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "dl-decision-merge",
+      "name": "IF: SAFE_AUTOMERGE?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge gate — DEFAULT OFF\n// This node outputs the review packet with merge_allowed flag.\n// Actual merge is NOT executed unless AUTOMERGE_ENABLED env var is 'true'.\n\nconst review = $('Build Review Packet').first().json;\nconst automergeEnabled = ($env.AUTOMERGE_ENABLED || 'false').toLowerCase() === 'true';\n\nreturn [{ json: {\n  action: 'SAFE_AUTOMERGE',\n  merge_allowed: automergeEnabled,\n  merge_executed: false,\n  review_packet: review,\n  message: automergeEnabled\n    ? `Merge gate OPEN — task ${review.task_id} approved for auto-merge on branch ${review.branch}`\n    : `Merge gate CLOSED (default) — task ${review.task_id} ready but requires manual merge of ${review.branch}`\n} }];"
+      },
+      "id": "dl-merge-gate",
+      "name": "Merge Gate (Default OFF)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2500, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Escalation path — output for Telegram notification\nconst review = $('Build Review Packet').first().json;\n\nconst telegramMessage = `🚨 DEV-LOOP ESCALATION\\n\\nTask: ${review.task_id}\\nGoal Match: ${review.goal_match}\\nRisk: ${review.risk_level}\\nCritical Systems: ${review.critical_systems_touched ? 'YES' : 'no'}\\n\\nGaps:\\n${review.logical_gaps.map(g => '• ' + g).join('\\n') || '(none)'}\\n\\nBranch: ${review.branch}\\nRetries: ${review.retry_count}\\n\\nAction Required: Manual review and decision.`;\n\nreturn [{ json: {\n  action: 'ESCALATE',\n  review_packet: review,\n  telegram_message: telegramMessage,\n  message: `Escalated task ${review.task_id} — requires manual decision`\n} }];"
+      },
+      "id": "dl-escalate",
+      "name": "Escalation Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2500, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// High-risk task — auto-escalate without execution\nconst task = $('Classify Task Risk').first().json;\n\nconst telegramMessage = `🚨 DEV-LOOP: HIGH-RISK TASK BLOCKED\\n\\nTask: ${task.task_id} — ${task.title}\\nRisk: ${task.classified_risk}\\nCritical Systems: ${task.critical_systems_detected ? 'YES' : 'no'}\\n\\nThis task was classified as high-risk and will NOT be auto-executed.\\nManual review required before proceeding.`;\n\nconst reviewPacket = {\n  task_id: task.task_id,\n  review_ready: true,\n  goal_match: 'failed',\n  risk_level: 'high',\n  critical_systems_touched: task.critical_systems_detected,\n  checks_passed: false,\n  logical_gaps: ['Task classified as high-risk — blocked before execution'],\n  recommended_decision: 'ESCALATE',\n  operator_notes: `High-risk task blocked: ${task.title}. Goal: ${task.goal}`,\n  retry_count: 0,\n  git_diff_summary: 'no changes — blocked before execution',\n  branch: task.branch_name\n};\n\nreturn [{ json: {\n  action: 'ESCALATE',\n  reason: 'high_risk_blocked',\n  review_packet: reviewPacket,\n  telegram_message: telegramMessage,\n  message: `Task ${task.task_id} blocked — high risk, requires manual approval`\n} }];"
+      },
+      "id": "dl-high-risk-block",
+      "name": "High-Risk Block + Escalate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 450]
+    }
+  ],
+  "connections": {
+    "Webhook: Task Intake": {
+      "main": [
+        [
+          {
+            "node": "Validate Task Contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Task Contract": {
+      "main": [
+        [
+          {
+            "node": "Classify Task Risk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Task Risk": {
+      "main": [
+        [
+          {
+            "node": "IF: Risk Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Risk Gate": {
+      "main": [
+        [
+          {
+            "node": "Build Claude Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "High-Risk Block + Escalate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Claude Prompt": {
+      "main": [
+        [
+          {
+            "node": "Claude Execution (Handoff)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Execution (Handoff)": {
+      "main": [
+        [
+          {
+            "node": "Build Review Packet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Review Packet": {
+      "main": [
+        [
+          {
+            "node": "IF: FIX_AND_RETRY?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: FIX_AND_RETRY?": {
+      "main": [
+        [
+          {
+            "node": "Retry Handler",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF: SAFE_AUTOMERGE?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: SAFE_AUTOMERGE?": {
+      "main": [
+        [
+          {
+            "node": "Merge Gate (Default OFF)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Escalation Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "dev-loop"
+    },
+    {
+      "name": "orchestration"
+    }
+  ],
+  "triggerCount": 1,
+  "pinData": {}
+}

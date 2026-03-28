@@ -9,6 +9,45 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: autonomous-dev-loop — 2026-03-28
+
+**Status:** IMPLEMENTED — orchestration backbone for autonomous dev-loop
+
+### What Was Done
+1. **Output contracts** (TypeScript + docs): TaskContract, ExecutionResultContract, ReviewPacketContract — machine-readable schemas for task intake, execution results, and operator review packets
+2. **n8n orchestration workflow** (`dev-loop-orchestrator.json`): 13-node workflow with webhook intake → task validation → risk classification → Claude execution handoff → result collection → review packet assembly → decision routing
+3. **Decision routing**: three paths — SAFE_AUTOMERGE (merge gate defaults OFF, requires `AUTOMERGE_ENABLED=true` env var), FIX_AND_RETRY (capped at 2 retries), ESCALATE (Telegram-ready output)
+4. **Risk classification**: auto-detects critical system keywords in files/goal, blocks high-risk tasks before execution with escalation
+5. **Task submission scripts**: `dev-loop-submit.sh` and `dev-loop-submit.ps1` for CLI task submission with JSON validation
+6. **Critical systems guard**: billing, auth, Twilio, OAuth, RLS, provisioning, deploy, migrations — all auto-escalate
+
+### Files Changed
+- `docs/dev-loop-contracts.md` — contract documentation
+- `packages/shared/src/dev-loop-contracts.ts` — TypeScript types + critical system patterns
+- `n8n/workflows/US_AutoShop/dev-loop-orchestrator.json` — main orchestration workflow
+- `scripts/dev-loop-submit.sh` — bash submission helper
+- `scripts/dev-loop-submit.ps1` — PowerShell submission helper
+
+### What Was NOT Changed
+- No product logic modified (Twilio, auth, billing, calendar, SMS flow untouched)
+- No production env vars changed
+- No existing workflows modified
+- No deploy config changed
+- Claude execution node is a placeholder — requires wiring to real CLI/API
+
+### Verification
+- Workflow JSON: valid, 13 nodes, 9 connection sets, all connections reference valid nodes, all IDs unique
+- TypeScript contracts: typecheck passes clean (`npm run typecheck` exit 0)
+- No critical systems touched
+
+### Next Steps
+- Wire Claude Execution node to real Claude Code CLI or API
+- Import workflow into n8n and test with sample task
+- Wire escalation output to Telegram notification
+- Test retry loop end-to-end
+
+---
+
 ## TASK: auth-completion — 2026-03-20
 
 **Status:** IMPLEMENTED — forgot-password, reset-password, and Google login flows fully wired
