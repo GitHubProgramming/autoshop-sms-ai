@@ -1283,7 +1283,7 @@ export async function adminRoute(app: FastifyInstance) {
         detail: calendar?.connected_at
           ? `Connected ${new Date(calendar.connected_at).toLocaleDateString()}`
           : "OAuth not completed — bookings won't sync to calendar",
-        critical: true,
+        critical: false,
       },
       {
         id: "calendar_token_valid",
@@ -1294,7 +1294,7 @@ export async function adminRoute(app: FastifyInstance) {
           : calendar.integration_status === "active"
             ? `Active (access token auto-refreshes)`
             : `Status: ${calendar.integration_status} — reconnect required`,
-        critical: true,
+        critical: false,
       },
       {
         id: "billing_active",
@@ -1321,11 +1321,22 @@ export async function adminRoute(app: FastifyInstance) {
       verdict = "ready";
     }
 
+    // Operator-friendly status signals
+    const phoneActive = !!phone && phone.status === "active";
+    const calendarIsConnected = !!calendar?.connected_at;
+    const businessHoursConnected = !!tenant.business_hours?.trim();
+    const onboardingComplete = phoneActive && verdict !== "not_ready";
+
     return reply.status(200).send({
       tenant_id: id,
       shop_name: tenant.shop_name,
       verdict,
       summary: `${criticalPassed}/${criticalTotal} critical checks passed`,
+      onboarding_complete: onboardingComplete,
+      phone_active: phoneActive,
+      has_real_activity: onboardingComplete,
+      business_hours_connected: businessHoursConnected,
+      calendar_connected: calendarIsConnected,
       checks,
       blockers: blockers.map(b => ({ id: b.id, label: b.label, detail: b.detail })),
       warnings: warnings.map(w => ({ id: w.id, label: w.label, detail: w.detail })),
