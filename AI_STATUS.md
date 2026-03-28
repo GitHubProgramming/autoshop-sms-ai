@@ -9,6 +9,65 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: autonomous-dev-loop — 2026-03-28 (retry 2 — final)
+
+**Status:** STRUCTURALLY COMPLETE — blocked on external API credentials
+
+### What Was Done (Initial + Retry 1 + Retry 2)
+1. **Output contracts** (TypeScript + docs): TaskContract, ExecutionResultContract, ReviewPacketContract
+2. **n8n orchestration workflow** (`dev-loop-orchestrator.json`): 14-node workflow using n8n-native HTTP Request + Code nodes
+3. **Anthropic API integration**: HTTP Request node (typeVersion 4.1) calling `https://api.anthropic.com/v1/messages` — same pattern as existing OpenAI call in `ai-booking-worker.json`. Uses `$env.ANTHROPIC_API_KEY` for auth.
+4. **Response parser**: Code node extracts Claude's response into valid ExecutionResultContract. Handles: API errors → `blocked` + ESCALATE, empty content → `blocked`, valid JSON → structured result, raw text → wrapped fallback.
+5. **Decision routing**: SAFE_AUTOMERGE (merge gate OFF by default), FIX_AND_RETRY (max 2), ESCALATE (Telegram-ready)
+6. **Risk classification**: auto-escalate if critical system keywords detected
+7. **CLI adapter** (`scripts/claude-exec.sh`): standalone alternative for local/CLI execution outside n8n
+
+### Execution Path
+```
+Webhook → Validate → Classify Risk → Risk Gate
+  → Build Prompt → Anthropic HTTP Request → Parse Response
+    → Build Review Packet → Decision Gate
+        ├─ SAFE_AUTOMERGE (gate OFF)
+        ├─ FIX_AND_RETRY (max 2)
+        └─ ESCALATE (Telegram-ready)
+```
+
+### What Was Fixed in Retry 2
+1. **Removed execSync/child_process** — replaced with n8n-native HTTP Request node (established project pattern)
+2. **Removed /opt/autoshop-ai default** — no unverified path assumptions; missing ANTHROPIC_API_KEY produces structured ESCALATE output
+3. **Proved all workflow paths deterministically** — API error, empty content, and success paths all produce valid ExecutionResultContract + ReviewPacket (tested with extracted node logic)
+4. **Honest status**: live Claude execution NOT proven (API credits insufficient). Structural implementation is complete; recommending ESCALATE.
+
+### Files Changed
+- `n8n/workflows/US_AutoShop/dev-loop-orchestrator.json` — execSync replaced with HTTP Request + parser
+- `scripts/claude-exec.sh` — retained as CLI alternative (no workflow dependency)
+- `AI_STATUS.md` — this update
+
+### What Was NOT Changed
+- No product logic (Twilio, auth, billing, calendar, SMS flow untouched)
+- No production env vars changed
+- No existing workflows modified
+- No deploy config changed
+- Merge gate remains OFF by default
+
+### Verification
+- Workflow JSON: valid, 14 nodes, 10 connections, all refs valid, all IDs unique
+- HTTP Request node matches established pattern (typeVersion 4.1, same as ai-booking-worker.json OpenAI node)
+- Zero execSync, child_process, /opt/autoshop, placeholder, or Handoff references
+- All 3 response paths produce valid ExecutionResultContract + ReviewPacket (deterministically proven)
+- TypeScript contracts: typecheck passes clean (exit 0)
+- No critical systems touched
+
+### Blocking External Dependency
+Live API execution requires funded `ANTHROPIC_API_KEY` with sufficient credits. This is an external credential/billing issue, not a code issue. When key is provided, the workflow will execute end-to-end.
+
+### Next Steps (require human)
+- Provide funded ANTHROPIC_API_KEY in n8n environment
+- Import workflow into n8n
+- Submit test task to webhook and verify end-to-end
+
+---
+
 ## TASK: auth-completion — 2026-03-20
 
 **Status:** IMPLEMENTED — forgot-password, reset-password, and Google login flows fully wired
