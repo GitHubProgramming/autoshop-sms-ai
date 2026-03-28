@@ -237,6 +237,51 @@
     },
     {
       "parameters": {
+        "jsCode": "// Prepare blocked result for API persistence\nconst data = $input.first().json;\nconst rp = data.review_packet || {};\n\nreturn [{ json: {\n  api_payload: {\n    task_id: rp.task_id,\n    status: 'blocked',\n    files_changed: [],\n    checks_run: [],\n    critical_files_touched: [],\n    execution_summary: rp.operator_notes || 'High-risk task blocked before execution',\n    open_issues: rp.logical_gaps || [],\n    retry_recommended: false,\n    goal_match: rp.goal_match || 'failed',\n    risk_level: rp.risk_level || 'high',\n    review_decision: rp.recommended_decision || 'ESCALATE',\n    operator_notes: rp.operator_notes,\n    branch: rp.branch,\n    git_diff_summary: rp.git_diff_summary || 'no changes — blocked before execution',\n    retry_count: 0,\n    logical_gaps: rp.logical_gaps || []\n  },\n  escalation_output: data\n} }];"
+      },
+      "id": "dl-prepare-blocked",
+      "name": "Prepare Blocked Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 450]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.API_BASE_URL || 'http://api:3000' }}/internal/dev-loop/task-result",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "x-internal-key",
+              "value": "={{ $env.INTERNAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.api_payload) }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "dl-api-save-blocked",
+      "name": "API: Save Blocked Result",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1750, 450]
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "={{ $env.API_BASE_URL || 'http://api:3000' }}/internal/dev-loop/task-submit",
         "sendHeaders": true,
@@ -463,6 +508,28 @@
         [
           {
             "node": "Escalation Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "High-Risk Block + Escalate": {
+      "main": [
+        [
+          {
+            "node": "Prepare Blocked Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Blocked Result": {
+      "main": [
+        [
+          {
+            "node": "API: Save Blocked Result",
             "type": "main",
             "index": 0
           }
