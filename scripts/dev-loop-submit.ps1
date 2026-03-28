@@ -17,6 +17,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $N8N_BASE_URL = if ($env:N8N_BASE_URL) { $env:N8N_BASE_URL } else { "http://localhost:5678" }
+$API_BASE_URL = if ($env:API_BASE_URL) { $env:API_BASE_URL } else { "http://localhost:3000" }
 $WEBHOOK_PATH = "webhook/dev-loop-task"
 
 if ($Example) {
@@ -62,8 +63,39 @@ Write-Host ""
 
 try {
     $body = Get-Content $TaskFile -Raw
+
+    # Register task in API for operator visibility
+    try {
+        Invoke-RestMethod -Uri "$API_BASE_URL/internal/dev-loop/task-submit" -Method POST -ContentType "application/json" -Body $body | Out-Null
+    } catch {
+        Write-Host "Warning: Could not register task in API (non-fatal)" -ForegroundColor Yellow
+    }
+
     $response = Invoke-RestMethod -Uri $url -Method POST -ContentType "application/json" -Body $body
     Write-Host "Task submitted successfully." -ForegroundColor Green
+    Write-Host ""
+
+    # Save execution result to API for operator dashboard
+    try {
+        $rp = if ($response.review_packet) { $response.review_packet } else { @{} }
+        $resultPayload = @{
+            task_id = if ($rp.task_id) { $rp.task_id } elseif ($response.task_id) { $response.task_id } else { "unknown" }
+            status = if ($response.action -eq "ESCALATE") { "blocked" } elseif ($response.action -eq "RETRY") { "failed" } else { "done" }
+            goal_match = $rp.goal_match
+            risk_level = $rp.risk_level
+            review_decision = if ($rp.recommended_decision) { $rp.recommended_decision } else { $response.action }
+            operator_notes = if ($rp.operator_notes) { $rp.operator_notes } else { $response.message }
+            branch = $rp.branch
+            git_diff_summary = $rp.git_diff_summary
+            retry_count = if ($rp.retry_count) { $rp.retry_count } else { 0 }
+            execution_summary = if ($rp.operator_notes) { $rp.operator_notes } else { $response.message }
+        } | ConvertTo-Json
+        Invoke-RestMethod -Uri "$API_BASE_URL/internal/dev-loop/task-result" -Method POST -ContentType "application/json" -Body $resultPayload | Out-Null
+        Write-Host "Result saved to operator dashboard." -ForegroundColor Green
+    } catch {
+        Write-Host "Warning: Could not save result to API (non-fatal)" -ForegroundColor Yellow
+    }
+
     Write-Host ""
     Write-Host "Response:"
     $response | ConvertTo-Json -Depth 10

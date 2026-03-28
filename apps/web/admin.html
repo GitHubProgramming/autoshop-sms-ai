@@ -345,6 +345,11 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
       <div class="sidebar-item" data-section="signup" onclick="navigate('signup')">
         <span class="sidebar-icon">⊕</span> Signup Funnel
       </div>
+      <div class="sidebar-label">Dev Loop</div>
+      <div class="sidebar-item" data-section="dev-loop" onclick="navigate('dev-loop')">
+        <span class="sidebar-icon">▶</span> Task Queue
+        <span class="sidebar-badge" id="devLoopBadge" style="display:none">0</span>
+      </div>
       <div class="sidebar-label">Pilot</div>
       <div class="sidebar-item" data-section="project-ops" onclick="navigate('project-ops')">
         <span class="sidebar-icon">◆</span> Project Ops
@@ -526,6 +531,8 @@ function navigate(section, params) {
     case 'audit':         loadAudit(); break;
     case 'traces':        loadTraces(); break;
     case 'project-ops':   loadProjectOps(); break;
+    case 'dev-loop':      loadDevLoop(); break;
+    case 'dev-loop-detail': loadDevLoopDetail(params.taskId); break;
     default: main.innerHTML = '<div class="empty-state">Unknown section</div>';
   }
 }
@@ -2610,6 +2617,224 @@ async function loadProjectOps() {
 
   } catch (err) {
     main.innerHTML = renderError(err);
+  }
+}
+
+// ── SECTION: DEV LOOP ───────────────────────────────────────────────────────
+
+function devLoopStatusBadge(status) {
+  const colors = {
+    pending: 'var(--steel)', running: 'var(--blue)',
+    done: 'var(--green)', failed: 'var(--red)', blocked: 'var(--amber)'
+  };
+  const c = colors[status] || 'var(--steel)';
+  return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:${c};">
+    <span style="width:6px;height:6px;border-radius:50%;background:${c};"></span>${status.toUpperCase()}
+  </span>`;
+}
+
+function devLoopDecisionBadge(decision) {
+  if (!decision) return '<span class="mono dim">--</span>';
+  const colors = {
+    SAFE_AUTOMERGE: 'var(--green)', FIX_AND_RETRY: 'var(--amber)', ESCALATE: 'var(--red)'
+  };
+  const c = colors[decision] || 'var(--steel)';
+  return `<span style="font-size:11px;font-weight:700;color:${c};padding:2px 8px;border:1px solid ${c};border-radius:4px;">${decision}</span>`;
+}
+
+function devLoopReviewBadge(task) {
+  if (task.reviewed) {
+    return `<span style="font-size:11px;color:var(--green);font-weight:600;">${(task.review_action || 'reviewed').toUpperCase()}</span>`;
+  }
+  if (['done','failed','blocked'].includes(task.status)) {
+    return '<span style="font-size:11px;color:var(--amber);font-weight:600;">NEEDS REVIEW</span>';
+  }
+  return '<span class="mono dim">--</span>';
+}
+
+async function loadDevLoop() {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = '<div class="loading"><div class="spinner"></div> Loading...</div>';
+
+  try {
+    const [tasksData, countsData] = await Promise.all([
+      apiFetch('/internal/admin/dev-loop/tasks'),
+      apiFetch('/internal/admin/dev-loop/counts'),
+    ]);
+
+    const c = countsData;
+    const badge = document.getElementById('devLoopBadge');
+    if (c.needs_review > 0) {
+      badge.textContent = c.needs_review;
+      badge.style.display = '';
+    } else {
+      badge.style.display = 'none';
+    }
+
+    const countCards = `<div class="stat-grid" style="grid-template-columns:repeat(6,1fr);margin-bottom:24px;">
+      <div class="stat-card"><div class="stat-tag">Total</div><div class="stat-val">${c.total}</div></div>
+      <div class="stat-card"><div class="stat-tag">Pending</div><div class="stat-val" style="color:var(--steel)">${c.pending}</div></div>
+      <div class="stat-card"><div class="stat-tag">Running</div><div class="stat-val" style="color:var(--blue)">${c.running}</div></div>
+      <div class="stat-card"><div class="stat-tag">Done</div><div class="stat-val" style="color:var(--green)">${c.done}</div></div>
+      <div class="stat-card"><div class="stat-tag">Failed</div><div class="stat-val" style="color:var(--red)">${c.failed}</div></div>
+      <div class="stat-card"><div class="stat-tag">Needs Review</div><div class="stat-val" style="color:var(--amber)">${c.needs_review}</div></div>
+    </div>`;
+
+    const tasks = tasksData.tasks || [];
+    const tableRows = tasks.map(t => `<tr style="cursor:pointer" onclick="navigate('dev-loop-detail',{taskId:'${escHtml(t.task_id)}'})">
+      <td class="mono" style="font-size:12px;font-weight:600;">${escHtml(t.task_id)}</td>
+      <td style="font-weight:600;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(t.title)}</td>
+      <td>${devLoopStatusBadge(t.status)}</td>
+      <td>${devLoopDecisionBadge(t.review_decision)}</td>
+      <td>${devLoopReviewBadge(t)}</td>
+      <td class="mono dim" style="font-size:12px;">${escHtml(t.branch || '--')}</td>
+      <td class="mono dim" style="font-size:12px;">${relTime(t.created_at)}</td>
+    </tr>`).join('');
+
+    const table = tasks.length > 0
+      ? `<div class="table-wrap"><table class="data-table">
+          <thead><tr><th>Task ID</th><th>Title</th><th>Status</th><th>Decision</th><th>Review</th><th>Branch</th><th>Created</th></tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table></div>`
+      : renderEmpty('No dev-loop tasks yet. Submit a task via the dev-loop webhook or CLI.');
+
+    main.innerHTML = `
+      <div class="page-header">
+        <div>
+          <div class="page-title">Dev Loop — Task Queue</div>
+          <div class="page-subtitle">Operator visibility into task execution and review status</div>
+        </div>
+        <button class="btn-sm" onclick="navigate('dev-loop')">&#8635; Refresh</button>
+      </div>
+      ${countCards}
+      ${table}`;
+  } catch (err) {
+    main.innerHTML = renderError(err);
+  }
+}
+
+async function loadDevLoopDetail(taskId) {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = '<div class="loading"><div class="spinner"></div> Loading...</div>';
+
+  try {
+    const t = await apiFetch('/internal/admin/dev-loop/tasks/' + encodeURIComponent(taskId));
+
+    const checksHtml = Array.isArray(t.checks_run) && t.checks_run.length > 0
+      ? t.checks_run.map(c => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
+          <span style="color:${c.status === 'pass' ? 'var(--green)' : c.status === 'fail' ? 'var(--red)' : 'var(--steel)'};font-weight:600;">${c.status.toUpperCase()}</span>
+          <span>${escHtml(c.name)}</span>
+          ${c.details ? `<span class="mono dim" style="font-size:11px;">${escHtml(c.details)}</span>` : ''}
+        </div>`).join('')
+      : '<span class="mono dim">No checks recorded</span>';
+
+    const filesChanged = (t.files_changed || []).length > 0
+      ? t.files_changed.map(f => `<div class="mono dim" style="font-size:12px;padding:2px 0;">${escHtml(f)}</div>`).join('')
+      : '<span class="mono dim">None</span>';
+
+    const gaps = (t.logical_gaps || []).length > 0
+      ? t.logical_gaps.map(g => `<div style="padding:2px 0;font-size:13px;">- ${escHtml(g)}</div>`).join('')
+      : '<span class="mono dim">None</span>';
+
+    const openIssues = (t.open_issues || []).length > 0
+      ? t.open_issues.map(i => `<div style="padding:2px 0;font-size:13px;">- ${escHtml(i)}</div>`).join('')
+      : '<span class="mono dim">None</span>';
+
+    const reviewSection = t.reviewed
+      ? `<div style="background:rgba(22,163,74,.06);border:1px solid rgba(22,163,74,.2);border-radius:10px;padding:16px;margin-top:16px;">
+           <div style="font-weight:700;color:var(--green);margin-bottom:8px;">Reviewed</div>
+           <div class="kv-grid" style="grid-template-columns:1fr 1fr 1fr;">
+             <div class="kv-item"><div class="kv-label">Action</div><div class="kv-val" style="font-weight:600;">${escHtml(t.review_action || '--')}</div></div>
+             <div class="kv-item"><div class="kv-label">By</div><div class="kv-val mono dim">${escHtml(t.reviewed_by || '--')}</div></div>
+             <div class="kv-item"><div class="kv-label">At</div><div class="kv-val mono dim">${t.reviewed_at ? fmtDate(t.reviewed_at) : '--'}</div></div>
+           </div>
+           ${t.review_comment ? `<div style="margin-top:8px;font-size:13px;color:var(--steel);">${escHtml(t.review_comment)}</div>` : ''}
+         </div>`
+      : ['done','failed','blocked'].includes(t.status)
+        ? `<div style="background:rgba(217,119,6,.06);border:1px solid rgba(217,119,6,.2);border-radius:10px;padding:16px;margin-top:16px;">
+             <div style="font-weight:700;color:var(--amber);margin-bottom:12px;">Needs Operator Review</div>
+             <div style="display:flex;gap:8px;flex-wrap:wrap;">
+               <button class="action-btn confirm" onclick="submitDevLoopReview('${escHtml(t.task_id)}','approve',this)">Approve</button>
+               <button class="action-btn" style="background:rgba(217,119,6,.1);color:#b45309;border:1px solid rgba(217,119,6,.3);" onclick="submitDevLoopReview('${escHtml(t.task_id)}','retry',this)">Retry</button>
+               <button class="action-btn resolve" onclick="submitDevLoopReview('${escHtml(t.task_id)}','reject',this)">Reject</button>
+               <button class="action-btn" style="background:rgba(220,38,38,.1);color:var(--red);border:1px solid rgba(220,38,38,.3);" onclick="submitDevLoopReview('${escHtml(t.task_id)}','escalate',this)">Escalate</button>
+             </div>
+           </div>`
+        : '';
+
+    main.innerHTML = `
+      <div class="page-header">
+        <div>
+          <div class="page-title">${escHtml(t.title)}</div>
+          <div class="page-subtitle">Task: ${escHtml(t.task_id)} ${devLoopStatusBadge(t.status)} ${devLoopDecisionBadge(t.review_decision)}</div>
+        </div>
+        <button class="btn-sm" onclick="navigate('dev-loop')">Back to Queue</button>
+      </div>
+
+      <div class="section-label">Task Specification</div>
+      <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px;">
+        <div style="font-size:14px;margin-bottom:12px;">${escHtml(t.goal)}</div>
+        <div class="kv-grid" style="grid-template-columns:1fr 1fr;">
+          <div class="kv-item"><div class="kv-label">Critical Systems Risk</div><div class="kv-val">${t.critical_systems_risk ? '<span style="color:var(--red);font-weight:600;">YES</span>' : '<span style="color:var(--green);">No</span>'}</div></div>
+          <div class="kv-item"><div class="kv-label">Branch</div><div class="kv-val mono">${escHtml(t.branch || '--')}</div></div>
+        </div>
+      </div>
+
+      <div class="section-label">Execution Result</div>
+      <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px;">
+        ${t.execution_summary ? `<div style="font-size:13px;margin-bottom:12px;">${escHtml(t.execution_summary)}</div>` : '<div class="mono dim">No execution summary yet</div>'}
+        <div class="kv-grid" style="grid-template-columns:1fr 1fr 1fr 1fr;">
+          <div class="kv-item"><div class="kv-label">Goal Match</div><div class="kv-val" style="color:${t.goal_match === 'full' ? 'var(--green)' : t.goal_match === 'partial' ? 'var(--amber)' : t.goal_match === 'failed' ? 'var(--red)' : 'var(--steel)'};">${(t.goal_match || '--').toUpperCase()}</div></div>
+          <div class="kv-item"><div class="kv-label">Risk Level</div><div class="kv-val" style="color:${t.risk_level === 'low' ? 'var(--green)' : t.risk_level === 'medium' ? 'var(--amber)' : t.risk_level === 'high' ? 'var(--red)' : 'var(--steel)'};">${(t.risk_level || '--').toUpperCase()}</div></div>
+          <div class="kv-item"><div class="kv-label">Retry Count</div><div class="kv-val">${t.retry_count}</div></div>
+          <div class="kv-item"><div class="kv-label">Retry Recommended</div><div class="kv-val">${t.retry_recommended ? 'Yes' : 'No'}</div></div>
+        </div>
+      </div>
+
+      <div class="section-label">Checks</div>
+      <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px;">
+        ${checksHtml}
+      </div>
+
+      <div class="section-label">Files Changed</div>
+      <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px;">
+        ${filesChanged}
+      </div>
+
+      <div class="section-label">Open Issues</div>
+      <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px;">
+        ${openIssues}
+      </div>
+
+      <div class="section-label">Logical Gaps</div>
+      <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px;">
+        ${gaps}
+      </div>
+
+      ${t.operator_notes ? `<div class="section-label">Operator Notes</div>
+      <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px;font-size:13px;">
+        ${escHtml(t.operator_notes)}
+      </div>` : ''}
+
+      ${reviewSection}`;
+  } catch (err) {
+    main.innerHTML = renderError(err);
+  }
+}
+
+async function submitDevLoopReview(taskId, action, btnEl) {
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Saving...'; }
+  try {
+    const comment = prompt('Optional comment for this review action:') || '';
+    await apiFetch('/internal/admin/dev-loop/tasks/' + encodeURIComponent(taskId) + '/review', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, comment: comment || undefined }),
+    });
+    navigate('dev-loop-detail', { taskId });
+  } catch (err) {
+    if (btnEl) { btnEl.disabled = false; btnEl.textContent = action; }
+    alert('Failed to submit review: ' + err.message);
   }
 }
 
