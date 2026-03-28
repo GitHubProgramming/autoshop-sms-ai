@@ -2678,18 +2678,23 @@ async function loadDevLoop() {
       <div class="stat-card"><div class="stat-tag">Done</div><div class="stat-val" style="color:var(--green)">${c.done}</div></div>
       <div class="stat-card"><div class="stat-tag">Failed</div><div class="stat-val" style="color:var(--red)">${c.failed}</div></div>
       <div class="stat-card"><div class="stat-tag">Needs Review</div><div class="stat-val" style="color:var(--amber)">${c.needs_review}</div></div>
+      ${c.stale > 0 ? `<div class="stat-card" style="border:1px solid var(--red);"><div class="stat-tag" style="color:var(--red);">Stale (&gt;1h)</div><div class="stat-val" style="color:var(--red)">${c.stale}</div></div>` : ''}
     </div>`;
 
     const tasks = tasksData.tasks || [];
-    const tableRows = tasks.map(t => `<tr style="cursor:pointer" onclick="navigate('dev-loop-detail',{taskId:'${escHtml(t.task_id)}'})">
-      <td class="mono" style="font-size:12px;font-weight:600;">${escHtml(t.task_id)}</td>
+    const oneHourAgo = Date.now() - 3600000;
+    const tableRows = tasks.map(t => {
+      const isStale = ['pending','running'].includes(t.status) && new Date(t.created_at).getTime() < oneHourAgo;
+      return `<tr style="cursor:pointer${isStale ? ';background:rgba(220,38,38,.06)' : ''}" onclick="navigate('dev-loop-detail',{taskId:'${escHtml(t.task_id)}'})">
+      <td class="mono" style="font-size:12px;font-weight:600;">${escHtml(t.task_id)}${isStale ? ' <span style="color:var(--red);font-size:10px;font-weight:700;">STALE</span>' : ''}</td>
       <td style="font-weight:600;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(t.title)}</td>
       <td>${devLoopStatusBadge(t.status)}</td>
       <td>${devLoopDecisionBadge(t.review_decision)}</td>
       <td>${devLoopReviewBadge(t)}</td>
       <td class="mono dim" style="font-size:12px;">${escHtml(t.branch || '--')}</td>
       <td class="mono dim" style="font-size:12px;">${relTime(t.created_at)}</td>
-    </tr>`).join('');
+    </tr>`;
+    }).join('');
 
     const table = tasks.length > 0
       ? `<div class="table-wrap"><table class="data-table">

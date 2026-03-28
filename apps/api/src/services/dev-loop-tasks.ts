@@ -219,6 +219,7 @@ export async function taskCounts(): Promise<{
   failed: number;
   blocked: number;
   needs_review: number;
+  stale: number;
 }> {
   const rows = await query<any>(
     `SELECT
@@ -228,7 +229,8 @@ export async function taskCounts(): Promise<{
        COUNT(*) FILTER (WHERE status = 'done')::int AS done,
        COUNT(*) FILTER (WHERE status = 'failed')::int AS failed,
        COUNT(*) FILTER (WHERE status = 'blocked')::int AS blocked,
-       COUNT(*) FILTER (WHERE reviewed = FALSE AND status IN ('done','failed','blocked'))::int AS needs_review
+       COUNT(*) FILTER (WHERE reviewed = FALSE AND status IN ('done','failed','blocked'))::int AS needs_review,
+       COUNT(*) FILTER (WHERE status IN ('pending','running') AND created_at < NOW() - INTERVAL '1 hour')::int AS stale
      FROM dev_loop_tasks`
   );
   return rows[0];
