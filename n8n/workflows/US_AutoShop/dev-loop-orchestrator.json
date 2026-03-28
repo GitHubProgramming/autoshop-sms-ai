@@ -13,7 +13,10 @@
       "name": "Webhook: Task Intake",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [250, 300],
+      "position": [
+        250,
+        300
+      ],
       "webhookId": "dev-loop-task"
     },
     {
@@ -24,7 +27,10 @@
       "name": "Validate Task Contract",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [500, 300]
+      "position": [
+        500,
+        300
+      ]
     },
     {
       "parameters": {
@@ -34,7 +40,10 @@
       "name": "Classify Task Risk",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [750, 300]
+      "position": [
+        750,
+        300
+      ]
     },
     {
       "parameters": {
@@ -63,7 +72,10 @@
       "name": "IF: Risk Gate",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1000, 300]
+      "position": [
+        1000,
+        300
+      ]
     },
     {
       "parameters": {
@@ -73,7 +85,10 @@
       "name": "Build Claude Prompt",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1250, 200]
+      "position": [
+        1250,
+        200
+      ]
     },
     {
       "parameters": {
@@ -82,10 +97,6 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "x-api-key",
-              "value": "={{ $env.ANTHROPIC_API_KEY }}"
-            },
             {
               "name": "anthropic-version",
               "value": "2023-06-01"
@@ -98,7 +109,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: $env.CLAUDE_DEV_LOOP_MODEL || 'claude-sonnet-4-20250514', max_tokens: 4096, messages: [{ role: 'user', content: $json.claude_prompt }] }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 4096, messages: [{ role: 'user', content: $json.claude_prompt }] }) }}",
         "options": {
           "timeout": 300000,
           "response": {
@@ -106,13 +117,24 @@
               "neverError": true
             }
           }
-        }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "dl-claude-api",
       "name": "Anthropic: Claude API",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1500, 200]
+      "position": [
+        1500,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "anthropic-api-key",
+          "name": "Anthropic API Key"
+        }
+      }
     },
     {
       "parameters": {
@@ -122,7 +144,10 @@
       "name": "Parse Claude Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1750, 200]
+      "position": [
+        1750,
+        200
+      ]
     },
     {
       "parameters": {
@@ -132,7 +157,10 @@
       "name": "Build Review Packet",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2000, 200]
+      "position": [
+        2000,
+        200
+      ]
     },
     {
       "parameters": {
@@ -161,7 +189,10 @@
       "name": "IF: FIX_AND_RETRY?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [2250, 200]
+      "position": [
+        2250,
+        200
+      ]
     },
     {
       "parameters": {
@@ -171,7 +202,10 @@
       "name": "Retry Handler",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2500, 100]
+      "position": [
+        2500,
+        100
+      ]
     },
     {
       "parameters": {
@@ -200,17 +234,23 @@
       "name": "IF: SAFE_AUTOMERGE?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [2500, 300]
+      "position": [
+        2500,
+        300
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Merge gate — DEFAULT OFF\n// This node outputs the review packet with merge_allowed flag.\n// Actual merge is NOT executed unless AUTOMERGE_ENABLED env var is 'true'.\n\nconst review = $('Build Review Packet').first().json;\nconst automergeEnabled = ($env.AUTOMERGE_ENABLED || 'false').toLowerCase() === 'true';\n\nreturn [{ json: {\n  action: 'SAFE_AUTOMERGE',\n  merge_allowed: automergeEnabled,\n  merge_executed: false,\n  review_packet: review,\n  message: automergeEnabled\n    ? `Merge gate OPEN — task ${review.task_id} approved for auto-merge on branch ${review.branch}`\n    : `Merge gate CLOSED (default) — task ${review.task_id} ready but requires manual merge of ${review.branch}`\n} }];"
+        "jsCode": "// Auto-merge executor: validates ALL safety conditions\nconst review = $('Build Review Packet').first().json;\n\nconst safeToMerge =\n  review.goal_match === 'full' &&\n  review.risk_level !== 'high' &&\n  !review.critical_systems_touched &&\n  review.checks_passed &&\n  review.logical_gaps.length === 0;\n\nif (!safeToMerge) {\n  const reasons = [];\n  if (review.goal_match !== 'full') reasons.push('goal=' + review.goal_match);\n  if (review.risk_level === 'high') reasons.push('high_risk');\n  if (review.critical_systems_touched) reasons.push('critical_systems');\n  if (!review.checks_passed) reasons.push('checks_failed');\n  if (review.logical_gaps.length > 0) reasons.push('gaps: ' + review.logical_gaps.join('; '));\n  return [{ json: {\n    action: 'SAFE_AUTOMERGE',\n    merge_ready: false,\n    merge_executed: false,\n    reason: 'Safety conditions not met: ' + reasons.join(', '),\n    review_packet: review,\n    message: 'BLOCKED: ' + review.task_id + ' — ' + reasons.join(', ')\n  } }];\n}\n\n// Branch must exist on remote — orchestrator execution is sandboxed,\n// Claude does not push to GitHub. If branch doesn't exist on remote,\n// auto-merge cannot proceed.\nconst branch = review.branch || '';\nif (!branch || !branch.startsWith('ai/')) {\n  return [{ json: {\n    action: 'SAFE_AUTOMERGE',\n    merge_ready: false,\n    merge_executed: false,\n    reason: 'No valid branch — orchestrator sandbox does not push to remote',\n    review_packet: review,\n    message: 'BLOCKED: ' + review.task_id + ' — branch not on remote (sandbox execution)'\n  } }];\n}\n\nreturn [{ json: {\n  action: 'SAFE_AUTOMERGE',\n  merge_ready: true,\n  merge_executed: false,\n  branch: branch,\n  task_id: review.task_id,\n  review_packet: review,\n  message: 'Task ' + review.task_id + ' approved for auto-merge on ' + branch\n} }];"
       },
       "id": "dl-merge-gate",
-      "name": "Merge Gate (Default OFF)",
+      "name": "Execute Auto-Merge",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2750, 200]
+      "position": [
+        2750,
+        200
+      ]
     },
     {
       "parameters": {
@@ -220,7 +260,10 @@
       "name": "Escalation Output",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2750, 400]
+      "position": [
+        2750,
+        400
+      ]
     },
     {
       "parameters": {
@@ -230,7 +273,10 @@
       "name": "High-Risk Block + Escalate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1250, 450]
+      "position": [
+        1250,
+        450
+      ]
     },
     {
       "parameters": {
@@ -240,22 +286,21 @@
       "name": "Prepare Blocked Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1500, 450]
+      "position": [
+        1500,
+        450
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.API_BASE_URL || 'http://api:3000' }}/internal/dev-loop/task-result",
+        "url": "https://autoshop-api-7ek9.onrender.com/internal/dev-loop/task-result",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Content-Type",
               "value": "application/json"
-            },
-            {
-              "name": "x-internal-key",
-              "value": "={{ $env.INTERNAL_API_KEY }}"
             }
           ]
         },
@@ -269,28 +314,35 @@
               "neverError": true
             }
           }
-        }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "dl-api-save-blocked",
       "name": "API: Save Blocked Result",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1750, 450]
+      "position": [
+        1750,
+        450
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "x-internal-key",
+          "name": "x-internal-key"
+        }
+      }
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.API_BASE_URL || 'http://api:3000' }}/internal/dev-loop/task-submit",
+        "url": "https://autoshop-api-7ek9.onrender.com/internal/dev-loop/task-submit",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Content-Type",
               "value": "application/json"
-            },
-            {
-              "name": "x-internal-key",
-              "value": "={{ $env.INTERNAL_API_KEY }}"
             }
           ]
         },
@@ -304,13 +356,24 @@
               "neverError": true
             }
           }
-        }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "dl-api-register",
       "name": "API: Register Task",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [620, 300]
+      "position": [
+        620,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "x-internal-key",
+          "name": "x-internal-key"
+        }
+      }
     },
     {
       "parameters": {
@@ -320,22 +383,21 @@
       "name": "Prepare Result Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2100, 200]
+      "position": [
+        2100,
+        200
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.API_BASE_URL || 'http://api:3000' }}/internal/dev-loop/task-result",
+        "url": "https://autoshop-api-7ek9.onrender.com/internal/dev-loop/task-result",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Content-Type",
               "value": "application/json"
-            },
-            {
-              "name": "x-internal-key",
-              "value": "={{ $env.INTERNAL_API_KEY }}"
             }
           ]
         },
@@ -349,13 +411,203 @@
               "neverError": true
             }
           }
-        }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "dl-api-save-result",
       "name": "API: Save Result",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [2200, 200]
+      "position": [
+        2200,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "x-internal-key",
+          "name": "x-internal-key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-merge-ready",
+              "leftValue": "={{ $json.merge_ready }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "dl-merge-gate",
+      "name": "IF: Merge Ready?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2850,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.github.com/repos/GitHubProgramming/autoshop-sms-ai/pulls",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github.v3+json"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ title: 'auto: ' + $json.task_id, head: $json.branch, base: 'main', body: 'Auto-merged by dev-loop.\\nDecision: SAFE_AUTOMERGE\\nGoal match: ' + $json.review_packet.goal_match }) }}",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "dl-gh-create-pr",
+      "name": "GitHub: Create PR",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        3050,
+        100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "github-token",
+          "name": "GitHub Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ 'https://api.github.com/repos/GitHubProgramming/autoshop-sms-ai/pulls/' + $json.number + '/merge' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github.v3+json"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ merge_method: 'squash', commit_title: 'auto: ' + $('Execute Auto-Merge').first().json.task_id }) }}",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "dl-gh-merge-pr",
+      "name": "GitHub: Merge PR",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        3250,
+        100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "github-token",
+          "name": "GitHub Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const mergeNode = $('Execute Auto-Merge').first().json;\nconst prResult = $('GitHub: Create PR').first().json;\nconst mergeResult = $input.first().json;\nconst merged = mergeResult.merged === true;\nconst prNum = prResult.number || 'N/A';\n\nreturn [{ json: {\n  action: 'SAFE_AUTOMERGE',\n  merge_executed: merged,\n  pr_number: prNum,\n  branch: mergeNode.branch,\n  task_id: mergeNode.task_id,\n  review_packet: mergeNode.review_packet,\n  message: merged\n    ? 'Auto-merged PR #' + prNum + ' (' + mergeNode.branch + ')'\n    : 'Merge failed: ' + (mergeResult.message || JSON.stringify(mergeResult).substring(0,200))\n} }];"
+      },
+      "id": "dl-log-merge",
+      "name": "Log Merge Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3450,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "8747048300",
+        "text": "={{ $json.telegram_message }}",
+        "additionalFields": {}
+      },
+      "id": "dl-tg-escalate",
+      "name": "Telegram: Notify Escalation",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2850,
+        400
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "bPrClfXl0avUTqnO",
+          "name": "AutoShop Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "8747048300",
+        "text": "={{ $json.telegram_message }}",
+        "additionalFields": {}
+      },
+      "id": "dl-tg-blocked",
+      "name": "Telegram: Notify Blocked",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1500,
+        550
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "bPrClfXl0avUTqnO",
+          "name": "AutoShop Telegram"
+        }
+      }
     }
   ],
   "connections": {
@@ -497,7 +749,7 @@
       "main": [
         [
           {
-            "node": "Merge Gate (Default OFF)",
+            "node": "Execute Auto-Merge",
             "type": "main",
             "index": 0
           }
@@ -518,6 +770,11 @@
             "node": "Prepare Blocked Result",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Telegram: Notify Blocked",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -532,10 +789,68 @@
           }
         ]
       ]
+    },
+    "Execute Auto-Merge": {
+      "main": [
+        [
+          {
+            "node": "IF: Merge Ready?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Merge Ready?": {
+      "main": [
+        [
+          {
+            "node": "GitHub: Create PR",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "GitHub: Create PR": {
+      "main": [
+        [
+          {
+            "node": "GitHub: Merge PR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub: Merge PR": {
+      "main": [
+        [
+          {
+            "node": "Log Merge Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Escalation Output": {
+      "main": [
+        [
+          {
+            "node": "Telegram: Notify Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
   },
   "staticData": null,
   "tags": [
