@@ -7,10 +7,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "dev-loop-task",
-        "responseMode": "lastNode",
-        "options": {
-          "rawBody": false
-        }
+        "responseMode": "lastNode"
       },
       "id": "dl-webhook",
       "name": "Webhook: Task Intake",
