@@ -634,6 +634,7 @@ async function loadOverview() {
     const actions = [];
     if (d.failed_bookings > 0) actions.push({ priority: 'CRITICAL', label: `${d.failed_bookings} failed booking${d.failed_bookings > 1 ? 's' : ''}`, action: 'Resolve in Action Needed', onclick: "navigate('action-needed')" });
     if (d.pending_manual_bookings > 0) actions.push({ priority: 'CRITICAL', label: `${d.pending_manual_bookings} booking${d.pending_manual_bookings > 1 ? 's' : ''} need manual confirmation`, action: 'Confirm in Action Needed', onclick: "navigate('action-needed')" });
+    if (d.failed_calendar_syncs > 0) actions.push({ priority: 'CRITICAL', label: `${d.failed_calendar_syncs} calendar sync failure${d.failed_calendar_syncs > 1 ? 's' : ''}`, action: 'Review in Action Needed', onclick: "navigate('action-needed')" });
     if (sh.pipeline_failures_24h > 0) actions.push({ priority: 'CRITICAL', label: `${sh.pipeline_failures_24h} pipeline failure${sh.pipeline_failures_24h > 1 ? 's' : ''} (24h)`, action: 'Check Execution Traces', onclick: "navigate('traces')" });
     if ((rev.past_due || 0) > 0) actions.push({ priority: 'HIGH', label: `${rev.past_due} tenant${rev.past_due > 1 ? 's' : ''} past due`, action: 'Review in Billing', onclick: "navigate('billing')" });
     if (d.near_expiry > 0) actions.push({ priority: 'HIGH', label: `${d.near_expiry} trial${d.near_expiry > 1 ? 's' : ''} expiring within 3 days`, action: 'Review in Billing', onclick: "navigate('billing')" });
@@ -1692,8 +1693,21 @@ async function loadActionNeeded() {
         ? `<button class="action-btn confirm" onclick="updateBookingState('${b.id}','CONFIRMED_MANUAL',this)">Mark Manually Confirmed</button>`
         : `<button class="action-btn resolve" onclick="updateBookingState('${b.id}','RESOLVED',this)">Mark Resolved</button>`;
 
+      const followupBadge = b.needs_manual_followup
+        ? '<span style="display:inline-block;background:rgba(220,38,38,.1);color:var(--red);font-size:11px;padding:2px 8px;border-radius:4px;font-weight:600;margin-left:6px;">Manual follow-up needed</span>'
+        : '';
+
+      const errorRow = b.sync_failure_reason
+        ? `<tr><td colspan="9" style="padding:4px 16px 10px;background:rgba(220,38,38,.04);border-top:none;font-size:12px;">
+             <span style="color:var(--red);font-weight:600;">Sync Error:</span>
+             <span class="mono dim" style="margin-left:6px;">${escHtml(b.sync_failure_reason)}</span>
+             ${b.sync_error_at ? '<span class="mono dim" style="margin-left:12px;">(' + relTime(b.sync_error_at) + ')</span>' : ''}
+             ${b.owner_was_notified ? '<span style="margin-left:12px;color:var(--green);font-size:11px;">Owner notified via SMS</span>' : '<span style="margin-left:12px;color:var(--amber);font-size:11px;">Owner NOT notified</span>'}
+           </td></tr>`
+        : '';
+
       return `<tr>
-        <td style="font-weight:600">${escHtml(b.shop_name)}</td>
+        <td style="font-weight:600">${escHtml(b.shop_name)}${followupBadge}</td>
         <td>${escHtml(b.customer_name || '—')}</td>
         <td class="mono dim">${escHtml(b.customer_phone)}</td>
         <td>${escHtml(b.service_type || '—')}</td>
@@ -1702,7 +1716,7 @@ async function loadActionNeeded() {
         <td class="mono dim">${relTime(b.created_at)}</td>
         <td>${actionBtn}</td>
         <td>${b.conversation_id ? '<button class="link-btn" onclick="loadConversationDetail(\'' + b.conversation_id + '\')">View</button>' : '—'}</td>
-      </tr>`;
+      </tr>${errorRow}`;
     }
 
     const tableHead = '<thead><tr><th>Shop</th><th>Customer</th><th>Phone</th><th>Service</th><th>Scheduled</th><th>Status</th><th>Created</th><th>Action</th><th>Conv</th></tr></thead>';
