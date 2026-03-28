@@ -23,7 +23,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validate sender and parse Telegram message into a dev-loop task\nconst msg = $input.first().json;\nconst message = msg.message || {};\nconst text = (message.text || '').trim();\nconst chatId = message.chat?.id;\nconst senderId = message.from?.id;\nconst senderName = message.from?.first_name || 'operator';\n\n// Only accept messages from the configured operator chat\n// n8n Cloud: use hardcoded chat ID (env access blocked)\n// Local: use $env.TELEGRAM_CHAT_ID\nconst allowedChatId = typeof $env !== 'undefined' && $env.TELEGRAM_CHAT_ID ? $env.TELEGRAM_CHAT_ID : '8747048300';\nif (allowedChatId && String(chatId) !== String(allowedChatId)) {\n  return [{ json: { rejected: true, reason: 'unauthorized_chat', chatId } }];\n}\n\n// Ignore empty messages and commands that aren't tasks\nif (!text || text.startsWith('/start') || text.startsWith('/help')) {\n  return [{ json: {\n    rejected: true,\n    reason: text ? 'command' : 'empty',\n    chatId,\n    help_response: 'Send a plain text message describing a task. Example:\\n\\nAdd a formatPhoneNumber utility in packages/shared/src/ that normalizes US numbers to E.164'\n  } }];\n}\n\n// Strip /task prefix if present\nlet taskText = text;\nif (taskText.startsWith('/task ')) {\n  taskText = taskText.substring(6).trim();\n}\n\n// Generate deterministic task_id from timestamp + short hash\nconst ts = Date.now();\nconst shortHash = ts.toString(36).slice(-6);\nconst taskId = `tg-${shortHash}`;\n\n// Extract title: first line or first 60 chars\nconst firstLine = taskText.split('\\n')[0];\nconst title = firstLine.length > 60 ? firstLine.substring(0, 57) + '...' : firstLine;\n\n// Build TaskContract\nconst task = {\n  task_id: taskId,\n  title: title,\n  goal: taskText,\n  scope_boundaries: [],\n  files_allowed: ['apps/api/**', 'packages/shared/**'],\n  files_forbidden: [\n    '**/auth/**', '**/billing/**', '**/stripe/**',\n    '**/twilio/**', '**/oauth/**', '**/provisioning/**',\n    '**/deploy/**', '**/migration/**'\n  ],\n  critical_systems_risk: false,\n  expected_output: [],\n  checks_required: ['typecheck']\n};\n\nreturn [{ json: {\n  rejected: false,\n  task,\n  chatId,\n  senderName,\n  messageId: message.message_id\n} }];"
+        "jsCode": "// Validate sender and parse Telegram message into a dev-loop task\nconst msg = $input.first().json;\nconst message = msg.message || {};\nconst text = (message.text || '').trim();\nconst chatId = message.chat?.id;\nconst senderId = message.from?.id;\nconst senderName = message.from?.first_name || 'operator';\n\n// Only accept messages from the configured operator chat\n// n8n Cloud: hardcoded fallback (env access blocked)\nconst allowedChatId = typeof $env !== 'undefined' && $env.TELEGRAM_CHAT_ID ? $env.TELEGRAM_CHAT_ID : '8747048300';\nif (allowedChatId && String(chatId) !== String(allowedChatId)) {\n  return [{ json: { rejected: true, reason: 'unauthorized_chat', chatId } }];\n}\n\n// Ignore empty messages and commands that aren't tasks\nif (!text || text.startsWith('/start') || text.startsWith('/help')) {\n  return [{ json: {\n    rejected: true,\n    reason: text ? 'command' : 'empty',\n    chatId,\n    help_response: 'Send a plain text message describing a task. Example:\\n\\nAdd a formatPhoneNumber utility in packages/shared/src/ that normalizes US numbers to E.164'\n  } }];\n}\n\n// Strip /task prefix if present\nlet taskText = text;\nif (taskText.startsWith('/task ')) {\n  taskText = taskText.substring(6).trim();\n}\n\n// Generate deterministic task_id from timestamp + short hash\nconst ts = Date.now();\nconst shortHash = ts.toString(36).slice(-6);\nconst taskId = `tg-${shortHash}`;\n\n// Extract title: first line or first 60 chars\nconst firstLine = taskText.split('\\n')[0];\nconst title = firstLine.length > 60 ? firstLine.substring(0, 57) + '...' : firstLine;\n\n// Build TaskContract\nconst task = {\n  task_id: taskId,\n  title: title,\n  goal: taskText,\n  scope_boundaries: [],\n  files_allowed: ['apps/api/**', 'packages/shared/**'],\n  files_forbidden: [\n    '**/auth/**', '**/billing/**', '**/stripe/**',\n    '**/twilio/**', '**/oauth/**', '**/provisioning/**',\n    '**/deploy/**', '**/migration/**'\n  ],\n  critical_systems_risk: false,\n  expected_output: [],\n  checks_required: ['typecheck']\n};\n\nreturn [{ json: {\n  rejected: false,\n  task,\n  chatId,\n  senderName,\n  messageId: message.message_id\n} }];"
       },
       "id": "tg-parse",
       "name": "Parse Message into Task",
@@ -33,23 +33,72 @@
     },
     {
       "parameters": {
+        "jsCode": "// Fast deterministic classifier: SIMPLE vs COMPLEX\nconst parsed = $input.first().json;\nif (parsed.rejected) return [{ json: parsed }];\n\nconst task = parsed.task;\nconst text = (task.goal || '').toLowerCase();\n\n// SIMPLE patterns: questions, status queries, listing requests\nconst SIMPLE_PATTERNS = [\n  /^what (is|are|should|would)/,\n  /^how (is|are|do|does|should|would|many|much)/,\n  /^(show|list|check|tell|explain|describe|summarize|status|report)/,\n  /^(which|where|when|who|why)/,\n  /\\?$/,\n  /^(next|current|latest|recent|last) /,\n  /priority|priorities|blocker|blockers|progress|status/,\n  /what.*next/,\n  /what.*important/,\n  /what.*task/,\n  /what.*blocker/,\n  /what.*progress/,\n  /how.*going/,\n];\n\n// COMPLEX patterns: implementation requests\nconst COMPLEX_PATTERNS = [\n  /^(add|create|implement|build|write|fix|update|modify|change|refactor|remove|delete|rename)/,\n  /^(deploy|migrate|install|configure|set up|wire|connect)/,\n  /please (add|create|implement|build|write|fix|update)/,\n  /need to (add|create|implement|build|write|fix|update)/,\n];\n\nlet classification = 'COMPLEX'; // default to safe/full execution\n\n// Check COMPLEX first (takes priority)\nconst isComplex = COMPLEX_PATTERNS.some(p => p.test(text));\n\nif (!isComplex) {\n  const isSimple = SIMPLE_PATTERNS.some(p => p.test(text));\n  if (isSimple) classification = 'SIMPLE';\n}\n\nreturn [{ json: { ...parsed, classification } }];"
+      },
+      "id": "tg-classify",
+      "name": "Classify Task",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [620, 300]
+    },
+    {
+      "parameters": {
         "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "cond-accepted",
-              "leftValue": "={{ $json.rejected }}",
-              "rightValue": false,
-              "operator": {
-                "type": "boolean",
-                "operation": "equals"
-              }
-            }
-          ],
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{
+            "id": "cond-simple",
+            "leftValue": "={{ $json.classification }}",
+            "rightValue": "SIMPLE",
+            "operator": { "type": "string", "operation": "equals" }
+          }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "tg-simple-gate",
+      "name": "IF: Simple?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fast response for SIMPLE queries — no Claude needed\nconst parsed = $input.first().json;\nconst task = parsed.task;\n\nlet answer = 'Task: ' + task.task_id + '\\n';\nanswer += 'Type: Quick query (no execution needed)\\n';\nanswer += 'Q: ' + task.title + '\\n\\n';\nanswer += 'This is a status/info question. ';\nanswer += 'Check the admin dashboard for current project state:\\n';\nanswer += 'https://autoshopsmsai.com/admin\\n\\n';\nanswer += 'For tasks requiring code changes, rephrase as an action:\\n';\nanswer += '\"Add ...\", \"Fix ...\", \"Update ...\", \"Implement ...\"';\n\nreturn [{ json: {\n  chatId: parsed.chatId,\n  replyText: answer\n} }];"
+      },
+      "id": "tg-build-simple-reply",
+      "name": "Build Simple Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 200]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.replyText }}",
+        "additionalFields": {}
+      },
+      "id": "tg-send-simple",
+      "name": "Telegram: Send Simple Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1350, 200],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-creds",
+          "name": "AutoShop Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{
+            "id": "cond-accepted",
+            "leftValue": "={{ $json.rejected }}",
+            "rightValue": false,
+            "operator": { "type": "boolean", "operation": "equals" }
+          }],
           "combinator": "and"
         },
         "options": {}
@@ -58,7 +107,7 @@
       "name": "IF: Task Accepted",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [750, 300]
+      "position": [850, 500]
     },
     {
       "parameters": {
@@ -68,7 +117,7 @@
       "name": "Build Ack",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1000, 150]
+      "position": [1100, 400]
     },
     {
       "parameters": {
@@ -80,7 +129,7 @@
       "name": "Telegram: Send Ack",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1250, 150],
+      "position": [1350, 400],
       "credentials": {
         "telegramApi": {
           "id": "telegram-creds",
@@ -94,40 +143,31 @@
         "url": "={{ $env.N8N_BASE_URL || 'http://localhost:5678' }}/webhook/dev-loop-task",
         "sendHeaders": true,
         "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
         },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($('Parse Message into Task').first().json.task) }}",
         "options": {
           "timeout": 300000,
-          "response": {
-            "response": {
-              "neverError": true
-            }
-          }
+          "response": { "response": { "neverError": true } }
         }
       },
       "id": "tg-submit-orchestrator",
       "name": "Submit to Orchestrator",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1000, 400]
+      "position": [1100, 600]
     },
     {
       "parameters": {
-        "jsCode": "// Build final result message for Telegram\nconst parsed = $('Parse Message into Task').first().json;\nconst task = parsed.task;\nconst orchestratorResult = $input.first().json;\n\n// Determine status from orchestrator response\nlet status = 'submitted';\nlet decision = '';\nif (orchestratorResult.review_packet) {\n  const rp = orchestratorResult.review_packet;\n  status = rp.goal_match === 'full' ? 'done' : rp.goal_match || 'processing';\n  decision = rp.recommended_decision || '';\n} else if (orchestratorResult.action) {\n  decision = orchestratorResult.action;\n  if (orchestratorResult.action === 'ESCALATE') status = 'escalated';\n  else if (orchestratorResult.action === 'RETRY') status = 'retrying';\n  else status = 'done';\n} else if (orchestratorResult.error || orchestratorResult.statusCode >= 400) {\n  status = 'failed (orchestrator error)';\n}\n\nlet reply = `Task: ${task.task_id}\\n`;\nreply += `Title: ${task.title}\\n`;\nreply += `Status: ${status}\\n`;\nif (decision) reply += `Decision: ${decision}\\n`;\nif (orchestratorResult.review_packet?.branch) {\n  reply += `Branch: ${orchestratorResult.review_packet.branch}\\n`;\n}\n\nreturn [{ json: {\n  chatId: parsed.chatId,\n  replyText: reply\n} }];"
+        "jsCode": "// Build final result message for Telegram\nconst parsed = $('Parse Message into Task').first().json;\nconst task = parsed.task;\nconst orchestratorResult = $input.first().json;\n\nlet status = 'submitted';\nlet decision = '';\nif (orchestratorResult.review_packet) {\n  const rp = orchestratorResult.review_packet;\n  status = rp.goal_match === 'full' ? 'done' : rp.goal_match || 'processing';\n  decision = rp.recommended_decision || '';\n} else if (orchestratorResult.action) {\n  decision = orchestratorResult.action;\n  if (orchestratorResult.action === 'ESCALATE') status = 'escalated';\n  else if (orchestratorResult.action === 'RETRY') status = 'retrying';\n  else status = 'done';\n} else if (orchestratorResult.error || orchestratorResult.statusCode >= 400) {\n  status = 'failed (orchestrator error)';\n}\n\nlet reply = `Task: ${task.task_id}\\n`;\nreply += `Title: ${task.title}\\n`;\nreply += `Status: ${status}\\n`;\nif (decision) reply += `Decision: ${decision}\\n`;\nif (orchestratorResult.review_packet?.branch) {\n  reply += `Branch: ${orchestratorResult.review_packet.branch}\\n`;\n}\n\nreturn [{ json: {\n  chatId: parsed.chatId,\n  replyText: reply\n} }];"
       },
       "id": "tg-build-reply",
       "name": "Build Reply",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1250, 400]
+      "position": [1350, 600]
     },
     {
       "parameters": {
@@ -139,7 +179,7 @@
       "name": "Telegram: Send Reply",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1500, 400],
+      "position": [1600, 600],
       "credentials": {
         "telegramApi": {
           "id": "telegram-creds",
@@ -155,7 +195,7 @@
       "name": "Handle Rejected",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1000, 550]
+      "position": [1100, 750]
     },
     {
       "parameters": {
@@ -167,7 +207,7 @@
       "name": "Telegram: Send Help",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1250, 550],
+      "position": [1350, 750],
       "credentials": {
         "telegramApi": {
           "id": "telegram-creds",
@@ -178,109 +218,51 @@
   ],
   "connections": {
     "Telegram Trigger": {
-      "main": [
-        [
-          {
-            "node": "Parse Message into Task",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[ { "node": "Parse Message into Task", "type": "main", "index": 0 } ]]
     },
     "Parse Message into Task": {
+      "main": [[ { "node": "Classify Task", "type": "main", "index": 0 } ]]
+    },
+    "Classify Task": {
+      "main": [[ { "node": "IF: Simple?", "type": "main", "index": 0 } ]]
+    },
+    "IF: Simple?": {
       "main": [
-        [
-          {
-            "node": "IF: Task Accepted",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [ { "node": "Build Simple Reply", "type": "main", "index": 0 } ],
+        [ { "node": "IF: Task Accepted", "type": "main", "index": 0 } ]
       ]
+    },
+    "Build Simple Reply": {
+      "main": [[ { "node": "Telegram: Send Simple Reply", "type": "main", "index": 0 } ]]
     },
     "IF: Task Accepted": {
       "main": [
         [
-          {
-            "node": "Build Ack",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Submit to Orchestrator",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Build Ack", "type": "main", "index": 0 },
+          { "node": "Submit to Orchestrator", "type": "main", "index": 0 }
         ],
-        [
-          {
-            "node": "Handle Rejected",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [ { "node": "Handle Rejected", "type": "main", "index": 0 } ]
       ]
     },
     "Build Ack": {
-      "main": [
-        [
-          {
-            "node": "Telegram: Send Ack",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[ { "node": "Telegram: Send Ack", "type": "main", "index": 0 } ]]
     },
     "Submit to Orchestrator": {
-      "main": [
-        [
-          {
-            "node": "Build Reply",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[ { "node": "Build Reply", "type": "main", "index": 0 } ]]
     },
     "Build Reply": {
-      "main": [
-        [
-          {
-            "node": "Telegram: Send Reply",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[ { "node": "Telegram: Send Reply", "type": "main", "index": 0 } ]]
     },
     "Handle Rejected": {
-      "main": [
-        [
-          {
-            "node": "Telegram: Send Help",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[ { "node": "Telegram: Send Help", "type": "main", "index": 0 } ]]
     }
   },
-  "settings": {
-    "executionOrder": "v1"
-  },
+  "settings": { "executionOrder": "v1" },
   "staticData": null,
   "tags": [
-    {
-      "name": "dev-loop"
-    },
-    {
-      "name": "telegram"
-    },
-    {
-      "name": "operator"
-    }
+    { "name": "dev-loop" },
+    { "name": "telegram" },
+    { "name": "operator" }
   ],
   "triggerCount": 1,
   "pinData": {}
