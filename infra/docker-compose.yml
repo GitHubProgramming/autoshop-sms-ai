@@ -86,6 +86,10 @@ services:
 
       # Logging
       N8N_LOG_LEVEL: info
+
+      # Smartlead
+      SMARTLEAD_API_KEY: ${SMARTLEAD_API_KEY}
+      SMARTLEAD_CAMPAIGN_ID: ${SMARTLEAD_CAMPAIGN_ID}
     env_file:
       - path: ../.env
         required: false
@@ -130,6 +134,10 @@ services:
 
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-change_me_32_chars_minimum_here!}
       GENERIC_TIMEZONE: America/Chicago
+
+      # Smartlead
+      SMARTLEAD_API_KEY: ${SMARTLEAD_API_KEY}
+      SMARTLEAD_CAMPAIGN_ID: ${SMARTLEAD_CAMPAIGN_ID}
     env_file:
       - path: ../.env
         required: false
