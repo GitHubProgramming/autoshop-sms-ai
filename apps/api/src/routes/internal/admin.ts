@@ -633,16 +633,37 @@ export async function adminRoute(app: FastifyInstance) {
     const bookings = await query(
       `SELECT a.id, a.tenant_id, t.shop_name, a.customer_phone, a.customer_name,
          a.service_type, a.scheduled_at, a.calendar_synced, a.google_event_id, a.created_at,
-         a.conversation_id, a.booking_state
+         a.conversation_id, a.booking_state,
+         pa.summary AS sync_error_summary,
+         pa.details AS sync_error_details,
+         pa.created_at AS sync_error_at,
+         pa.owner_notified AS owner_was_notified,
+         pa.acknowledged AS alert_acknowledged
        FROM appointments a
        JOIN tenants t ON t.id = a.tenant_id
+       LEFT JOIN LATERAL (
+         SELECT pa2.summary, pa2.details, pa2.created_at, pa2.owner_notified, pa2.acknowledged
+         FROM pipeline_alerts pa2
+         WHERE pa2.tenant_id = a.tenant_id
+           AND pa2.alert_type = 'calendar_sync_failed'
+           AND pa2.summary LIKE '%' || a.id::text || '%'
+         ORDER BY pa2.created_at DESC
+         LIMIT 1
+       ) pa ON true
        WHERE t.is_test = FALSE
          AND a.booking_state IN ('PENDING_MANUAL_CONFIRMATION', 'FAILED')
        ORDER BY a.created_at DESC
        LIMIT 100`
     );
 
-    return reply.status(200).send({ count: (bookings as any[]).length, bookings });
+    // Derive follow-up status for each booking
+    const enriched = (bookings as any[]).map((b: any) => ({
+      ...b,
+      needs_manual_followup: !b.calendar_synced && !b.google_event_id,
+      sync_failure_reason: b.sync_error_details || b.sync_error_summary || null,
+    }));
+
+    return reply.status(200).send({ count: enriched.length, bookings: enriched });
   });
 
   // ── PATCH /internal/admin/bookings/:id/state ──────────────────────────────
