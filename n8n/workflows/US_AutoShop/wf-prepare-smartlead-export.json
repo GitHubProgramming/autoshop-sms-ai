@@ -1,0 +1,125 @@
+{
+  "id": "WF-PREPARE-SMARTLEAD-EXPORT",
+  "name": "WF-PREPARE-SMARTLEAD-EXPORT",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "export-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  id, business_name, website, domain, email,\n  email_status, lead_status, outreach_status,\n  export_status, smartlead_status,\n  needs_manual_review, created_at, updated_at\nFROM lead_master\nWHERE outreach_status = 'none'\n  AND lead_status = 'approved'\n  AND email_status IN ('verified', 'risky')\n  AND email IS NOT NULL\n  AND domain IS NOT NULL\n  AND COALESCE(smartlead_status, 'none') NOT IN ('exported', 'pending_export')\nORDER BY created_at ASC\nLIMIT 50",
+        "options": {}
+      },
+      "id": "export-fetch",
+      "name": "Postgres - Fetch Export Candidates",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [500, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "AutoShop Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nfunction normEmail(e) {\n  if (!e || typeof e !== 'string') return null;\n  return e.trim().toLowerCase();\n}\n\nfunction normDomain(d) {\n  if (!d || typeof d !== 'string') return null;\n  let v = d.trim().toLowerCase();\n  v = v.replace(/^https?:\\/\\//, '').replace(/^www\\./, '');\n  v = v.split('/')[0].split('?')[0].split('#')[0];\n  v = v.replace(/:\\d+$/, '');\n  return (v && v.includes('.')) ? v : null;\n}\n\nfunction isValidEmail(e) {\n  return /^[a-z0-9._%+\\-]+@[a-z0-9.\\-]+\\.[a-z]{2,}$/.test(e);\n}\n\nconst results = [];\n\nfor (const item of items) {\n  const r = item.json;\n  const email = normEmail(r.email);\n  const domain = normDomain(r.domain);\n  const bizName = (r.business_name || '').trim();\n\n  const missing = [];\n  if (!email) missing.push('email');\n  if (!domain) missing.push('domain');\n  if (!isValidEmail(email || '')) missing.push('email_format');\n  if (!r.id) missing.push('id');\n  if (!bizName) missing.push('business_name');\n\n  const valid = missing.length === 0;\n\n  results.push({\n    json: {\n      id: r.id,\n      business_name: bizName,\n      website: r.website || null,\n      domain: domain,\n      email: email,\n      email_status: r.email_status,\n      lead_status: r.lead_status,\n      outreach_status: r.outreach_status,\n      export_status: r.export_status,\n      smartlead_status: r.smartlead_status,\n      needs_manual_review: r.needs_manual_review || false,\n      created_at: r.created_at,\n      updated_at: r.updated_at,\n      _valid: valid,\n      _missing_fields: missing,\n      _norm_email: email,\n      _norm_domain: domain,\n      _norm_biz: bizName.toLowerCase().replace(/[^a-z0-9]/g, '')\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "export-normalize",
+      "name": "Code - Normalize and Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\n// --- Phase 1: Invalid -> blocked ---\nconst valid = [];\nconst blocked = [];\n\nfor (const item of items) {\n  const r = item.json;\n  if (!r._valid) {\n    blocked.push({\n      ...r,\n      export_decision: 'blocked',\n      smartlead_decision: 'not_exportable',\n      review_decision: true,\n      decision_reason: 'missing_fields:' + (r._missing_fields || []).join(',')\n    });\n  } else {\n    valid.push(r);\n  }\n}\n\n// --- Phase 2: Email dedup ---\nconst byEmail = new Map();\nfor (const r of valid) {\n  const key = r._norm_email;\n  if (!byEmail.has(key)) byEmail.set(key, []);\n  byEmail.get(key).push(r);\n}\n\nfunction pickWinner(rows) {\n  return rows.sort((a, b) => {\n    const aV = a.email_status === 'verified' ? 1 : 0;\n    const bV = b.email_status === 'verified' ? 1 : 0;\n    if (bV !== aV) return bV - aV;\n    const aB = a.business_name ? 1 : 0;\n    const bB = b.business_name ? 1 : 0;\n    if (bB !== aB) return bB - aB;\n    return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();\n  })[0];\n}\n\nconst emailWinners = new Map();\nconst emailDupes = [];\n\nfor (const [email, rows] of byEmail) {\n  if (rows.length === 1) {\n    emailWinners.set(rows[0].id, rows[0]);\n  } else {\n    const winner = pickWinner([...rows]);\n    emailWinners.set(winner.id, winner);\n    for (const r of rows) {\n      if (r.id !== winner.id) {\n        emailDupes.push({\n          ...r,\n          export_decision: 'duplicate',\n          smartlead_decision: 'not_exportable',\n          review_decision: true,\n          decision_reason: 'email_duplicate_of:' + winner.id\n        });\n      }\n    }\n  }\n}\n\n// --- Phase 3: Domain dedup (deterministic only) ---\nconst byDomain = new Map();\nfor (const [id, r] of emailWinners) {\n  const key = r._norm_domain;\n  if (!byDomain.has(key)) byDomain.set(key, []);\n  byDomain.get(key).push(r);\n}\n\nfunction isObviousDuplicate(a, b) {\n  if (!a || !b) return false;\n  if (a === b) return true;\n  if (a.includes(b) && b.length >= 3) return true;\n  if (b.includes(a) && a.length >= 3) return true;\n  return false;\n}\n\nconst domainDupes = [];\nconst winners = new Map();\n\nfor (const [domain, rows] of byDomain) {\n  if (rows.length === 1) {\n    winners.set(rows[0].id, rows[0]);\n    continue;\n  }\n\n  const groups = [];\n  const assigned = new Set();\n\n  for (let i = 0; i < rows.length; i++) {\n    if (assigned.has(i)) continue;\n    const group = [rows[i]];\n    assigned.add(i);\n    for (let j = i + 1; j < rows.length; j++) {\n      if (assigned.has(j)) continue;\n      if (isObviousDuplicate(rows[i]._norm_biz, rows[j]._norm_biz)) {\n        group.push(rows[j]);\n        assigned.add(j);\n      }\n    }\n    groups.push(group);\n  }\n\n  for (const group of groups) {\n    if (group.length === 1) {\n      winners.set(group[0].id, group[0]);\n    } else {\n      const winner = pickWinner([...group]);\n      winners.set(winner.id, winner);\n      for (const r of group) {\n        if (r.id !== winner.id) {\n          domainDupes.push({\n            ...r,\n            export_decision: 'duplicate',\n            smartlead_decision: 'not_exportable',\n            review_decision: true,\n            decision_reason: 'domain_duplicate_of:' + winner.id\n          });\n        }\n      }\n    }\n  }\n}\n\n// --- Phase 4: Winners -> ready ---\nconst ready = [];\nfor (const [id, r] of winners) {\n  const isRisky = r.email_status === 'risky';\n  ready.push({\n    ...r,\n    export_decision: 'ready',\n    smartlead_decision: 'pending_export',\n    review_decision: isRisky ? true : r.needs_manual_review,\n    decision_reason: isRisky ? 'risky_email' : 'clean'\n  });\n}\n\nreturn [...ready, ...blocked, ...emailDupes, ...domainDupes].map(r => ({ json: r }));"
+      },
+      "id": "export-dedup",
+      "name": "Code - Resolve Duplicates and Decide",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE lead_master\nSET\n  export_status = '{{ $json.export_decision }}',\n  smartlead_status = CASE\n    WHEN COALESCE(smartlead_status, 'none') = 'exported'\n    THEN smartlead_status\n    ELSE '{{ $json.smartlead_decision }}'\n  END,\n  needs_manual_review = CASE\n    WHEN {{ $json.review_decision }} = true THEN true\n    ELSE needs_manual_review\n  END,\n  updated_at = NOW()\nWHERE id = '{{ $json.id }}'::uuid\n  AND COALESCE(smartlead_status, 'none') != 'exported'\n  AND COALESCE(outreach_status, 'none') NOT IN ('queued', 'sent', 'replied', 'bounced')\nRETURNING id, business_name, email, domain, website,\n  email_status, lead_status, export_status,\n  smartlead_status, needs_manual_review",
+        "options": {}
+      },
+      "id": "export-update",
+      "name": "Postgres - Update lead_master",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [1500, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "AutoShop Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build export output from actual DB RETURNING rows (direct input)\nconst updateResults = $input.all();\n\n// Decision count for context\nconst totalDecisions = $('Code - Resolve Duplicates and Decide').all().length;\n\nconst ready = [];\nlet dbUpdated = 0;\nlet readyCount = 0;\nlet blockedCount = 0;\nlet duplicateCount = 0;\nlet riskyCount = 0;\n\nfor (const item of updateResults) {\n  const r = item.json;\n  if (!r.id) continue;\n  dbUpdated++;\n\n  if (r.export_status === 'ready') {\n    readyCount++;\n    if (r.email_status === 'risky') riskyCount++;\n    ready.push({\n      id: r.id,\n      business_name: r.business_name,\n      email: r.email,\n      domain: r.domain,\n      website: r.website,\n      email_status: r.email_status,\n      lead_status: r.lead_status,\n      export_status: r.export_status,\n      smartlead_status: r.smartlead_status,\n      needs_manual_review: r.needs_manual_review\n    });\n  } else if (r.export_status === 'blocked') {\n    blockedCount++;\n  } else if (r.export_status === 'duplicate') {\n    duplicateCount++;\n  }\n}\n\nconst dbSkipped = totalDecisions - dbUpdated;\n\nconst output = [{\n  json: {\n    _type: 'summary',\n    total_decisions: totalDecisions,\n    db_updated: dbUpdated,\n    db_skipped: dbSkipped,\n    ready_for_export: readyCount,\n    risky: riskyCount,\n    blocked: blockedCount,\n    duplicates: duplicateCount\n  }\n}];\n\nfor (const row of ready) {\n  output.push({ json: { _type: 'export_row', ...row } });\n}\n\nreturn output;"
+      },
+      "id": "export-output",
+      "name": "Code - Build Export Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1750, 500]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          { "node": "Postgres - Fetch Export Candidates", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Postgres - Fetch Export Candidates": {
+      "main": [
+        [
+          { "node": "Code - Normalize and Validate", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Code - Normalize and Validate": {
+      "main": [
+        [
+          { "node": "Code - Resolve Duplicates and Decide", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Code - Resolve Duplicates and Decide": {
+      "main": [
+        [
+          { "node": "Postgres - Update lead_master", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Postgres - Update lead_master": {
+      "main": [
+        [
+          { "node": "Code - Build Export Output", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "export" },
+    { "name": "smartlead" }
+  ]
+}
