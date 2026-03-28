@@ -1,5 +1,11 @@
 #!/bin/bash
-# Telegram Task Intake — Polling Mode
+# Telegram Task Intake — Polling Mode (LOCAL FALLBACK ONLY)
+#
+# PREFERRED PATH: n8n Cloud webhook-based intake (telegram-task-intake.json)
+# on https://bandomasis.app.n8n.cloud
+#
+# This polling script is a LOCAL-ONLY FALLBACK for when n8n Cloud is unavailable
+# or when developing locally without a public HTTPS URL for Telegram webhooks.
 #
 # Polls for new Telegram messages and submits them as dev-loop tasks.
 # Works without a public URL (uses getUpdates polling instead of webhooks).
