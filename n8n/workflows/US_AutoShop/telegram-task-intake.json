@@ -1,0 +1,282 @@
+{
+  "id": "TELEGRAM-TASK-INTAKE",
+  "name": "US AutoShop: Telegram Task Intake",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message"],
+        "additionalFields": {}
+      },
+      "id": "tg-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-creds",
+          "name": "AutoShop Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate sender and parse Telegram message into a dev-loop task\nconst msg = $input.first().json;\nconst message = msg.message || {};\nconst text = (message.text || '').trim();\nconst chatId = message.chat?.id;\nconst senderId = message.from?.id;\nconst senderName = message.from?.first_name || 'operator';\n\n// Only accept messages from the configured operator chat\nconst allowedChatId = $env.TELEGRAM_CHAT_ID;\nif (allowedChatId && String(chatId) !== String(allowedChatId)) {\n  return [{ json: { rejected: true, reason: 'unauthorized_chat', chatId } }];\n}\n\n// Ignore empty messages and commands that aren't tasks\nif (!text || text.startsWith('/start') || text.startsWith('/help')) {\n  return [{ json: {\n    rejected: true,\n    reason: text ? 'command' : 'empty',\n    chatId,\n    help_response: 'Send a plain text message describing a task. Example:\\n\\nAdd a formatPhoneNumber utility in packages/shared/src/ that normalizes US numbers to E.164'\n  } }];\n}\n\n// Strip /task prefix if present\nlet taskText = text;\nif (taskText.startsWith('/task ')) {\n  taskText = taskText.substring(6).trim();\n}\n\n// Generate deterministic task_id from timestamp + short hash\nconst ts = Date.now();\nconst shortHash = ts.toString(36).slice(-6);\nconst taskId = `tg-${shortHash}`;\n\n// Extract title: first line or first 60 chars\nconst firstLine = taskText.split('\\n')[0];\nconst title = firstLine.length > 60 ? firstLine.substring(0, 57) + '...' : firstLine;\n\n// Build TaskContract\nconst task = {\n  task_id: taskId,\n  title: title,\n  goal: taskText,\n  scope_boundaries: [],\n  files_allowed: ['apps/api/**', 'packages/shared/**'],\n  files_forbidden: [\n    '**/auth/**', '**/billing/**', '**/stripe/**',\n    '**/twilio/**', '**/oauth/**', '**/provisioning/**',\n    '**/deploy/**', '**/migration/**'\n  ],\n  critical_systems_risk: false,\n  expected_output: [],\n  checks_required: ['typecheck']\n};\n\nreturn [{ json: {\n  rejected: false,\n  task,\n  chatId,\n  senderName,\n  messageId: message.message_id\n} }];"
+      },
+      "id": "tg-parse",
+      "name": "Parse Message into Task",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-accepted",
+              "leftValue": "={{ $json.rejected }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "tg-gate",
+      "name": "IF: Task Accepted",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.API_BASE_URL || 'http://api:3000' }}/internal/dev-loop/task-submit",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "x-internal-key",
+              "value": "={{ $env.INTERNAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.task) }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "tg-register",
+      "name": "API: Register Task",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1000, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_BASE_URL || 'http://localhost:5678' }}/webhook/dev-loop-task",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Parse Message into Task').first().json.task) }}",
+        "options": {
+          "timeout": 300000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "tg-submit-orchestrator",
+      "name": "Submit to Orchestrator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build acknowledgment message for Telegram\nconst parsed = $('Parse Message into Task').first().json;\nconst task = parsed.task;\nconst registerResult = $('API: Register Task').first().json;\nconst orchestratorResult = $('Submit to Orchestrator').first().json;\n\n// Determine status from orchestrator response\nlet status = 'submitted';\nlet decision = '';\nif (orchestratorResult.review_packet) {\n  const rp = orchestratorResult.review_packet;\n  status = rp.goal_match === 'full' ? 'done' : rp.goal_match || 'processing';\n  decision = rp.recommended_decision || '';\n} else if (orchestratorResult.action) {\n  decision = orchestratorResult.action;\n  if (orchestratorResult.action === 'ESCALATE') status = 'escalated';\n  else if (orchestratorResult.action === 'RETRY') status = 'retrying';\n  else status = 'done';\n} else if (orchestratorResult.error || orchestratorResult.statusCode >= 400) {\n  status = 'queued (orchestrator unavailable)';\n}\n\nconst registered = registerResult.id ? true : false;\n\nlet reply = `Task: ${task.task_id}\\n`;\nreply += `Title: ${task.title}\\n`;\nreply += `Status: ${status}\\n`;\nif (decision) reply += `Decision: ${decision}\\n`;\nreply += `DB: ${registered ? 'recorded' : 'not recorded (check API)'}\\n`;\nif (orchestratorResult.review_packet?.branch) {\n  reply += `Branch: ${orchestratorResult.review_packet.branch}\\n`;\n}\n\nreturn [{ json: {\n  chatId: parsed.chatId,\n  replyText: reply\n} }];"
+      },
+      "id": "tg-build-reply",
+      "name": "Build Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.replyText }}",
+        "additionalFields": {}
+      },
+      "id": "tg-reply",
+      "name": "Telegram: Send Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1500, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-creds",
+          "name": "AutoShop Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle rejected messages (unauthorized chat, empty, /help)\nconst data = $input.first().json;\n\nif (data.reason === 'command' || data.reason === 'empty') {\n  return [{ json: {\n    chatId: data.chatId,\n    replyText: data.help_response || 'Send a plain text message describing a task.'\n  } }];\n}\n\n// Unauthorized chat — do not respond (silent reject)\nreturn [];"
+      },
+      "id": "tg-handle-rejected",
+      "name": "Handle Rejected",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 550]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.replyText }}",
+        "additionalFields": {}
+      },
+      "id": "tg-reply-help",
+      "name": "Telegram: Send Help",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1250, 550],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-creds",
+          "name": "AutoShop Telegram"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Message into Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Message into Task": {
+      "main": [
+        [
+          {
+            "node": "IF: Task Accepted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Task Accepted": {
+      "main": [
+        [
+          {
+            "node": "API: Register Task",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Submit to Orchestrator",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Submit to Orchestrator": {
+      "main": [
+        [
+          {
+            "node": "Build Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Reply": {
+      "main": [
+        [
+          {
+            "node": "Telegram: Send Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Rejected": {
+      "main": [
+        [
+          {
+            "node": "Telegram: Send Help",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "dev-loop"
+    },
+    {
+      "name": "telegram"
+    },
+    {
+      "name": "operator"
+    }
+  ],
+  "triggerCount": 1,
+  "pinData": {}
+}
