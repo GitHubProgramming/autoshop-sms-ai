@@ -80,10 +80,10 @@
     },
     {
       "parameters": {
-        "jsCode": "// Placeholder: Claude Code execution handoff\n// In production, this calls the Claude Code CLI or API\n// For now, it outputs the prompt and waits for manual execution\n//\n// Integration options:\n// 1. HTTP Request to Claude API with the prompt\n// 2. Execute Command node running: claude --task \"<prompt>\" --output json\n// 3. Webhook callback from external Claude runner\n\nconst input = $input.first().json;\n\n// This node should be replaced with actual Claude execution.\n// The output must conform to ExecutionResultContract.\nconst placeholderResult = {\n  task_id: input.task.task_id,\n  status: 'blocked',\n  files_changed: [],\n  checks_run: [],\n  critical_files_touched: [],\n  summary: 'Awaiting Claude execution — replace this node with actual Claude CLI/API call',\n  open_issues: ['Claude execution node not yet wired to real CLI/API'],\n  retry_recommended: false,\n  claude_prompt: input.claude_prompt\n};\n\nreturn [{ json: placeholderResult }];"
+        "jsCode": "// Write prompt to temp file and call claude-exec.sh\nconst input = $input.first().json;\nconst fs = require('fs');\nconst os = require('os');\nconst path = require('path');\nconst { execSync } = require('child_process');\n\nconst taskId = input.task.task_id;\nconst prompt = input.claude_prompt;\n\n// Write prompt to a temp file (avoids shell escaping issues)\nconst tmpDir = os.tmpdir();\nconst promptFile = path.join(tmpDir, `dev-loop-prompt-${taskId}.txt`);\nfs.writeFileSync(promptFile, prompt, 'utf8');\n\n// Determine repo root from REPO_ROOT env or default\nconst repoRoot = $env.REPO_ROOT || '/opt/autoshop-ai';\nconst scriptPath = path.join(repoRoot, 'scripts', 'claude-exec.sh');\nconst timeout = Number($env.CLAUDE_EXEC_TIMEOUT || 300) * 1000; // ms\n\nlet stdout = '';\nlet exitCode = 0;\n\ntry {\n  stdout = execSync(\n    `bash \"${scriptPath}\" \"${promptFile}\" \"${taskId}\"`,\n    {\n      cwd: repoRoot,\n      timeout: timeout + 10000, // buffer above script's own timeout\n      env: {\n        ...process.env,\n        REPO_ROOT: repoRoot,\n        CLAUDE_EXEC_TIMEOUT: String($env.CLAUDE_EXEC_TIMEOUT || 300),\n        CLAUDE_EXEC_BUDGET: String($env.CLAUDE_EXEC_BUDGET || '1.00')\n      },\n      encoding: 'utf8',\n      stdio: ['pipe', 'pipe', 'pipe']\n    }\n  );\n} catch (err) {\n  exitCode = err.status || 1;\n  stdout = err.stdout || '';\n}\n\n// Clean up temp file\ntry { fs.unlinkSync(promptFile); } catch(e) {}\n\n// Parse the JSON output from claude-exec.sh\nlet result;\ntry {\n  result = JSON.parse(stdout.trim());\n} catch(e) {\n  result = {\n    task_id: taskId,\n    status: 'failed',\n    files_changed: [],\n    checks_run: [],\n    critical_files_touched: [],\n    summary: `claude-exec.sh output was not valid JSON (exit ${exitCode}): ${stdout.substring(0, 500)}`,\n    open_issues: ['Execution adapter output parse error'],\n    retry_recommended: true\n  };\n}\n\nreturn [{ json: result }];"
       },
       "id": "dl-claude-exec",
-      "name": "Claude Execution (Handoff)",
+      "name": "Claude Execution (Real)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1500, 200]
@@ -253,14 +253,14 @@
       "main": [
         [
           {
-            "node": "Claude Execution (Handoff)",
+            "node": "Claude Execution (Real)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Claude Execution (Handoff)": {
+    "Claude Execution (Real)": {
       "main": [
         [
           {
