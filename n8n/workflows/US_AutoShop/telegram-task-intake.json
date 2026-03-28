@@ -13,6 +13,7 @@
       "type": "n8n-nodes-base.telegramTrigger",
       "typeVersion": 1.1,
       "position": [250, 300],
+      "webhookId": "tg-intake-webhook",
       "credentials": {
         "telegramApi": {
           "id": "telegram-creds",
@@ -22,7 +23,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validate sender and parse Telegram message into a dev-loop task\nconst msg = $input.first().json;\nconst message = msg.message || {};\nconst text = (message.text || '').trim();\nconst chatId = message.chat?.id;\nconst senderId = message.from?.id;\nconst senderName = message.from?.first_name || 'operator';\n\n// Only accept messages from the configured operator chat\nconst allowedChatId = $env.TELEGRAM_CHAT_ID;\nif (allowedChatId && String(chatId) !== String(allowedChatId)) {\n  return [{ json: { rejected: true, reason: 'unauthorized_chat', chatId } }];\n}\n\n// Ignore empty messages and commands that aren't tasks\nif (!text || text.startsWith('/start') || text.startsWith('/help')) {\n  return [{ json: {\n    rejected: true,\n    reason: text ? 'command' : 'empty',\n    chatId,\n    help_response: 'Send a plain text message describing a task. Example:\\n\\nAdd a formatPhoneNumber utility in packages/shared/src/ that normalizes US numbers to E.164'\n  } }];\n}\n\n// Strip /task prefix if present\nlet taskText = text;\nif (taskText.startsWith('/task ')) {\n  taskText = taskText.substring(6).trim();\n}\n\n// Generate deterministic task_id from timestamp + short hash\nconst ts = Date.now();\nconst shortHash = ts.toString(36).slice(-6);\nconst taskId = `tg-${shortHash}`;\n\n// Extract title: first line or first 60 chars\nconst firstLine = taskText.split('\\n')[0];\nconst title = firstLine.length > 60 ? firstLine.substring(0, 57) + '...' : firstLine;\n\n// Build TaskContract\nconst task = {\n  task_id: taskId,\n  title: title,\n  goal: taskText,\n  scope_boundaries: [],\n  files_allowed: ['apps/api/**', 'packages/shared/**'],\n  files_forbidden: [\n    '**/auth/**', '**/billing/**', '**/stripe/**',\n    '**/twilio/**', '**/oauth/**', '**/provisioning/**',\n    '**/deploy/**', '**/migration/**'\n  ],\n  critical_systems_risk: false,\n  expected_output: [],\n  checks_required: ['typecheck']\n};\n\nreturn [{ json: {\n  rejected: false,\n  task,\n  chatId,\n  senderName,\n  messageId: message.message_id\n} }];"
+        "jsCode": "// Validate sender and parse Telegram message into a dev-loop task\nconst msg = $input.first().json;\nconst message = msg.message || {};\nconst text = (message.text || '').trim();\nconst chatId = message.chat?.id;\nconst senderId = message.from?.id;\nconst senderName = message.from?.first_name || 'operator';\n\n// Only accept messages from the configured operator chat\n// n8n Cloud: use hardcoded chat ID (env access blocked)\n// Local: use $env.TELEGRAM_CHAT_ID\nconst allowedChatId = typeof $env !== 'undefined' && $env.TELEGRAM_CHAT_ID ? $env.TELEGRAM_CHAT_ID : '8747048300';\nif (allowedChatId && String(chatId) !== String(allowedChatId)) {\n  return [{ json: { rejected: true, reason: 'unauthorized_chat', chatId } }];\n}\n\n// Ignore empty messages and commands that aren't tasks\nif (!text || text.startsWith('/start') || text.startsWith('/help')) {\n  return [{ json: {\n    rejected: true,\n    reason: text ? 'command' : 'empty',\n    chatId,\n    help_response: 'Send a plain text message describing a task. Example:\\n\\nAdd a formatPhoneNumber utility in packages/shared/src/ that normalizes US numbers to E.164'\n  } }];\n}\n\n// Strip /task prefix if present\nlet taskText = text;\nif (taskText.startsWith('/task ')) {\n  taskText = taskText.substring(6).trim();\n}\n\n// Generate deterministic task_id from timestamp + short hash\nconst ts = Date.now();\nconst shortHash = ts.toString(36).slice(-6);\nconst taskId = `tg-${shortHash}`;\n\n// Extract title: first line or first 60 chars\nconst firstLine = taskText.split('\\n')[0];\nconst title = firstLine.length > 60 ? firstLine.substring(0, 57) + '...' : firstLine;\n\n// Build TaskContract\nconst task = {\n  task_id: taskId,\n  title: title,\n  goal: taskText,\n  scope_boundaries: [],\n  files_allowed: ['apps/api/**', 'packages/shared/**'],\n  files_forbidden: [\n    '**/auth/**', '**/billing/**', '**/stripe/**',\n    '**/twilio/**', '**/oauth/**', '**/provisioning/**',\n    '**/deploy/**', '**/migration/**'\n  ],\n  critical_systems_risk: false,\n  expected_output: [],\n  checks_required: ['typecheck']\n};\n\nreturn [{ json: {\n  rejected: false,\n  task,\n  chatId,\n  senderName,\n  messageId: message.message_id\n} }];"
       },
       "id": "tg-parse",
       "name": "Parse Message into Task",
@@ -61,6 +62,34 @@
     },
     {
       "parameters": {
+        "jsCode": "const parsed = $('Parse Message into Task').first().json;\nconst task = parsed.task;\nconst title = task.title.length > 80 ? task.title.substring(0, 77) + '...' : task.title;\nreturn [{ json: {\n  chatId: parsed.chatId,\n  replyText: 'Task received: ' + title + '\\nAnalyzing...'\n} }];"
+      },
+      "id": "tg-build-ack",
+      "name": "Build Ack",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 150]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.replyText }}",
+        "additionalFields": {}
+      },
+      "id": "tg-send-ack",
+      "name": "Telegram: Send Ack",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1250, 150],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-creds",
+          "name": "AutoShop Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "={{ $env.N8N_BASE_URL || 'http://localhost:5678' }}/webhook/dev-loop-task",
         "sendHeaders": true,
@@ -92,13 +121,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build acknowledgment message for Telegram\nconst parsed = $('Parse Message into Task').first().json;\nconst task = parsed.task;\nconst orchestratorResult = $input.first().json;\n\n// Determine status from orchestrator response\nlet status = 'submitted';\nlet decision = '';\nif (orchestratorResult.review_packet) {\n  const rp = orchestratorResult.review_packet;\n  status = rp.goal_match === 'full' ? 'done' : rp.goal_match || 'processing';\n  decision = rp.recommended_decision || '';\n} else if (orchestratorResult.action) {\n  decision = orchestratorResult.action;\n  if (orchestratorResult.action === 'ESCALATE') status = 'escalated';\n  else if (orchestratorResult.action === 'RETRY') status = 'retrying';\n  else status = 'done';\n} else if (orchestratorResult.error || orchestratorResult.statusCode >= 400) {\n  status = 'queued (orchestrator unavailable)';\n}\n\nlet reply = `Task: ${task.task_id}\\n`;\nreply += `Title: ${task.title}\\n`;\nreply += `Status: ${status}\\n`;\nif (decision) reply += `Decision: ${decision}\\n`;\nif (orchestratorResult.review_packet?.branch) {\n  reply += `Branch: ${orchestratorResult.review_packet.branch}\\n`;\n}\n\nreturn [{ json: {\n  chatId: parsed.chatId,\n  replyText: reply\n} }];"
+        "jsCode": "// Build final result message for Telegram\nconst parsed = $('Parse Message into Task').first().json;\nconst task = parsed.task;\nconst orchestratorResult = $input.first().json;\n\n// Determine status from orchestrator response\nlet status = 'submitted';\nlet decision = '';\nif (orchestratorResult.review_packet) {\n  const rp = orchestratorResult.review_packet;\n  status = rp.goal_match === 'full' ? 'done' : rp.goal_match || 'processing';\n  decision = rp.recommended_decision || '';\n} else if (orchestratorResult.action) {\n  decision = orchestratorResult.action;\n  if (orchestratorResult.action === 'ESCALATE') status = 'escalated';\n  else if (orchestratorResult.action === 'RETRY') status = 'retrying';\n  else status = 'done';\n} else if (orchestratorResult.error || orchestratorResult.statusCode >= 400) {\n  status = 'failed (orchestrator error)';\n}\n\nlet reply = `Task: ${task.task_id}\\n`;\nreply += `Title: ${task.title}\\n`;\nreply += `Status: ${status}\\n`;\nif (decision) reply += `Decision: ${decision}\\n`;\nif (orchestratorResult.review_packet?.branch) {\n  reply += `Branch: ${orchestratorResult.review_packet.branch}\\n`;\n}\n\nreturn [{ json: {\n  chatId: parsed.chatId,\n  replyText: reply\n} }];"
       },
       "id": "tg-build-reply",
       "name": "Build Reply",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1250, 300]
+      "position": [1250, 400]
     },
     {
       "parameters": {
@@ -110,7 +139,7 @@
       "name": "Telegram: Send Reply",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1500, 300],
+      "position": [1500, 400],
       "credentials": {
         "telegramApi": {
           "id": "telegram-creds",
@@ -174,6 +203,11 @@
       "main": [
         [
           {
+            "node": "Build Ack",
+            "type": "main",
+            "index": 0
+          },
+          {
             "node": "Submit to Orchestrator",
             "type": "main",
             "index": 0
@@ -182,6 +216,17 @@
         [
           {
             "node": "Handle Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Ack": {
+      "main": [
+        [
+          {
+            "node": "Telegram: Send Ack",
             "type": "main",
             "index": 0
           }
