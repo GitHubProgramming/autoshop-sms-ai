@@ -1,0 +1,33 @@
+{
+  "task_id": "example-001",
+  "title": "Example: add utility function",
+  "goal": "Create a formatPhoneNumber utility that normalizes US phone numbers to E.164 format (+1XXXXXXXXXX). Include input validation.",
+  "scope_boundaries": [
+    "Only create or modify files under packages/shared/src/",
+    "Do not touch any API routes or services",
+    "Do not modify any existing tests"
+  ],
+  "files_allowed": [
+    "packages/shared/src/**"
+  ],
+  "files_forbidden": [
+    "**/auth/**",
+    "**/billing/**",
+    "**/stripe/**",
+    "**/twilio/**",
+    "**/oauth/**",
+    "**/provisioning/**",
+    "**/deploy/**",
+    "**/migration/**",
+    "apps/api/src/routes/**",
+    "apps/api/src/services/**"
+  ],
+  "critical_systems_risk": false,
+  "expected_output": [
+    "New or updated utility file with formatPhoneNumber function",
+    "Function handles 10-digit, 11-digit, and already-formatted inputs"
+  ],
+  "checks_required": [
+    "typecheck"
+  ]
+}
