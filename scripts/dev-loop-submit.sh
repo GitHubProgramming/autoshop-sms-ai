@@ -13,6 +13,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 N8N_BASE_URL="${N8N_BASE_URL:-http://localhost:5678}"
+API_BASE_URL="${API_BASE_URL:-http://localhost:3000}"
 WEBHOOK_PATH="webhook/dev-loop-task"
 RESULTS_DIR="${REPO_ROOT}/scripts/tasks/results"
 
@@ -53,6 +54,13 @@ if ! python3 -c "import json; json.load(open('$TASK_FILE'))" 2>/dev/null && \
   exit 1
 fi
 
+# Register task in API for operator visibility
+echo "Registering task in API..."
+curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -d @"$TASK_FILE" \
+  "${API_BASE_URL}/internal/dev-loop/task-submit" > /dev/null 2>&1 || echo "Warning: Could not register task in API (non-fatal)"
+
 echo "Submitting task to dev-loop orchestrator..."
 echo "URL: ${N8N_BASE_URL}/${WEBHOOK_PATH}"
 echo ""
@@ -82,6 +90,46 @@ if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
   echo "$BODY" > "$RESULT_FILE"
 
   echo "Result saved: $RESULT_FILE"
+  echo ""
+
+  # Save execution result to API for operator dashboard visibility
+  RESULT_PAYLOAD=$(echo "$BODY" | node -e "
+    process.stdin.resume();let d='';
+    process.stdin.on('data',c=>d+=c);
+    process.stdin.on('end',()=>{
+      try{
+        const j=JSON.parse(d);
+        const rp=j.review_packet||{};
+        const out={
+          task_id: rp.task_id||j.task_id||'unknown',
+          status: j.action==='ESCALATE'?'blocked':j.action==='RETRY'?'failed':'done',
+          goal_match: rp.goal_match||null,
+          risk_level: rp.risk_level||null,
+          review_decision: rp.recommended_decision||j.action||null,
+          operator_notes: rp.operator_notes||j.message||null,
+          branch: rp.branch||null,
+          git_diff_summary: rp.git_diff_summary||null,
+          retry_count: rp.retry_count||0,
+          logical_gaps: rp.logical_gaps||[],
+          execution_summary: rp.operator_notes||j.message||null,
+          files_changed: [],
+          checks_run: [],
+          critical_files_touched: [],
+          open_issues: rp.logical_gaps||[]
+        };
+        console.log(JSON.stringify(out));
+      }catch(e){console.log('{}')}
+    });
+  " 2>/dev/null || echo "{}")
+
+  if [ "$RESULT_PAYLOAD" != "{}" ]; then
+    curl -s -X POST \
+      -H "Content-Type: application/json" \
+      -d "$RESULT_PAYLOAD" \
+      "${API_BASE_URL}/internal/dev-loop/task-result" > /dev/null 2>&1 || echo "Warning: Could not save result to API (non-fatal)"
+    echo "Result saved to operator dashboard."
+  fi
+
   echo ""
   echo "Review packet:"
   echo "$BODY" | node -e "process.stdin.resume();let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.stringify(JSON.parse(d),null,2))}catch(e){console.log(d)}})" 2>/dev/null || echo "$BODY"

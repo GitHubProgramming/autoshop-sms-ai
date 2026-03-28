@@ -40,6 +40,7 @@ import { configRoute } from "./routes/internal/config";
 import { githubIssuesRoute } from "./routes/internal/github-issues";
 import { dlqRoute } from "./routes/internal/dlq";
 import { ltLogConversationRoute } from "./routes/internal/lt-log-conversation";
+import { devLoopRoute } from "./routes/internal/dev-loop";
 import { db } from "./db/client";
 import { redis } from "./queues/redis";
 import { deadLetterQueue } from "./queues/dead-letter";
@@ -154,6 +155,7 @@ async function bootstrap() {
   await app.register(githubIssuesRoute, { prefix: "/internal" });
   await app.register(dlqRoute, { prefix: "/internal" });
   await app.register(ltLogConversationRoute, { prefix: "/internal" });
+  await app.register(devLoopRoute, { prefix: "/internal" });
   await app.register(googleAuthRoute, { prefix: "/auth/google" });
   await app.register(loginRoute, { prefix: "/auth" });
   await app.register(signupRoute, { prefix: "/auth" });

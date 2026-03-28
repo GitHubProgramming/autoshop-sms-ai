@@ -234,6 +234,78 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1250, 450]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.API_BASE_URL || 'http://api:3000' }}/internal/dev-loop/task-submit",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ task_id: $json.task_id, title: $json.title, goal: $json.goal, scope_boundaries: $json.scope_boundaries, files_allowed: $json.files_allowed, files_forbidden: $json.files_forbidden, critical_systems_risk: $json.critical_systems_risk, expected_output: $json.expected_output, checks_required: $json.checks_required }) }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "dl-api-register",
+      "name": "API: Register Task",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [620, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare task result payload for the API\nconst exec = $('Parse Claude Response').first().json;\nconst review = $input.first().json;\n\nreturn [{ json: {\n  api_payload: {\n    task_id: review.task_id,\n    status: exec.status,\n    files_changed: exec.files_changed || [],\n    checks_run: exec.checks_run || [],\n    critical_files_touched: exec.critical_files_touched || [],\n    execution_summary: exec.summary || '',\n    open_issues: exec.open_issues || [],\n    retry_recommended: exec.retry_recommended || false,\n    goal_match: review.goal_match,\n    risk_level: review.risk_level,\n    review_decision: review.recommended_decision,\n    operator_notes: review.operator_notes,\n    branch: review.branch,\n    git_diff_summary: review.git_diff_summary,\n    retry_count: review.retry_count,\n    logical_gaps: review.logical_gaps || []\n  },\n  review_packet: review\n} }];"
+      },
+      "id": "dl-prepare-save",
+      "name": "Prepare Result Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2100, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.API_BASE_URL || 'http://api:3000' }}/internal/dev-loop/task-result",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.api_payload) }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "dl-api-save-result",
+      "name": "API: Save Result",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2200, 200]
     }
   ],
   "connections": {
@@ -253,6 +325,11 @@
         [
           {
             "node": "Classify Task Risk",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "API: Register Task",
             "type": "main",
             "index": 0
           }
@@ -326,6 +403,22 @@
         [
           {
             "node": "IF: FIX_AND_RETRY?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Result Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Result Payload": {
+      "main": [
+        [
+          {
+            "node": "API: Save Result",
             "type": "main",
             "index": 0
           }
