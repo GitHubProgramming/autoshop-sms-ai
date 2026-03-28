@@ -195,7 +195,7 @@ describe("GET /internal/admin/tenants/:id/pilot-readiness", () => {
     expect(body.blockers.some((b: any) => b.id === "forward_to")).toBe(true);
   });
 
-  it("returns 'not_ready' when calendar not connected", async () => {
+  it("returns 'ready_with_warnings' when calendar not connected (non-critical)", async () => {
     const app = await buildApp();
     setupMocks({ calendar: null });
 
@@ -205,11 +205,12 @@ describe("GET /internal/admin/tenants/:id/pilot-readiness", () => {
     });
 
     const body = res.json();
-    expect(body.verdict).toBe("not_ready");
-    expect(body.blockers.some((b: any) => b.id === "calendar_connected")).toBe(true);
+    expect(body.verdict).toBe("ready_with_warnings");
+    expect(body.blockers.some((b: any) => b.id === "calendar_connected")).toBe(false);
+    expect(body.warnings.some((w: any) => w.id === "calendar_connected")).toBe(true);
   });
 
-  it("returns 'not_ready' when calendar refresh has failed", async () => {
+  it("returns 'ready_with_warnings' when calendar refresh has failed (non-critical)", async () => {
     const app = await buildApp();
     setupMocks({
       calendar: {
@@ -225,8 +226,9 @@ describe("GET /internal/admin/tenants/:id/pilot-readiness", () => {
     });
 
     const body = res.json();
-    expect(body.verdict).toBe("not_ready");
-    expect(body.blockers.some((b: any) => b.id === "calendar_token_valid")).toBe(true);
+    expect(body.verdict).toBe("ready_with_warnings");
+    expect(body.blockers.some((b: any) => b.id === "calendar_token_valid")).toBe(false);
+    expect(body.warnings.some((w: any) => w.id === "calendar_token_valid")).toBe(true);
   });
 
   it("returns 'not_ready' when billing is blocked", async () => {
@@ -304,7 +306,7 @@ describe("GET /internal/admin/tenants/:id/pilot-readiness", () => {
     expect(body.warnings.some((w: any) => w.id === "ai_prompt")).toBe(true);
   });
 
-  it("includes correct check count in summary", async () => {
+  it("includes correct check count in summary (5 critical)", async () => {
     const app = await buildApp();
     setupMocks();
 
@@ -315,7 +317,39 @@ describe("GET /internal/admin/tenants/:id/pilot-readiness", () => {
 
     const body = res.json();
     expect(body.checks).toHaveLength(11);
-    expect(body.summary).toMatch(/\d+\/\d+ critical checks passed/);
+    expect(body.summary).toBe("6/6 critical checks passed");
+  });
+
+  it("includes operator status fields in response", async () => {
+    const app = await buildApp();
+    setupMocks();
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/internal/admin/tenants/${TENANT_ID}/pilot-readiness`,
+    });
+
+    const body = res.json();
+    expect(body.onboarding_complete).toBe(true);
+    expect(body.phone_active).toBe(true);
+    expect(body.has_real_activity).toBe(true);
+    expect(body.business_hours_connected).toBe(true);
+    expect(body.calendar_connected).toBe(true);
+  });
+
+  it("shows operator fields correctly when phone missing", async () => {
+    const app = await buildApp();
+    setupMocks({ phone: null });
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/internal/admin/tenants/${TENANT_ID}/pilot-readiness`,
+    });
+
+    const body = res.json();
+    expect(body.onboarding_complete).toBe(false);
+    expect(body.phone_active).toBe(false);
+    expect(body.calendar_connected).toBe(true);
   });
 
   it("returns all 11 checks in live-path order", async () => {
