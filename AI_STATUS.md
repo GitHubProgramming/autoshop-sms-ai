@@ -9,9 +9,34 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: operator-loop-cloud — 2026-03-28
+
+**Status:** LIVE — Telegram → n8n Cloud → Claude execution operational. DB persistence pending Render env sync.
+
+### Operator Loop (PRs #379–#388)
+- Calendar sync failure visibility (PR #379)
+- Dev-loop persistence + admin UI (PR #380)
+- Write-path hardening (PR #381)
+- Blocked-path persistence + stale visibility (PR #382)
+- Booking safety-first default (PR #383)
+- Telegram task intake workflow (PR #384)
+- Dedup fix (PR #385)
+- Orchestrator webhook activation fix + polling fallback (PR #386)
+- Cloud deploy script (PR #387)
+- Render INTERNAL_API_KEY sync (PR #388)
+
+### Live Cloud State
+- n8n Cloud orchestrator: active (19 nodes, all API callbacks)
+- Telegram intake: active (webhook registered on bandomasis.app.n8n.cloud)
+- Claude execution: working (Anthropic API key funded)
+- Telegram replies: working
+- DB persistence: pending Render INTERNAL_API_KEY env var sync
+
+---
+
 ## TASK: autonomous-dev-loop — 2026-03-28 (retry 2 — final)
 
-**Status:** STRUCTURALLY COMPLETE — blocked on external API credentials
+**Status:** SUPERSEDED by operator-loop-cloud above
 
 ### What Was Done (Initial + Retry 1 + Retry 2)
 1. **Output contracts** (TypeScript + docs): TaskContract, ExecutionResultContract, ReviewPacketContract
