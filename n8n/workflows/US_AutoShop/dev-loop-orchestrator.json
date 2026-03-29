@@ -79,7 +79,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build the Claude execution prompt from the task contract\nconst task = $('Classify Task Risk').first().json;\n\nconst prompt = `You are executing an autonomous dev-loop task.\n\nTASK: ${task.title}\nGOAL: ${task.goal}\nBRANCH: ${task.branch_name}\nTASK_ID: ${task.task_id}\n\nSCOPE BOUNDARIES:\n${task.scope_boundaries.map(s => '- ' + s).join('\\n') || '- No specific boundaries set'}\n\nFILES ALLOWED:\n${task.files_allowed.map(f => '- ' + f).join('\\n')}\n\nFILES FORBIDDEN (DO NOT TOUCH):\n${task.files_forbidden.map(f => '- ' + f).join('\\n') || '- None specified'}\n\nEXPECTED OUTPUT:\n${task.expected_output.map(o => '- ' + o).join('\\n') || '- Complete the goal'}\n\nCHECKS REQUIRED:\n${task.checks_required.map(c => '- ' + c).join('\\n')}\n\nINSTRUCTIONS:\n1. Create branch ${task.branch_name} from main\n2. Implement the smallest safe change to achieve the goal\n3. Run all required checks\n4. Return a JSON execution result with these exact fields:\n   - task_id: \"${task.task_id}\"\n   - status: \"done\" | \"failed\" | \"blocked\"\n   - files_changed: [list of changed files]\n   - checks_run: [{name, status: \"pass\"|\"fail\"|\"not_run\", details}]\n   - critical_files_touched: [any critical system files modified]\n   - summary: what was done\n   - open_issues: [unresolved issues]\n   - retry_recommended: boolean\n\nReturn ONLY the JSON result block wrapped in \\`\\`\\`json ... \\`\\`\\` tags.`;\n\nreturn [{ json: {\n  task,\n  claude_prompt: prompt\n} }];"
+        "jsCode": "// Build the Claude execution prompt from the task contract\nconst task = $('Classify Task Risk').first().json;\n\nconst prompt = `You are executing an autonomous dev-loop task.\n\nTASK: ${task.title}\nGOAL: ${task.goal}\nBRANCH: ${task.branch_name}\nTASK_ID: ${task.task_id}\n\nSCOPE BOUNDARIES:\n${task.scope_boundaries.map(s => '- ' + s).join('\\n') || '- No specific boundaries set'}\n\nFILES ALLOWED:\n${task.files_allowed.map(f => '- ' + f).join('\\n')}\n\nFILES FORBIDDEN (DO NOT TOUCH):\n${task.files_forbidden.map(f => '- ' + f).join('\\n') || '- None specified'}\n\nEXPECTED OUTPUT:\n${task.expected_output.map(o => '- ' + o).join('\\n') || '- Complete the goal'}\n\nCHECKS REQUIRED:\n${task.checks_required.map(c => '- ' + c).join('\\n')}\n\nINSTRUCTIONS:\n1. Implement the smallest safe change to achieve the goal\n2. Return a JSON execution result with these exact fields:\n   - task_id: \"${task.task_id}\"\n   - status: \"done\" | \"failed\" | \"blocked\"\n   - files_changed: [list of changed file paths]\n   - files_to_create: [{\"path\": \"relative/path\", \"content\": \"full file content\"}] — new files\n   - files_to_modify: [{\"path\": \"relative/path\", \"content\": \"full new file content\"}] — modified files\n   - files_to_delete: [\"relative/path\"] — files to remove\n   - commit_message: \"type: short description\" (conventional commit format)\n   - checks_run: [{name, status: \"pass\"|\"fail\"|\"not_run\", details}]\n   - critical_files_touched: [any critical system files modified]\n   - summary: what was done\n   - open_issues: [unresolved issues]\n   - retry_recommended: boolean\n\nIMPORTANT: You MUST include the actual file content in files_to_create and files_to_modify.\nThese will be used by an automated execution worker to create a real branch and push to GitHub.\nReturn ONLY the JSON result block wrapped in \\`\\`\\`json ... \\`\\`\\` tags.`;\n\nreturn [{ json: {\n  task,\n  claude_prompt: prompt\n} }];"
       },
       "id": "dl-build-prompt",
       "name": "Build Claude Prompt",
@@ -138,7 +138,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse Anthropic API response into ExecutionResultContract\nconst task = $('Classify Task Risk').first().json;\nconst taskId = task.task_id;\nconst apiResponse = $input.first().json;\n\nfunction makeResult(status, summary, issues, retry) {\n  return {\n    task_id: taskId,\n    status: status,\n    files_changed: [],\n    checks_run: [],\n    critical_files_touched: [],\n    summary: String(summary).substring(0, 2000),\n    open_issues: issues,\n    retry_recommended: retry\n  };\n}\n\n// Handle API-level errors (missing key, billing, rate limit)\nif (apiResponse.error) {\n  const errMsg = apiResponse.error.message || JSON.stringify(apiResponse.error);\n  return [{ json: makeResult('blocked', `Anthropic API error: ${errMsg}`, [`API error: ${errMsg}`, 'Requires valid ANTHROPIC_API_KEY with sufficient credits'], false) }];\n}\n\n// Extract text from Anthropic response\nconst content = apiResponse.content;\nif (!Array.isArray(content) || content.length === 0) {\n  return [{ json: makeResult('blocked', 'Anthropic API returned empty content', ['No content in API response'], true) }];\n}\n\nconst text = content.filter(c => c.type === 'text').map(c => c.text).join('\\n');\n\nif (!text.trim()) {\n  return [{ json: makeResult('blocked', 'Anthropic API returned no text content', ['Empty text in API response'], true) }];\n}\n\n// Try to extract ```json ... ``` block (our prompt asks for this format)\nconst jsonMatch = text.match(/```json\\s*\\n?([\\s\\S]*?)\\n?\\s*```/);\nif (jsonMatch) {\n  try {\n    const parsed = JSON.parse(jsonMatch[1]);\n    if (parsed.task_id && parsed.status) {\n      return [{ json: {\n        task_id: parsed.task_id || taskId,\n        status: parsed.status,\n        files_changed: Array.isArray(parsed.files_changed) ? parsed.files_changed : [],\n        checks_run: Array.isArray(parsed.checks_run) ? parsed.checks_run : [],\n        critical_files_touched: Array.isArray(parsed.critical_files_touched) ? parsed.critical_files_touched : [],\n        summary: String(parsed.summary || ''),\n        open_issues: Array.isArray(parsed.open_issues) ? parsed.open_issues : [],\n        retry_recommended: Boolean(parsed.retry_recommended)\n      } }];\n    }\n  } catch(e) {\n    // JSON parse failed, fall through\n  }\n}\n\n// Try parsing the whole text as JSON directly\ntry {\n  const direct = JSON.parse(text.trim());\n  if (direct.task_id && direct.status) {\n    return [{ json: {\n      task_id: direct.task_id || taskId,\n      status: direct.status,\n      files_changed: Array.isArray(direct.files_changed) ? direct.files_changed : [],\n      checks_run: Array.isArray(direct.checks_run) ? direct.checks_run : [],\n      critical_files_touched: Array.isArray(direct.critical_files_touched) ? direct.critical_files_touched : [],\n      summary: String(direct.summary || ''),\n      open_issues: Array.isArray(direct.open_issues) ? direct.open_issues : [],\n      retry_recommended: Boolean(direct.retry_recommended)\n    } }];\n  }\n} catch(e) {\n  // not direct JSON\n}\n\n// Fallback: wrap raw response as execution result\nreturn [{ json: makeResult('done', text, ['Response did not contain structured ExecutionResultContract'], false) }];"
+        "jsCode": "// Parse Anthropic API response into ExecutionResultContract + file changes\nconst task = $('Classify Task Risk').first().json;\nconst taskId = task.task_id;\nconst apiResponse = $input.first().json;\n\nfunction makeResult(status, summary, issues, retry) {\n  return {\n    task_id: taskId,\n    status: status,\n    files_changed: [],\n    files_to_create: [],\n    files_to_modify: [],\n    files_to_delete: [],\n    commit_message: '',\n    checks_run: [],\n    critical_files_touched: [],\n    summary: String(summary).substring(0, 2000),\n    open_issues: issues,\n    retry_recommended: retry\n  };\n}\n\nfunction extractResult(parsed) {\n  return {\n    task_id: parsed.task_id || taskId,\n    status: parsed.status,\n    files_changed: Array.isArray(parsed.files_changed) ? parsed.files_changed : [],\n    files_to_create: Array.isArray(parsed.files_to_create) ? parsed.files_to_create : [],\n    files_to_modify: Array.isArray(parsed.files_to_modify) ? parsed.files_to_modify : [],\n    files_to_delete: Array.isArray(parsed.files_to_delete) ? parsed.files_to_delete : [],\n    commit_message: String(parsed.commit_message || `chore: task ${taskId}`),\n    checks_run: Array.isArray(parsed.checks_run) ? parsed.checks_run : [],\n    critical_files_touched: Array.isArray(parsed.critical_files_touched) ? parsed.critical_files_touched : [],\n    summary: String(parsed.summary || ''),\n    open_issues: Array.isArray(parsed.open_issues) ? parsed.open_issues : [],\n    retry_recommended: Boolean(parsed.retry_recommended)\n  };\n}\n\n// Handle API-level errors\nif (apiResponse.error) {\n  const errMsg = apiResponse.error.message || JSON.stringify(apiResponse.error);\n  return [{ json: makeResult('blocked', `Anthropic API error: ${errMsg}`, [`API error: ${errMsg}`, 'Requires valid ANTHROPIC_API_KEY with sufficient credits'], false) }];\n}\n\nconst content = apiResponse.content;\nif (!Array.isArray(content) || content.length === 0) {\n  return [{ json: makeResult('blocked', 'Anthropic API returned empty content', ['No content in API response'], true) }];\n}\n\nconst text = content.filter(c => c.type === 'text').map(c => c.text).join('\\n');\nif (!text.trim()) {\n  return [{ json: makeResult('blocked', 'Anthropic API returned no text content', ['Empty text in API response'], true) }];\n}\n\n// Try to extract ```json ... ``` block\nconst jsonMatch = text.match(/```json\\s*\\n?([\\s\\S]*?)\\n?\\s*```/);\nif (jsonMatch) {\n  try {\n    const parsed = JSON.parse(jsonMatch[1]);\n    if (parsed.task_id && parsed.status) {\n      return [{ json: extractResult(parsed) }];\n    }\n  } catch(e) { /* fall through */ }\n}\n\n// Try parsing the whole text as JSON\ntry {\n  const direct = JSON.parse(text.trim());\n  if (direct.task_id && direct.status) {\n    return [{ json: extractResult(direct) }];\n  }\n} catch(e) { /* not JSON */ }\n\n// Fallback\nreturn [{ json: makeResult('done', text, ['Response did not contain structured ExecutionResultContract'], false) }];"
       },
       "id": "dl-parse-response",
       "name": "Parse Claude Response",
@@ -241,7 +241,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Evaluate whether task qualifies for auto-merge.\n// IMPORTANT: The n8n Cloud orchestrator calls the Anthropic Messages API\n// (stateless text-in/text-out). Claude does NOT execute code, create branches,\n// or push to GitHub. The orchestrator is a DECISION ENGINE, not an execution engine.\n//\n// Auto-merge can only proceed when a real branch exists on the remote,\n// which happens when Claude Code (CLI) executes the task locally and pushes.\n// This node evaluates eligibility and records the decision for the operator.\n\nconst review = $('Build Review Packet').first().json;\n\nconst safeToMerge =\n  review.goal_match === 'full' &&\n  review.risk_level !== 'high' &&\n  !review.critical_systems_touched &&\n  review.checks_passed &&\n  review.logical_gaps.length === 0;\n\nif (!safeToMerge) {\n  const reasons = [];\n  if (review.goal_match !== 'full') reasons.push('goal=' + review.goal_match);\n  if (review.risk_level === 'high') reasons.push('high_risk');\n  if (review.critical_systems_touched) reasons.push('critical_systems');\n  if (!review.checks_passed) reasons.push('checks_failed');\n  if (review.logical_gaps.length > 0) reasons.push('gaps: ' + review.logical_gaps.join('; '));\n  return [{ json: {\n    action: 'SAFE_AUTOMERGE',\n    merge_eligible: false,\n    merge_executed: false,\n    block_reason: 'MERGE_BLOCKED_SAFETY: ' + reasons.join(', '),\n    review_packet: review,\n    message: 'BLOCKED: ' + review.task_id + ' — ' + reasons.join(', ')\n  } }];\n}\n\n// Task qualifies for merge, but orchestrator cannot push branches.\n// Record eligibility for operator action.\nreturn [{ json: {\n  action: 'SAFE_AUTOMERGE',\n  merge_eligible: true,\n  merge_executed: false,\n  block_reason: 'AUTO_MERGE_BLOCKED_NO_REMOTE_BRANCH: orchestrator is a decision engine (Anthropic Messages API), not an execution engine. Branch ' + review.branch + ' must be created by Claude Code CLI and pushed to GitHub before merge can proceed.',\n  branch: review.branch,\n  task_id: review.task_id,\n  review_packet: review,\n  message: 'ELIGIBLE but BLOCKED: ' + review.task_id + ' qualifies for auto-merge on ' + review.branch + ' — awaiting branch push from Claude Code CLI'\n} }];"
+        "jsCode": "// Evaluate merge eligibility and build execution payload if approved.\n// When eligible, the execution worker will create the branch, apply\n// file changes from Claude's response, commit, and push to GitHub.\n\nconst review = $('Build Review Packet').first().json;\nconst exec = $('Parse Claude Response').first().json;\nconst task = $('Classify Task Risk').first().json;\n\nconst safeToMerge =\n  review.goal_match === 'full' &&\n  review.risk_level !== 'high' &&\n  !review.critical_systems_touched &&\n  review.checks_passed &&\n  review.logical_gaps.length === 0;\n\nif (!safeToMerge) {\n  const reasons = [];\n  if (review.goal_match !== 'full') reasons.push('goal=' + review.goal_match);\n  if (review.risk_level === 'high') reasons.push('high_risk');\n  if (review.critical_systems_touched) reasons.push('critical_systems');\n  if (!review.checks_passed) reasons.push('checks_failed');\n  if (review.logical_gaps.length > 0) reasons.push('gaps: ' + review.logical_gaps.join('; '));\n  return [{ json: {\n    action: 'SAFE_AUTOMERGE',\n    merge_eligible: false,\n    execute: false,\n    block_reason: 'MERGE_BLOCKED_SAFETY: ' + reasons.join(', '),\n    review_packet: review,\n    message: 'BLOCKED: ' + review.task_id + ' — ' + reasons.join(', ')\n  } }];\n}\n\n// Build execution payload for the execution worker\nconst hasFileChanges =\n  (exec.files_to_create || []).length > 0 ||\n  (exec.files_to_modify || []).length > 0 ||\n  (exec.files_to_delete || []).length > 0;\n\nif (!hasFileChanges) {\n  return [{ json: {\n    action: 'SAFE_AUTOMERGE',\n    merge_eligible: true,\n    execute: false,\n    block_reason: 'NO_FILE_CHANGES: Claude did not return file changes to apply',\n    review_packet: review,\n    message: 'ELIGIBLE but NO FILE CHANGES: ' + review.task_id + ' — Claude response had no files_to_create/modify/delete'\n  } }];\n}\n\nreturn [{ json: {\n  action: 'SAFE_AUTOMERGE',\n  merge_eligible: true,\n  execute: true,\n  execution_payload: {\n    task_id: task.task_id,\n    title: task.title,\n    goal: task.goal,\n    files_to_create: exec.files_to_create || [],\n    files_to_modify: exec.files_to_modify || [],\n    files_to_delete: exec.files_to_delete || [],\n    commit_message: exec.commit_message || `chore: task ${task.task_id}`\n  },\n  review_packet: review,\n  message: 'EXECUTING: ' + review.task_id + ' — sending to execution worker'\n} }];"
       },
       "id": "dl-merge-gate",
       "name": "Evaluate Merge Eligibility",
@@ -471,6 +471,114 @@
           "name": "AutoShop Telegram"
         }
       }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-execute",
+              "leftValue": "={{ $json.execute }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "dl-execute-gate",
+      "name": "IF: Execute?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3000,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://autoshop-api-7ek9.onrender.com/internal/dev-loop/execute",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.execution_payload) }}",
+        "options": {
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "dl-api-execute",
+      "name": "API: Execute Task",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        3250,
+        100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "x-internal-key",
+          "name": "x-internal-key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Telegram notification from execution result\nconst result = $input.first().json;\nconst status = result.execution_status || 'unknown';\nconst emoji = status === 'success' ? '✅' : status === 'safety_abort' ? '🛑' : '❌';\n\nconst message = `${emoji} DEV-LOOP EXECUTION\\n\\nTask: ${result.task_id || 'unknown'}\\nBranch: ${result.branch || 'none'}\\nStatus: ${status}\\nPush: ${result.push_status || 'unknown'}\\nCommit: ${result.commit_sha ? result.commit_sha.substring(0, 8) : 'none'}\\nFiles: ${(result.files_changed || []).length}\\n${result.error_reason ? '\\nError: ' + result.error_reason : ''}`;\n\nreturn [{ json: { telegram_message: message, execution_result: result } }];"
+      },
+      "id": "dl-execution-notify",
+      "name": "Format Execution Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3500,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "8747048300",
+        "text": "={{ $json.telegram_message }}",
+        "additionalFields": {}
+      },
+      "id": "dl-tg-execution",
+      "name": "Telegram: Notify Execution",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3750,
+        100
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "bPrClfXl0avUTqnO",
+          "name": "AutoShop Telegram"
+        }
+      }
     }
   ],
   "connections": {
@@ -666,7 +774,47 @@
     },
     "Evaluate Merge Eligibility": {
       "main": [
+        [
+          {
+            "node": "IF: Execute?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Execute?": {
+      "main": [
+        [
+          {
+            "node": "API: Execute Task",
+            "type": "main",
+            "index": 0
+          }
+        ],
         []
+      ]
+    },
+    "API: Execute Task": {
+      "main": [
+        [
+          {
+            "node": "Format Execution Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Execution Result": {
+      "main": [
+        [
+          {
+            "node": "Telegram: Notify Execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
