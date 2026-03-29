@@ -9,6 +9,34 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
+## TASK: execution-worker — 2026-03-29
+
+**Status:** CODE COMPLETE — execution worker implemented, 16 tests pass, TypeScript clean. Awaiting merge + production deploy.
+
+### What was built
+- **Execution worker service** (`apps/api/src/services/execution-worker.ts`): real git operations — checkout main, create branch `ai/task-<id>`, apply file changes, commit, push to origin
+- **API endpoint** (`POST /internal/dev-loop/execute`): receives approved task payload from n8n orchestrator, triggers worker, persists result to `dev_loop_tasks` table
+- **Shared contracts** (`packages/shared/src/dev-loop-contracts.ts`): `ExecutionRequest`, `ExecutionWorkerResult` types
+- **DB migration** (`db/migrations/043_execution_worker_tracking.sql`): adds execution_status, commit_sha, push_status columns
+- **Safety contract**: hard-fails on dirty repo, existing remote branch, no changes, push failure, path traversal
+- **16 tests**: route validation, success/failure flows, DB persistence, auth guard, structured result fields, path traversal blocking
+
+### Architecture
+```
+n8n Cloud orchestrator (decision engine)
+  → POST /internal/dev-loop/execute (approved task)
+    → execution-worker service (real git: branch → files → commit → push)
+      → structured result persisted to dev_loop_tasks
+        → existing review/merge logic acts on real remote branch
+```
+
+### Next
+- Deploy migration 043 to Render
+- n8n orchestrator: add HTTP node to call `/internal/dev-loop/execute` after SAFE_AUTOMERGE decision
+- End-to-end test: submit task via Telegram → orchestrator → execution worker → verify branch on GitHub
+
+---
+
 ## TASK: operator-loop-cloud — 2026-03-28
 
 **Status:** LIVE — Telegram → n8n Cloud → Claude execution operational. DB persistence pending Render env sync.
