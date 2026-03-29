@@ -9,31 +9,44 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
-## TASK: execution-worker — 2026-03-29
+## TASK: execution-worker-wiring — 2026-03-29
 
-**Status:** CODE COMPLETE — execution worker implemented, 16 tests pass, TypeScript clean. Awaiting merge + production deploy.
+**Status:** E2E PROVEN — execution worker deployed, orchestrator wired, real branch pushed and verified on GitHub.
 
-### What was built
-- **Execution worker service** (`apps/api/src/services/execution-worker.ts`): real git operations — checkout main, create branch `ai/task-<id>`, apply file changes, commit, push to origin
-- **API endpoint** (`POST /internal/dev-loop/execute`): receives approved task payload from n8n orchestrator, triggers worker, persists result to `dev_loop_tasks` table
-- **Shared contracts** (`packages/shared/src/dev-loop-contracts.ts`): `ExecutionRequest`, `ExecutionWorkerResult` types
-- **DB migration** (`db/migrations/043_execution_worker_tracking.sql`): adds execution_status, commit_sha, push_status columns
-- **Safety contract**: hard-fails on dirty repo, existing remote branch, no changes, push failure, path traversal
-- **16 tests**: route validation, success/failure flows, DB persistence, auth guard, structured result fields, path traversal blocking
+### E2E Proof (verified 2026-03-29)
+- **task_id**: `e2e-proof-1774768304534`
+- **branch**: `ai/task-e2e-proof-1774768304534`
+- **commit_sha**: `603f62d5f999de5bbf4f3d91321727892db55853`
+- **push_status**: `pushed` (verified via `gh api` + `git ls-remote`)
+- **DB persistence**: task registered + result saved to production `dev_loop_tasks`
+- **Migration 043**: deployed to Render (confirmed via health check commit `7e04962`)
 
-### Architecture
+### What was done this session
+1. **Migration 043 deployed** — Render auto-deployed on main merge, confirmed via `/health` endpoint
+2. **Execute endpoint verified on production** — `POST /internal/dev-loop/execute` returns validation errors correctly
+3. **n8n orchestrator wired** — SAFE_AUTOMERGE path now calls execution worker:
+   - Claude prompt updated to return file content (files_to_create/modify/delete)
+   - Parse response extracts file changes
+   - New nodes: IF: Execute? → API: Execute Task → Format Result → Telegram notify
+4. **Real E2E execution**: branch created, file committed, pushed to GitHub, verified on remote
+5. **DB persistence proven**: task registered + result saved via production API
+
+### Architecture (complete)
 ```
 n8n Cloud orchestrator (decision engine)
-  → POST /internal/dev-loop/execute (approved task)
-    → execution-worker service (real git: branch → files → commit → push)
-      → structured result persisted to dev_loop_tasks
-        → existing review/merge logic acts on real remote branch
+  → Claude API returns structured result WITH file content
+  → Review packet → SAFE_AUTOMERGE decision
+  → IF: Execute? (merge eligible + has file changes)
+    → POST /internal/dev-loop/execute (execution worker)
+      → git: fetch main → create branch → apply files → commit → push
+        → structured result → dev_loop_tasks table
+          → Telegram notification
 ```
 
-### Next
-- Deploy migration 043 to Render
-- n8n orchestrator: add HTTP node to call `/internal/dev-loop/execute` after SAFE_AUTOMERGE decision
-- End-to-end test: submit task via Telegram → orchestrator → execution worker → verify branch on GitHub
+### Production note
+The execution worker requires a host with git + GitHub push access.
+The Render container serves the API endpoint but does not have a git checkout.
+For production use, the worker must run on a machine with repo access (e.g., self-hosted runner, local CLI, or dedicated execution host).
 
 ---
 
