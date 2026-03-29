@@ -80,11 +80,11 @@ services:
       - key: ADMIN_BOOTSTRAP_KEY
         sync: false
 
-      # ── GitHub (read-only project board in admin) ─────────────────────
+      # ── GitHub (admin dashboard + execution worker clone) ──────────────
       - key: GITHUB_TOKEN
         sync: false
       - key: GITHUB_REPO
-        sync: false
+        value: "GitHubProgramming/autoshop-sms-ai"
 
       # ── Log drain (set in Render Dashboard) ───────────────────────────
       # Configure via Render Dashboard > Service > Logs > Add Log Drain
