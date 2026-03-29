@@ -62,7 +62,7 @@ export async function devLoopExecuteRoute(app: FastifyInstance) {
           files_changed: result.files_changed,
           execution_summary: result.error_reason
             ? `Execution failed: ${result.error_reason}`
-            : `Branch ${result.branch} pushed with ${result.files_changed.length} file(s)`,
+            : `Branch ${result.branch} pushed with ${result.files_changed.length} file(s) [host: ${result.execution_host}]`,
           branch: result.branch,
         });
       } catch (dbErr) {

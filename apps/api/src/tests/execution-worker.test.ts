@@ -55,6 +55,7 @@ const SUCCESS_RESULT = {
   commit_sha: "abc123def456",
   push_status: "pushed",
   error_reason: null,
+  execution_host: "local",
   started_at: "2026-03-29T10:00:00.000Z",
   completed_at: "2026-03-29T10:00:05.000Z",
 };
@@ -67,6 +68,7 @@ const SAFETY_ABORT_RESULT = {
   commit_sha: null,
   push_status: "skipped",
   error_reason: "Repository has uncommitted changes — aborting for safety",
+  execution_host: "local",
   started_at: "2026-03-29T10:00:00.000Z",
   completed_at: "2026-03-29T10:00:01.000Z",
 };
@@ -236,6 +238,7 @@ describe("POST /internal/dev-loop/execute", () => {
       "commit_sha",
       "push_status",
       "error_reason",
+      "execution_host",
       "started_at",
       "completed_at",
     ];
@@ -250,6 +253,7 @@ describe("POST /internal/dev-loop/execute", () => {
       execution_status: "failed",
       push_status: "push_failed",
       error_reason: "Push failed: permission denied",
+      execution_host: "local",
     };
     mockValidateExecutionRequest.mockReturnValue({
       valid: true,

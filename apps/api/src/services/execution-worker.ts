@@ -5,19 +5,31 @@
  * Receives an approved task payload, creates a branch, applies file changes,
  * commits, and pushes to GitHub. Returns structured execution results.
  *
+ * Supports two modes:
+ *   1. LOCAL MODE — when EXECUTION_REPO_ROOT points to an existing git checkout
+ *   2. CLONE MODE — when no local checkout exists (e.g., Render container),
+ *      clones the repo on-demand using GITHUB_TOKEN into a temp directory
+ *
+ * Required env for clone mode:
+ *   GITHUB_TOKEN  — GitHub personal access token with repo scope
+ *   GITHUB_REPO   — owner/repo format (e.g., "GitHubProgramming/autoshop-sms-ai")
+ *
  * Safety contract:
- *   - Hard-fails if repo is dirty before execution
+ *   - Hard-fails if repo is dirty before execution (local mode)
  *   - Hard-fails if push fails
  *   - Hard-fails if no changes produced
- *   - Hard-fails if branch already exists and cannot be reused safely
- *   - Always returns to original branch on completion or failure
+ *   - Hard-fails if branch already exists on remote
+ *   - Always cleans up temp directories (clone mode)
+ *   - Always returns to original branch on completion (local mode)
  */
 
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { writeFile, unlink, mkdir } from "fs/promises";
+import { writeFile, unlink, mkdir, rm } from "fs/promises";
 import { dirname, join } from "path";
 import { existsSync } from "fs";
+import { tmpdir } from "os";
+
 // ── Types (mirrored from packages/shared/src/dev-loop-contracts.ts) ──
 
 interface FileChange {
@@ -46,55 +58,60 @@ export interface ExecutionWorkerResult {
   commit_sha: string | null;
   push_status: ExecutionPushStatus;
   error_reason: string | null;
+  execution_host: string;
   started_at: string;
   completed_at: string;
 }
 
 const execFileAsync = promisify(execFile);
 
-// Repo root — configurable for testing, defaults to process.cwd()
-const REPO_ROOT = process.env.EXECUTION_REPO_ROOT || process.cwd();
-
-// Max execution time for any single git command (30s)
-const GIT_TIMEOUT_MS = 30_000;
+// Max execution time for any single git command (60s — clone can be slow)
+const GIT_TIMEOUT_MS = 60_000;
 
 // ── Git helpers ────────────────────────────────────────────────────
 
-async function git(args: string[], cwd?: string): Promise<string> {
+async function git(args: string[], cwd: string): Promise<string> {
   const { stdout } = await execFileAsync("git", args, {
-    cwd: cwd ?? REPO_ROOT,
+    cwd,
     timeout: GIT_TIMEOUT_MS,
     maxBuffer: 10 * 1024 * 1024, // 10 MB
   });
   return stdout.trim();
 }
 
-async function isRepoDirty(): Promise<boolean> {
-  const status = await git(["status", "--porcelain"]);
-  return status.length > 0;
+function isGitRepo(dir: string): boolean {
+  return existsSync(join(dir, ".git"));
 }
 
-async function getCurrentBranch(): Promise<string> {
-  return git(["rev-parse", "--abbrev-ref", "HEAD"]);
+// ── Clone mode helpers ─────────────────────────────────────────────
+
+function getCloneUrl(): string | null {
+  const token = process.env.GITHUB_TOKEN;
+  const repo = process.env.GITHUB_REPO;
+  if (!token || !repo) return null;
+  return `https://x-access-token:${token}@github.com/${repo}.git`;
 }
 
-async function branchExistsLocally(branch: string): Promise<boolean> {
-  try {
-    await git(["rev-parse", "--verify", branch]);
-    return true;
-  } catch {
-    return false;
-  }
+async function cloneRepo(cloneUrl: string, targetDir: string): Promise<void> {
+  // Shallow clone of main only — fast and minimal
+  await execFileAsync("git", [
+    "clone", "--depth=1", "--branch=main", "--single-branch",
+    cloneUrl, targetDir,
+  ], { timeout: GIT_TIMEOUT_MS * 2, maxBuffer: 10 * 1024 * 1024 });
+
+  // Unshallow enough to create branches and push
+  // (shallow clone can push new branches fine)
+  await git(["config", "user.email", "execution-worker@autoshop-ai.com"], targetDir);
+  await git(["config", "user.name", "AutoShop Execution Worker"], targetDir);
 }
 
-async function branchExistsRemotely(branch: string): Promise<boolean> {
-  try {
-    await git(["ls-remote", "--heads", "origin", branch]);
-    const result = await git(["ls-remote", "--heads", "origin", branch]);
-    return result.length > 0;
-  } catch {
-    return false;
-  }
+// ── Detect execution host ──────────────────────────────────────────
+
+function detectHost(): string {
+  if (process.env.RENDER) return "render";
+  if (process.env.GITHUB_ACTIONS) return "github-actions";
+  if (process.env.EXECUTION_REPO_ROOT) return "configured-local";
+  return "local";
 }
 
 // ── Main execution function ────────────────────────────────────────
@@ -104,7 +121,7 @@ export async function executeTask(
 ): Promise<ExecutionWorkerResult> {
   const startedAt = new Date().toISOString();
   const branchName = `ai/task-${request.task_id}`;
-  let originalBranch: string | null = null;
+  const host = detectHost();
 
   const fail = (reason: string, status: WorkerExecutionStatus = "failed"): ExecutionWorkerResult => ({
     task_id: request.task_id,
@@ -114,93 +131,116 @@ export async function executeTask(
     commit_sha: null,
     push_status: "skipped",
     error_reason: reason,
+    execution_host: host,
     started_at: startedAt,
     completed_at: new Date().toISOString(),
   });
 
-  try {
-    // ── 1. Safety: check repo is clean ──────────────────────
-    if (await isRepoDirty()) {
+  // Determine working directory
+  const configuredRoot = process.env.EXECUTION_REPO_ROOT || process.cwd();
+  const useCloneMode = !isGitRepo(configuredRoot);
+  let workDir: string;
+  let tempDir: string | null = null;
+  let originalBranch: string | null = null;
+
+  if (useCloneMode) {
+    // ── Clone mode: no local repo, clone on-demand ──────────
+    const cloneUrl = getCloneUrl();
+    if (!cloneUrl) {
+      return fail(
+        "No git repo at working directory and GITHUB_TOKEN/GITHUB_REPO not set — cannot execute",
+        "safety_abort"
+      );
+    }
+
+    tempDir = join(tmpdir(), `exec-worker-${request.task_id}-${Date.now()}`);
+    try {
+      await mkdir(tempDir, { recursive: true });
+      await cloneRepo(cloneUrl, tempDir);
+    } catch (err) {
+      await cleanupTemp(tempDir);
+      return fail(`Failed to clone repo: ${(err as Error).message}`);
+    }
+    workDir = tempDir;
+  } else {
+    // ── Local mode: use existing checkout ────────────────────
+    workDir = configuredRoot;
+
+    // Safety: check repo is clean
+    const status = await git(["status", "--porcelain"], workDir);
+    if (status.length > 0) {
       return fail("Repository has uncommitted changes — aborting for safety", "safety_abort");
     }
 
-    // ── 2. Remember current branch for cleanup ──────────────
-    originalBranch = await getCurrentBranch();
+    originalBranch = await git(["rev-parse", "--abbrev-ref", "HEAD"], workDir);
 
-    // ── 3. Fetch latest main ────────────────────────────────
-    await git(["fetch", "origin", "main"]);
-    await git(["checkout", "main"]);
-    await git(["reset", "--hard", "origin/main"]);
+    // Fetch latest main
+    await git(["fetch", "origin", "main"], workDir);
+    await git(["checkout", "main"], workDir);
+    await git(["reset", "--hard", "origin/main"], workDir);
+  }
 
-    // ── 4. Check branch doesn't already exist ───────────────
-    const localExists = await branchExistsLocally(branchName);
-    const remoteExists = await branchExistsRemotely(branchName);
-
-    if (remoteExists) {
-      // Remote branch exists — cannot safely reuse
-      await restoreBranch(originalBranch);
+  try {
+    // ── Check branch doesn't already exist on remote ────────
+    const lsRemote = await git(["ls-remote", "--heads", "origin", branchName], workDir);
+    if (lsRemote.length > 0) {
       return fail(
         `Branch ${branchName} already exists on remote — cannot safely reuse`,
         "safety_abort"
       );
     }
 
-    if (localExists) {
-      // Delete stale local branch (remote doesn't have it)
-      await git(["branch", "-D", branchName]);
+    // In local mode, clean up stale local branch
+    if (!useCloneMode) {
+      try { await git(["branch", "-D", branchName], workDir); } catch { /* doesn't exist */ }
     }
 
-    // ── 5. Create task branch ───────────────────────────────
-    await git(["checkout", "-b", branchName]);
+    // ── Create task branch ──────────────────────────────────
+    await git(["checkout", "-b", branchName], workDir);
 
-    // ── 6. Apply file changes ───────────────────────────────
+    // ── Apply file changes ──────────────────────────────────
     const changedFiles: string[] = [];
 
-    // Create/overwrite files
     for (const file of [...request.files_to_create, ...request.files_to_modify]) {
-      const fullPath = join(REPO_ROOT, file.path);
+      const fullPath = join(workDir, file.path);
       await mkdir(dirname(fullPath), { recursive: true });
       await writeFile(fullPath, file.content, "utf-8");
       changedFiles.push(file.path);
     }
 
-    // Delete files
     for (const filePath of request.files_to_delete) {
-      const fullPath = join(REPO_ROOT, filePath);
+      const fullPath = join(workDir, filePath);
       if (existsSync(fullPath)) {
         await unlink(fullPath);
         changedFiles.push(filePath);
       }
     }
 
-    // ── 7. Check changes were produced ──────────────────────
-    if (!(await isRepoDirty())) {
-      await restoreBranch(originalBranch);
+    // ── Check changes were produced ─────────────────────────
+    const dirty = await git(["status", "--porcelain"], workDir);
+    if (dirty.length === 0) {
       return fail("No changes produced after applying task — nothing to commit", "safety_abort");
     }
 
-    // ── 8. Stage and commit ─────────────────────────────────
-    await git(["add", "--all"]);
+    // ── Stage and commit ────────────────────────────────────
+    await git(["add", "--all"], workDir);
 
-    const commitMsg = `${request.commit_message}\n\ntask_id: ${request.task_id}\nexecution: automated-worker`;
-    await git(["commit", "-m", commitMsg]);
+    const commitMsg = `${request.commit_message}\n\ntask_id: ${request.task_id}\nexecution: automated-worker\nhost: ${host}`;
+    await git(["commit", "-m", commitMsg], workDir);
 
-    const commitSha = await git(["rev-parse", "HEAD"]);
+    const commitSha = await git(["rev-parse", "HEAD"], workDir);
 
-    // ── 9. Push to origin ───────────────────────────────────
+    // ── Push to origin ──────────────────────────────────────
     let pushStatus: ExecutionPushStatus = "skipped";
     let pushError: string | null = null;
 
     try {
-      await git(["push", "-u", "origin", branchName]);
+      await git(["push", "-u", "origin", branchName], workDir);
       pushStatus = "pushed";
     } catch (err) {
       pushStatus = "push_failed";
       pushError = (err as Error).message;
     }
-
-    // ── 10. Return to original branch ───────────────────────
-    await restoreBranch(originalBranch);
 
     if (pushStatus === "push_failed") {
       return {
@@ -211,6 +251,7 @@ export async function executeTask(
         commit_sha: commitSha,
         push_status: pushStatus,
         error_reason: `Push failed: ${pushError}`,
+        execution_host: host,
         started_at: startedAt,
         completed_at: new Date().toISOString(),
       };
@@ -224,29 +265,31 @@ export async function executeTask(
       commit_sha: commitSha,
       push_status: pushStatus,
       error_reason: null,
+      execution_host: host,
       started_at: startedAt,
       completed_at: new Date().toISOString(),
     };
   } catch (err) {
-    // Attempt cleanup
-    if (originalBranch) {
+    return fail(`Unexpected error: ${(err as Error).message}`);
+  } finally {
+    // Cleanup: restore branch (local) or delete temp dir (clone)
+    if (tempDir) {
+      await cleanupTemp(tempDir);
+    } else if (originalBranch) {
       try {
-        await restoreBranch(originalBranch);
+        await git(["checkout", originalBranch], workDir);
       } catch {
-        // Best-effort cleanup
+        try { await git(["checkout", "main"], workDir); } catch { /* best-effort */ }
       }
     }
-    return fail(`Unexpected error: ${(err as Error).message}`);
   }
 }
 
-async function restoreBranch(branch: string | null): Promise<void> {
-  if (!branch) return;
+async function cleanupTemp(dir: string): Promise<void> {
   try {
-    await git(["checkout", branch]);
+    await rm(dir, { recursive: true, force: true });
   } catch {
-    // If restore fails, try main as fallback
-    await git(["checkout", "main"]);
+    // Best-effort cleanup
   }
 }
 

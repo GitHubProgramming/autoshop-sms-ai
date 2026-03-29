@@ -1,6 +1,6 @@
 FROM node:20-alpine AS base
 WORKDIR /app
-RUN apk add --no-cache wget
+RUN apk add --no-cache wget git
 
 FROM base AS deps
 COPY apps/api/package.json ./
