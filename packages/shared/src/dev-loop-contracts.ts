@@ -80,6 +80,38 @@ export const CRITICAL_SYSTEM_PATTERNS: string[] = [
   '**/migration**',
 ];
 
+// ─── Execution Worker Contracts ─────────────────────────────────
+
+export interface ExecutionRequest {
+  task_id: string;
+  title: string;
+  goal: string;
+  files_to_create: FileChange[];
+  files_to_modify: FileChange[];
+  files_to_delete: string[];
+  commit_message: string;
+}
+
+export interface FileChange {
+  path: string;
+  content: string;
+}
+
+export type ExecutionPushStatus = 'pushed' | 'push_failed' | 'skipped';
+export type WorkerExecutionStatus = 'success' | 'failed' | 'safety_abort';
+
+export interface ExecutionWorkerResult {
+  task_id: string;
+  branch: string;
+  execution_status: WorkerExecutionStatus;
+  files_changed: string[];
+  commit_sha: string | null;
+  push_status: ExecutionPushStatus;
+  error_reason: string | null;
+  started_at: string;
+  completed_at: string;
+}
+
 // File path substrings that flag critical-system risk
 export const CRITICAL_PATH_KEYWORDS: string[] = [
   'stripe',
