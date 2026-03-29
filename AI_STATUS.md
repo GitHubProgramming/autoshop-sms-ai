@@ -9,44 +9,57 @@ missed call -> SMS -> AI conversation -> appointment booking -> Google Calendar
 
 ---
 
-## TASK: execution-worker-wiring — 2026-03-29
+## TASK: execution-worker-live — 2026-03-29
 
-**Status:** E2E PROVEN — execution worker deployed, orchestrator wired, real branch pushed and verified on GitHub.
+**Status:** LIVE E2E PROVEN — full path verified: n8n webhook → Claude → SAFE_AUTOMERGE → Render execution → GitHub branch → Telegram → DB.
 
-### E2E Proof (verified 2026-03-29)
-- **task_id**: `e2e-proof-1774768304534`
-- **branch**: `ai/task-e2e-proof-1774768304534`
-- **commit_sha**: `603f62d5f999de5bbf4f3d91321727892db55853`
-- **push_status**: `pushed` (verified via `gh api` + `git ls-remote`)
-- **DB persistence**: task registered + result saved to production `dev_loop_tasks`
-- **Migration 043**: deployed to Render (confirmed via health check commit `7e04962`)
+### Live E2E Proof (verified 2026-03-29)
 
-### What was done this session
-1. **Migration 043 deployed** — Render auto-deployed on main merge, confirmed via `/health` endpoint
-2. **Execute endpoint verified on production** — `POST /internal/dev-loop/execute` returns validation errors correctly
-3. **n8n orchestrator wired** — SAFE_AUTOMERGE path now calls execution worker:
-   - Claude prompt updated to return file content (files_to_create/modify/delete)
-   - Parse response extracts file changes
-   - New nodes: IF: Execute? → API: Execute Task → Format Result → Telegram notify
-4. **Real E2E execution**: branch created, file committed, pushed to GitHub, verified on remote
-5. **DB persistence proven**: task registered + result saved via production API
+**Full orchestrator path** (n8n Cloud → Claude → execute → push):
+- **task_id**: `orch-e2e-1774769482`
+- **n8n execution**: triggered via POST to `bandomasis.app.n8n.cloud/webhook/dev-loop-task`
+- **n8n workflow ID**: `yzu4JxLKvBwAxmej` (deployed via GitHub Actions run 23703892801)
+- **execution_host**: `render` (clone-on-demand mode)
+- **branch**: `ai/task-orch-e2e-1774769482`
+- **commit_sha**: `a5cfce04ee80ad981c8f4e4c7b43eacef5470264`
+- **push_status**: `pushed` (verified via `gh api repos/.../branches/...`)
+- **commit author**: "AutoShop Execution Worker" with `host: render` in metadata
+- **Telegram notification**: sent (message_id: 196, chat: 8747048300)
+- **DB persistence**: task registered (id: `3cca757e-4f9b-4d5f-8ee0-88c12b01a2c8`)
 
-### Architecture (complete)
+**Direct Render execution** (API call → execute → push):
+- **task_id**: `live-e2e-1774769449`
+- **execution_host**: `render`
+- **commit_sha**: `98bdee07671c073953a8a6f158070cc4b3047788`
+- **push_status**: `pushed`
+- **execution_time**: ~1.8 seconds
+
+### What was done (PRs #397–#399)
+1. **PR #397**: Execution worker service, API endpoint, contracts, migration 043, 16 tests
+2. **PR #398**: n8n orchestrator wired — Claude prompt returns file content, SAFE_AUTOMERGE → execute → Telegram
+3. **PR #399**: Clone-on-demand mode — git added to Docker image, worker clones via GITHUB_TOKEN on Render
+
+### Architecture (live)
 ```
-n8n Cloud orchestrator (decision engine)
-  → Claude API returns structured result WITH file content
-  → Review packet → SAFE_AUTOMERGE decision
-  → IF: Execute? (merge eligible + has file changes)
-    → POST /internal/dev-loop/execute (execution worker)
-      → git: fetch main → create branch → apply files → commit → push
-        → structured result → dev_loop_tasks table
-          → Telegram notification
+n8n Cloud webhook (bandomasis.app.n8n.cloud)
+  → Validate → Classify Risk → Risk Gate
+  → Claude API (generates file content)
+  → Parse → Review Packet → SAFE_AUTOMERGE
+  → IF: Execute? → POST Render /internal/dev-loop/execute
+    → clone repo via GITHUB_TOKEN (temp dir)
+    → create branch ai/task-<id>
+    → apply files → commit → push
+    → cleanup temp dir
+  → Format Result → Telegram notification
+  → dev_loop_tasks DB persistence
 ```
 
-### Production note
-The execution worker requires a host with git + GitHub push access.
-The Render container serves the API endpoint but does not have a git checkout.
-For production use, the worker must run on a machine with repo access (e.g., self-hosted runner, local CLI, or dedicated execution host).
+### Execution host: Render (clone-on-demand)
+- Docker image: `node:20-alpine` + git
+- No persistent repo checkout
+- Clones on-demand via `GITHUB_TOKEN` into temp directory
+- Pushes, then deletes temp directory
+- Requires `GITHUB_TOKEN` + `GITHUB_REPO` env vars in Render Dashboard
 
 ---
 
