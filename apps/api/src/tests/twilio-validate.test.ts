@@ -255,8 +255,9 @@ describe("Twilio webhook signature validation", () => {
     await app.close();
   });
 
-  it("skips validation when SKIP_TWILIO_VALIDATION=true", async () => {
+  it("skips validation when SKIP_TWILIO_VALIDATION=true in non-production", async () => {
     process.env.SKIP_TWILIO_VALIDATION = "true";
+    process.env.NODE_ENV = "test";
 
     const app = await buildApp();
     const params = smsParams();
@@ -275,6 +276,27 @@ describe("Twilio webhook signature validation", () => {
     expect(res.body).toContain("<Response");
     // Handler was reached
     expect(mocks.add).toHaveBeenCalledOnce();
+    await app.close();
+  });
+
+  it("rejects SKIP_TWILIO_VALIDATION=true in production (fail-closed)", async () => {
+    process.env.SKIP_TWILIO_VALIDATION = "true";
+    process.env.NODE_ENV = "production";
+
+    const app = await buildApp();
+    const params = smsParams();
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/webhooks/twilio/sms",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      payload: new URLSearchParams(params).toString(),
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(mocks.add).not.toHaveBeenCalled();
     await app.close();
   });
 

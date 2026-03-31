@@ -21,8 +21,13 @@ export async function validateTwilioSignature(
     return;
   }
 
-  // Skip validation if explicitly disabled (local demo / dev)
+  // Skip validation if explicitly disabled (local dev only — never production)
   if (process.env.SKIP_TWILIO_VALIDATION === "true") {
+    if (process.env.NODE_ENV === "production") {
+      request.log.error("SKIP_TWILIO_VALIDATION=true is forbidden in production — rejecting webhook");
+      await reply.status(403).send({ error: "Webhook validation required in production" });
+      return;
+    }
     request.log.warn(`⚠️  Twilio signature validation DISABLED (SKIP_TWILIO_VALIDATION=true, NODE_ENV=${process.env.NODE_ENV})`);
     return;
   }
