@@ -33,7 +33,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Strict whitelist classifier: SIMPLE only for help/guidance messages\nconst parsed = $input.first().json;\nif (parsed.rejected) return [{ json: parsed }];\n\nconst text = (parsed.task.goal || '').toLowerCase().trim();\n\n// SIMPLE: only exact help/guidance patterns (strict whitelist)\nconst SIMPLE_WHITELIST = [\n  /^\\/?help$/,\n  /^\\/?start$/,\n  /^(hi|hello|hey)$/,\n  /^what (can|do) (i|you)/,\n  /^how (do|should|can) i (send|write|format|submit|use)/,\n  /^(give|show|send) (me )?(an? )?example/,\n  /^example/,\n  /^what (is|does) (simple|complex|this|the bot)/,\n  /^what (kind|type)s? of (task|message|request|command)/,\n  /^how does this (work|bot)/,\n  /^what (commands|options|formats?)/,\n  /^(commands|options|usage|guide|instructions)/,\n];\n\nconst isSimple = SIMPLE_WHITELIST.some(p => p.test(text));\n\nreturn [{ json: { ...parsed, classification: isSimple ? 'SIMPLE' : 'COMPLEX' } }];"
+        "jsCode": "// Three-way classifier: SIMPLE (help) / OPERATOR (system commands) / COMPLEX (task)\nconst parsed = $input.first().json;\nif (parsed.rejected) return [{ json: parsed }];\n\nconst text = (parsed.task.goal || '').toLowerCase().trim();\n\n// SIMPLE: help/guidance patterns\nconst SIMPLE_WHITELIST = [\n  /^\\/?help$/,\n  /^\\/?start$/,\n  /^(hi|hello|hey)$/,\n  /^what (can|do) (i|you)/,\n  /^how (do|should|can) i (send|write|format|submit|use)/,\n  /^(give|show|send) (me )?(an? )?example/,\n  /^example/,\n  /^what (is|does) (simple|complex|this|the bot)/,\n  /^what (kind|type)s? of (task|message|request|command)/,\n  /^how does this (work|bot)/,\n  /^what (commands|options|formats?)/,\n  /^(commands|options|usage|guide|instructions)/,\n];\n\n// OPERATOR: system control / status / task management commands\nconst OPERATOR_PATTERNS = [\n  // English\n  /^(next|find next|start next|get next)\\s*(task|job|work)?\\s*$/,\n  /^continue/,\n  /^(resume|proceed|go|carry on)/,\n  /^(status|state|what.?s (running|pending|happening|going on|next|the (status|state)))/,\n  /^(list|show|get|what are|check)\\s*(tasks?|jobs?|queue|pending|failed|available|open)/,\n  /^(pending|failed|blocked|done|review)\\s*(tasks?|jobs?|items?)?$/,\n  /^what (is|are) (the )?(next|available|pending|open) (task|job|work)/,\n  /^(any|are there) (pending|available|open|new) (task|job|work)/,\n  /^(task|job)\\s*(status|list|count|summary|queue)/,\n  /^(summary|overview|dashboard|report)/,\n  /^(what should i|what to) (do|work on)/,\n  /^what.?s next/,\n  // Lithuanian\n  /^(sekanti|kita|naujas?)\\s*(u[zž]duoti|task|darb)/i,\n  /^(prad[eė](k|ti)|start)\\s*(sekanci|kit|nauj)/i,\n  /^(t[eę]sk?|t[eę]sti|toliau|pirmyn)/i,\n  /^(imk?|imti|pa[iy]mk?)\\s*(kit|sekanci|nauj)/i,\n  /^(rask?|rasti|surask?)\\s*(sekanci|kit|nauj)/i,\n  /^(b[uū]kl[eė]|statusas|pad[eė]tis)/i,\n  /^(kokie?|koks?)\\s*(task|u[zž]duot|darb)/i,\n  /^kas (toliau|sekantis|kitas)/i,\n  /^(eik?|va[zž]iuok?)\\s*toliau/i,\n];\n\nconst isSimple = SIMPLE_WHITELIST.some(p => p.test(text));\nconst isOperator = !isSimple && OPERATOR_PATTERNS.some(p => p.test(text));\n\nlet classification = 'COMPLEX';\nif (isSimple) classification = 'SIMPLE';\nelse if (isOperator) classification = 'OPERATOR';\n\nreturn [{ json: { ...parsed, classification } }];"
       },
       "id": "tg-classify",
       "name": "Classify Task",
@@ -63,13 +63,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Static operator guidance for help/format questions\nconst parsed = $input.first().json;\n\nconst guide = 'AutoShop Dev-Loop Bot\\n\\n' +\n  'Send a task as a plain text message. It will be analyzed and executed by Claude.\\n\\n' +\n  'Task format examples:\\n' +\n  '  \"Add a formatPhoneNumber utility in packages/shared/src/\"\\n' +\n  '  \"Fix the calendar sync retry logic for 401 errors\"\\n' +\n  '  \"List all TypeScript files in apps/api/src/routes/\"\\n\\n' +\n  'What happens:\\n' +\n  '  1. Instant ack (1-2s)\\n' +\n  '  2. Claude analyzes and executes (30-60s)\\n' +\n  '  3. Result with status, decision, and branch\\n\\n' +\n  'Task types:\\n' +\n  '  - Implementation: add, fix, update, build, refactor\\n' +\n  '  - Analysis: list files, check status, find bugs\\n' +\n  '  - Questions about code: how does X work, what calls Y\\n\\n' +\n  'All messages go to full Claude execution unless they are help/format questions like this one.';\n\nreturn [{ json: {\n  chatId: parsed.chatId,\n  replyText: guide\n} }];"
+        "jsCode": "// Static operator guidance for help/format questions\nconst parsed = $input.first().json;\n\nconst guide = 'AutoShop Dev-Loop Bot\\n\\n' +\n  'Send a task as a plain text message. It will be analyzed and executed by Claude.\\n\\n' +\n  'Task format examples:\\n' +\n  '  \"Add a formatPhoneNumber utility in packages/shared/src/\"\\n' +\n  '  \"Fix the calendar sync retry logic for 401 errors\"\\n' +\n  '  \"List all TypeScript files in apps/api/src/routes/\"\\n\\n' +\n  'What happens:\\n' +\n  '  1. Instant ack (1-2s)\\n' +\n  '  2. Claude analyzes and executes (30-60s)\\n' +\n  '  3. Result with status, decision, and branch\\n\\n' +\n  'Operator commands:\\n' +\n  '  \"next task\" — show next available task\\n' +\n  '  \"status\" — task queue summary\\n' +\n  '  \"list tasks\" — recent tasks\\n' +\n  '  \"pending\" — pending tasks\\n' +\n  '  \"failed\" — failed tasks\\n\\n' +\n  'All other messages go to Claude for execution.';\n\nreturn [{ json: {\n  chatId: parsed.chatId,\n  replyText: guide\n} }];"
       },
       "id": "tg-build-simple-reply",
       "name": "Build Simple Reply",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 200]
+      "position": [1100, 100]
     },
     {
       "parameters": {
@@ -81,7 +81,82 @@
       "name": "Telegram: Send Simple Reply",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1350, 200],
+      "position": [1350, 100],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-creds",
+          "name": "AutoShop Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{
+            "id": "cond-operator",
+            "leftValue": "={{ $json.classification }}",
+            "rightValue": "OPERATOR",
+            "operator": { "type": "string", "operation": "equals" }
+          }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "tg-operator-gate",
+      "name": "IF: Operator?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [850, 500]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://autoshop-api-7ek9.onrender.com/internal/dev-loop/summary",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "options": {
+          "timeout": 15000,
+          "response": { "response": { "neverError": true } }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "tg-fetch-summary",
+      "name": "Fetch Task Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1100, 400],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "x-internal-key",
+          "name": "x-internal-key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format task summary for Telegram\nconst parsed = $('Parse Message into Task').first().json;\nconst summary = $input.first().json;\n\n// Handle API errors\nif (summary.error || summary.statusCode >= 400) {\n  return [{ json: {\n    chatId: parsed.chatId,\n    replyText: 'Could not fetch task summary.\\nAPI error: ' + (summary.error || summary.message || 'unknown')\n  } }];\n}\n\nconst counts = summary.counts || {};\nconst recent = summary.recent || [];\nconst needsReview = summary.needs_review || [];\nconst pending = summary.pending || [];\nconst failed = summary.failed || [];\n\nlet msg = '📋 Task Queue Summary\\n\\n';\n\n// Counts\nmsg += `Total: ${counts.total || 0}  |  `;\nmsg += `Done: ${counts.done || 0}  |  `;\nmsg += `Pending: ${counts.pending || 0}  |  `;\nmsg += `Failed: ${counts.failed || 0}  |  `;\nmsg += `Blocked: ${counts.blocked || 0}\\n`;\nmsg += `Needs review: ${counts.needs_review || 0}  |  `;\nmsg += `Stale: ${counts.stale || 0}\\n\\n`;\n\n// Needs review\nif (needsReview.length > 0) {\n  msg += '⏳ Needs Review:\\n';\n  needsReview.forEach(t => {\n    msg += `  • ${t.task_id}: ${t.title} [${t.status}]`;\n    if (t.branch) msg += ` → ${t.branch}`;\n    msg += '\\n';\n  });\n  msg += '\\n';\n}\n\n// Pending\nif (pending.length > 0) {\n  msg += '🔜 Pending:\\n';\n  pending.forEach(t => {\n    msg += `  • ${t.task_id}: ${t.title}\\n`;\n  });\n  msg += '\\n';\n}\n\n// Failed\nif (failed.length > 0) {\n  msg += '❌ Failed:\\n';\n  failed.forEach(t => {\n    msg += `  • ${t.task_id}: ${t.title}\\n`;\n  });\n  msg += '\\n';\n}\n\n// Recent\nif (recent.length > 0) {\n  msg += '📝 Recent:\\n';\n  recent.forEach(t => {\n    msg += `  • ${t.task_id}: ${t.title} [${t.status}]\\n`;\n  });\n  msg += '\\n';\n}\n\n// No tasks at all\nif ((counts.total || 0) === 0) {\n  msg += 'No tasks in queue.\\n\\nSend a task description to create one.';\n}\n\n// Next action guidance\nif (counts.pending > 0 || counts.needs_review > 0) {\n  msg += 'To start a specific task, describe what to do (e.g. \"fix the booking date parser\").';\n} else if (counts.total > 0 && counts.pending === 0) {\n  msg += 'No pending tasks. Send a new task description to create one.';\n}\n\nreturn [{ json: { chatId: parsed.chatId, replyText: msg } }];"
+      },
+      "id": "tg-build-operator-reply",
+      "name": "Build Operator Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1350, 400]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.replyText }}",
+        "additionalFields": {}
+      },
+      "id": "tg-send-operator",
+      "name": "Telegram: Send Operator Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1600, 400],
       "credentials": {
         "telegramApi": {
           "id": "telegram-creds",
@@ -107,7 +182,7 @@
       "name": "IF: Task Accepted",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [850, 500]
+      "position": [850, 750]
     },
     {
       "parameters": {
@@ -117,7 +192,7 @@
       "name": "Build Ack",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 400]
+      "position": [1100, 650]
     },
     {
       "parameters": {
@@ -129,7 +204,7 @@
       "name": "Telegram: Send Ack",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1350, 400],
+      "position": [1350, 650],
       "credentials": {
         "telegramApi": {
           "id": "telegram-creds",
@@ -157,7 +232,7 @@
       "name": "Submit to Orchestrator",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1100, 600]
+      "position": [1100, 850]
     },
     {
       "parameters": {
@@ -167,7 +242,7 @@
       "name": "Build Reply",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1350, 600]
+      "position": [1350, 850]
     },
     {
       "parameters": {
@@ -179,7 +254,7 @@
       "name": "Telegram: Send Reply",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1600, 600],
+      "position": [1600, 850],
       "credentials": {
         "telegramApi": {
           "id": "telegram-creds",
@@ -195,7 +270,7 @@
       "name": "Handle Rejected",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 750]
+      "position": [1100, 1050]
     },
     {
       "parameters": {
@@ -207,7 +282,7 @@
       "name": "Telegram: Send Help",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1350, 750],
+      "position": [1350, 1050],
       "credentials": {
         "telegramApi": {
           "id": "telegram-creds",
@@ -229,11 +304,23 @@
     "IF: Simple?": {
       "main": [
         [ { "node": "Build Simple Reply", "type": "main", "index": 0 } ],
-        [ { "node": "IF: Task Accepted", "type": "main", "index": 0 } ]
+        [ { "node": "IF: Operator?", "type": "main", "index": 0 } ]
       ]
     },
     "Build Simple Reply": {
       "main": [[ { "node": "Telegram: Send Simple Reply", "type": "main", "index": 0 } ]]
+    },
+    "IF: Operator?": {
+      "main": [
+        [ { "node": "Fetch Task Summary", "type": "main", "index": 0 } ],
+        [ { "node": "IF: Task Accepted", "type": "main", "index": 0 } ]
+      ]
+    },
+    "Fetch Task Summary": {
+      "main": [[ { "node": "Build Operator Reply", "type": "main", "index": 0 } ]]
+    },
+    "Build Operator Reply": {
+      "main": [[ { "node": "Telegram: Send Operator Reply", "type": "main", "index": 0 } ]]
     },
     "IF: Task Accepted": {
       "main": [

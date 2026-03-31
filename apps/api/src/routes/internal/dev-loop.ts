@@ -105,6 +105,37 @@ export async function devLoopRoute(app: FastifyInstance) {
     }
   });
 
+  // ── GET /internal/dev-loop/summary ────────────────────────────────────────
+  // Lightweight status summary for Telegram operator commands (internal key only)
+  app.get("/dev-loop/summary", { preHandler: [requireInternal] }, async (_request, reply) => {
+    const counts = await taskCounts();
+    const recent = await listTasks({ limit: 5 });
+    const needsReview = await listTasks({ reviewed: false, limit: 5 });
+    const pending = await listTasks({ status: "pending", limit: 3 });
+    const failed = await listTasks({ status: "failed", limit: 3 });
+
+    return reply.send({
+      counts,
+      recent: recent.map((t) => ({
+        task_id: t.task_id,
+        title: t.title,
+        status: t.status,
+        review_decision: t.review_decision,
+        branch: t.branch,
+        created_at: t.created_at,
+      })),
+      needs_review: needsReview.map((t) => ({
+        task_id: t.task_id,
+        title: t.title,
+        status: t.status,
+        review_decision: t.review_decision,
+        branch: t.branch,
+      })),
+      pending: pending.map((t) => ({ task_id: t.task_id, title: t.title })),
+      failed: failed.map((t) => ({ task_id: t.task_id, title: t.title, goal: t.goal })),
+    });
+  });
+
   // ── GET /internal/admin/dev-loop/tasks ────────────────────────────────────
   app.get("/admin/dev-loop/tasks", { preHandler: [adminGuard] }, async (request, reply) => {
     const q = request.query as { status?: string; reviewed?: string; limit?: string };
