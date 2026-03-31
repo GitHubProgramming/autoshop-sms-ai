@@ -1,0 +1,138 @@
+{
+  "id": "TELEGRAM-HEALTH-CHECK",
+  "name": "US AutoShop: Telegram Health Check",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "minutes", "minutesInterval": 30 }]
+        }
+      },
+      "id": "thc-schedule",
+      "name": "Every 30 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.telegram.org/bot{{ $credentials.token }}/getWebhookInfo",
+        "options": {
+          "timeout": 10000,
+          "response": { "response": { "neverError": true } }
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "telegramApi"
+      },
+      "id": "thc-check-webhook",
+      "name": "Check Webhook Info",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [500, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-creds",
+          "name": "AutoShop Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const resp = $input.first().json;\nconst result = resp.result || resp;\n\nconst webhookUrl = result.url || '';\nconst pending = result.pending_update_count || 0;\nconst lastErrorDate = result.last_error_date ? new Date(result.last_error_date * 1000).toISOString() : null;\nconst lastErrorMsg = result.last_error_message || '';\nconst expectedUrl = 'bandomasis.app.n8n.cloud';\n\nconst issues = [];\n\nif (!webhookUrl) {\n  issues.push('CRITICAL: Webhook URL is EMPTY — bot receives NO messages');\n} else if (!webhookUrl.includes(expectedUrl)) {\n  issues.push('WARNING: Webhook URL does not point to expected n8n Cloud: ' + webhookUrl);\n}\n\nif (pending > 10) {\n  issues.push('WARNING: ' + pending + ' pending updates — messages may be stuck');\n}\n\nif (lastErrorDate) {\n  const errorAge = Date.now() - new Date(lastErrorDate).getTime();\n  if (errorAge < 3600000) {\n    issues.push('ERROR: Recent webhook error (' + lastErrorDate + '): ' + lastErrorMsg);\n  }\n}\n\nconst healthy = issues.length === 0;\n\nreturn [{ json: {\n  healthy,\n  webhookUrl,\n  pending,\n  lastErrorDate,\n  lastErrorMsg,\n  issues,\n  checkedAt: new Date().toISOString()\n} }];"
+      },
+      "id": "thc-evaluate",
+      "name": "Evaluate Health",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{
+            "id": "cond-unhealthy",
+            "leftValue": "={{ $json.healthy }}",
+            "rightValue": false,
+            "operator": { "type": "boolean", "operation": "equals" }
+          }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "thc-gate",
+      "name": "IF: Unhealthy?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst issues = data.issues || [];\n\nlet msg = '⚠️ TELEGRAM WEBHOOK UNHEALTHY\\n\\n';\nmsg += 'Time: ' + data.checkedAt + '\\n';\nmsg += 'URL: ' + (data.webhookUrl || 'MISSING') + '\\n';\nmsg += 'Pending: ' + data.pending + '\\n';\nif (data.lastErrorDate) {\n  msg += 'Last Error: ' + data.lastErrorDate + '\\n';\n  msg += 'Error Msg: ' + data.lastErrorMsg + '\\n';\n}\nmsg += '\\nIssues:\\n';\nissues.forEach(i => { msg += '• ' + i + '\\n'; });\nmsg += '\\nAction: Check n8n Cloud workflow activation and Telegram bot status.';\n\nreturn [{ json: { chatId: '8747048300', text: msg } }];"
+      },
+      "id": "thc-build-alert",
+      "name": "Build Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {}
+      },
+      "id": "thc-send-alert",
+      "name": "Telegram: Send Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1500, 200],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-creds",
+          "name": "AutoShop Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nreturn [{ json: { status: 'healthy', checkedAt: data.checkedAt, webhookUrl: data.webhookUrl } }];"
+      },
+      "id": "thc-ok",
+      "name": "Log Healthy",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 400]
+    }
+  ],
+  "connections": {
+    "Every 30 Minutes": {
+      "main": [[ { "node": "Check Webhook Info", "type": "main", "index": 0 } ]]
+    },
+    "Check Webhook Info": {
+      "main": [[ { "node": "Evaluate Health", "type": "main", "index": 0 } ]]
+    },
+    "Evaluate Health": {
+      "main": [[ { "node": "IF: Unhealthy?", "type": "main", "index": 0 } ]]
+    },
+    "IF: Unhealthy?": {
+      "main": [
+        [ { "node": "Build Alert", "type": "main", "index": 0 } ],
+        [ { "node": "Log Healthy", "type": "main", "index": 0 } ]
+      ]
+    },
+    "Build Alert": {
+      "main": [[ { "node": "Telegram: Send Alert", "type": "main", "index": 0 } ]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [
+    { "name": "monitoring" },
+    { "name": "telegram" }
+  ],
+  "triggerCount": 1,
+  "pinData": {}
+}

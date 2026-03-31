@@ -1,0 +1,59 @@
+{
+  "id": "WORKFLOW-ERROR-ALERT",
+  "name": "US AutoShop: Workflow Error Alert",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "err-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const error = $input.first().json;\n\nconst execution = error.execution || {};\nconst workflow = error.workflow || {};\nconst errorMsg = execution.error?.message || 'Unknown error';\nconst failedNode = execution.lastNodeExecuted || 'unknown';\n\n// Only alert for critical workflows\nconst MONITORED = [\n  'Telegram Task Intake',\n  'Dev-Loop Orchestrator',\n  'SMS Inbound',\n  'AI Booking Worker',\n  'Calendar Sync'\n];\n\nconst wfName = workflow.name || 'Unknown Workflow';\nconst isMonitored = MONITORED.some(m => wfName.includes(m));\n\nif (!isMonitored) {\n  return [];\n}\n\nlet msg = '❌ WORKFLOW FAILURE\\n\\n';\nmsg += 'Workflow: ' + wfName + '\\n';\nmsg += 'Failed Node: ' + failedNode + '\\n';\nmsg += 'Error: ' + errorMsg.substring(0, 500) + '\\n';\nmsg += 'Execution ID: ' + (execution.id || 'n/a') + '\\n';\nmsg += 'Time: ' + new Date().toISOString() + '\\n';\nmsg += '\\nCheck: https://bandomasis.app.n8n.cloud';\n\nreturn [{ json: { chatId: '8747048300', text: msg } }];"
+      },
+      "id": "err-build",
+      "name": "Build Error Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {}
+      },
+      "id": "err-send",
+      "name": "Telegram: Send Error",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [750, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-creds",
+          "name": "AutoShop Telegram"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [[ { "node": "Build Error Alert", "type": "main", "index": 0 } ]]
+    },
+    "Build Error Alert": {
+      "main": [[ { "node": "Telegram: Send Error", "type": "main", "index": 0 } ]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [
+    { "name": "monitoring" },
+    { "name": "alerting" }
+  ],
+  "triggerCount": 1,
+  "pinData": {}
+}

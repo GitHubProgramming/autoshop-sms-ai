@@ -821,7 +821,8 @@
   "settings": {
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
+    "availableInMCP": false,
+    "errorWorkflow": "WORKFLOW-ERROR-ALERT"
   },
   "staticData": null,
   "tags": [
