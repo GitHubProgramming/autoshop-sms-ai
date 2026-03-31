@@ -103,6 +103,8 @@ export async function billingCheckoutRoute(app: FastifyInstance) {
       cancel_url: cancelUrl,
       subscription_data: subscriptionData as any,
       metadata: { tenant_id: tenantId },
+      payment_method_types: ["card"],
+      billing_address_collection: "auto",
     });
 
     request.log.info({ tenantId, plan, sessionId: session.id }, "Stripe checkout session created");

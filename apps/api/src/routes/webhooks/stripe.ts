@@ -16,15 +16,13 @@ const PLAN_LIMITS: Record<string, number> = {
   premium: 1000,
 };
 
-function getPlanFromStripePrice(priceId: string): string {
-  // TODO: map Stripe price IDs to plan slugs via env or DB lookup
-  // e.g. STRIPE_PRICE_STARTER=price_xxx
+function getPlanFromStripePrice(priceId: string): string | null {
   const map: Record<string, string> = {
     [process.env.STRIPE_PRICE_STARTER ?? ""]: "starter",
     [process.env.STRIPE_PRICE_PRO ?? ""]: "pro",
     [process.env.STRIPE_PRICE_PREMIUM ?? ""]: "premium",
   };
-  return map[priceId] ?? "starter";
+  return map[priceId] ?? null;
 }
 
 export async function stripeRoute(app: FastifyInstance) {
@@ -100,7 +98,11 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
       const sub = event.data.object as Stripe.Subscription;
       const priceId = sub.items.data[0]?.price.id ?? "";
       const planId = getPlanFromStripePrice(priceId);
-      const convLimit = PLAN_LIMITS[planId] ?? 150;
+      if (!planId) {
+        console.error(`[stripe] Unknown Stripe price ID "${priceId}" — cannot map to plan. Event ${event.id} skipped. Set STRIPE_PRICE_* env vars.`);
+        return;
+      }
+      const convLimit = PLAN_LIMITS[planId];
 
       // Determine billing status from Stripe subscription state.
       // 'trialing' = card captured with trial_period_days (demo→trial upgrade).

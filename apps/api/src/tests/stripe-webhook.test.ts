@@ -327,7 +327,7 @@ describe("POST /webhooks/stripe", () => {
     await app.close();
   });
 
-  it("defaults to starter plan for unknown price ID", async () => {
+  it("skips processing for unknown price ID instead of defaulting", async () => {
     const sub = subscriptionObject({
       items: { data: [{ price: { id: "price_unknown_xxx" } }] },
     });
@@ -335,12 +335,14 @@ describe("POST /webhooks/stripe", () => {
     mocks.constructEvent.mockReturnValue(evt);
     const app = await buildApp();
 
-    await postStripe(app);
+    const res = await postStripe(app);
 
-    expect(mocks.query).toHaveBeenCalledWith(
-      expect.stringContaining("UPDATE tenants SET"),
-      expect.arrayContaining(["starter", TEST_SUB_ID, 150])
+    // Should NOT have written any tenant update with a plan
+    const tenantUpdateCalls = mocks.query.mock.calls.filter(
+      (c: any[]) => typeof c[0] === "string" && c[0].includes("UPDATE tenants SET") && c[0].includes("plan_id")
     );
+    expect(tenantUpdateCalls).toHaveLength(0);
+    expect(res.statusCode).toBe(200); // still 200 to Stripe
     await app.close();
   });
 
