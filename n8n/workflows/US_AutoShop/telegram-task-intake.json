@@ -23,7 +23,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validate sender and parse Telegram message into a dev-loop task\nconst msg = $input.first().json;\nconst message = msg.message || {};\nconst text = (message.text || '').trim();\nconst chatId = message.chat?.id;\nconst senderId = message.from?.id;\nconst senderName = message.from?.first_name || 'operator';\n\n// Only accept messages from the configured operator chat\n// n8n Cloud: hardcoded fallback (env access blocked)\nconst allowedChatId = typeof $env !== 'undefined' && $env.TELEGRAM_CHAT_ID ? $env.TELEGRAM_CHAT_ID : '8747048300';\nif (allowedChatId && String(chatId) !== String(allowedChatId)) {\n  return [{ json: { rejected: true, reason: 'unauthorized_chat', chatId } }];\n}\n\n// Ignore empty messages and commands that aren't tasks\nif (!text || text.startsWith('/start') || text.startsWith('/help')) {\n  return [{ json: {\n    rejected: true,\n    reason: text ? 'command' : 'empty',\n    chatId,\n    help_response: 'Send a plain text message describing a task. Example:\\n\\nAdd a formatPhoneNumber utility in packages/shared/src/ that normalizes US numbers to E.164'\n  } }];\n}\n\n// Strip /task prefix if present\nlet taskText = text;\nif (taskText.startsWith('/task ')) {\n  taskText = taskText.substring(6).trim();\n}\n\n// Generate deterministic task_id from timestamp + short hash\nconst ts = Date.now();\nconst shortHash = ts.toString(36).slice(-6);\nconst taskId = `tg-${shortHash}`;\n\n// Extract title: first line or first 60 chars\nconst firstLine = taskText.split('\\n')[0];\nconst title = firstLine.length > 60 ? firstLine.substring(0, 57) + '...' : firstLine;\n\n// Build TaskContract\nconst task = {\n  task_id: taskId,\n  title: title,\n  goal: taskText,\n  scope_boundaries: [],\n  files_allowed: ['apps/api/**', 'packages/shared/**'],\n  files_forbidden: [\n    '**/auth/**', '**/billing/**', '**/stripe/**',\n    '**/twilio/**', '**/oauth/**', '**/provisioning/**',\n    '**/deploy/**', '**/migration/**'\n  ],\n  critical_systems_risk: false,\n  expected_output: [],\n  checks_required: ['typecheck']\n};\n\nreturn [{ json: {\n  rejected: false,\n  task,\n  chatId,\n  senderName,\n  messageId: message.message_id\n} }];"
+        "jsCode": "// Validate sender and parse Telegram message into a dev-loop task\nconst msg = $input.first().json;\nconst message = msg.message || {};\nconst text = (message.text || '').trim();\nconst chatId = message.chat?.id;\nconst senderId = message.from?.id;\nconst senderName = message.from?.first_name || 'operator';\n\n// Only accept messages from the configured operator chat\n// Hardcoded — n8n Cloud blocks $env access in Code nodes\nconst allowedChatId = '8747048300';\nif (String(chatId) !== allowedChatId) {\n  return [{ json: { rejected: true, reason: 'unauthorized_chat', chatId } }];\n}\n\n// Ignore empty messages and commands that aren't tasks\nif (!text || text.startsWith('/start') || text.startsWith('/help')) {\n  return [{ json: {\n    rejected: true,\n    reason: text ? 'command' : 'empty',\n    chatId,\n    help_response: 'Send a plain text message describing a task. Example:\\n\\nAdd a formatPhoneNumber utility in packages/shared/src/ that normalizes US numbers to E.164'\n  } }];\n}\n\n// Strip /task prefix if present\nlet taskText = text;\nif (taskText.startsWith('/task ')) {\n  taskText = taskText.substring(6).trim();\n}\n\n// Generate deterministic task_id from timestamp + short hash\nconst ts = Date.now();\nconst shortHash = ts.toString(36).slice(-6);\nconst taskId = `tg-${shortHash}`;\n\n// Extract title: first line or first 60 chars\nconst firstLine = taskText.split('\\n')[0];\nconst title = firstLine.length > 60 ? firstLine.substring(0, 57) + '...' : firstLine;\n\n// Build TaskContract\nconst task = {\n  task_id: taskId,\n  title: title,\n  goal: taskText,\n  scope_boundaries: [],\n  files_allowed: ['apps/api/**', 'packages/shared/**'],\n  files_forbidden: [\n    '**/auth/**', '**/billing/**', '**/stripe/**',\n    '**/twilio/**', '**/oauth/**', '**/provisioning/**',\n    '**/deploy/**', '**/migration/**'\n  ],\n  critical_systems_risk: false,\n  expected_output: [],\n  checks_required: ['typecheck']\n};\n\nreturn [{ json: {\n  rejected: false,\n  task,\n  chatId,\n  senderName,\n  messageId: message.message_id\n} }];"
       },
       "id": "tg-parse",
       "name": "Parse Message into Task",
@@ -140,7 +140,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.N8N_BASE_URL || 'http://localhost:5678' }}/webhook/dev-loop-task",
+        "url": "https://bandomasis.app.n8n.cloud/webhook/dev-loop-task",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [{ "name": "Content-Type", "value": "application/json" }]
@@ -257,7 +257,7 @@
       "main": [[ { "node": "Telegram: Send Help", "type": "main", "index": 0 } ]]
     }
   },
-  "settings": { "executionOrder": "v1" },
+  "settings": { "executionOrder": "v1", "errorWorkflow": "WORKFLOW-ERROR-ALERT" },
   "staticData": null,
   "tags": [
     { "name": "dev-loop" },
