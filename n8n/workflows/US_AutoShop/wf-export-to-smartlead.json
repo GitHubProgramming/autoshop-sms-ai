@@ -59,7 +59,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const items = $('Postgres - Select Exportable Leads').all();\n\nconst leadList = items.map(item => {\n  const r = item.json;\n  return {\n    email: r.email,\n    first_name: r.business_name || '',\n    company: r.business_name || '',\n    website: r.website || '',\n    domain: r.domain || ''\n  };\n});\n\nconst ids = items.map(item => item.json.id);\n\nreturn [{\n  json: {\n    lead_list: leadList,\n    lead_ids: ids,\n    count: leadList.length\n  }\n}];"
+        "jsCode": "const items = $('Postgres - Select Exportable Leads').all();\n\nconst leadList = items.map(item => {\n  const r = item.json;\n  return {\n    email: r.email,\n    first_name: r.business_name || ''\n  };\n});\n\nconst ids = items.map(item => item.json.id);\n\nreturn [{\n  json: {\n    lead_list: leadList,\n    lead_ids: ids,\n    count: leadList.length\n  }\n}];"
       },
       "id": "sl-export-build-payload",
       "name": "Code - Build Smartlead Payload",
