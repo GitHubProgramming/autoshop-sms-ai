@@ -18,25 +18,17 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "https://api.telegram.org/bot{{ $credentials.token }}/getWebhookInfo",
+        "url": "https://api.telegram.org/bot8609230653:AAFZnacvgMt61pxjuZRg4KCZ0YsOPimb-no/getWebhookInfo",
         "options": {
           "timeout": 10000,
           "response": { "response": { "neverError": true } }
-        },
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "telegramApi"
+        }
       },
       "id": "thc-check-webhook",
       "name": "Check Webhook Info",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [500, 300],
-      "credentials": {
-        "telegramApi": {
-          "id": "telegram-creds",
-          "name": "AutoShop Telegram"
-        }
-      }
+      "position": [500, 300]
     },
     {
       "parameters": {
