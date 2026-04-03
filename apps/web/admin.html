@@ -282,6 +282,55 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
 
 /* ── TRANSITIONS ── */
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;}}
+
+/* ── MOBILE HAMBURGER ── */
+.mobile-menu-btn{display:none;background:none;border:none;cursor:pointer;padding:8px;border-radius:8px;color:var(--white);transition:background .15s}
+.mobile-menu-btn:hover{background:var(--sidebar-hover)}
+.mobile-menu-btn svg{display:block}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:149}
+
+/* ── RESPONSIVE: TABLET ── */
+@media(max-width:768px){
+  .mobile-menu-btn{display:block}
+  .topnav{padding:0 16px;height:48px}
+  .sidebar{position:fixed;left:0;top:0;bottom:0;z-index:150;transform:translateX(-100%);transition:transform .25s ease}
+  .sidebar.open{transform:translateX(0)}
+  .sidebar-overlay.open{display:block}
+  .layout{display:block}
+  .main{padding:20px 16px 40px}
+  .page-header{flex-direction:column;align-items:flex-start;gap:8px}
+  .page-title{font-size:24px}
+  .stat-grid{grid-template-columns:repeat(2,1fr);gap:12px}
+  .two-col{grid-template-columns:1fr}
+  .funnel-wrap{flex-direction:column}
+  .kv-grid{grid-template-columns:1fr}
+  .table-header{flex-direction:column;align-items:flex-start}
+  .search-input{width:100%}
+  .data-table{font-size:12px}
+  .data-table th,.data-table td{padding:10px 12px}
+  .table-wrap{overflow-x:auto}
+  .filter-tabs{flex-wrap:wrap}
+  .health-summary{flex-wrap:wrap;gap:8px}
+  .modal-box{max-width:95%;margin:20px}
+  .modal-overlay{padding:20px 10px}
+  .detail-tabs{gap:0}
+  .detail-tab{padding:10px 14px;font-size:12px}
+  .admin-badge{display:none}
+  .nav-api-base{display:none}
+}
+
+/* ── RESPONSIVE: SMALL MOBILE ── */
+@media(max-width:480px){
+  .main{padding:16px 12px 32px}
+  .stat-grid{grid-template-columns:1fr}
+  .stat-card{padding:18px}
+  .stat-val{font-size:32px}
+  .page-title{font-size:20px}
+  .funnel-bar{padding:18px}
+  .funnel-val{font-size:28px}
+  .panel-body{padding:16px}
+  .btn-sm{font-size:12px;padding:7px 12px}
+}
 </style>
 </head>
 <body>
@@ -304,6 +353,9 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
   <!-- Top Nav -->
   <nav class="topnav">
     <div class="nav-left">
+      <button class="mobile-menu-btn" onclick="toggleAdminSidebar()" aria-label="Toggle menu">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
       <div class="nav-logo">Auto<span>Shop</span> Admin</div>
       <div class="admin-badge">Internal</div>
     </div>
@@ -314,6 +366,7 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
   </nav>
 
   <!-- Layout -->
+  <div class="sidebar-overlay" id="adminSidebarOverlay" onclick="toggleAdminSidebar()"></div>
   <div class="layout">
 
     <!-- Sidebar -->
@@ -392,6 +445,13 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
 
 <script>
 'use strict';
+
+// ── Mobile sidebar toggle ──
+function toggleAdminSidebar(){
+  var sb=document.getElementById('sidebar');
+  var ov=document.getElementById('adminSidebarOverlay');
+  if(sb&&ov){sb.classList.toggle('open');ov.classList.toggle('open');}
+}
 
 // ── CONFIG ──────────────────────────────────────────────────────────────────
 function getApiBase() {
