@@ -293,7 +293,7 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
 @media(max-width:768px){
   .mobile-menu-btn{display:block}
   .topnav{padding:0 16px;height:48px}
-  .sidebar{position:fixed;left:0;top:0;bottom:0;z-index:150;transform:translateX(-100%);transition:transform .25s ease}
+  .sidebar{position:fixed;left:0;top:0;bottom:0;height:auto;z-index:150;transform:translateX(-100%);transition:transform .25s ease}
   .sidebar.open{transform:translateX(0)}
   .sidebar-overlay.open{display:block}
   .layout{display:block}
@@ -569,6 +569,9 @@ async function apiFetch(path, params) {
 
 // ── NAVIGATION ───────────────────────────────────────────────────────────────
 function navigate(section, params) {
+  // Close mobile sidebar on navigation
+  var sb=document.getElementById('sidebar'),ov=document.getElementById('adminSidebarOverlay');
+  if(sb)sb.classList.remove('open');if(ov)ov.classList.remove('open');
   currentSection = section;
   // Keep URL in sync (don't push for sub-views like account-detail)
   if (!params) {
