@@ -1,0 +1,211 @@
+{
+  "id": "WF-SCRAPE-TEXAS-LEADS",
+  "name": "WF-SCRAPE-TEXAS-LEADS",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "scrape-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "trigger-scrape-texas",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "scrape-webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 500],
+      "webhookId": "trigger-scrape-texas"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cities = [\n  'Houston', 'San Antonio', 'Dallas', 'Austin', 'Fort Worth',\n  'El Paso', 'Arlington', 'Corpus Christi', 'Plano', 'Lubbock',\n  'Laredo', 'Irving', 'Amarillo', 'Grand Prairie', 'Brownsville',\n  'McKinney', 'Frisco', 'Pasadena', 'Killeen', 'McAllen'\n];\n\nreturn cities.map(city => ({\n  json: {\n    city,\n    query: `auto repair shop in ${city}, Texas`,\n    state: 'TX'\n  }\n}));"
+      },
+      "id": "scrape-build-queries",
+      "name": "Code - Build City Queries",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {
+          "reset": false
+        }
+      },
+      "id": "scrape-loop-cities",
+      "name": "Loop Over Cities",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://maps.googleapis.com/maps/api/place/textsearch/json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "query", "value": "={{ $json.query }}" },
+            { "name": "type", "value": "car_repair" }
+          ]
+        },
+        "options": { "timeout": 15000 }
+      },
+      "id": "scrape-places-search",
+      "name": "HTTP - Google Places Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 300],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "BeldpBsADUbzY0Er",
+          "name": "Google Maps API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const resp = $input.first().json;\nconst cityData = $('Loop Over Cities').first().json;\nconst results = resp.results || [];\n\nconst leads = results.map(place => {\n  const name = (place.name || '').trim();\n  const address = (place.formatted_address || '').trim();\n  const placeId = place.place_id || null;\n\n  return {\n    business_name: name,\n    address,\n    place_id: placeId,\n    city: cityData.city,\n    state: cityData.state\n  };\n}).filter(l => l.place_id);\n\nreturn [{\n  json: {\n    city: cityData.city,\n    leads,\n    count: leads.length,\n    next_page_token: resp.next_page_token || null\n  }\n}];"
+      },
+      "id": "scrape-parse-results",
+      "name": "Code - Parse Places Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst leads = input.leads || [];\n\nif (leads.length === 0) {\n  return [{ json: { city: input.city, count: 0, place_ids: [] } }];\n}\n\nreturn leads.map(lead => ({ json: lead }));"
+      },
+      "id": "scrape-expand-leads",
+      "name": "Code - Expand Leads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://maps.googleapis.com/maps/api/place/details/json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "place_id", "value": "={{ $json.place_id }}" },
+            { "name": "fields", "value": "name,formatted_phone_number,website,formatted_address,business_status" }
+          ]
+        },
+        "options": { "timeout": 15000 }
+      },
+      "id": "scrape-place-details",
+      "name": "HTTP - Place Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1750, 300],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "BeldpBsADUbzY0Er",
+          "name": "Google Maps API Key"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const detailItems = $input.all();\nconst expandItems = $('Code - Expand Leads').all();\n\nfunction extractDomain(url) {\n  if (!url || typeof url !== 'string') return null;\n  try {\n    let d = url.trim().toLowerCase();\n    d = d.replace(/^https?:\\/\\//, '').replace(/^www\\./, '');\n    d = d.split('/')[0].split('?')[0].split('#')[0];\n    d = d.replace(/:\\d+$/, '');\n    return (d && d.includes('.')) ? d : null;\n  } catch (e) { return null; }\n}\n\nconst rows = [];\n\nfor (let i = 0; i < detailItems.length; i++) {\n  const detail = detailItems[i].json?.result || detailItems[i].json || {};\n  const base = expandItems[i]?.json || {};\n  const website = (detail.website || '').trim() || null;\n  const domain = extractDomain(website);\n  const phone = (detail.formatted_phone_number || '').trim() || null;\n  const bizStatus = (detail.business_status || '').toUpperCase();\n  if (bizStatus === 'CLOSED_PERMANENTLY') continue;\n\n  rows.push({\n    business_name: base.business_name || detail.name || '',\n    website, domain, phone,\n    address: detail.formatted_address || base.address || '',\n    city: base.city || '',\n    state: base.state || 'TX',\n    place_id: base.place_id || ''\n  });\n}\n\nreturn [{ json: { rows, count: rows.length } }];"
+      },
+      "id": "scrape-build-rows",
+      "name": "Code - Build DB Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://autoshopsmsai.com/internal/leads/bulk-insert",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ leads: $json.rows }) }}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "scrape-api-insert",
+      "name": "HTTP - API Insert Leads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2250, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "LDBz85dzKMqLSZtp",
+          "name": "x-internal-key"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const apiResp = $input.first().json;\nconst city = $('Loop Over Cities').first().json.city;\n\nreturn [{\n  json: {\n    city,\n    scraped: apiResp.submitted || 0,\n    inserted: apiResp.inserted || 0,\n    skipped_dupes: apiResp.skipped || 0\n  }\n}];"
+      },
+      "id": "scrape-city-summary",
+      "name": "Code - City Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2500, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{ "node": "Code - Build City Queries", "type": "main", "index": 0 }]]
+    },
+    "Webhook Trigger": {
+      "main": [[{ "node": "Code - Build City Queries", "type": "main", "index": 0 }]]
+    },
+    "Code - Build City Queries": {
+      "main": [[{ "node": "Loop Over Cities", "type": "main", "index": 0 }]]
+    },
+    "Loop Over Cities": {
+      "main": [
+        [{ "node": "HTTP - Google Places Search", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "HTTP - Google Places Search": {
+      "main": [[{ "node": "Code - Parse Places Results", "type": "main", "index": 0 }]]
+    },
+    "Code - Parse Places Results": {
+      "main": [[{ "node": "Code - Expand Leads", "type": "main", "index": 0 }]]
+    },
+    "Code - Expand Leads": {
+      "main": [[{ "node": "HTTP - Place Details", "type": "main", "index": 0 }]]
+    },
+    "HTTP - Place Details": {
+      "main": [[{ "node": "Code - Build DB Rows", "type": "main", "index": 0 }]]
+    },
+    "Code - Build DB Rows": {
+      "main": [[{ "node": "HTTP - API Insert Leads", "type": "main", "index": 0 }]]
+    },
+    "HTTP - API Insert Leads": {
+      "main": [[{ "node": "Code - City Summary", "type": "main", "index": 0 }]]
+    },
+    "Code - City Summary": {
+      "main": [[{ "node": "Loop Over Cities", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "scrape" }, { "name": "leads" }, { "name": "texas" }]
+}
