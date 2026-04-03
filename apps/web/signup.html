@@ -390,6 +390,8 @@
 <script>
 // ── Already logged in? ───────────────────────────────────────────────────────
 (function() {
+  // Skip auth check when returning from Google OAuth — prevent race with code exchange
+  if (new URLSearchParams(window.location.search).get('google_code')) return;
   var token = localStorage.getItem('autoshop_jwt');
   if (!token) return;
   fetch('/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
