@@ -365,6 +365,13 @@ function getNextTarget() {
 
 // ── Auth check ──────────────────────────────────────────────────────────────
 (function() {
+  // Skip auth check when returning from Google OAuth — the google_code exchange
+  // must run without interference. Without this guard, the auth check races with
+  // the exchange: /auth/me can redirect to dashboard before the exchange response
+  // arrives, consuming the one-time auth code server-side without storing the new
+  // JWT client-side. The user lands on the dashboard with a stale token that
+  // expires shortly after, forcing a second Google authentication.
+  if (new URLSearchParams(window.location.search).get('google_code')) return;
   var token = localStorage.getItem('autoshop_jwt');
   if (!token) return;
   fetch('/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
