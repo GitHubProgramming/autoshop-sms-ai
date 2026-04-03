@@ -28,7 +28,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "https://autoshopsmsai.com/internal/leads/export-candidates",
+        "url": "https://autoshop-api-7ek9.onrender.com/internal/leads/export-candidates",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": { "timeout": 15000 }
@@ -88,7 +88,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://autoshopsmsai.com/internal/leads/export-decisions",
+        "url": "https://autoshop-api-7ek9.onrender.com/internal/leads/export-decisions",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,

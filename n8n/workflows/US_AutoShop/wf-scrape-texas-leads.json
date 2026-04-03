@@ -136,7 +136,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://autoshopsmsai.com/internal/leads/bulk-insert",
+        "url": "https://autoshop-api-7ek9.onrender.com/internal/leads/bulk-insert",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
