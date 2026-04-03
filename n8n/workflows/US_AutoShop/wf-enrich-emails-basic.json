@@ -28,7 +28,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "https://autoshopsmsai.com/internal/leads/pending-enrichment",
+        "url": "https://autoshop-api-7ek9.onrender.com/internal/leads/pending-enrichment",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": { "timeout": 15000 }
@@ -183,7 +183,7 @@
     {
       "parameters": {
         "method": "PUT",
-        "url": "=https://autoshopsmsai.com/internal/leads/{{ $json.id }}/enrichment",
+        "url": "=https://autoshop-api-7ek9.onrender.com/internal/leads/{{ $json.id }}/enrichment",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
