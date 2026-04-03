@@ -108,19 +108,29 @@ export async function leadsRoute(app: FastifyInstance) {
    * Called by: WF-ENRICH-EMAILS-BASIC
    */
   app.get("/leads/pending-enrichment", { preHandler: [requireInternal] }, async (request, reply) => {
+    const { source, limit: limitParam } = request.query as { source?: string; limit?: string };
+    const maxRows = Math.min(parseInt(limitParam || "20", 10) || 20, 100);
+
+    // source=apollo includes not_found_scrape leads for re-enrichment via paid provider
+    const statusFilter = source === "apollo"
+      ? `AND email_status IN ('missing', 'not_found_scrape')`
+      : `AND email_status IN ('missing')`;
+    const leadFilter = source === "apollo"
+      ? `AND lead_status IN ('new', 'needs_enrichment')`
+      : `AND lead_status IN ('new')`;
+
     const rows = await query<{
       id: string; business_name: string; website: string; domain: string;
       email: string | null; email_status: string; lead_status: string; outreach_status: string;
     }>(`
       SELECT id, business_name, website, domain, email, email_status, lead_status, outreach_status
       FROM lead_master
-      WHERE lead_status IN ('new')
-        AND email_status IN ('missing')
-        AND website IS NOT NULL
+      WHERE outreach_status = 'none'
+        ${leadFilter}
+        ${statusFilter}
         AND domain IS NOT NULL
-        AND outreach_status = 'none'
       ORDER BY created_at ASC
-      LIMIT 20
+      LIMIT ${maxRows}
     `);
 
     return reply.send({ count: rows.length, leads: rows });
