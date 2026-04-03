@@ -91,8 +91,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 /* ── TOP NAV ── */
 .topnav{background:#FFFFFF;border-bottom:1px solid #E6E1D9;padding:0 32px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 1px 4px rgba(13,27,42,.04)}
 .nav-left{display:flex;align-items:center;gap:16px}
-.nav-logo{font-size:16px;font-weight:700;color:var(--navy);text-decoration:none;letter-spacing:-.02em;display:none}
-.nav-logo span{color:var(--rust)}
+.nav-logo{display:flex;align-items:center;text-decoration:none;flex-shrink:0}
+.nav-logo img{height:36px;width:auto;display:block}
 .nav-page-title{font-size:18px;font-weight:800;color:var(--navy);letter-spacing:-.02em}
 .nav-page-subtitle{font-size:12px;color:var(--text-tertiary);margin-top:1px}
 .nav-divider{width:1px;height:20px;background:var(--border)}
@@ -710,10 +710,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 
 /* ── SIDEBAR BRANDING ── */
-.sidebar-brand{padding:20px 18px 18px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:8px}
-.sidebar-brand-name{font-size:20px;font-weight:700;color:#FFFFFF;letter-spacing:-.02em}
+.sidebar-brand{padding:20px 18px 12px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:8px}
+.sidebar-brand-logo{display:block;height:40px;width:auto;margin-bottom:6px}
+.sidebar-brand-name{display:none}
 .sidebar-brand-name span{color:#C94B1F}
-.sidebar-brand-shop{font-size:13px;color:rgba(255,255,255,0.55);margin-top:4px;font-weight:500}
+.sidebar-brand-shop{font-size:13px;color:rgba(255,255,255,0.55);margin-top:0;font-weight:500}
 
 /* ── CONVERSATIONS 3-PANEL ── */
 .conv-layout{display:grid;grid-template-columns:320px 1fr 320px;gap:0;height:calc(100vh - 200px);border:1px solid #E6E1D9;border-radius:var(--radius);overflow:hidden;background:#FFFFFF}
@@ -1105,7 +1106,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 <!-- TOP NAV -->
 <nav class="topnav">
   <div class="nav-left">
-    <a href="index.html" class="nav-logo">Auto<span>Shop</span> AI</a>
+    <a href="index.html" class="nav-logo"><img src="/logo-navbar.svg" alt="AutoShop AI" height="36"></a>
+    <div class="nav-divider"></div>
     <div>
       <div class="nav-page-title" id="navPageTitle">Dashboard</div>
       <div class="nav-page-subtitle" id="navPageSubtitle">Real-time performance overview</div>
@@ -1134,7 +1136,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
   <!-- SIDEBAR (dark brand layer) -->
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <div class="sidebar-brand-name">Auto<span>Shop</span> AI</div>
+      <img class="sidebar-brand-logo" src="/logo-sidebar.svg" alt="AutoShop AI" height="40">
       <div class="sidebar-brand-shop" id="sidebarShopName" data-tenant-name></div>
     </div>
     <div class="sidebar-section">
