@@ -225,6 +225,52 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
 .health-val.ok{color:var(--green);}
 .health-val.neutral{color:var(--steel-light);}
 .hdot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;}
+
+/* ── MOBILE HAMBURGER ── */
+.mobile-menu-btn{display:none;background:none;border:none;cursor:pointer;padding:8px;border-radius:8px;color:var(--white);transition:background .15s}
+.mobile-menu-btn:hover{background:var(--bg-hover)}
+.mobile-menu-btn svg{display:block}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:149}
+
+/* ── RESPONSIVE: TABLET ── */
+@media(max-width:768px){
+  .mobile-menu-btn{display:block}
+  .demo-banner{flex-direction:column;align-items:flex-start;gap:8px;padding:10px 16px}
+  .demo-banner-right{flex-wrap:wrap}
+  .topnav{padding:0 16px;height:52px}
+  .nav-divider{display:none}
+  .nav-shop{display:none}
+  .plan-badge{display:none}
+  .sidebar{position:fixed;left:0;top:0;bottom:0;z-index:150;transform:translateX(-100%);transition:transform .25s ease;width:240px}
+  .sidebar.open{transform:translateX(0)}
+  .sidebar-overlay.open{display:block}
+  .layout{display:block}
+  .main{padding:20px 16px}
+  .page-header{flex-direction:column;gap:8px}
+  .page-title{font-size:22px}
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .today-grid{grid-template-columns:repeat(2,1fr)}
+  .kpi-card.since-activation{flex-direction:column;gap:16px;align-items:flex-start}
+  .since-right{gap:24px}
+  .cta-section{flex-direction:column;text-align:center;padding:24px 20px}
+  .cta-buttons{width:100%;justify-content:center}
+  .conv-table{font-size:12px}
+  .conv-table th,.conv-table td{padding:8px 10px}
+}
+
+/* ── RESPONSIVE: SMALL MOBILE ── */
+@media(max-width:480px){
+  .topnav{height:48px;padding:0 12px}
+  .main{padding:16px 12px}
+  .kpi-grid{grid-template-columns:1fr}
+  .today-grid{grid-template-columns:1fr}
+  .kpi-value{font-size:28px}
+  .page-title{font-size:20px}
+  .demo-banner-text{font-size:12px}
+  .btn-nav-cta{font-size:12px;padding:7px 14px}
+  .since-value{font-size:36px}
+  .cta-headline{font-size:20px}
+}
 </style>
 </head>
 <body>
@@ -244,6 +290,9 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
 <!-- TOP NAV -->
 <nav class="topnav">
   <div class="nav-left">
+    <button class="mobile-menu-btn" onclick="toggleDemoSidebar()" aria-label="Toggle menu">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
     <a href="/" class="nav-logo">AutoShop <span>SMS</span> AI</a>
     <div class="nav-divider"></div>
     <span class="nav-shop">Austin Quick Lube (Demo)</span>
@@ -256,9 +305,10 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
 </nav>
 
 <!-- LAYOUT -->
+<div class="sidebar-overlay" id="demoSidebarOverlay" onclick="toggleDemoSidebar()"></div>
 <div class="layout">
   <!-- SIDEBAR -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="demoSidebar">
     <div class="sidebar-section">
       <div class="sidebar-label">Overview</div>
       <a class="sidebar-item active" href="#">
@@ -524,6 +574,11 @@ body{background:var(--bg);color:var(--white);font-family:var(--body);line-height
 </div>
 
 <script>
+function toggleDemoSidebar(){
+  var sb=document.getElementById('demoSidebar');
+  var ov=document.getElementById('demoSidebarOverlay');
+  if(sb&&ov){sb.classList.toggle('open');ov.classList.toggle('open');}
+}
 (function () {
   const p = new URLSearchParams(window.location.search);
 

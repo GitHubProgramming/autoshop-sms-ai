@@ -1263,7 +1263,7 @@
   .fade-in-delay-1 { transition-delay: 0.1s; }
   .fade-in-delay-2 { transition-delay: 0.2s; }
 
-  /* RESPONSIVE */
+  /* RESPONSIVE — TABLET */
   @media (max-width: 900px) {
     .hero-inner { grid-template-columns: 1fr; gap: 60px; }
     .hero-visual { display: none; }
@@ -1279,6 +1279,35 @@
     }
     .footer-inner { flex-direction: column; gap: 20px; text-align: center; }
     .footer-links { flex-wrap: wrap; justify-content: center; }
+    section { padding: 60px 0; }
+    .container { padding: 0 20px; }
+    .calc-card { padding: 32px 24px; }
+    #hero { padding: 100px 0 60px; min-height: auto; }
+    .hero-headline { margin-bottom: 20px; }
+    .hero-cta-group { flex-direction: column; gap: 12px; }
+    .btn-primary, .btn-ghost { width: 100%; justify-content: center; text-align: center; }
+  }
+
+  /* RESPONSIVE — MOBILE */
+  @media (max-width: 480px) {
+    .container { padding: 0 16px; }
+    .nav-inner { padding: 0 16px; height: 56px; }
+    section { padding: 48px 0; }
+    #hero { padding: 80px 0 48px; }
+    .hero-headline { font-size: 36px; }
+    .hero-sub { font-size: 16px; }
+    .hero-kpis li { font-size: 14px; }
+    .btn-primary { font-size: 15px; padding: 14px 24px; }
+    .btn-ghost { font-size: 15px; padding: 13px 22px; }
+    .problem-headline { margin-bottom: 32px; }
+    .problem-list li { font-size: 15px; }
+    .roi-headline { margin-bottom: 12px; }
+    .roi-sub { font-size: 16px; }
+    .calc-card { padding: 24px 16px; }
+    .calc-label { font-size: 11px; }
+    .calc-result-annual { font-size: 42px; }
+    .btn-outline { padding: 8px 12px; font-size: 12px; }
+    .nav-mobile-actions { gap: 8px; }
   }
 </style>
 </head>

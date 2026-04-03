@@ -1046,6 +1046,92 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .rev-empty-title{font-size:18px;font-weight:700;color:var(--text)}
 .rev-empty-text{font-size:14px;color:var(--text-tertiary);max-width:320px;line-height:1.5}
 
+/* ── MOBILE HAMBURGER ── */
+.mobile-menu-btn{display:none;background:none;border:none;cursor:pointer;padding:8px;border-radius:8px;color:var(--text);transition:background .15s}
+.mobile-menu-btn:hover{background:var(--bg-hover)}
+.mobile-menu-btn svg{display:block}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:149}
+
+/* ── RESPONSIVE: TABLET (<=768px) ── */
+@media(max-width:768px){
+  .mobile-menu-btn{display:block}
+  .topnav{padding:0 16px;height:52px;gap:8px}
+  .nav-account-name{display:none}
+  .nav-page-subtitle{display:none}
+  .nav-page-title{font-size:16px}
+  .sidebar{position:fixed;left:0;top:0;bottom:0;z-index:150;transform:translateX(-100%);transition:transform .25s ease;width:260px}
+  .sidebar.open{transform:translateX(0)}
+  .sidebar-overlay.open{display:block}
+  .layout{display:block;min-height:auto}
+  .main{padding:20px 16px 40px}
+  .page-header{flex-direction:column;align-items:flex-start;gap:8px}
+  .page-title{font-size:22px}
+  .kpi-grid{grid-template-columns:repeat(2,1fr);gap:12px}
+  .kpi-card .kpi-value{font-size:28px}
+  .dash-body{grid-template-columns:1fr}
+  .dash-lower{grid-template-columns:1fr}
+  .banner{padding:10px 16px;flex-wrap:wrap;gap:8px}
+  .banner-bar-bg{width:100px}
+  .conv-layout{grid-template-columns:1fr;height:auto;min-height:auto}
+  .conv-inbox{border-right:none;border-bottom:1px solid var(--border);max-height:45vh}
+  .conv-detail-panel{display:none}
+  .conv-thread-panel{min-height:50vh}
+  .conv-slide-panel{width:100%}
+  .appt-stats-row{grid-template-columns:repeat(2,1fr);gap:10px}
+  .appt-columns{grid-template-columns:1fr}
+  .cust-stats-row{grid-template-columns:repeat(2,1fr);gap:10px}
+  .cust-toolbar{flex-direction:column;align-items:stretch}
+  .cust-search-wrap{max-width:none}
+  .cust-table{font-size:12px}
+  .cust-table th,.cust-table td{padding:10px 12px}
+  .analytics-kpi{grid-template-columns:repeat(2,1fr);gap:10px}
+  .analytics-two-col{grid-template-columns:1fr}
+  .an-mid-grid{grid-template-columns:1fr}
+  .settings-layout{flex-direction:column}
+  .settings-sidebar{width:100%;position:static}
+  .settings-field-row{grid-template-columns:1fr}
+  .hours-row{flex-wrap:wrap;gap:8px}
+  .hours-day{width:auto;min-width:80px}
+  .hours-inputs{flex-wrap:wrap;gap:6px}
+  .two-col{grid-template-columns:1fr}
+  .billing-top-grid{grid-template-columns:1fr}
+  .billing-plans-grid{grid-template-columns:1fr}
+  .onboarding-steps{grid-template-columns:1fr}
+  .onboarding-step{border-right:none;border-bottom:1px solid var(--border)}
+  .onboarding-step:last-child{border-bottom:none}
+  .upgrade-modal{padding:28px 20px;max-width:95%}
+  .rev-summary{flex-direction:column;gap:8px}
+  .page-actions{width:100%}
+  .page-actions .btn-sm{flex:1;text-align:center}
+  .an-funnel-label{width:70px;font-size:11px}
+  .an-funnel-arrow{padding-left:84px}
+}
+
+/* ── RESPONSIVE: SMALL MOBILE (<=480px) ── */
+@media(max-width:480px){
+  .topnav{height:48px;padding:0 12px}
+  .main{padding:16px 12px 32px}
+  .kpi-grid{grid-template-columns:1fr;gap:10px}
+  .kpi-card{padding:18px}
+  .kpi-card .kpi-value{font-size:24px}
+  .page-title{font-size:20px}
+  .banner{flex-direction:column;align-items:flex-start;gap:8px;padding:10px 12px}
+  .banner-bar-bg{width:100%}
+  .btn-upgrade{width:100%;text-align:center}
+  .appt-stats-row{grid-template-columns:1fr}
+  .cust-stats-row{grid-template-columns:1fr}
+  .analytics-kpi{grid-template-columns:1fr}
+  .conv-composer{flex-wrap:wrap}
+  .conv-composer input{min-width:0}
+  .section-label{font-size:11px}
+  .action-card-header{padding:10px 12px}
+  .action-item{padding:8px 12px;flex-wrap:wrap}
+  .settings-card{padding:20px 16px}
+  .nav-dropdown-inner{min-width:160px}
+  .btn-start-trial{width:100%;justify-content:center}
+  .pending-badge{font-size:11px}
+}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
@@ -1058,6 +1144,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
   </div>
 </div>
 <script>
+// ── Mobile sidebar toggle ──
+function toggleSidebar(){
+  var sb=document.getElementById('appSidebar');
+  var ov=document.getElementById('sidebarOverlay');
+  if(sb&&ov){sb.classList.toggle('open');ov.classList.toggle('open');}
+}
+
 // Sync auth gate — runs before any dashboard HTML is parsed/painted.
 // If no JWT, redirect immediately; the loading screen covers everything.
 (function(){
@@ -1105,6 +1198,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 <!-- TOP NAV -->
 <nav class="topnav">
   <div class="nav-left">
+    <button class="mobile-menu-btn" id="mobileMenuBtn" onclick="toggleSidebar()" aria-label="Toggle menu">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
     <div>
       <div class="nav-page-title" id="navPageTitle">Dashboard</div>
       <div class="nav-page-subtitle" id="navPageSubtitle">Real-time performance overview</div>
@@ -1129,9 +1225,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 </nav>
 
 <!-- LAYOUT -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 <div class="layout">
   <!-- SIDEBAR (dark brand layer) -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="appSidebar">
     <div class="sidebar-brand">
       <div class="sidebar-brand-name">AutoShop <span>SMS</span> AI</div>
       <div class="sidebar-brand-shop" id="sidebarShopName" data-tenant-name></div>
@@ -4519,6 +4616,9 @@ function getViewFromPath() {
 }
 
 function switchView(view, opts) {
+  // Close mobile sidebar on navigation
+  var sb=document.getElementById('appSidebar'),ov=document.getElementById('sidebarOverlay');
+  if(sb)sb.classList.remove('open');if(ov)ov.classList.remove('open');
   // Backward compat aliases
   if (VIEW_ALIASES[view]) view = VIEW_ALIASES[view];
   if (VALID_VIEWS.indexOf(view) === -1) view = 'dashboard';
