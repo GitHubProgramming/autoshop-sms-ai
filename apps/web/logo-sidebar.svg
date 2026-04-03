@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 48" width="210" height="48">
+  <defs>
+    <linearGradient id="sbg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1E3048"/>
+      <stop offset="100%" stop-color="#243B55"/>
+    </linearGradient>
+  </defs>
+  <!-- Icon (40x40) -->
+  <rect width="40" height="40" x="0" y="4" rx="8" fill="url(#sbg)"/>
+  <!-- Car body -->
+  <path d="M6 32h28v1.8c0 .7-.5 1.2-1.2 1.2H7.2C6.5 35 6 34.5 6 33.8V32z" fill="#C94B1F"/>
+  <path d="M9.5 32l2.5-5.5h16l2.5 5.5H9.5z" fill="#C94B1F"/>
+  <path d="M13 26.5l1.3-4h11.4l1.3 4H13z" fill="#E05A2B"/>
+  <!-- Wheels -->
+  <circle cx="13" cy="34" r="2.2" fill="#1E3048"/>
+  <circle cx="13" cy="34" r="1" fill="#64748B"/>
+  <circle cx="27" cy="34" r="2.2" fill="#1E3048"/>
+  <circle cx="27" cy="34" r="1" fill="#64748B"/>
+  <!-- Chat bubble -->
+  <rect x="23" y="8" width="14" height="9.5" rx="3" fill="#FFFFFF"/>
+  <polygon points="25.5,17.5 28,17.5 25.5,21" fill="#FFFFFF"/>
+  <circle cx="27" cy="12.8" r="1.1" fill="#C94B1F"/>
+  <circle cx="30" cy="12.8" r="1.1" fill="#C94B1F"/>
+  <circle cx="33" cy="12.8" r="1.1" fill="#C94B1F"/>
+  <!-- Text for dark backgrounds -->
+  <text x="48" y="23" font-family="'Barlow Condensed','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="20" font-weight="700" fill="#FFFFFF" letter-spacing="-0.3">AutoShop</text>
+  <text x="48" y="39" font-family="'Barlow Condensed','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="12" font-weight="600" fill="#E05A2B" letter-spacing="3">AI</text>
+  <text x="72" y="39" font-family="'Barlow','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="11" font-weight="500" fill="rgba(255,255,255,0.55)" letter-spacing="0.3">SMS Assistant</text>
+</svg>
