@@ -114,8 +114,8 @@ export async function leadsRoute(app: FastifyInstance) {
     }>(`
       SELECT id, business_name, website, domain, email, email_status, lead_status, outreach_status
       FROM lead_master
-      WHERE lead_status IN ('new', 'needs_enrichment')
-        AND email_status IN ('missing', 'not_found_scrape')
+      WHERE lead_status IN ('new')
+        AND email_status IN ('missing')
         AND website IS NOT NULL
         AND domain IS NOT NULL
         AND outreach_status = 'none'
