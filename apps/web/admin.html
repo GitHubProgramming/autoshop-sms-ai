@@ -1098,6 +1098,42 @@ function renderAccountDetail(d) {
               <div class="kv-item"><div class="kv-label">Cancel at Period End</div><div class="kv-val">${boolIcon(t.cancel_at_period_end)}</div></div>
             </div>
           </div>
+        </div>
+
+        <div class="panel" style="margin-top:16px">
+          <div class="panel-header"><span class="panel-title">Billing Override</span></div>
+          <div class="panel-body">
+            <p style="color:var(--dim);font-size:12px;margin:0 0 12px">Manually set billing status, extend trial, or adjust conversation limit. All changes are audit-logged.</p>
+            <form id="billingOverrideForm" onsubmit="submitBillingOverride(event,'${escHtml(t.id)}')" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:520px">
+              <label style="font-size:12px;font-weight:600;color:var(--dim)">Billing Status
+                <select name="billing_status" style="width:100%;margin-top:4px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:#fff">
+                  <option value="">— no change —</option>
+                  <option value="active" ${t.billing_status==='active'?'selected':''}>active</option>
+                  <option value="trial" ${t.billing_status==='trial'?'selected':''}>trial</option>
+                  <option value="demo" ${t.billing_status==='demo'?'selected':''}>demo</option>
+                  <option value="past_due_blocked" ${t.billing_status==='past_due_blocked'?'selected':''}>past_due_blocked</option>
+                  <option value="past_due" ${t.billing_status==='past_due'?'selected':''}>past_due</option>
+                  <option value="trial_expired" ${t.billing_status==='trial_expired'?'selected':''}>trial_expired</option>
+                  <option value="canceled" ${t.billing_status==='canceled'?'selected':''}>canceled</option>
+                  <option value="paused" ${t.billing_status==='paused'?'selected':''}>paused</option>
+                  <option value="scheduled_cancel" ${t.billing_status==='scheduled_cancel'?'selected':''}>scheduled_cancel</option>
+                </select>
+              </label>
+              <label style="font-size:12px;font-weight:600;color:var(--dim)">Extend Trial (days)
+                <input name="trial_extend_days" type="number" min="1" max="365" placeholder="e.g. 30" style="width:100%;margin-top:4px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box">
+              </label>
+              <label style="font-size:12px;font-weight:600;color:var(--dim)">Conv Limit Override
+                <input name="conv_limit" type="number" min="0" max="10000" placeholder="${t.conv_limit_this_cycle ?? '—'}" style="width:100%;margin-top:4px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box">
+              </label>
+              <label style="font-size:12px;font-weight:600;color:var(--dim)">Reason (required)
+                <input name="reason" type="text" required placeholder="e.g. Pilot customer extension" style="width:100%;margin-top:4px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box">
+              </label>
+              <div style="grid-column:1/-1;margin-top:4px">
+                <button type="submit" style="padding:8px 20px;border:none;border-radius:6px;background:var(--accent,#2563eb);color:#fff;font-size:13px;font-weight:600;cursor:pointer">Apply Override</button>
+                <span id="billingOverrideMsg" style="margin-left:12px;font-size:12px"></span>
+              </div>
+            </form>
+          </div>
         </div>`;
       break;
 
@@ -1549,6 +1585,37 @@ async function saveTenantSettings(tenantId) {
     }
   } catch (err) {
     if (status) { status.textContent = 'Error: ' + err.message; status.style.color = 'var(--red)'; }
+  }
+}
+
+async function submitBillingOverride(e, tenantId) {
+  e.preventDefault();
+  const msg = document.getElementById('billingOverrideMsg');
+  const form = e.target;
+  if (msg) { msg.textContent = 'Applying...'; msg.style.color = 'var(--dim)'; }
+  try {
+    const payload = { reason: form.reason.value };
+    if (form.billing_status.value) payload.billing_status = form.billing_status.value;
+    if (form.trial_extend_days.value) payload.trial_extend_days = parseInt(form.trial_extend_days.value, 10);
+    if (form.conv_limit.value) payload.conv_limit_this_cycle = parseInt(form.conv_limit.value, 10);
+    if (!payload.billing_status && !payload.trial_extend_days && !payload.conv_limit_this_cycle) {
+      if (msg) { msg.textContent = 'Select at least one field to change'; msg.style.color = 'var(--red,#dc2626)'; }
+      return;
+    }
+    const res = await fetch(API + `/internal/admin/tenants/${tenantId}/billing-override`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) { const text = await res.text().catch(() => ''); throw new Error(text || res.statusText); }
+    const result = await res.json();
+    if (msg) {
+      msg.style.color = 'var(--green,#16a34a)';
+      msg.textContent = 'Applied: ' + result.after.billing_status + (result.after.trial_ends_at ? ' | trial ends ' + new Date(result.after.trial_ends_at).toLocaleDateString() : '') + (result.after.conv_limit != null ? ' | limit ' + result.after.conv_limit : '');
+    }
+  } catch (err) {
+    if (msg) { msg.textContent = 'Error: ' + err.message; msg.style.color = 'var(--red,#dc2626)'; }
   }
 }
 

@@ -1463,6 +1463,89 @@ export async function adminRoute(app: FastifyInstance) {
     return reply.status(200).send({ success: true });
   });
 
+  // ── PUT /internal/admin/tenants/:id/billing-override ───────────────────
+  const BillingOverrideSchema = z.object({
+    billing_status: z.enum(["active", "trial", "trialing", "past_due_blocked", "past_due", "canceled", "paused", "demo", "trial_expired", "scheduled_cancel"]).optional(),
+    trial_extend_days: z.number().int().min(1).max(365).optional(),
+    conv_limit_this_cycle: z.number().int().min(0).max(10000).optional(),
+    reason: z.string().min(1).max(500),
+  });
+
+  app.put("/admin/tenants/:id/billing-override", { preHandler: [adminGuard] }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsed = BillingOverrideSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      return reply.status(400).send({
+        error: "Validation failed",
+        details: parsed.error.issues.map(i => `${i.path.join(".")}: ${i.message}`),
+      });
+    }
+
+    const existing = await query(`SELECT id, billing_status, trial_ends_at, conv_limit_this_cycle FROM tenants WHERE id = $1`, [id]);
+    if ((existing as any[]).length === 0) {
+      return reply.status(404).send({ error: "Tenant not found" });
+    }
+
+    const before = (existing as any[])[0];
+    const data = parsed.data;
+    const updates: string[] = [];
+    const values: (string | number | null)[] = [];
+    let paramIdx = 1;
+
+    if (data.billing_status !== undefined) {
+      const status = data.billing_status === "trialing" ? "trial" : data.billing_status;
+      updates.push(`billing_status = $${paramIdx++}`);
+      values.push(status);
+    }
+
+    if (data.trial_extend_days !== undefined) {
+      updates.push(`trial_ends_at = COALESCE(trial_ends_at, NOW()) + ($${paramIdx++} || ' days')::interval`);
+      values.push(data.trial_extend_days);
+    }
+
+    if (data.conv_limit_this_cycle !== undefined) {
+      updates.push(`conv_limit_this_cycle = $${paramIdx++}`);
+      values.push(data.conv_limit_this_cycle);
+    }
+
+    if (updates.length === 0) {
+      return reply.status(400).send({ error: "No fields to update" });
+    }
+
+    updates.push(`updated_at = NOW()`);
+    await query(
+      `UPDATE tenants SET ${updates.join(", ")} WHERE id = $${paramIdx}`,
+      [...values, id]
+    );
+
+    // Fetch updated state
+    const [after] = await query<any>(`SELECT billing_status, trial_ends_at, conv_limit_this_cycle FROM tenants WHERE id = $1`, [id]);
+
+    // Audit log
+    try {
+      await query(
+        `INSERT INTO audit_log (tenant_id, event_type, actor, metadata) VALUES ($1, $2, $3, $4)`,
+        [
+          id,
+          "billing_override",
+          "admin",
+          JSON.stringify({
+            reason: data.reason,
+            before: { billing_status: before.billing_status, trial_ends_at: before.trial_ends_at, conv_limit: before.conv_limit_this_cycle },
+            after: { billing_status: after.billing_status, trial_ends_at: after.trial_ends_at, conv_limit: after.conv_limit_this_cycle },
+          }),
+        ]
+      );
+    } catch (_) { /* audit table may not exist */ }
+
+    return reply.status(200).send({
+      success: true,
+      before: { billing_status: before.billing_status, trial_ends_at: before.trial_ends_at, conv_limit: before.conv_limit_this_cycle },
+      after: { billing_status: after.billing_status, trial_ends_at: after.trial_ends_at, conv_limit: after.conv_limit_this_cycle },
+    });
+  });
+
   // ── GET /internal/admin/tenants/:id/health ───────────────────────────────
   app.get("/admin/tenants/:id/health", { preHandler: [adminGuard] }, async (request, reply) => {
     const { id } = request.params as { id: string };
