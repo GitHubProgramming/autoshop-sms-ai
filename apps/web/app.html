@@ -2217,6 +2217,7 @@ async function loadDashboardData() {
     tenantState.subscriptionAmountCents = t.subscription_amount_cents ?? null;
     tenantState.overageCapPct = t.overage_cap_pct ?? 120;
     tenantState.pendingConvLimit = t.pending_conv_limit ?? null;
+    tenantState.billingRenewalDate = t.cycle_reset_at ? new Date(t.cycle_reset_at).toISOString().slice(0,10) : '';
     tenantState.availablePlans = data.available_plans || [];
 
     // Integrations
@@ -3783,7 +3784,7 @@ function renderBookings() {
 // BILLING PAGE
 // ════════════════════════════════════════════
 async function loadBillingInvoices() {
-  var token = localStorage.getItem('token');
+  var token = localStorage.getItem('autoshop_jwt');
   if (!token) return;
   tenantState._invoiceStatus = 'loading';
   renderBillingPage();
