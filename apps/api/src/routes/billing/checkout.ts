@@ -55,7 +55,7 @@ export async function billingCheckoutRoute(app: FastifyInstance) {
     }
 
     // ── Idempotency lock — prevent duplicate Stripe customer creation ────
-    const idempotencyKey = `checkout:${tenantId}:${plan}`;
+    const idempotencyKey = `co2:${tenantId}:${plan}`;
     const alreadyInFlight = await checkIdempotency(idempotencyKey);
     if (alreadyInFlight) {
       return reply.status(409).send({
