@@ -763,36 +763,14 @@
   .demo-video {
     background: var(--navy-mid);
     border: 1px solid var(--border-mid);
-    border-radius: 8px;
-    aspect-ratio: 16/9;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.06);
   }
-  .demo-video-icon {
-    width: 64px; height: 64px;
-    background: rgba(201,75,31,0.15);
-    border: 2px solid var(--rust);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .demo-video-text {
-    font-family: var(--display);
-    font-size: 18px;
-    font-weight: 700;
-    text-transform: uppercase;
-    color: var(--white);
-    letter-spacing: 0.04em;
-  }
-  .demo-video-sub {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--steel);
-    letter-spacing: 0.06em;
+  .demo-video video {
+    width: 100%;
+    display: block;
+    border-radius: 12px;
   }
 
   .demo-steps {
@@ -1522,11 +1500,9 @@
 
     <div class="demo-grid fade-in">
       <div class="demo-video">
-        <div class="demo-video-icon">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--rust)" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        </div>
-        <div class="demo-video-text">Watch the Missed-Call Flow</div>
-        <div class="demo-video-sub">30-second walkthrough</div>
+        <video autoplay muted loop playsinline controls preload="metadata">
+          <source src="/demo-video.mp4" type="video/mp4">
+        </video>
       </div>
 
       <div class="demo-steps">
