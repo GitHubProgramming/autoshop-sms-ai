@@ -1,5 +1,5 @@
 {
-  "id": "LINKEDIN-AUTOPOSTER",
+  "id": "RQvLlhiZP5a0z0BD",
   "name": "US AutoShop: LinkedIn Auto-Poster",
   "active": false,
   "nodes": [
@@ -15,21 +15,27 @@
         }
       },
       "id": "li-schedule",
-      "name": "Schedule: Mon/Wed/Fri 10am CT",
+      "name": "Schedule: MWF 10am CT",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [250, 400],
-      "notes": "Cron runs at 15:00 UTC = 10:00 AM Central Time"
+      "position": [
+        250,
+        300
+      ],
+      "notes": "15:00 UTC = 10:00 AM Central"
     },
     {
       "parameters": {
-        "jsCode": "// Rotate post type based on day of week\n// Mon = pain_point, Wed = case_study, Fri = tips\nconst dayOfWeek = new Date().getDay();\n\nconst postTypes = {\n  1: 'pain_point',\n  3: 'case_study',\n  5: 'tips'\n};\n\nconst type = postTypes[dayOfWeek] || 'pain_point';\n\nconst prompts = {\n  pain_point: {\n    type: 'pain_point',\n    instruction: `Write a LinkedIn post (150-200 words) for AutoShop SMS AI targeting auto repair shop owners. Focus on the PAIN POINT of missed calls costing shops real revenue. Include a specific stat or scenario (e.g., \"The average missed call costs an auto shop $250-$700 in lost repair revenue\"). Tone: professional, empathetic, solution-oriented. Do NOT be salesy — educate first. End with a soft CTA mentioning autoshopsmsai.com. Use 2-3 relevant hashtags at the end. No emojis in the first line.`\n  },\n  case_study: {\n    type: 'case_study',\n    instruction: `Write a LinkedIn post (150-200 words) for AutoShop SMS AI in a case-study style. Share realistic stats about how AI-powered SMS booking helps auto repair shops (e.g., \"Shops using automated SMS follow-up recover 35-40% of missed calls as booked appointments\"). Use a narrative format — paint a before/after picture for a typical independent shop. Tone: credible, data-informed, conversational. End with a soft CTA mentioning autoshopsmsai.com. Use 2-3 relevant hashtags at the end. No emojis in the first line.`\n  },\n  tips: {\n    type: 'tips',\n    instruction: `Write a LinkedIn post (150-200 words) for AutoShop SMS AI offering practical advice to auto repair shop owners. Share 3 actionable tips about improving customer communication, reducing no-shows, or capturing more revenue from inbound calls. Tone: helpful, expert, peer-to-peer (as if one shop owner advising another). End with a soft mention of autoshopsmsai.com as a resource. Use 2-3 relevant hashtags at the end. No emojis in the first line.`\n  }\n};\n\nreturn [{ json: prompts[type] }];"
+        "jsCode": "const day = new Date().getDay();\nconst types = { 1: 'pain_point', 3: 'case_study', 5: 'tips' };\nconst type = types[day] || 'pain_point';\nconst prompts = {\n  pain_point: { type: 'pain_point', instruction: 'Write a LinkedIn post (150-200 words) for AutoShop SMS AI targeting auto repair shop owners. Focus on the PAIN POINT of missed calls costing shops real revenue. Include a specific stat or scenario (e.g. The average missed call costs an auto shop $250-$700 in lost repair revenue). Tone: professional, empathetic, solution-oriented. Do NOT be salesy. End with a soft CTA mentioning autoshopsmsai.com. Use 2-3 relevant hashtags at the end. No emojis in the first line.' },\n  case_study: { type: 'case_study', instruction: 'Write a LinkedIn post (150-200 words) for AutoShop SMS AI in a case-study style. Share realistic stats about how AI-powered SMS booking helps auto repair shops. Use a narrative format. Tone: credible, data-informed, conversational. End with a soft CTA mentioning autoshopsmsai.com. Use 2-3 relevant hashtags at the end. No emojis in the first line.' },\n  tips: { type: 'tips', instruction: 'Write a LinkedIn post (150-200 words) for AutoShop SMS AI offering practical advice to auto repair shop owners. Share 3 actionable tips about improving customer communication, reducing no-shows, or capturing more revenue from inbound calls. Tone: helpful, expert, peer-to-peer. End with a soft mention of autoshopsmsai.com as a resource. Use 2-3 relevant hashtags at the end. No emojis in the first line.' }\n};\nreturn [{ json: prompts[type] }];"
       },
       "id": "li-select-type",
       "name": "Select Post Type",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [500, 400]
+      "position": [
+        480,
+        300
+      ]
     },
     {
       "parameters": {
@@ -38,9 +44,18 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-api-key", "value": "={{ $env.ANTHROPIC_API_KEY }}" },
-            { "name": "anthropic-version", "value": "2023-06-01" },
-            { "name": "content-type", "value": "application/json" }
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
@@ -48,24 +63,34 @@
         "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1024, messages: [{ role: 'user', content: $json.instruction }] }) }}",
         "options": {
           "timeout": 30000,
-          "response": { "response": { "neverError": true } }
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
         }
       },
       "id": "li-claude-generate",
       "name": "Claude: Generate Post",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [750, 400]
+      "position": [
+        710,
+        300
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const resp = $input.first().json;\nlet postText = '';\n\nif (resp.content && resp.content[0] && resp.content[0].text) {\n  postText = resp.content[0].text.trim();\n} else {\n  throw new Error('Claude API returned unexpected response: ' + JSON.stringify(resp).slice(0, 500));\n}\n\n// Get post type from earlier node\nconst postType = $('Select Post Type').first().json.type;\n\nreturn [{ json: { postText, postType, generatedAt: new Date().toISOString() } }];"
+        "jsCode": "const resp = $input.first().json;\nlet postText = '';\nif (resp.content && resp.content[0] && resp.content[0].text) {\n  postText = resp.content[0].text.trim();\n} else {\n  throw new Error('Claude API error: ' + JSON.stringify(resp).slice(0, 500));\n}\nconst postType = $('Select Post Type').first().json.type;\nreturn [{ json: { postText, postType, generatedAt: new Date().toISOString() } }];"
       },
       "id": "li-extract-post",
       "name": "Extract Post Text",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1000, 400]
+      "position": [
+        940,
+        300
+      ]
     },
     {
       "parameters": {
@@ -74,38 +99,110 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.OPENAI_API_KEY }}" },
-            { "name": "content-type", "value": "application/json" }
+            {
+              "name": "Authorization",
+              "value": "={{ \"Bearer \" + $env.OPENAI_API_KEY }}"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'dall-e-3', prompt: 'Professional LinkedIn post image for an auto repair shop AI software company. Dark navy blue background with orange accent elements. Show a modern auto repair shop environment with subtle tech/AI overlay — clean, minimal, corporate style. No text on the image. Photorealistic, high quality, 16:9 aspect ratio. Theme: ' + $json.postType.replace('_', ' '), n: 1, size: '1792x1024', quality: 'standard' }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: 'dall-e-3', prompt: 'Professional LinkedIn post image for an auto repair shop AI software company. Dark navy blue background with orange accent elements. Show a modern auto repair shop environment with subtle tech/AI overlay. Clean, minimal, corporate style. No text on the image. Photorealistic, high quality, 16:9 aspect ratio. Theme: ' + $json.postType.replace('_', ' '), n: 1, size: '1792x1024', quality: 'standard' }) }}",
         "options": {
           "timeout": 60000,
-          "response": { "response": { "neverError": true } }
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
         }
       },
       "id": "li-dalle-image",
       "name": "DALL-E: Generate Image",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1250, 400]
+      "position": [
+        1170,
+        300
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const imageResp = $input.first().json;\nconst postData = $('Extract Post Text').first().json;\n\nlet imageUrl = '';\nif (imageResp.data && imageResp.data[0] && imageResp.data[0].url) {\n  imageUrl = imageResp.data[0].url;\n} else {\n  imageUrl = 'IMAGE_GENERATION_FAILED';\n}\n\nreturn [{ json: {\n  postText: postData.postText,\n  postType: postData.postType,\n  imageUrl: imageUrl,\n  generatedAt: postData.generatedAt,\n  status: 'pending_review'\n} }];"
+        "jsCode": "const resp = $input.first().json;\nconst post = $('Extract Post Text').first().json;\nlet dalleUrl = '';\nif (resp.data && resp.data[0] && resp.data[0].url) {\n  dalleUrl = resp.data[0].url;\n}\nreturn [{ json: { dalleUrl, postText: post.postText, postType: post.postType, generatedAt: post.generatedAt } }];"
+      },
+      "id": "li-extract-dalle",
+      "name": "Extract DALL-E URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ \"https://api.telegram.org/bot\" + $env.TELEGRAM_BOT_TOKEN + \"/sendPhoto\" }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: '8747048300', photo: $json.dalleUrl, caption: 'LinkedIn post image (' + $json.postType.replace('_', ' ') + ')' }) }}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "li-send-photo",
+      "name": "Telegram: Send Photo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1630,
+        300
+      ],
+      "notes": "Sends DALL-E image to Telegram immediately. Telegram hosts it permanently."
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $('Extract DALL-E URL').first().json;\nconst tg = $input.first().json;\nlet tgFileId = '';\nif (tg.ok && tg.result && tg.result.photo) {\n  const photos = tg.result.photo;\n  tgFileId = photos[photos.length - 1].file_id;\n}\nreturn [{ json: {\n  postText: d.postText,\n  postType: d.postType,\n  generatedAt: d.generatedAt,\n  imageUrl: tgFileId || d.dalleUrl,\n  status: 'pending_review'\n} }];"
       },
       "id": "li-merge-content",
       "name": "Merge Post + Image",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1500, 400]
+      "position": [
+        1860,
+        300
+      ]
     },
     {
       "parameters": {
-        "documentId": { "__rl": true, "mode": "id", "value": "={{ $env.LINKEDIN_POSTS_SHEET_ID }}" },
-        "sheetName": { "__rl": true, "mode": "byName", "value": "Posts" },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1MaI1ohFNHAW4xayh7frWMIlMvxwv0UdufF7BDSMnM4I"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "byName",
+          "value": "Posts"
+        },
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
@@ -122,18 +219,29 @@
       "name": "Google Sheets: Save Post",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
-      "position": [1750, 400],
-      "credentials": { "googleSheetsOAuth2Api": { "id": "APKOpIYNrXjjc3U7", "name": "Google Sheets account" } }
+      "position": [
+        2090,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "APKOpIYNrXjjc3U7",
+          "name": "Google Sheets account"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "const data = $input.first().json;\n\nconst typeLabels = {\n  pain_point: '🔴 Pain Point',\n  case_study: '📊 Case Study',\n  tips: '💡 Tips & Advice'\n};\n\nconst preview = data.postText.length > 300 ? data.postText.slice(0, 300) + '...' : data.postText;\n\nlet msg = '📋 LINKEDIN POST READY FOR REVIEW\\n\\n';\nmsg += 'Type: ' + (typeLabels[data.postType] || data.postType) + '\\n';\nmsg += 'Generated: ' + data.generatedAt + '\\n\\n';\nmsg += '--- POST PREVIEW ---\\n';\nmsg += preview + '\\n';\nmsg += '--- END PREVIEW ---\\n\\n';\n\nif (data.imageUrl && data.imageUrl !== 'IMAGE_GENERATION_FAILED') {\n  msg += '🖼 Image: ' + data.imageUrl + '\\n\\n';\n} else {\n  msg += '⚠️ Image generation failed — manual image needed\\n\\n';\n}\n\nmsg += 'Reply APPROVE to post to LinkedIn\\n';\nmsg += 'Reply SKIP to skip this post\\n';\nmsg += 'Reply EDIT: <your changes> to request edits';\n\nreturn [{ json: { chatId: '8747048300', text: msg, postText: data.postText, imageUrl: data.imageUrl, postType: data.postType } }];"
+        "jsCode": "const data = $('Merge Post + Image').first().json;\nconst execId = $execution.id;\nconst base = 'https://bandomasis.app.n8n.cloud/webhook-waiting/' + execId;\n\nconst labels = { pain_point: 'Pain Point', case_study: 'Case Study', tips: 'Tips & Advice' };\n\nlet msg = 'LINKEDIN POST READY FOR REVIEW\\n\\n';\nmsg += 'Type: ' + (labels[data.postType] || data.postType) + '\\n';\nmsg += 'Generated: ' + data.generatedAt + '\\n\\n';\nmsg += '--- FULL POST ---\\n';\nmsg += data.postText + '\\n';\nmsg += '--- END ---\\n\\n';\nmsg += 'APPROVE:\\n' + base + '?action=approve\\n\\n';\nmsg += 'SKIP:\\n' + base + '?action=skip';\n\nreturn [{ json: { chatId: '8747048300', text: msg } }];"
       },
       "id": "li-build-telegram",
       "name": "Build Telegram Preview",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2000, 400]
+      "position": [
+        2320,
+        300
+      ]
     },
     {
       "parameters": {
@@ -145,43 +253,52 @@
       "name": "Telegram: Send Preview",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [2250, 400],
-      "credentials": { "telegramApi": { "id": "bPrClfXl0avUTqnO", "name": "AutoShop Telegram" } }
+      "position": [
+        2550,
+        300
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "bPrClfXl0avUTqnO",
+          "name": "AutoShop Telegram"
+        }
+      }
     },
     {
       "parameters": {
-        "updates": ["message"],
-        "additionalFields": {}
+        "resume": "webhook",
+        "options": {}
       },
-      "id": "li-telegram-wait",
-      "name": "Telegram Trigger: Wait for Reply",
-      "type": "n8n-nodes-base.telegramTrigger",
+      "id": "li-wait-approval",
+      "name": "Wait for Approval",
+      "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
-      "position": [250, 800],
-      "webhookId": "linkedin-approval-webhook",
-      "credentials": { "telegramApi": { "id": "bPrClfXl0avUTqnO", "name": "AutoShop Telegram" } },
-      "notes": "This is a separate trigger that listens for approval replies. Connect to the approval router below."
-    },
-    {
-      "parameters": {
-        "jsCode": "const msg = $input.first().json;\nconst text = (msg.message?.text || '').trim().toUpperCase();\n\nlet action = 'ignore';\n\nif (text === 'APPROVE') {\n  action = 'approve';\n} else if (text === 'SKIP') {\n  action = 'skip';\n} else if (text.startsWith('EDIT:')) {\n  action = 'edit';\n}\n\nreturn [{ json: { action, rawText: msg.message?.text || '', chatId: msg.message?.chat?.id } }];"
-      },
-      "id": "li-parse-reply",
-      "name": "Parse Approval Reply",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [500, 800]
+      "position": [
+        2780,
+        300
+      ],
+      "webhookId": "li-wait-approval",
+      "notes": "Pauses until user clicks APPROVE or SKIP link from Telegram. No webhook conflict."
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
-          "conditions": [{
-            "id": "cond-approve",
-            "leftValue": "={{ $json.action }}",
-            "rightValue": "approve",
-            "operator": { "type": "string", "operation": "equals" }
-          }],
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-approve",
+              "leftValue": "={{ $json.query.action }}",
+              "rightValue": "approve",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
           "combinator": "and"
         },
         "options": {}
@@ -190,18 +307,24 @@
       "name": "IF: Approved?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [750, 800]
+      "position": [
+        3010,
+        300
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Retrieve the most recent pending post from Google Sheets\n// In production, this would read the latest 'pending_review' row\n// For now, pass through with placeholder — the sheet lookup node should be wired here\n\nconst postText = $env.LINKEDIN_PENDING_POST || 'Post text not found — check Google Sheet';\nconst imageUrl = $env.LINKEDIN_PENDING_IMAGE || '';\n\nreturn [{ json: {\n  postText,\n  imageUrl,\n  visibility: 'PUBLIC'\n} }];"
+        "jsCode": "const post = $('Merge Post + Image').first().json;\nreturn [{ json: { postText: post.postText, imageUrl: post.imageUrl, postType: post.postType } }];"
       },
-      "id": "li-fetch-pending",
-      "name": "Fetch Pending Post",
+      "id": "li-get-post-data",
+      "name": "Get Post Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1000, 700],
-      "notes": "TODO: Replace with Google Sheets lookup for latest pending_review row. Using env vars as placeholder."
+      "position": [
+        3240,
+        200
+      ],
+      "notes": "Pulls post from earlier in same execution. Wait node preserves full context."
     },
     {
       "parameters": {
@@ -210,35 +333,54 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.LINKEDIN_ACCESS_TOKEN }}" },
-            { "name": "content-type", "value": "application/json" },
-            { "name": "X-Restli-Protocol-Version", "value": "2.0.0" }
+            {
+              "name": "Authorization",
+              "value": "={{ \"Bearer \" + $env.LINKEDIN_ACCESS_TOKEN }}"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Restli-Protocol-Version",
+              "value": "2.0.0"
+            }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ author: 'urn:li:organization:' + $env.LINKEDIN_ORG_ID, lifecycleState: 'PUBLISHED', specificContent: { 'com.linkedin.ugc.ShareContent': { shareCommentary: { text: $json.postText }, shareMediaCategory: $json.imageUrl ? 'IMAGE' : 'NONE' } }, visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC' } }) }}",
+        "jsonBody": "={{ JSON.stringify({ author: 'urn:li:organization:112782635', lifecycleState: 'PUBLISHED', specificContent: { 'com.linkedin.ugc.ShareContent': { shareCommentary: { text: $json.postText }, shareMediaCategory: 'NONE' } }, visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC' } }) }}",
         "options": {
           "timeout": 30000,
-          "response": { "response": { "neverError": true } }
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
         }
       },
       "id": "li-post-linkedin",
       "name": "LinkedIn: Publish Post",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1250, 700],
-      "notes": "Posts to LinkedIn Company Page. Requires valid OAuth token with w_organization_social scope."
+      "position": [
+        3470,
+        200
+      ],
+      "notes": "Text-only post to LinkedIn Company Page via UGC API."
     },
     {
       "parameters": {
-        "jsCode": "const resp = $input.first().json;\nconst success = resp.id ? true : false;\n\nlet msg;\nif (success) {\n  msg = '✅ LinkedIn post published successfully!\\nPost ID: ' + resp.id;\n} else {\n  msg = '❌ LinkedIn post FAILED\\nError: ' + JSON.stringify(resp).slice(0, 500);\n}\n\nreturn [{ json: { chatId: '8747048300', text: msg, success } }];"
+        "jsCode": "const resp = $input.first().json;\nconst success = !!resp.id;\nconst msg = success\n  ? 'LinkedIn post published! Post ID: ' + resp.id\n  : 'LinkedIn post FAILED: ' + JSON.stringify(resp).slice(0, 500);\nreturn [{ json: { chatId: '8747048300', text: msg, success } }];"
       },
       "id": "li-post-result",
       "name": "Build Result Message",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1500, 700]
+      "position": [
+        3700,
+        200
+      ]
     },
     {
       "parameters": {
@@ -250,93 +392,249 @@
       "name": "Telegram: Confirm Result",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1750, 700],
-      "credentials": { "telegramApi": { "id": "bPrClfXl0avUTqnO", "name": "AutoShop Telegram" } }
+      "position": [
+        3930,
+        200
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "bPrClfXl0avUTqnO",
+          "name": "AutoShop Telegram"
+        }
+      }
     },
     {
       "parameters": {
-        "chatId": "={{ $json.chatId }}",
-        "text": "⏭ LinkedIn post skipped.",
+        "chatId": "8747048300",
+        "text": "LinkedIn post skipped.",
         "additionalFields": {}
       },
       "id": "li-skip-telegram",
       "name": "Telegram: Skipped",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1000, 900],
-      "credentials": { "telegramApi": { "id": "bPrClfXl0avUTqnO", "name": "AutoShop Telegram" } }
+      "position": [
+        3240,
+        450
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "bPrClfXl0avUTqnO",
+          "name": "AutoShop Telegram"
+        }
+      }
     }
   ],
   "connections": {
-    "Schedule: Mon/Wed/Fri 10am CT": {
-      "main": [[{ "node": "Select Post Type", "type": "main", "index": 0 }]]
+    "Schedule: MWF 10am CT": {
+      "main": [
+        [
+          {
+            "node": "Select Post Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Select Post Type": {
-      "main": [[{ "node": "Claude: Generate Post", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Claude: Generate Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Claude: Generate Post": {
-      "main": [[{ "node": "Extract Post Text", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Extract Post Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Extract Post Text": {
-      "main": [[{ "node": "DALL-E: Generate Image", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "DALL-E: Generate Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "DALL-E: Generate Image": {
-      "main": [[{ "node": "Merge Post + Image", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Extract DALL-E URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract DALL-E URL": {
+      "main": [
+        [
+          {
+            "node": "Telegram: Send Photo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram: Send Photo": {
+      "main": [
+        [
+          {
+            "node": "Merge Post + Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Merge Post + Image": {
-      "main": [[{ "node": "Google Sheets: Save Post", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Google Sheets: Save Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Google Sheets: Save Post": {
-      "main": [[{ "node": "Build Telegram Preview", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Telegram Preview",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Telegram Preview": {
-      "main": [[{ "node": "Telegram: Send Preview", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Telegram: Send Preview",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Telegram Trigger: Wait for Reply": {
-      "main": [[{ "node": "Parse Approval Reply", "type": "main", "index": 0 }]]
+    "Telegram: Send Preview": {
+      "main": [
+        [
+          {
+            "node": "Wait for Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Parse Approval Reply": {
-      "main": [[{ "node": "IF: Approved?", "type": "main", "index": 0 }]]
+    "Wait for Approval": {
+      "main": [
+        [
+          {
+            "node": "IF: Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "IF: Approved?": {
       "main": [
-        [{ "node": "Fetch Pending Post", "type": "main", "index": 0 }],
-        [{ "node": "Telegram: Skipped", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Get Post Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram: Skipped",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Fetch Pending Post": {
-      "main": [[{ "node": "LinkedIn: Publish Post", "type": "main", "index": 0 }]]
+    "Get Post Data": {
+      "main": [
+        [
+          {
+            "node": "LinkedIn: Publish Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "LinkedIn: Publish Post": {
-      "main": [[{ "node": "Build Result Message", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Result Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Result Message": {
-      "main": [[{ "node": "Telegram: Confirm Result", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Telegram: Confirm Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
     "executionOrder": "v1",
-    "timezone": "America/Chicago"
+    "timezone": "America/Chicago",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
   },
   "tags": [
-    { "name": "US_AutoShop" },
-    { "name": "marketing" },
-    { "name": "linkedin" }
+    {
+      "name": "US_AutoShop"
+    },
+    {
+      "name": "marketing"
+    },
+    {
+      "name": "linkedin"
+    }
   ],
   "meta": {
-    "description": "Generates LinkedIn posts for AutoShop SMS AI on Mon/Wed/Fri at 10am CT. Uses Claude API for copywriting, DALL-E for images, Google Sheets for review tracking, and Telegram for approval flow before publishing to LinkedIn Company Page.",
-    "envVars": [
-      "ANTHROPIC_API_KEY",
-      "OPENAI_API_KEY",
-      "LINKEDIN_CLIENT_ID",
-      "LINKEDIN_CLIENT_SECRET",
-      "LINKEDIN_ACCESS_TOKEN",
-      "LINKEDIN_ORG_ID",
-      "LINKEDIN_POSTS_SHEET_ID"
-    ],
-    "credentials": [
-      "telegramApi — Telegram Bot for notifications and approval",
-      "googleSheetsOAuth2Api — Google Sheets for post tracking"
+    "description": "LinkedIn auto-poster with Claude + DALL-E + Telegram approval + Wait webhook. No TelegramTrigger (avoids webhook conflicts).",
+    "bugs_fixed": [
+      "BUG 3: TelegramTrigger replaced with Wait webhook",
+      "BUG 4: Fetch stub replaced with execution context",
+      "BUG 2: Image sent to Telegram immediately before URL expires",
+      "BUG 7: Full post text in preview (no truncation)",
+      "BUG 5: Requires Posts tab with headers: date|post_type|post_text|image_url|status"
     ]
   }
 }
