@@ -728,7 +728,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .conv-layout{display:grid;grid-template-columns:320px 1fr 320px;gap:0;height:calc(100vh - 200px);border:1px solid #E6E1D9;border-radius:var(--radius);overflow:hidden;background:#FFFFFF}
 @media(max-width:1400px){.conv-layout{grid-template-columns:280px 1fr;}.conv-detail-panel{display:none}}
 @media(max-width:1100px){.conv-layout{grid-template-columns:240px 1fr}}
-@media(max-width:768px){.conv-layout{grid-template-columns:1fr;height:auto;min-height:calc(100vh - 200px)}.conv-inbox{border-right:none;border-bottom:1px solid var(--border);max-height:40vh}.conv-thread-panel{min-height:50vh}}
+@media(max-width:768px){.conv-layout{grid-template-columns:1fr;height:auto;min-height:calc(100vh - 200px)}.conv-inbox{border-right:none;border-bottom:1px solid var(--border);max-height:none}.conv-thread-panel{min-height:50vh;display:none}.conv-layout.thread-open .conv-inbox{display:none}.conv-layout.thread-open .conv-thread-panel{display:flex}.conv-back-btn{display:flex}}
+.conv-back-btn{display:none;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;border:none;background:none;cursor:pointer;color:var(--text-secondary);transition:background .15s;flex-shrink:0}
+.conv-back-btn:hover{background:var(--bg-hover)}
 .conv-inbox{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;min-width:0;min-height:0}
 .conv-inbox-header{padding:16px;border-bottom:1px solid var(--border)}
 .conv-inbox-title{font-family:var(--display);font-size:19px;font-weight:700;color:var(--navy);margin-bottom:12px;letter-spacing:.01em;text-transform:uppercase}
@@ -772,7 +774,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .conv-thread-menu{padding:8px;border-radius:8px;border:none;background:none;cursor:pointer;color:var(--text-tertiary);transition:background .15s}
 .conv-thread-menu:hover{background:var(--bg)}
 .conv-thread-body{flex:1;overflow-y:auto;padding:24px}
-.conv-composer{padding:16px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.conv-composer{padding:16px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;position:sticky;bottom:0;background:var(--bg-panel);z-index:10}
 .conv-composer-attach{padding:8px;border-radius:8px;border:none;background:none;cursor:pointer;color:var(--text-tertiary);transition:background .15s}
 .conv-composer-attach:hover{background:var(--bg)}
 .conv-composer input{flex:1;padding:8px 16px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);outline:none;transition:border-color .15s}
@@ -1375,6 +1377,9 @@ function toggleSidebar(){
         <div class="conv-thread-panel">
           <div class="conv-thread-header" id="convThreadHeader">
             <div class="conv-thread-header-left">
+              <button class="conv-back-btn" onclick="convMobileBack()" aria-label="Back to inbox">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
               <div class="conv-thread-avatar" id="convThreadAvatar">?</div>
               <div class="conv-thread-info">
                 <div class="conv-thread-name" id="convThreadTitle">Select a conversation</div>
@@ -1400,7 +1405,7 @@ function toggleSidebar(){
             </div>
           </div>
           <div class="conv-composer">
-            <input type="text" id="convMessageInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendConversationMessage()">
+            <input type="text" id="convMessageInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter'){event.preventDefault();sendConversationMessage()}" onkeyup="if(event.key==='Enter')sendConversationMessage()">
             <button class="conv-composer-send" onclick="sendConversationMessage()">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               Send
@@ -5449,7 +5454,7 @@ function renderConvInbox() {
   conversationsData.forEach(function(c, idx) {
     var displayName = c.customerName || c.phone;
     var showPhone = c.customerName ? c.phone : '';
-    var isUnread = c.status === 'active';
+    var isUnread = c.status === 'active' && !c._read;
     var preview = c.issue || c.lastMessage || '';
     var timeAgo = c.timeAgo || c.date || '';
     var safeName = escHtml(displayName);
@@ -5540,6 +5545,7 @@ async function sendConversationMessage() {
     if (threadBody) renderConvThread(threadBody, convThreads[selectedConversationId]);
 
     input.value = '';
+    input.focus();
   } catch (e) {
     showToast('Network error — message not sent');
   } finally {
@@ -5548,7 +5554,24 @@ async function sendConversationMessage() {
   }
 }
 
+// Mobile: back button returns to inbox
+function convMobileBack() {
+  var layout = document.querySelector('.conv-layout');
+  if (layout) layout.classList.remove('thread-open');
+}
+
+// iOS keyboard compensation via visualViewport
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', function() {
+    var composer = document.querySelector('.conv-composer');
+    if (!composer) return;
+    var offset = window.innerHeight - window.visualViewport.height;
+    composer.style.paddingBottom = offset > 0 ? (offset + 16) + 'px' : '16px';
+  });
+}
+
 function renderConvThread(body, data) {
+  if (!body || !data) return;
   var thread = '';
   data.thread.forEach(function(m) {
     if (m.ts) thread += '<div class="msg-time">' + m.ts + '</div>';
@@ -5574,6 +5597,24 @@ function selectConversation(el, id) {
   if (!conv) return;
   selectedConversationId = id;
 
+  // Clear unread state when conversation is opened
+  if (conv.status === 'active') {
+    conv._read = true;
+    var listItem = document.querySelector('.conv-list-item[data-id="' + id + '"]');
+    if (listItem) {
+      var dot = listItem.querySelector('.conv-unread-dot');
+      if (dot) dot.remove();
+      var preview = listItem.querySelector('.conv-list-preview');
+      if (preview) preview.classList.remove('unread');
+    }
+  }
+
+  // Mobile: show thread panel, hide inbox
+  var layout = document.querySelector('.conv-layout');
+  if (layout && window.innerWidth <= 768) {
+    layout.classList.add('thread-open');
+  }
+
   var name = conv.customerName || conv.phone;
 
   // Update thread header — avatar, name, phone
@@ -5588,6 +5629,7 @@ function selectConversation(el, id) {
 
   // Thread body — show messages if available, fetch from API if not cached
   var body = document.getElementById('convThreadBody');
+  if (!body) return;
   var data = convThreads[id];
   if (data && data.thread) {
     renderConvThread(body, data);
