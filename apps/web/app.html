@@ -2244,28 +2244,34 @@ function injectDemoData() {
     upcoming_appointments: []
   };
 
-  // Demo conversations
+  // Demo conversations (field names must match API mapping in loadConversationsData)
   conversationsData = [
     {
       id: 'demo-conv-1', customerName: 'Mike Johnson', phone: '(555) 234-5678',
       status: 'booked', turn_count: 6, issue: 'Oil change + tire rotation',
       lastMessage: 'Great, see you tomorrow at 9am!',
+      lastMessageAt: hoursAgo(2),
       timeAgo: fmtDate(hoursAgo(2)), date: fmtDate(hoursAgo(2)),
-      carModel: '2019 Honda Accord', licensePlate: null
+      vehicleModel: '2019 Honda Accord', vin: '', mileage: '', licensePlate: '',
+      email: '', location: '', aro: '—', duration: '6 msgs'
     },
     {
       id: 'demo-conv-2', customerName: 'Sarah Williams', phone: '(555) 876-5432',
       status: 'active', turn_count: 3, issue: 'Brake pads squeaking',
       lastMessage: 'What times do you have available Thursday?',
+      lastMessageAt: hoursAgo(1),
       timeAgo: fmtDate(hoursAgo(1)), date: fmtDate(hoursAgo(1)),
-      carModel: '2021 Toyota RAV4', licensePlate: null
+      vehicleModel: '2021 Toyota RAV4', vin: '', mileage: '', licensePlate: '',
+      email: '', location: '', aro: '—', duration: '3 msgs'
     },
     {
       id: 'demo-conv-3', customerName: null, phone: '(555) 345-9012',
       status: 'no-response', turn_count: 1, issue: 'Missed call — SMS sent',
       lastMessage: 'Hi, we missed your call. Reply with your issue + car model + preferred time.',
+      lastMessageAt: hoursAgo(0.5),
       timeAgo: fmtDate(hoursAgo(0.5)), date: fmtDate(hoursAgo(0.5)),
-      carModel: null, licensePlate: null
+      vehicleModel: '', vin: '', mileage: '', licensePlate: '',
+      email: '', location: '', aro: '—', duration: '1 msgs'
     }
   ];
 
@@ -5871,7 +5877,14 @@ async function renderCustomers() {
   var token = localStorage.getItem('autoshop_jwt');
   var customers = [];
 
-  if (token) {
+  if (_isDemoMode) {
+    // Demo customer records
+    customers = [
+      { phone: '(555) 234-5678', name: 'Mike Johnson', vehicle: '2019 Honda Accord', lastDate: new Date(Date.now() - 2*3600000).toISOString().slice(0,10), apptCount: 4, status: 'active', issue: 'Oil change + tire rotation', totalSpent: 680 },
+      { phone: '(555) 876-5432', name: 'Sarah Williams', vehicle: '2021 Toyota RAV4', lastDate: new Date(Date.now() - 86400000).toISOString().slice(0,10), apptCount: 2, status: 'active', issue: 'Brake pads squeaking', totalSpent: 420 },
+      { phone: '(555) 111-2233', name: 'Robert Chen', vehicle: '2017 Ford F-150', lastDate: new Date(Date.now() - 86400000).toISOString().slice(0,10), apptCount: 3, status: 'active', issue: 'Engine diagnostic', totalSpent: 510 }
+    ];
+  } else if (token) {
     try {
       var res = await fetch('/tenant/customers/list', {
         headers: { 'Authorization': 'Bearer ' + token }
@@ -5902,21 +5915,34 @@ async function renderCustomers() {
 
   // Stats
   var el = function(id) { return document.getElementById(id); };
-  if (el('custStatTotal')) el('custStatTotal').textContent = customers.length;
-  if (el('custStatTotalSub')) el('custStatTotalSub').textContent = customers.length > 0 ? 'From appointments' : '—';
 
-  var activeCount = customers.filter(function(c) { return c.apptCount >= 2; }).length;
-  var retPct = customers.length > 0 ? Math.round((activeCount / customers.length) * 100) : 0;
-  if (el('custStatRetention')) el('custStatRetention').textContent = retPct + '%';
-  if (el('custStatRetentionSub')) el('custStatRetentionSub').textContent = activeCount + ' returning';
+  if (_isDemoMode) {
+    // Show impressive demo stats instead of computing from 3 sample records
+    if (el('custStatTotal')) el('custStatTotal').textContent = '47';
+    if (el('custStatTotalSub')) el('custStatTotalSub').textContent = 'From appointments';
+    if (el('custStatRetention')) el('custStatRetention').textContent = '68%';
+    if (el('custStatRetentionSub')) el('custStatRetentionSub').textContent = '32 returning';
+    if (el('custStatVisits')) el('custStatVisits').textContent = '2.4';
+    if (el('custStatLTV')) el('custStatLTV').textContent = '$340';
+    if (el('custStatLTVSub')) el('custStatLTVSub').textContent = 'Per customer';
+    if (el('custStatVisitsSub')) el('custStatVisitsSub').textContent = 'Per year';
+  } else {
+    if (el('custStatTotal')) el('custStatTotal').textContent = customers.length;
+    if (el('custStatTotalSub')) el('custStatTotalSub').textContent = customers.length > 0 ? 'From appointments' : '—';
 
-  var avgVisits = customers.length > 0 ? (customers.reduce(function(s,c){ return s + (c.apptCount||0); }, 0) / customers.length).toFixed(1) : '0';
-  if (el('custStatVisits')) el('custStatVisits').textContent = avgVisits;
+    var activeCount = customers.filter(function(c) { return c.apptCount >= 2; }).length;
+    var retPct = customers.length > 0 ? Math.round((activeCount / customers.length) * 100) : 0;
+    if (el('custStatRetention')) el('custStatRetention').textContent = retPct + '%';
+    if (el('custStatRetentionSub')) el('custStatRetentionSub').textContent = activeCount + ' returning';
 
-  var custsWithSpent = customers.filter(function(c){ return c.totalSpent != null; });
-  var totalLTV = custsWithSpent.reduce(function(s,c){ return s + c.totalSpent; }, 0);
-  var avgLTV = custsWithSpent.length > 0 ? Math.round(totalLTV / custsWithSpent.length) : 0;
-  if (el('custStatLTV')) el('custStatLTV').textContent = custsWithSpent.length > 0 ? '$' + avgLTV : '—';
+    var avgVisits = customers.length > 0 ? (customers.reduce(function(s,c){ return s + (c.apptCount||0); }, 0) / customers.length).toFixed(1) : '0';
+    if (el('custStatVisits')) el('custStatVisits').textContent = avgVisits;
+
+    var custsWithSpent = customers.filter(function(c){ return c.totalSpent != null; });
+    var totalLTV = custsWithSpent.reduce(function(s,c){ return s + c.totalSpent; }, 0);
+    var avgLTV = custsWithSpent.length > 0 ? Math.round(totalLTV / custsWithSpent.length) : 0;
+    if (el('custStatLTV')) el('custStatLTV').textContent = custsWithSpent.length > 0 ? '$' + avgLTV : '—';
+  }
 
   renderCustomerPage();
 }
