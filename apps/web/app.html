@@ -3158,6 +3158,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   renderBillingPage();
   renderBookingsCalendarAlert();
   renderSystemHero();
+  renderSidebarStatus();
   checkActivationState();
   renderLiveKPIs();
   renderLivePipeline();
@@ -5894,6 +5895,37 @@ function updateSidebarBadge() {
     badge.textContent = active;
     badge.style.display = active > 0 ? '' : 'none';
   }
+}
+
+// ════════════════════════════════════════════
+// SIDEBAR SYSTEM STATUS (dynamic, mirrors hero logic)
+// ════════════════════════════════════════════
+function renderSidebarStatus() {
+  var el = document.getElementById('sidebarSystemStatus');
+  if (!el) return;
+  var h = tenantState.health;
+  var intg = tenantState.integrations;
+  var isSuspended = ['suspended','canceled','trial_expired'].includes(tenantState.status);
+  var calFail = ['token_expired','revoked','failed'].includes(intg.googleCalendar);
+  var twilioFail = intg.twilioNumber !== 'active';
+  var webhookFail = h.twilioWebhooks.status === 'failing';
+
+  var dotCls, textCls, label, sub;
+  if (isSuspended) {
+    dotCls = 'red'; textCls = 'red'; label = 'Service Paused'; sub = 'Account suspended';
+  } else if (calFail && twilioFail) {
+    dotCls = 'red'; textCls = 'red'; label = 'Setup Required'; sub = 'Twilio + Calendar not connected';
+  } else if (twilioFail || webhookFail) {
+    dotCls = 'red'; textCls = 'red'; label = 'SMS Offline'; sub = 'Twilio not connected';
+  } else if (calFail) {
+    dotCls = 'amber'; textCls = 'amber'; label = 'Calendar Issue'; sub = 'Reconnect Google Calendar';
+  } else {
+    dotCls = 'green'; textCls = 'green'; label = 'System Active'; sub = 'Recovering missed calls';
+  }
+
+  el.innerHTML = '<div class="status-dot ' + dotCls + '"></div>' +
+    '<div><div class="status-text ' + textCls + '">' + label + '</div>' +
+    '<div class="status-sub">' + sub + '</div></div>';
 }
 
 // ════════════════════════════════════════════
