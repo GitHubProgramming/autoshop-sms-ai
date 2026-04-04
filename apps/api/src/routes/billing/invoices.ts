@@ -38,6 +38,12 @@ export async function billingInvoicesRoute(app: FastifyInstance) {
         expand: ["data.charge"],
       });
     } catch (err: any) {
+      // Stale customer ID — clear it and return empty list instead of 502
+      if (err.code === "resource_missing") {
+        request.log.warn({ tenantId, customerId }, "Stale stripe_customer_id in invoices — clearing");
+        await query(`UPDATE tenants SET stripe_customer_id = NULL, updated_at = NOW() WHERE id = $1`, [tenantId]);
+        return reply.status(200).send({ invoices: [] });
+      }
       request.log.error({ tenantId, customerId, err: err.message }, "Stripe invoice fetch failed");
       return reply.status(502).send({ error: "Could not load invoices from payment provider" });
     }

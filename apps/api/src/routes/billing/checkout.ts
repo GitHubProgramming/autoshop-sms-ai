@@ -66,8 +66,24 @@ export async function billingCheckoutRoute(app: FastifyInstance) {
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
 
-    // Resolve or create Stripe customer
+    // Resolve or create Stripe customer (handle stale IDs from env switches)
     let customerId = (tenant as any).stripe_customer_id as string | null;
+    if (customerId) {
+      try {
+        const existing = await stripe.customers.retrieve(customerId);
+        if ((existing as any).deleted) customerId = null;
+      } catch (err: any) {
+        if (err.code === "resource_missing") {
+          request.log.warn({ tenantId, customerId }, "Stale stripe_customer_id — will recreate");
+          customerId = null;
+        } else {
+          throw err;
+        }
+      }
+      if (!customerId) {
+        await query(`UPDATE tenants SET stripe_customer_id = NULL, updated_at = NOW() WHERE id = $1`, [tenantId]);
+      }
+    }
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: tenant.owner_email,

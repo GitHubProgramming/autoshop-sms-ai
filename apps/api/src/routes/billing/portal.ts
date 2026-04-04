@@ -33,6 +33,20 @@ export async function billingPortalRoute(app: FastifyInstance) {
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
 
+    // Verify the Stripe customer still exists (may be stale from env switch)
+    try {
+      await stripe.customers.retrieve(customerId);
+    } catch (err: any) {
+      if (err.code === "resource_missing") {
+        request.log.warn({ tenantId, customerId }, "Stale stripe_customer_id — clearing");
+        await query(`UPDATE tenants SET stripe_customer_id = NULL, updated_at = NOW() WHERE id = $1`, [tenantId]);
+        return reply.status(400).send({
+          error: "Stripe customer record was stale and has been cleared. Please start a new checkout.",
+        });
+      }
+      throw err;
+    }
+
     const returnUrl =
       (process.env.PUBLIC_ORIGIN || "https://autoshopsmsai.com") + "/app/billing";
 
