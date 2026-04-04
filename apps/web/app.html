@@ -4699,7 +4699,7 @@ function renderSystemHero() {
   const metr  = document.getElementById('heroMetrics');
 
   // Determine worst issue
-  const calFail = ['token_expired','revoked','failed'].includes(intg.googleCalendar);
+  const calFail = intg.googleCalendar !== 'connected';
   const twilioFail = intg.twilioNumber !== 'active';
   const webhookFail = h.twilioWebhooks.status === 'failing';
   const aiDegraded = h.aiEngine.status === 'degraded';
@@ -5906,7 +5906,7 @@ function renderSidebarStatus() {
   var h = tenantState.health;
   var intg = tenantState.integrations;
   var isSuspended = ['suspended','canceled','trial_expired'].includes(tenantState.status);
-  var calFail = ['token_expired','revoked','failed'].includes(intg.googleCalendar);
+  var calFail = intg.googleCalendar !== 'connected';
   var twilioFail = intg.twilioNumber !== 'active';
   var webhookFail = h.twilioWebhooks.status === 'failing';
 
