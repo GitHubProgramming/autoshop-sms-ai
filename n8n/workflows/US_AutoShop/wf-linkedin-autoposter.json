@@ -123,7 +123,7 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [1750, 400],
-      "credentials": { "googleSheetsOAuth2Api": { "id": "GOOGLE_SHEETS_CRED_ID", "name": "Google Sheets" } }
+      "credentials": { "googleSheetsOAuth2Api": { "id": "APKOpIYNrXjjc3U7", "name": "Google Sheets account" } }
     },
     {
       "parameters": {
@@ -146,7 +146,7 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [2250, 400],
-      "credentials": { "telegramApi": { "id": "TELEGRAM_CRED_ID", "name": "Telegram Bot" } }
+      "credentials": { "telegramApi": { "id": "bPrClfXl0avUTqnO", "name": "AutoShop Telegram" } }
     },
     {
       "parameters": {
@@ -159,7 +159,7 @@
       "typeVersion": 1.1,
       "position": [250, 800],
       "webhookId": "linkedin-approval-webhook",
-      "credentials": { "telegramApi": { "id": "TELEGRAM_CRED_ID", "name": "Telegram Bot" } },
+      "credentials": { "telegramApi": { "id": "bPrClfXl0avUTqnO", "name": "AutoShop Telegram" } },
       "notes": "This is a separate trigger that listens for approval replies. Connect to the approval router below."
     },
     {
@@ -251,7 +251,7 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [1750, 700],
-      "credentials": { "telegramApi": { "id": "TELEGRAM_CRED_ID", "name": "Telegram Bot" } }
+      "credentials": { "telegramApi": { "id": "bPrClfXl0avUTqnO", "name": "AutoShop Telegram" } }
     },
     {
       "parameters": {
@@ -264,7 +264,7 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [1000, 900],
-      "credentials": { "telegramApi": { "id": "TELEGRAM_CRED_ID", "name": "Telegram Bot" } }
+      "credentials": { "telegramApi": { "id": "bPrClfXl0avUTqnO", "name": "AutoShop Telegram" } }
     }
   ],
   "connections": {
