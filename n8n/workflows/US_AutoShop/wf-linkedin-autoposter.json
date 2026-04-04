@@ -74,7 +74,7 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "=Bearer {{ $env.OPENAI_API_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.OPENAI_API_KEY }}" },
             { "name": "content-type", "value": "application/json" }
           ]
         },
@@ -210,7 +210,7 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "=Bearer {{ $env.LINKEDIN_ACCESS_TOKEN }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.LINKEDIN_ACCESS_TOKEN }}" },
             { "name": "content-type", "value": "application/json" },
             { "name": "X-Restli-Protocol-Version", "value": "2.0.0" }
           ]
@@ -328,6 +328,8 @@
     "envVars": [
       "ANTHROPIC_API_KEY",
       "OPENAI_API_KEY",
+      "LINKEDIN_CLIENT_ID",
+      "LINKEDIN_CLIENT_SECRET",
       "LINKEDIN_ACCESS_TOKEN",
       "LINKEDIN_ORG_ID",
       "LINKEDIN_POSTS_SHEET_ID"
