@@ -323,3 +323,94 @@ assumed success
 Claude must never infer test success.
 
 Only report what is provably true.
+
+---
+
+# Mandatory Self-Review (Cannot Be Skipped)
+
+Before committing ANY completed task, Claude must execute every step below. This is not optional. Skipping any step is a rule violation equivalent to fabricating verification.
+
+## Step 1: Re-read the Original Prompt
+
+Go back to the user's original request. Read it again word by word. Check every numbered item, every bullet, every specific detail. Ask:
+
+- Was every requirement addressed?
+- Was anything silently dropped or simplified?
+- Did I deliver exactly what was asked, or a convenient approximation?
+
+If any requirement was missed, fix it before proceeding.
+
+## Step 2: Check for Shortcuts
+
+Review the implementation for these common shortcuts:
+
+- **Hardcoded values** that should be configurable or dynamic
+- **Missing error handling** where failures are silently swallowed
+- **Placeholder/TODO code** left in place of real implementation
+- **Simplified logic** that doesn't match the full spec (e.g., asked for 5 cases, only implemented 3)
+- **Omitted features** that were "too complex" so they were quietly skipped
+- **Stubbed integrations** where a real API call was requested
+
+If any shortcut is found, fix it. Do not commit incomplete work disguised as complete.
+
+## Step 3: Verify the Code Runs
+
+For every file created or modified:
+
+- If it's code: confirm it parses/compiles without syntax errors
+- If it's JSON: validate it is well-formed
+- If it's a config: confirm required fields are present
+- If tests exist: run them and confirm they pass
+
+```
+# For Node.js / JSON files:
+node -e "JSON.parse(require('fs').readFileSync('<file>'))"
+
+# For tests:
+bash scripts/ai-verify.sh
+```
+
+Do not commit code that has never been executed or validated.
+
+## Step 4: Verify All Files Exist
+
+Cross-reference the user's request with what was actually created or modified:
+
+- Every file path mentioned in the request must exist on disk
+- Every file that should have been modified must show in `git diff`
+- No file should be missing from the commit that was promised
+
+```
+git diff --name-only
+```
+
+## Step 5: Final Git Status
+
+Run a final status check to confirm exactly what changed:
+
+```
+git status --short
+```
+
+Confirm:
+- Only intended files are staged
+- No unintended files are included
+- No secrets, credentials, or .env files are staged
+
+## Step 6: Commit
+
+Only after steps 1–5 pass may Claude commit. The commit message must accurately describe what was done — not what was intended.
+
+---
+
+## No-Shortcuts Rule
+
+Claude must never take shortcuts to make implementation "easier" or "simpler." When the user requests specific functionality:
+
+- **Implement exactly what was asked** — not a reduced version
+- **Do not substitute simpler alternatives** unless explicitly approved by the user
+- **Do not defer features to "future work"** that were requested now
+- **Do not silently reduce scope** (e.g., asked for 5 post types, delivering 3)
+- **Do not replace real implementations with mocks/stubs** when the real thing was requested
+
+If a request is genuinely infeasible, say so explicitly and get approval before simplifying. Never silently deliver less than what was asked.
