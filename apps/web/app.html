@@ -2195,6 +2195,194 @@ let kpiSummary = null; // Real KPI data from /tenant/kpi/summary
 let apptSummary = null; // Real appointment KPIs from /tenant/appointments-summary
 
 // ════════════════════════════════════════════
+// DEMO MODE — sample data for new accounts
+// ════════════════════════════════════════════
+var _isDemoMode = false;
+
+function injectDemoData() {
+  _isDemoMode = true;
+
+  var now = new Date();
+  function daysAgo(n) { var d = new Date(now); d.setDate(d.getDate() - n); return d.toISOString(); }
+  function hoursAgo(n) { var d = new Date(now); d.setHours(d.getHours() - n); return d.toISOString(); }
+
+  // KPI summary
+  kpiSummary = {
+    recovered_revenue: 4250,
+    total_revenue: 6800,
+    recovered_previous: 3100,
+    total_previous: 5200,
+    total_completed_bookings: 18,
+    active_conversations: 3,
+    conversations_this_month: 67,
+    appointments_today: 4,
+    pending_completion_count: 2
+  };
+
+  // Dashboard stats
+  dashboardStats = {
+    conversations_today: 8,
+    appointments_today: 4,
+    active_conversations: 3,
+    conversations_this_month: 67,
+    appointments_this_month: 23,
+    total_conversations: 156,
+    total_appointments: 47
+  };
+
+  // Appointment summary
+  apptSummary = {
+    total_this_month: 23,
+    ai_booked_this_month: 19,
+    ai_booked_this_month_pct: 83,
+    manual_this_month: 4,
+    today_count: 4,
+    week_count: 12,
+    ai_pct: 83,
+    showup_rate: 91,
+    today_appointments: [],
+    upcoming_appointments: []
+  };
+
+  // Demo conversations
+  conversationsData = [
+    {
+      id: 'demo-conv-1', customerName: 'Mike Johnson', phone: '(555) 234-5678',
+      status: 'booked', turn_count: 6, issue: 'Oil change + tire rotation',
+      lastMessage: 'Great, see you tomorrow at 9am!',
+      timeAgo: fmtDate(hoursAgo(2)), date: fmtDate(hoursAgo(2)),
+      carModel: '2019 Honda Accord', licensePlate: null
+    },
+    {
+      id: 'demo-conv-2', customerName: 'Sarah Williams', phone: '(555) 876-5432',
+      status: 'active', turn_count: 3, issue: 'Brake pads squeaking',
+      lastMessage: 'What times do you have available Thursday?',
+      timeAgo: fmtDate(hoursAgo(1)), date: fmtDate(hoursAgo(1)),
+      carModel: '2021 Toyota RAV4', licensePlate: null
+    },
+    {
+      id: 'demo-conv-3', customerName: null, phone: '(555) 345-9012',
+      status: 'no-response', turn_count: 1, issue: 'Missed call — SMS sent',
+      lastMessage: 'Hi, we missed your call. Reply with your issue + car model + preferred time.',
+      timeAgo: fmtDate(hoursAgo(0.5)), date: fmtDate(hoursAgo(0.5)),
+      carModel: null, licensePlate: null
+    }
+  ];
+
+  // Live conversations (dashboard cards)
+  liveConversationsData = [
+    {
+      id: 'demo-conv-2', phone: '(555) 876-5432', status: 'active',
+      issue: 'Brake pads squeaking', lastMessage: 'What times do you have available Thursday?',
+      date: fmtDate(hoursAgo(1)), timeAgo: fmtDate(hoursAgo(1)), duration: '3 msgs'
+    },
+    {
+      id: 'demo-conv-3', phone: '(555) 345-9012', status: 'no-response',
+      issue: 'Missed call — SMS sent', lastMessage: 'Awaiting customer reply',
+      date: fmtDate(hoursAgo(0.5)), timeAgo: fmtDate(hoursAgo(0.5)), duration: '1 msgs'
+    }
+  ];
+
+  // Demo bookings
+  bookingsData = [
+    {
+      id: 'demo-appt-1', date: fmtDate(hoursAgo(2)), phone: '(555) 234-5678',
+      service: 'Oil Change + Tire Rotation', vehicle: '2019 Honda Accord',
+      syncStatus: 'synced', syncLabel: 'Confirmed', bookingState: 'CONFIRMED',
+      source: 'AI', finalPrice: null, completedAt: null, isTest: false,
+      rawScheduledAt: daysAgo(-1), failNote: ''
+    },
+    {
+      id: 'demo-appt-2', date: fmtDate(daysAgo(1)), phone: '(555) 111-2233',
+      service: 'Engine Diagnostic', vehicle: '2017 Ford F-150',
+      syncStatus: 'synced', syncLabel: 'Completed', bookingState: 'COMPLETED',
+      source: 'AI', finalPrice: 285, completedAt: daysAgo(1), isTest: false,
+      rawScheduledAt: daysAgo(1), failNote: ''
+    },
+    {
+      id: 'demo-appt-3', date: fmtDate(daysAgo(3)), phone: '(555) 444-5566',
+      service: 'Brake Pad Replacement', vehicle: '2020 Chevrolet Malibu',
+      syncStatus: 'synced', syncLabel: 'Completed', bookingState: 'COMPLETED',
+      source: 'AI', finalPrice: 420, completedAt: daysAgo(3), isTest: false,
+      rawScheduledAt: daysAgo(3), failNote: ''
+    }
+  ];
+
+  // Pre-populate conversation threads so clicks don't hit the API
+  convThreads = {
+    'demo-conv-1': {
+      title: 'Mike Johnson', meta: '(555) 234-5678',
+      thread: [
+        { d: 'ai', t: 'Hi, we missed your call at Johnson Auto. How can we help you today? Reply with your issue, car model, and preferred time.', ts: fmtDate(hoursAgo(3)) },
+        { d: 'customer', t: 'Need an oil change and tire rotation for my 2019 Accord', ts: fmtDate(hoursAgo(2.8)) },
+        { d: 'ai', t: 'Got it! Oil change + tire rotation for your 2019 Honda Accord. We have tomorrow at 9:00 AM or 2:00 PM available. Which works best?', ts: fmtDate(hoursAgo(2.7)) },
+        { d: 'customer', t: '9am works', ts: fmtDate(hoursAgo(2.5)) },
+        { d: 'ai', t: 'You\'re booked for tomorrow at 9:00 AM — oil change + tire rotation for your 2019 Honda Accord. We\'ll send a reminder. See you then!', ts: fmtDate(hoursAgo(2.4)) },
+        { d: 'customer', t: 'Great, see you tomorrow at 9am!', ts: fmtDate(hoursAgo(2)) }
+      ],
+      result: 'Appointment booked — Tomorrow 9:00 AM', info: []
+    },
+    'demo-conv-2': {
+      title: 'Sarah Williams', meta: '(555) 876-5432',
+      thread: [
+        { d: 'ai', t: 'Hi, we missed your call at Johnson Auto. How can we help? Reply with your issue, car model, and preferred time.', ts: fmtDate(hoursAgo(1.5)) },
+        { d: 'customer', t: 'My brakes are squeaking on my RAV4', ts: fmtDate(hoursAgo(1.3)) },
+        { d: 'ai', t: 'We can take a look at your brake pads. What day and time works best for you this week?', ts: fmtDate(hoursAgo(1.2)) },
+        { d: 'customer', t: 'What times do you have available Thursday?', ts: fmtDate(hoursAgo(1)) }
+      ],
+      result: null, info: []
+    },
+    'demo-conv-3': {
+      title: '(555) 345-9012', meta: '(555) 345-9012',
+      thread: [
+        { d: 'ai', t: 'Hi, we missed your call. Reply with: issue + car model + preferred time.', ts: fmtDate(hoursAgo(0.5)) }
+      ],
+      result: null, info: []
+    }
+  };
+}
+
+// Generate demo revenue chart data (upward trend)
+function getDemoRevenueData(numDays) {
+  var days = [];
+  var now = new Date();
+  for (var i = numDays - 1; i >= 0; i--) {
+    var d = new Date(now);
+    d.setDate(d.getDate() - i);
+    var dateStr = d.toISOString().slice(0, 10);
+    // Upward trend: base 80 growing to 350, with noise
+    var progress = (numDays - i) / numDays;
+    var base = 80 + progress * 270;
+    var noise = Math.sin(i * 1.7) * 60 + Math.cos(i * 0.5) * 40;
+    // Weekends are lower
+    var dayOfWeek = d.getDay();
+    var weekendFactor = (dayOfWeek === 0 || dayOfWeek === 6) ? 0.3 : 1;
+    var total = Math.max(0, Math.round((base + noise) * weekendFactor));
+    days.push({ date: dateStr, total: total });
+  }
+  return { days: days };
+}
+
+// Generate demo conversation volume data
+function getDemoConvData(numDays) {
+  var days = [];
+  var now = new Date();
+  for (var i = numDays - 1; i >= 0; i--) {
+    var d = new Date(now);
+    d.setDate(d.getDate() - i);
+    var dateStr = d.toISOString().slice(0, 10);
+    var progress = (numDays - i) / numDays;
+    var base = 1 + progress * 3;
+    var noise = Math.sin(i * 2.3) * 1;
+    var dayOfWeek = d.getDay();
+    var weekendFactor = (dayOfWeek === 0 || dayOfWeek === 6) ? 0.4 : 1;
+    var total = Math.max(0, Math.round((base + noise) * weekendFactor));
+    days.push({ date: dateStr, total: total });
+  }
+  return { days: days };
+}
+
+// ════════════════════════════════════════════
 // FORMAT HELPERS
 // ════════════════════════════════════════════
 function fmtDate(iso) {
@@ -2515,12 +2703,18 @@ async function loadRevenueChart(periodDays) {
   if (!token) return;
 
   try {
-    var res = await fetch('/tenant/kpi/daily-revenue?days=' + numDays, {
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
-    if (!res.ok) throw new Error('fetch failed');
-    var data = await res.json();
-    var days = data.days || [];
+    var data, days;
+    if (_isDemoMode) {
+      data = getDemoRevenueData(numDays);
+      days = data.days || [];
+    } else {
+      var res = await fetch('/tenant/kpi/daily-revenue?days=' + numDays, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (!res.ok) throw new Error('fetch failed');
+      data = await res.json();
+      days = data.days || [];
+    }
 
     // Empty state — no revenue at all
     if (shouldShowEmptyState(days)) {
@@ -2691,12 +2885,18 @@ async function loadAnRevenueChart(periodDays) {
   if (!token) return;
 
   try {
-    var res = await fetch('/tenant/kpi/daily-revenue?days=' + numDays, {
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
-    if (!res.ok) throw new Error('fetch failed');
-    var data = await res.json();
-    var days = data.days || [];
+    var data, days;
+    if (_isDemoMode) {
+      data = getDemoRevenueData(numDays);
+      days = data.days || [];
+    } else {
+      var res = await fetch('/tenant/kpi/daily-revenue?days=' + numDays, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (!res.ok) throw new Error('fetch failed');
+      data = await res.json();
+      days = data.days || [];
+    }
 
     if (shouldShowEmptyState(days)) {
       container.innerHTML = '<div class="rev-empty">' +
@@ -2862,12 +3062,18 @@ async function loadAnConversationChart(periodDays) {
   if (!token) return;
 
   try {
-    var res = await fetch('/tenant/kpi/daily-conversations?days=' + numDays, {
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
-    if (!res.ok) throw new Error('fetch failed');
-    var data = await res.json();
-    var days = data.days || [];
+    var data, days;
+    if (_isDemoMode) {
+      data = getDemoConvData(numDays);
+      days = data.days || [];
+    } else {
+      var res = await fetch('/tenant/kpi/daily-conversations?days=' + numDays, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (!res.ok) throw new Error('fetch failed');
+      data = await res.json();
+      days = data.days || [];
+    }
 
     if (shouldShowEmptyState(days)) {
       container.innerHTML = '<div class="rev-empty">' +
@@ -3021,11 +3227,16 @@ async function loadResponseTime() {
   if (!val || !sub) return;
 
   try {
-    var res = await fetch('/tenant/kpi/response-time', {
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
-    if (!res.ok) throw new Error('fetch failed');
-    var d = await res.json();
+    var d;
+    if (_isDemoMode) {
+      d = { avg_seconds: 4.2, median_seconds: 3.8, sample_size: 67 };
+    } else {
+      var res = await fetch('/tenant/kpi/response-time', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (!res.ok) throw new Error('fetch failed');
+      d = await res.json();
+    }
 
     if (d.sample_size === 0 || d.avg_seconds == null) {
       val.textContent = '—';
@@ -3055,11 +3266,16 @@ async function loadMissedCallRecovery() {
   if (!akr || !akrc) return;
 
   try {
-    var res = await fetch('/tenant/kpi/missed-call-recovery', {
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
-    if (!res.ok) throw new Error('fetch failed');
-    var d = await res.json();
+    var d;
+    if (_isDemoMode) {
+      d = { missed_calls_total: 89, recovered_conversations: 67, recovered_bookings: 23, recovery_rate_pct: 75 };
+    } else {
+      var res = await fetch('/tenant/kpi/missed-call-recovery', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (!res.ok) throw new Error('fetch failed');
+      d = await res.json();
+    }
 
     if (d.missed_calls_total === 0) {
       akr.textContent = '—';
@@ -3137,6 +3353,11 @@ document.addEventListener('DOMContentLoaded', async function() {
   await loadConversationsData();
   await loadKpiData();
   await loadApptSummary();
+
+  // ── Demo mode: inject sample data so dashboard looks alive ──
+  if (tenantState.isDemo || tenantState.status === 'demo') {
+    injectDemoData();
+  }
 
   // ── Admin access probe (non-blocking) ──
   (function checkAdminAccess() {
@@ -3265,8 +3486,12 @@ function renderBanners() {
   const headerBtn = document.getElementById('headerUpgradeBtn');
 
   if (s.isDemo || s.status === 'demo') {
-    // Inactive account — prompt to start trial
-    html += `<div class="banner demo"><div class="banner-left"><span class="banner-label blue">GET STARTED</span><span class="banner-msg blue">Start your free trial to activate your shop's AI assistant.</span></div><button class="btn-start-trial" onclick="showUpgradeModal()">Start 14-Day Free Trial</button></div>`;
+    // Demo data notice + trial CTA
+    if (_isDemoMode) {
+      html += `<div class="banner demo" style="border-bottom:2px solid #D4A574;background:linear-gradient(90deg,#FFF8F2,#FFF3E8);"><div class="banner-left"><span class="banner-label" style="color:#B8621B;">DEMO DATA</span><span class="banner-msg" style="color:#8B5E3C;">You're viewing sample data. Start your free trial to see your real shop metrics.</span></div><button class="btn-start-trial" onclick="showUpgradeModal()">Start Free Trial</button></div>`;
+    } else {
+      html += `<div class="banner demo"><div class="banner-left"><span class="banner-label blue">GET STARTED</span><span class="banner-msg blue">Start your free trial to activate your shop's AI assistant.</span></div><button class="btn-start-trial" onclick="showUpgradeModal()">Start 14-Day Free Trial</button></div>`;
+    }
     if (headerBtn) { headerBtn.style.display = 'inline-block'; headerBtn.textContent = 'Start Trial'; headerBtn.onclick = function(){ showUpgradeModal(); return false; }; }
   } else if (s.activation && s.activation.state === 'needs_onboarding') {
     // Trial/active user without a phone number — must complete setup
@@ -4422,6 +4647,7 @@ let _completeApptId = null;
 let _completeSubmitting = false;
 
 function openCompleteModal(apptId) {
+  if (_isDemoMode) { showUpgradeModal(); return; }
   _completeApptId = apptId;
   _completeSubmitting = false;
   var b = bookingsData.find(function(x) { return x.id === apptId; });
@@ -5078,6 +5304,7 @@ function checkActivationState() {
 // CANCEL APPOINTMENT
 // ════════════════════════════════════════════
 async function cancelAppointment(apptId) {
+  if (_isDemoMode) { showUpgradeModal(); return; }
   if (!confirm('Cancel this appointment? This action cannot be undone.')) return;
 
   var token = localStorage.getItem('autoshop_jwt');
