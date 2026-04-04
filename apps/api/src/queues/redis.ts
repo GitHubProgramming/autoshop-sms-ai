@@ -49,7 +49,7 @@ export const calendarQueue = new Queue("calendar-sync", queueDefaults);
 
 // ── Idempotency helpers ───────────────────────────────────────────────────────
 
-const IDEMPOTENCY_TTL = 86_400; // 24 hours
+const IDEMPOTENCY_TTL = 300; // 5 minutes — short lock to prevent double-clicks, not 24h stale blocks
 
 export async function checkIdempotency(key: string): Promise<boolean> {
   const exists = await redis.exists(`idempotency:${key}`);
@@ -58,6 +58,10 @@ export async function checkIdempotency(key: string): Promise<boolean> {
 
 export async function markIdempotency(key: string): Promise<void> {
   await redis.setex(`idempotency:${key}`, IDEMPOTENCY_TTL, "1");
+}
+
+export async function clearIdempotency(key: string): Promise<void> {
+  await redis.del(`idempotency:${key}`);
 }
 
 // ── Missed-call caller dedupe ─────────────────────────────────────────────────

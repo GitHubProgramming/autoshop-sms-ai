@@ -4,7 +4,7 @@ import Stripe from "stripe";
 import { query } from "../../db/client";
 import { getTenantById } from "../../db/tenants";
 import { requireAuth } from "../../middleware/require-auth";
-import { checkIdempotency, markIdempotency } from "../../queues/redis";
+import { checkIdempotency, markIdempotency, clearIdempotency } from "../../queues/redis";
 
 const PLAN_PRICE_MAP: Record<string, string | undefined> = {
   starter: process.env.STRIPE_PRICE_STARTER,
@@ -66,65 +66,71 @@ export async function billingCheckoutRoute(app: FastifyInstance) {
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
 
-    // Resolve or create Stripe customer (handle stale IDs from env switches)
-    let customerId = (tenant as any).stripe_customer_id as string | null;
-    if (customerId) {
-      try {
-        const existing = await stripe.customers.retrieve(customerId);
-        if ((existing as any).deleted) customerId = null;
-      } catch (err: any) {
-        if (err.code === "resource_missing") {
-          request.log.warn({ tenantId, customerId }, "Stale stripe_customer_id — will recreate");
-          customerId = null;
-        } else {
-          throw err;
+    try {
+      // Resolve or create Stripe customer (handle stale IDs from env switches)
+      let customerId = (tenant as any).stripe_customer_id as string | null;
+      if (customerId) {
+        try {
+          const existing = await stripe.customers.retrieve(customerId);
+          if ((existing as any).deleted) customerId = null;
+        } catch (err: any) {
+          if (err.code === "resource_missing") {
+            request.log.warn({ tenantId, customerId }, "Stale stripe_customer_id — will recreate");
+            customerId = null;
+          } else {
+            throw err;
+          }
+        }
+        if (!customerId) {
+          await query(`UPDATE tenants SET stripe_customer_id = NULL, updated_at = NOW() WHERE id = $1`, [tenantId]);
         }
       }
       if (!customerId) {
-        await query(`UPDATE tenants SET stripe_customer_id = NULL, updated_at = NOW() WHERE id = $1`, [tenantId]);
+        const customer = await stripe.customers.create({
+          email: tenant.owner_email,
+          name: tenant.shop_name,
+          metadata: { tenant_id: tenantId },
+        });
+        customerId = customer.id;
+
+        // Persist the new customer ID
+        await query(
+          `UPDATE tenants SET stripe_customer_id = $1, updated_at = NOW() WHERE id = $2`,
+          [customerId, tenantId]
+        );
+
+        request.log.info({ tenantId, customerId }, "Created Stripe customer");
       }
-    }
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: tenant.owner_email,
-        name: tenant.shop_name,
+
+      // Demo→trial upgrade: 14-day Stripe trial (card captured, no charge today).
+      // Direct plan purchase (already trialing or upgrading): charge immediately.
+      const isDemoUpgrade = startTrial || tenant.billing_status === "demo";
+      const subscriptionData: Record<string, unknown> = {
         metadata: { tenant_id: tenantId },
+      };
+      if (isDemoUpgrade) {
+        subscriptionData.trial_period_days = 14;
+      }
+
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        mode: "subscription",
+        line_items: [{ price: priceId, quantity: 1 }],
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        subscription_data: subscriptionData as any,
+        metadata: { tenant_id: tenantId },
+        payment_method_types: ["card"],
+        billing_address_collection: "auto",
       });
-      customerId = customer.id;
 
-      // Persist the new customer ID
-      await query(
-        `UPDATE tenants SET stripe_customer_id = $1, updated_at = NOW() WHERE id = $2`,
-        [customerId, tenantId]
-      );
+      request.log.info({ tenantId, plan, sessionId: session.id }, "Stripe checkout session created");
 
-      request.log.info({ tenantId, customerId }, "Created Stripe customer");
+      return reply.status(200).send({ url: session.url });
+    } catch (err) {
+      // Clear idempotency lock so the user can retry
+      await clearIdempotency(idempotencyKey);
+      throw err;
     }
-
-    // Demo→trial upgrade: 14-day Stripe trial (card captured, no charge today).
-    // Direct plan purchase (already trialing or upgrading): charge immediately.
-    const isDemoUpgrade = startTrial || tenant.billing_status === "demo";
-    const subscriptionData: Record<string, unknown> = {
-      metadata: { tenant_id: tenantId },
-    };
-    if (isDemoUpgrade) {
-      subscriptionData.trial_period_days = 14;
-    }
-
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      mode: "subscription",
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      subscription_data: subscriptionData as any,
-      metadata: { tenant_id: tenantId },
-      payment_method_types: ["card"],
-      billing_address_collection: "auto",
-    });
-
-    request.log.info({ tenantId, plan, sessionId: session.id }, "Stripe checkout session created");
-
-    return reply.status(200).send({ url: session.url });
   });
 }
