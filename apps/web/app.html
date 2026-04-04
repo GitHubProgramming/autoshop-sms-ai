@@ -2230,17 +2230,25 @@ function injectDemoData() {
     total_appointments: 47
   };
 
-  // Appointment summary
+  // Appointment summary (field names must match renderAppointmentsPage expectations)
+  var todayBase = new Date(); todayBase.setHours(0,0,0,0);
   apptSummary = {
     total_this_month: 23,
-    ai_booked_this_month: 19,
+    ai_booked_this_month: 23,
     ai_booked_this_month_pct: 83,
     manual_this_month: 4,
-    today_count: 4,
-    week_count: 12,
-    ai_pct: 83,
+    // Fields consumed by renderAppointmentsPage()
+    total_today: 4,
+    total_week: 12,
+    ai_booked_count: 19,
+    ai_booked_pct: 83,
     showup_rate: 91,
-    today_appointments: [],
+    today_appointments: [
+      { id: 'demo-today-1', customerName: 'Mike Johnson', phone: '(555) 234-5678', service: 'Oil Change + Tire Rotation', vehicle: '2019 Honda Accord', source: 'AI', syncStatus: 'synced', syncLabel: 'Confirmed', bookingState: 'CONFIRMED', rawScheduledAt: new Date(todayBase.getTime() + 9*3600000).toISOString(), duration: '45 min', isTest: false, finalPrice: null, completedAt: null, failNote: '' },
+      { id: 'demo-today-2', customerName: 'Sarah Williams', phone: '(555) 876-5432', service: 'Brake Inspection', vehicle: '2021 Toyota RAV4', source: 'AI', syncStatus: 'synced', syncLabel: 'Confirmed', bookingState: 'CONFIRMED', rawScheduledAt: new Date(todayBase.getTime() + 11*3600000).toISOString(), duration: '30 min', isTest: false, finalPrice: null, completedAt: null, failNote: '' },
+      { id: 'demo-today-3', customerName: 'Robert Chen', phone: '(555) 111-2233', service: 'Transmission Fluid Change', vehicle: '2017 Ford F-150', source: 'AI', syncStatus: 'synced', syncLabel: 'Confirmed', bookingState: 'CONFIRMED', rawScheduledAt: new Date(todayBase.getTime() + 14*3600000).toISOString(), duration: '60 min', isTest: false, finalPrice: null, completedAt: null, failNote: '' },
+      { id: 'demo-today-4', customerName: 'Lisa Park', phone: '(555) 777-8899', service: 'A/C Recharge', vehicle: '2020 Nissan Altima', source: 'AI', syncStatus: 'pending', syncLabel: 'Pending', bookingState: 'PENDING', rawScheduledAt: new Date(todayBase.getTime() + 16*3600000).toISOString(), duration: '45 min', isTest: false, finalPrice: null, completedAt: null, failNote: '' }
+    ],
     upcoming_appointments: []
   };
 
@@ -6053,8 +6061,9 @@ function renderAppointmentsPage() {
   if (el('apptStatWeekSub')) el('apptStatWeekSub').textContent = weekCount + ' this week';
   if (el('apptStatAI')) el('apptStatAI').textContent = aiPct > 0 ? aiPct + '%' : '—';
   if (el('apptStatAISub')) el('apptStatAISub').textContent = aiCount > 0 ? aiCount + ' AI booked' : '—';
-  if (el('apptStatShowup')) el('apptStatShowup').textContent = '—';
-  if (el('apptStatShowupSub')) el('apptStatShowupSub').textContent = 'Tracking soon';
+  var showupRate = s.showup_rate;
+  if (el('apptStatShowup')) el('apptStatShowup').textContent = showupRate != null ? showupRate + '%' : '—';
+  if (el('apptStatShowupSub')) el('apptStatShowupSub').textContent = showupRate != null ? 'Completed appointments' : 'Tracking soon';
 
   // Today title with date
   var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
