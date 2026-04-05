@@ -1,24 +1,24 @@
 {
   "meta": {
     "version": 2,
-    "last_updated": "2026-03-18T21:10:00Z",
+    "last_updated": "2026-04-05T12:00:00Z",
     "updated_by": "claude",
-    "repo_branch": "main"
+    "repo_branch": "ai/google-oauth-diagnostic"
   },
   "executive": {
     "project_name": "AutoShop AI Agent SaaS",
-    "current_mission": "Full SMS pipeline production-verified — awaiting human demo run and pilot onboarding",
-    "current_node_id": "calendar_reliability",
-    "overall_progress": 71,
+    "current_mission": "Calendar OAuth verified — awaiting human end-to-end demo run and pilot onboarding",
+    "current_node_id": "end_to_end_demo_run",
+    "overall_progress": 76,
     "momentum": "progressing",
     "ai_can_continue_now": true,
     "human_action_required": true,
     "demo_ready_path_complete": false,
-    "current_blocker_summary": "Full SMS pipeline verified in production (webhook → AI → booking → calendar → SMS reply). Voice webhook live. Awaiting human end-to-end demo run and Google OAuth browser consent."
+    "current_blocker_summary": "Full SMS pipeline + Google Calendar OAuth verified in production. Awaiting human end-to-end demo run and external SMS test."
   },
   "critical_path": {
     "title": "Path to MVP Demo",
-    "completion_ratio": "4/7",
+    "completion_ratio": "5/7",
     "nodes": [
       {
         "id": "twilio_number_ready",
@@ -57,7 +57,7 @@
       {
         "id": "calendar_booking_working",
         "title": "Calendar booking works",
-        "status": "in_progress",
+        "status": "done",
         "owner": "human",
         "depends_on": [
           "booking_intent_parsing"
@@ -185,8 +185,8 @@
       "id": "calendar_reliability",
       "title": "Calendar & Booking Reliability",
       "weight": 15,
-      "status": "in_progress",
-      "progress": 80,
+      "status": "done",
+      "progress": 100,
       "owner": "human",
       "depends_on": [
         "core_messaging_ai"
@@ -213,12 +213,12 @@
         {
           "id": "oauth_end_to_end_validation",
           "title": "Google Calendar OAuth end-to-end human verification",
-          "status": "todo",
+          "status": "done",
           "owner": "human"
         }
       ],
-      "next_task": "Human must complete OAuth consent flow in browser to verify end-to-end",
-      "last_change": "2026-03-15"
+      "next_task": null,
+      "last_change": "2026-04-05"
     },
     {
       "id": "admin_visibility_control",
@@ -356,13 +356,13 @@
       "id": "verify_google_oauth",
       "title": "Complete Google Calendar OAuth consent in browser",
       "priority": "high",
-      "status": "waiting",
+      "status": "done",
       "blocks": [
         "calendar_reliability",
         "end_to_end_demo_run"
       ],
       "impact": "Unblocks calendar booking proof in live flow",
-      "required_action": "OAuth callback code and env vars are fixed (PR #94). Open /auth/google/url in browser, complete consent, confirm calendar event creation works."
+      "required_action": "Completed 2026-04-05. OAuth consent flow verified, tokens saved and decrypted successfully."
     },
     {
       "id": "run_external_sms_test",
@@ -377,17 +377,15 @@
     }
   ],
   "active_backlog": [],
-  "blocked_backlog": [
-    {
-      "id": "oauth_live_check",
-      "title": "Google OAuth browser consent (code fixed, needs human click-through)",
-      "status": "todo",
-      "owner": "human",
-      "blocked_by": "requires human browser interaction",
-      "stage_id": "calendar_reliability"
-    }
-  ],
+  "blocked_backlog": [],
   "recent_movements": [
+    {
+      "date": "2026-04-05",
+      "type": "task_done",
+      "title": "Google Calendar OAuth verified in production — tokens saved and decrypted successfully",
+      "impact": "Stage 4 complete. OAuth consent flow verified by Owner. access_token + refresh_token saved to tenant_calendar_tokens, decryption confirmed via /internal/calendar-tokens endpoint. Tenant 90d1e2f2-b499-4710-9134-bab0a9a5ab4c.",
+      "branch": "ai/google-oauth-diagnostic"
+    },
     {
       "date": "2026-03-18",
       "type": "task_done",
