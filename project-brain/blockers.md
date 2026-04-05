@@ -11,14 +11,7 @@ Only real blockers that currently prevent progress. Remove entries when resolved
 - **Required action:** Manual setup in n8n UI with real API keys
 - **Impact:** Cannot run end-to-end SMS test flows. All workflow JSONs are committed but cannot execute.
 
-### 2. Google Calendar OAuth verification
-- **What:** OAuth credentials exist in .env but the end-to-end flow has never been verified
-- **Owner:** Human
-- **Affects:** Stage 4 (Calendar & Booking Reliability)
-- **Required action:** Complete OAuth flow test with existing credentials
-- **Impact:** Calendar sync code is built and tested (24 tests) but unverified against real Google API.
-
-### 3. First pilot tenant
+### 2. First pilot tenant
 - **What:** No real auto repair shop onboarded yet
 - **Owner:** Human
 - **Affects:** Stage 7 (First Live Pilot)
@@ -27,4 +20,4 @@ Only real blockers that currently prevent progress. Remove entries when resolved
 
 ## Resolved Blockers
 
-_Move resolved blockers here with date and resolution._
+- **2026-04-05 — Google Calendar OAuth verification:** Owner completed OAuth consent flow. access_token + refresh_token saved to tenant_calendar_tokens. Token decryption verified via /internal/calendar-tokens endpoint. Stage 4 complete.

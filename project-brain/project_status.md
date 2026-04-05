@@ -7,15 +7,15 @@
 
 ## Project Completion Estimate
 
-**~71%** (weighted)
+**~76%** (weighted)
 
 Calculated from weighted stage progress below. Only objectively verifiable progress counts. Code-complete but unverified stages are capped at 40-50%.
 
 ## Current Focus
 
-**Full SMS pipeline production-verified** — awaiting human end-to-end demo run and pilot onboarding.
+**Calendar OAuth verified** — awaiting human end-to-end demo run and pilot onboarding.
 
-Pipeline verified in production: inbound SMS webhook → AI conversation → booking intent → appointment → Google Calendar event → outbound SMS reply. Voice webhook live (call forwarding + missed-call detection).
+Pipeline verified in production: inbound SMS webhook → AI conversation → booking intent → appointment → Google Calendar event → outbound SMS reply. Voice webhook live. Google Calendar OAuth verified — tokens saved and decrypted.
 
 Phase: Production-verified, awaiting human demo run.
 
@@ -23,15 +23,14 @@ Phase: Production-verified, awaiting human demo run.
 
 | Blocker | Required Action | Owner | Stages Affected |
 |---------|----------------|-------|-----------------|
-| Google OAuth browser consent | Open /auth/google/url in browser, complete consent, confirm calendar event creation | Human | 4, 6 |
 | External SMS + call test | Send SMS from personal phone to +13257523890 and confirm reply; call and let ring to test missed-call trigger | Human | 2, 3, 6 |
 
 ## Next Milestones
 
 | Milestone | Depends On | Target Stage |
 |-----------|-----------|--------------|
-| Google Calendar OAuth verified | Human browser consent | 4 |
-| End-to-end demo run recorded | OAuth + external SMS test | 6 |
+| ~~Google Calendar OAuth verified~~ | ~~Human browser consent~~ | ~~4~~ (DONE 2026-04-05) |
+| End-to-end demo run recorded | External SMS test | 6 |
 | First pilot tenant onboarded | Demo run complete | 7 |
 
 ## Stage Progress
@@ -41,18 +40,17 @@ Phase: Production-verified, awaiting human demo run.
 | 1 | Foundation & Operating Model | 10% | done | 100% | 10.0% |
 | 2 | TEST Sandbox Workflow Chain | 15% | done | 90% | 13.5% |
 | 3 | Core Messaging & AI Flow | 25% | in_progress | 80% | 20.0% |
-| 4 | Calendar & Booking Reliability | 15% | in_progress | 80% | 12.0% |
+| 4 | Calendar & Booking Reliability | 15% | done | 100% | 15.0% |
 | 5 | Admin Visibility & Control | 10% | done | 100% | 10.0% |
 | 6 | Production Readiness | 15% | in_progress | 50% | 7.5% |
 | 7 | First Live Pilot | 10% | not_started | 0% | 0.0% |
-| | **Total** | **100%** | | | **~71%** |
+| | **Total** | **100%** | | | **~76%** |
 
-> Progress recalculated 2026-03-18: 10 + 13.5 + 20 + 12 + 10 + 7.5 + 0 = 73 → 71% (conservative)
+> Progress recalculated 2026-04-05: 10 + 13.5 + 20 + 15 + 10 + 7.5 + 0 = 76%
 
 ## Active Tasks
 
 ### Waiting on Human
-- Complete Google Calendar OAuth consent in browser
 - Send real SMS from personal phone to +13257523890 and confirm AI reply
 - Call +13257523890 and let it ring to test missed-call trigger
 
@@ -61,6 +59,7 @@ Phase: Production-verified, awaiting human demo run.
 
 ## Done (Recent)
 
+- Google Calendar OAuth verified in production — tokens saved and decrypted (ai/google-oauth-diagnostic)
 - Billing hardening: blocked tenant auto-reply, Twilio suspension on cancel, chargeback admin alert (ai/billing-hardening)
 - Pipeline failure alerting: alerts table, owner SMS notification, admin endpoints, dead-letter capture (ai/pipeline-alerts)
 - Tenant health monitoring: per-tenant conversation, booking, pipeline, calendar metrics with Health tab in admin (ai/tenant-health-monitoring)
@@ -88,6 +87,7 @@ Phase: Production-verified, awaiting human demo run.
 
 | Date | Change | Branch/PR |
 |------|--------|-----------|
+| 2026-04-05 | **Stage 4 complete:** Google Calendar OAuth verified in production — tokens saved and decrypted | ai/google-oauth-diagnostic |
 | 2026-03-18 | Billing hardening: blocked tenant auto-reply, Twilio suspension on cancel, chargeback alert | ai/billing-hardening |
 | 2026-03-18 | Pipeline failure alerting: alerts table, owner SMS, admin endpoints, dead-letter capture | ai/pipeline-alerts |
 | 2026-03-16 | Tenant health monitoring: per-tenant conversation, booking, pipeline, calendar metrics + admin tab | ai/tenant-health-monitoring |
@@ -111,7 +111,7 @@ Phase: Production-verified, awaiting human demo run.
 
 ## Next Owner Decision
 
-- Complete Google OAuth browser consent to verify calendar booking
+- ~~Complete Google OAuth browser consent to verify calendar booking~~ (DONE 2026-04-05)
 - Send real SMS and make test call to verify full live flow
 - Begin first pilot shop onboarding when ready
 
