@@ -1,0 +1,251 @@
+{
+  "id": "WF-LEADS-TO-SHEET",
+  "name": "WF-LEADS-TO-SHEET",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "leads-sheet-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "leads-to-sheet",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "leads-sheet-webhook",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 500],
+      "webhookId": "leads-to-sheet"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  business_name,\n  phone,\n  address,\n  city,\n  state,\n  email,\n  email_status,\n  smartlead_status,\n  created_at AS exported_at,\n  CASE\n    WHEN email IS NULL OR email = '' THEN 'No email'\n    WHEN email_status = 'missing' THEN 'Email missing'\n    WHEN needs_manual_review THEN 'Needs review'\n    ELSE ''\n  END AS notes\nFROM lead_master\nORDER BY city ASC, business_name ASC",
+        "options": {}
+      },
+      "id": "leads-sheet-select",
+      "name": "Postgres - Select All Leads",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [550, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "AutoShop Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "clear",
+        "documentId": {
+          "__rl": true,
+          "value": "1MaI1ohFNHAW4xayh7frWMIlMvxwv0UdufF7BDSMnM4I",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "All Leads",
+          "mode": "name"
+        },
+        "clear": "exceptFirstRow",
+        "options": {}
+      },
+      "id": "leads-sheet-clear",
+      "name": "Google Sheets - Clear Data",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [850, 400],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google-sheets-creds",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1MaI1ohFNHAW4xayh7frWMIlMvxwv0UdufF7BDSMnM4I",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "All Leads",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Business Name": "={{ $json.business_name }}",
+            "Phone": "={{ $json.phone }}",
+            "Address": "={{ $json.address }}",
+            "City": "={{ $json.city }}",
+            "State": "={{ $json.state }}",
+            "Email": "={{ $json.email }}",
+            "Email Status": "={{ $json.email_status }}",
+            "Smartlead Status": "={{ $json.smartlead_status }}",
+            "Exported At": "={{ $json.exported_at }}",
+            "Notes": "={{ $json.notes }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "leads-sheet-append",
+      "name": "Google Sheets - Write Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1150, 400],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google-sheets-creds",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, leads_written: $input.all().length, timestamp: new Date().toISOString() }) }}"
+      },
+      "id": "leads-sheet-response",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1450, 500]
+    },
+    {
+      "parameters": {
+        "value": "={{ $input.all().length }}",
+        "output": "noData",
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $input.all().length }}",
+              "operation": "equal",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "leads-sheet-check-empty",
+      "name": "IF - No Leads",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [700, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, error: 'No leads found in database' }) }}"
+      },
+      "id": "leads-sheet-empty-response",
+      "name": "Respond Empty",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [900, 600]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Postgres - Select All Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Postgres - Select All Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres - Select All Leads": {
+      "main": [
+        [
+          {
+            "node": "IF - No Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - No Leads": {
+      "main": [
+        [
+          {
+            "node": "Respond Empty",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Google Sheets - Clear Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets - Clear Data": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets - Write Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets - Write Leads": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "leads"
+    },
+    {
+      "name": "export"
+    },
+    {
+      "name": "google-sheets"
+    }
+  ],
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}
