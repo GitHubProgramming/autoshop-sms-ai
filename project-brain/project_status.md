@@ -7,23 +7,23 @@
 
 ## Project Completion Estimate
 
-**~76%** (weighted)
+**~77%** (weighted)
 
 Calculated from weighted stage progress below. Only objectively verifiable progress counts. Code-complete but unverified stages are capped at 40-50%.
 
 ## Current Focus
 
-**Calendar OAuth verified** — awaiting human end-to-end demo run and pilot onboarding.
+**Missed-call trigger verified** — awaiting A2P 10DLC approval for AI conversation test.
 
-Pipeline verified in production: inbound SMS webhook → AI conversation → booking intent → appointment → Google Calendar event → outbound SMS reply. Voice webhook live. Google Calendar OAuth verified — tokens saved and decrypted.
+Pipeline verified in production: missed call → SMS trigger works (verified 2026-04-05). Google Calendar OAuth verified. AI conversation reply blocked by Telia LT carrier — not a code issue, deferred until Twilio A2P 10DLC campaign approved.
 
-Phase: Production-verified, awaiting human demo run.
+Phase: Production-verified, awaiting carrier approval for full conversation test.
 
 ## Current Blockers
 
 | Blocker | Required Action | Owner | Stages Affected |
 |---------|----------------|-------|-----------------|
-| External SMS + call test | Send SMS from personal phone to +13257523890 and confirm reply; call and let ring to test missed-call trigger | Human | 2, 3, 6 |
+| AI conversation reply test | Missed-call trigger verified. AI reply blocked by Telia LT carrier — deferred until Twilio A2P 10DLC approved | Human | 3, 6 |
 
 ## Next Milestones
 
@@ -39,26 +39,27 @@ Phase: Production-verified, awaiting human demo run.
 |---|-------|--------|--------|----------|----------|
 | 1 | Foundation & Operating Model | 10% | done | 100% | 10.0% |
 | 2 | TEST Sandbox Workflow Chain | 15% | done | 90% | 13.5% |
-| 3 | Core Messaging & AI Flow | 25% | in_progress | 80% | 20.0% |
+| 3 | Core Messaging & AI Flow | 25% | in_progress | 85% | 21.25% |
 | 4 | Calendar & Booking Reliability | 15% | done | 100% | 15.0% |
 | 5 | Admin Visibility & Control | 10% | done | 100% | 10.0% |
 | 6 | Production Readiness | 15% | in_progress | 50% | 7.5% |
 | 7 | First Live Pilot | 10% | not_started | 0% | 0.0% |
-| | **Total** | **100%** | | | **~76%** |
+| | **Total** | **100%** | | | **~77%** |
 
-> Progress recalculated 2026-04-05: 10 + 13.5 + 20 + 15 + 10 + 7.5 + 0 = 76%
+> Progress recalculated 2026-04-05: 10 + 13.5 + 21.25 + 15 + 10 + 7.5 + 0 = 77.25 → 77%
 
 ## Active Tasks
 
 ### Waiting on Human
-- Send real SMS from personal phone to +13257523890 and confirm AI reply
-- Call +13257523890 and let it ring to test missed-call trigger
+- ~~Call +13257523890 and let it ring to test missed-call trigger~~ (DONE 2026-04-05)
+- AI conversation reply test — blocked by Telia LT carrier, deferred until Twilio A2P 10DLC approved
 
 ### AI Next
 - Stage 6 billing code complete — Stripe live-test requires real credentials (human)
 
 ## Done (Recent)
 
+- Missed-call SMS trigger verified in production — call triggered automatic SMS within seconds (ai/stage3-missed-call-verified)
 - Google Calendar OAuth verified in production — tokens saved and decrypted (ai/google-oauth-diagnostic)
 - Billing hardening: blocked tenant auto-reply, Twilio suspension on cancel, chargeback admin alert (ai/billing-hardening)
 - Pipeline failure alerting: alerts table, owner SMS notification, admin endpoints, dead-letter capture (ai/pipeline-alerts)
@@ -87,6 +88,7 @@ Phase: Production-verified, awaiting human demo run.
 
 | Date | Change | Branch/PR |
 |------|--------|-----------|
+| 2026-04-05 | Missed-call SMS trigger verified in production — call from LT triggered automatic SMS | ai/stage3-missed-call-verified |
 | 2026-04-05 | **Stage 4 complete:** Google Calendar OAuth verified in production — tokens saved and decrypted | ai/google-oauth-diagnostic |
 | 2026-03-18 | Billing hardening: blocked tenant auto-reply, Twilio suspension on cancel, chargeback alert | ai/billing-hardening |
 | 2026-03-18 | Pipeline failure alerting: alerts table, owner SMS, admin endpoints, dead-letter capture | ai/pipeline-alerts |

@@ -1,20 +1,20 @@
 {
   "meta": {
     "version": 2,
-    "last_updated": "2026-04-05T12:00:00Z",
+    "last_updated": "2026-04-05T14:00:00Z",
     "updated_by": "claude",
-    "repo_branch": "ai/google-oauth-diagnostic"
+    "repo_branch": "ai/stage3-missed-call-verified"
   },
   "executive": {
     "project_name": "AutoShop AI Agent SaaS",
-    "current_mission": "Calendar OAuth verified — awaiting human end-to-end demo run and pilot onboarding",
+    "current_mission": "Missed-call trigger verified — awaiting A2P 10DLC approval for AI conversation test",
     "current_node_id": "end_to_end_demo_run",
-    "overall_progress": 76,
+    "overall_progress": 77,
     "momentum": "progressing",
     "ai_can_continue_now": true,
     "human_action_required": true,
     "demo_ready_path_complete": false,
-    "current_blocker_summary": "Full SMS pipeline + Google Calendar OAuth verified in production. Awaiting human end-to-end demo run and external SMS test."
+    "current_blocker_summary": "Missed-call SMS trigger verified in production. AI conversation reply blocked by Telia LT carrier — not a code issue. Deferred until Twilio A2P 10DLC campaign approved."
   },
   "critical_path": {
     "title": "Path to MVP Demo",
@@ -141,7 +141,7 @@
       "title": "Core Messaging & AI Flow",
       "weight": 25,
       "status": "in_progress",
-      "progress": 80,
+      "progress": 85,
       "owner": "ai",
       "depends_on": [
         "test_workflow_chain"
@@ -178,8 +178,8 @@
           "owner": "ai"
         }
       ],
-      "next_task": "Awaiting human external SMS test to confirm full live path",
-      "last_change": "2026-03-15"
+      "next_task": "AI conversation reply deferred until Twilio A2P 10DLC campaign approved (carrier block, not code issue)",
+      "last_change": "2026-04-05"
     },
     {
       "id": "calendar_reliability",
@@ -366,19 +366,26 @@
     },
     {
       "id": "run_external_sms_test",
-      "title": "Send real SMS from personal phone to verify live flow",
+      "title": "Verify AI conversation reply via SMS",
       "priority": "high",
       "status": "waiting",
       "blocks": [
         "end_to_end_demo_run"
       ],
       "impact": "Confirms the full pipeline works from an external caller's perspective",
-      "required_action": "Send SMS from personal phone to +13257523890 and confirm AI reply. Call +13257523890 and let it ring to test missed-call trigger."
+      "required_action": "Missed-call trigger verified 2026-04-05 (call from LT → +13257523890 → automatic SMS sent). AI conversation reply blocked by Telia LT carrier — not a code issue. Deferred until Twilio A2P 10DLC campaign approved."
     }
   ],
   "active_backlog": [],
   "blocked_backlog": [],
   "recent_movements": [
+    {
+      "date": "2026-04-05",
+      "type": "task_done",
+      "title": "Missed-call SMS trigger verified in production — call to +13257523890 triggered automatic SMS within seconds",
+      "impact": "Stage 3 partial verification. Call from Lithuania to Twilio number detected as missed call, system sent SMS automatically. AI conversation reply blocked by Telia LT carrier (not a code issue) — deferred until Twilio A2P 10DLC approved.",
+      "branch": "ai/stage3-missed-call-verified"
+    },
     {
       "date": "2026-04-05",
       "type": "task_done",
