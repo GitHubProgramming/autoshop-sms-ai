@@ -527,6 +527,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .empty-steps{display:inline-flex;flex-direction:column;gap:8px;text-align:left;margin-bottom:20px}
 .empty-step{font-family:var(--mono);font-size:12px;color:var(--text-secondary)}
 .empty-step span{color:var(--rust);margin-right:6px}
+.fetch-spinner{width:28px;height:28px;border:3px solid #E5E7EB;border-top-color:var(--rust);border-radius:50%;animation:fetch-spin .7s linear infinite;margin:0 auto 12px}
+@keyframes fetch-spin{to{transform:rotate(360deg)}}
+.fetch-error-state{padding:40px 24px;text-align:center;border-radius:var(--radius-lg);background:#FEF2F2;border:1px solid #FECACA}
+.fetch-error-icon{font-size:24px;margin-bottom:8px}
+.fetch-error-title{font-size:14px;font-weight:600;color:#dc2626;margin-bottom:4px}
+.fetch-error-sub{font-size:12px;color:#6b7280;margin-bottom:16px}
+.fetch-error-retry{display:inline-block;padding:8px 20px;font-size:13px;font-weight:600;color:#fff;background:#dc2626;border:none;border-radius:6px;cursor:pointer;transition:background .15s}
+.fetch-error-retry:hover{background:#b91c1c}
 
 /* ── REVENUE SIDEBAR ── */
 .revenue-sidebar{display:flex;flex-direction:column;gap:12px}
@@ -2199,6 +2207,11 @@ let dashboardStats = {};
 let kpiSummary = null; // Real KPI data from /tenant/kpi/summary
 let apptSummary = null; // Real appointment KPIs from /tenant/appointments-summary
 
+// Fetch state flags — track loading/error for each data section
+let dashboardLoadError = false;
+let kpiLoadError = false;
+let apptLoadError = false;
+
 // ════════════════════════════════════════════
 // DEMO MODE — sample data for new accounts
 // ════════════════════════════════════════════
@@ -2461,6 +2474,68 @@ function mapConvStatus(dbStatus) {
 }
 
 // ════════════════════════════════════════════
+// FETCH ERROR STATE HELPER
+// ════════════════════════════════════════════
+function renderFetchError(containerId, retryFnName, message) {
+  var el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML =
+    '<div class="fetch-error-state">' +
+      '<div class="fetch-error-icon">&#9888;</div>' +
+      '<div class="fetch-error-title">' + (message || 'Failed to load data') + '</div>' +
+      '<div class="fetch-error-sub">Check your connection and try again.</div>' +
+      '<button class="fetch-error-retry" onclick="' + retryFnName + '()">Try Again</button>' +
+    '</div>';
+}
+
+// ════════════════════════════════════════════
+// RETRY FUNCTIONS — re-fetch + re-render a section
+// ════════════════════════════════════════════
+async function retryDashboardLoad() {
+  // Show loading in the KPI grid while retrying
+  var kpiGrid = document.getElementById('kpiGrid');
+  if (kpiGrid) kpiGrid.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-tertiary);"><div class="fetch-spinner"></div>Loading dashboard data&hellip;</div>';
+  var dashConv = document.getElementById('dashConvBody');
+  if (dashConv) dashConv.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-tertiary);"><div class="fetch-spinner"></div>Loading&hellip;</div>';
+
+  await loadDashboardData();
+  await loadKpiData();
+
+  if (dashboardLoadError) {
+    renderFetchError('kpiGrid', 'retryDashboardLoad', 'Unable to load dashboard');
+    renderFetchError('dashConvBody', 'retryDashboardLoad', 'Unable to load conversations');
+  } else {
+    if (tenantState.isDemo || tenantState.status === 'demo') injectDemoData();
+    renderBanners();
+    renderLiveKPIs();
+    renderDashConvTable(liveConversationsData);
+    renderLiveRevenueBlocks();
+    renderLivePipeline();
+    renderSidebarStatus();
+    renderSystemHero();
+    loadRevenueChart();
+  }
+}
+
+async function retryConversationsLoad() {
+  var list = document.getElementById('convInboxList');
+  if (list) list.innerHTML = '<div style="padding:40px 16px;text-align:center;color:var(--text-tertiary);"><div class="fetch-spinner"></div>Loading conversations&hellip;</div>';
+
+  await loadConversationsData();
+  renderFullConvTable(conversationsData);
+}
+
+async function retryApptLoad() {
+  var container = document.getElementById('apptTodayCards');
+  if (container) container.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-tertiary);"><div class="fetch-spinner"></div>Loading appointments&hellip;</div>';
+
+  await loadApptSummary();
+  renderAppointmentsPage();
+  renderTodayAppointments();
+  renderBookings();
+}
+
+// ════════════════════════════════════════════
 // FETCH REAL TENANT DATA FROM API
 // ════════════════════════════════════════════
 async function loadDashboardData() {
@@ -2477,8 +2552,12 @@ async function loadDashboardData() {
       window.location.replace('/login?next=/app/dashboard');
       return false;
     }
-    if (!res.ok) return false;
+    if (!res.ok) {
+      dashboardLoadError = true;
+      return false;
+    }
 
+    dashboardLoadError = false;
     var data = await res.json();
     dashboardStats = data.stats;
 
@@ -2562,6 +2641,7 @@ async function loadDashboardData() {
     return true;
   } catch (err) {
     console.error('Dashboard data fetch failed:', err);
+    dashboardLoadError = true;
     return false;
   }
 }
@@ -2632,9 +2712,13 @@ async function loadKpiData() {
     });
     if (res.ok) {
       kpiSummary = await res.json();
+      kpiLoadError = false;
+    } else {
+      kpiLoadError = true;
     }
   } catch (err) {
     console.error('KPI data fetch failed:', err);
+    kpiLoadError = true;
   }
 }
 
@@ -2654,9 +2738,13 @@ async function loadApptSummary() {
       data.today_appointments = (data.today_appointments || []).map(mapAppointment);
       data.upcoming_appointments = (data.upcoming_appointments || []).map(mapAppointment);
       apptSummary = data;
+      apptLoadError = false;
+    } else {
+      apptLoadError = true;
     }
   } catch (err) {
     console.error('Appointments summary fetch failed:', err);
+    apptLoadError = true;
   }
 }
 
@@ -3374,7 +3462,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   await loadApptSummary();
 
   // ── Demo mode: inject sample data so dashboard looks alive ──
-  if (tenantState.isDemo || tenantState.status === 'demo') {
+  if (!dashboardLoadError && (tenantState.isDemo || tenantState.status === 'demo')) {
     injectDemoData();
   }
 
@@ -3396,26 +3484,42 @@ document.addEventListener('DOMContentLoaded', async function() {
   renderNav();
   renderChecklist();
   renderHealthGrid();
-  renderDashConvTable(liveConversationsData);
+
+  // ── Dashboard main view: show error state or real data ──
+  if (dashboardLoadError) {
+    renderFetchError('kpiGrid', 'retryDashboardLoad', 'Unable to load dashboard');
+    renderFetchError('dashConvBody', 'retryDashboardLoad', 'Unable to load recent conversations');
+  } else {
+    renderDashConvTable(liveConversationsData);
+    renderLiveKPIs();
+    renderLivePipeline();
+    renderLiveRevenueBlocks();
+    loadRevenueChart();
+    renderSystemHero();
+    renderSidebarStatus();
+  }
+
+  // ── Conversations view ──
   renderFullConvTable(conversationsData);
   renderConvInbox();
+
+  // ── Appointments view: show error state or real data ──
+  if (apptLoadError) {
+    renderFetchError('apptTodayCards', 'retryApptLoad', 'Unable to load appointments');
+  } else {
+    renderTodayAppointments();
+    renderAppointmentsPage();
+  }
+
   renderBookings();
   renderBillingPage();
   renderBookingsCalendarAlert();
-  renderSystemHero();
-  renderSidebarStatus();
   checkActivationState();
-  renderLiveKPIs();
-  renderLivePipeline();
-  renderLiveRevenueBlocks();
-  loadRevenueChart();
   loadAnRevenueChart();
   loadAnConversationChart();
   loadMissedCallRecovery();
   loadResponseTime();
   renderActionNeeded();
-  renderTodayAppointments();
-  renderAppointmentsPage();
   updateSidebarBadge();
   populateSettingsFromDashboard();
 
@@ -3967,7 +4071,7 @@ function renderDashConvTable(data) {
 function renderFullConvTable(data) {
   const tbody = document.getElementById('fullConvBody');
   if (conversationsLoadError) {
-    document.getElementById('convTableContainer').innerHTML = '<div class="empty-state"><div class="empty-icon" style="font-size:24px;">&#9888;</div><div class="empty-title" style="color:#dc2626;">Failed to load conversations</div><div class="empty-sub">Please refresh the page or try again later.</div></div>';
+    document.getElementById('convTableContainer').innerHTML = '<div class="fetch-error-state"><div class="fetch-error-icon">&#9888;</div><div class="fetch-error-title">Failed to load conversations</div><div class="fetch-error-sub">Check your connection and try again.</div><button class="fetch-error-retry" onclick="retryConversationsLoad()">Try Again</button></div>';
     return;
   }
   if (!data.length) {
@@ -4993,6 +5097,11 @@ function renderSystemHero() {
 // LIVE KPI RENDERING (from API data)
 // ════════════════════════════════════════════
 function renderLiveKPIs() {
+  // If KPI fetch failed (and dashboard also failed), show error in KPI grid
+  if (kpiLoadError && dashboardLoadError) {
+    renderFetchError('kpiGrid', 'retryDashboardLoad', 'Unable to load metrics');
+    return;
+  }
   // ALL values come from real KPI API data.
   // No hardcoded values, no demo fallbacks, no fake percentages.
   // If no data exists, show 0 or empty state.
@@ -5443,7 +5552,7 @@ function renderConvInbox() {
   var list = document.getElementById('convInboxList');
   if (!list) return;
   if (conversationsLoadError) {
-    list.innerHTML = '<div class="conv-empty-state" style="padding:40px 16px;text-align:center;"><div style="font-size:24px;margin-bottom:8px;">&#9888;</div><div style="font-size:13px;font-weight:600;color:#dc2626;">Failed to load conversations</div><div style="font-size:12px;color:#6b7280;margin-top:4px;">Please refresh or try again</div></div>';
+    list.innerHTML = '<div class="fetch-error-state" style="margin:16px;"><div class="fetch-error-icon">&#9888;</div><div class="fetch-error-title">Failed to load conversations</div><div class="fetch-error-sub">Check your connection and try again.</div><button class="fetch-error-retry" onclick="retryConversationsLoad()">Try Again</button></div>';
     return;
   }
   if (!conversationsData.length) {
@@ -6085,6 +6194,17 @@ function filterCustomers(filterVal) {
 // APPOINTMENTS PAGE RENDERING
 // ════════════════════════════════════════════
 function renderAppointmentsPage() {
+  if (apptLoadError) {
+    var el = function(id) { return document.getElementById(id); };
+    if (el('apptStatToday')) el('apptStatToday').textContent = '—';
+    if (el('apptStatWeek')) el('apptStatWeek').textContent = '—';
+    if (el('apptStatAI')) el('apptStatAI').textContent = '—';
+    if (el('apptStatShowup')) el('apptStatShowup').textContent = '—';
+    renderFetchError('apptTodayCards', 'retryApptLoad', 'Unable to load appointments');
+    var upEl = document.getElementById('apptUpcomingCards');
+    if (upEl) upEl.innerHTML = '';
+    return;
+  }
   var today = new Date();
 
   // ── ALL data from backend — no client-side date filtering ──
