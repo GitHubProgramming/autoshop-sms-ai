@@ -548,7 +548,18 @@
             Verizon: <code>*71</code> then the number
           </div>
         </div>
-        <button class="btn-primary" onclick="goStep(4)">Done — I've set it up</button>
+        <!-- ── Test forwarding ── -->
+        <div id="fwdTestSection" style="margin:20px 0;padding:16px;border:1px solid var(--green-bdr, #86EFAC);border-radius:10px;background:var(--green-soft, #F0FDF4);">
+          <p style="font-size:13px;color:var(--text-sec);margin:0 0 12px;">
+            After setting up forwarding, verify it works:
+          </p>
+          <button class="btn-primary" id="fwdTestBtn" onclick="testCallForwarding()" style="font-size:14px;padding:11px 20px;">
+            Call My Shop to Test
+          </button>
+          <div id="fwdTestStatus" style="margin-top:12px;display:none;font-size:13px;line-height:1.5;"></div>
+        </div>
+
+        <button class="btn-primary" id="fwdDoneBtn" onclick="goStep(4)">Done — I've set it up</button>
         <button class="btn-secondary" onclick="goStep(4)">I'll do this later</button>
       </div>
     </div>
@@ -991,6 +1002,74 @@ function updateFwdNumber() {
   var el = document.getElementById('fwdTargetNum');
   if (el && assignedPhone) {
     el.textContent = formatPhone(assignedPhone);
+  }
+  // Show/hide test section based on whether we have both phones
+  var testSection = document.getElementById('fwdTestSection');
+  if (testSection) {
+    var hasBusinessPhone = document.getElementById('ownerPhone') && document.getElementById('ownerPhone').value.trim();
+    testSection.style.display = (assignedPhone && hasBusinessPhone) ? 'block' : 'none';
+  }
+}
+
+var _fwdTestPollTimer = null;
+async function testCallForwarding() {
+  var btn = document.getElementById('fwdTestBtn');
+  var statusEl = document.getElementById('fwdTestStatus');
+
+  btn.disabled = true;
+  btn.textContent = 'Calling your shop\u2026';
+  statusEl.style.display = 'block';
+  statusEl.innerHTML = '<div style="color:var(--text-sec);">\uD83D\uDCDE Calling your shop now \u2014 let it ring 4\u20135 times WITHOUT answering\u2026</div>';
+
+  try {
+    var res = await fetch('/tenant/test-call-forwarding', {
+      method: 'POST',
+      headers: authHeaders()
+    });
+
+    if (!res.ok) {
+      var err = await res.json().catch(function() { return {}; });
+      throw new Error(err.error || 'Could not initiate test call');
+    }
+
+    // Poll for result every 3 seconds, up to 20 attempts (60s)
+    var attempts = 0;
+    if (_fwdTestPollTimer) clearInterval(_fwdTestPollTimer);
+    _fwdTestPollTimer = setInterval(async function() {
+      attempts++;
+      if (attempts > 20) {
+        clearInterval(_fwdTestPollTimer);
+        btn.disabled = false;
+        btn.textContent = 'Try Again';
+        statusEl.innerHTML = '<div style="color:#D97706;">\u23F1 Test timed out. Try again, or click "Done" and test with a real call later.</div>';
+        return;
+      }
+
+      try {
+        var statusRes = await fetch('/tenant/test-call-forwarding/status', { headers: authHeaders() });
+        var statusData = await statusRes.json();
+
+        if (statusData.result === 'forwarding_detected') {
+          clearInterval(_fwdTestPollTimer);
+          statusEl.innerHTML = '<div style="color:#16A34A;font-weight:600;">\u2705 Forwarding works! Your missed calls will be handled automatically.</div>';
+          btn.textContent = 'Test Again';
+          btn.disabled = false;
+        } else if (statusData.result === 'not_forwarded' || statusData.result === 'no_answer_detected') {
+          clearInterval(_fwdTestPollTimer);
+          btn.disabled = false;
+          btn.textContent = 'Try Again';
+          statusEl.innerHTML = '<div style="color:#DC2626;">\u274C Forwarding not detected. Double-check the carrier codes above and try again.</div><div style="color:var(--text-tert);font-size:12px;margin-top:6px;">Still not working? Click "I\'ll do this later" and email <a href="mailto:hello@autoshopsmsai.com">hello@autoshopsmsai.com</a> for help.</div>';
+        } else {
+          statusEl.innerHTML = '<div style="color:var(--text-sec);">\uD83D\uDCDE Waiting for call result\u2026 (' + attempts + '/20)</div>';
+        }
+      } catch (e) {
+        // Silent — keep polling
+      }
+    }, 3000);
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Try Again';
+    statusEl.innerHTML = '<div style="color:#DC2626;">' + (err.message || 'Could not place test call. Try again.') + '</div>';
   }
 }
 
