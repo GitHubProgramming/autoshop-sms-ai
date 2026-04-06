@@ -236,22 +236,48 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
           } else {
             const areaCode =
               tenantRows[0]?.owner_phone?.replace(/\D/g, "").slice(1, 4) || "512";
-            await provisionNumberQueue.add(
-              "provision-twilio-number",
-              {
-                tenantId,
-                areaCode,
-                shopName: tenantRows[0]?.shop_name ?? "AutoShop",
-              },
-              {
-                jobId: `provision-${tenantId}`,
-                attempts: 5,
-                backoff: { type: "exponential", delay: 5_000 },
-              }
-            );
-            console.info(
-              `[stripe] Provisioning Twilio number for tenant ${tenantId} (area code ${areaCode})`
-            );
+            try {
+              await provisionNumberQueue.add(
+                "provision-twilio-number",
+                {
+                  tenantId,
+                  areaCode,
+                  shopName: tenantRows[0]?.shop_name ?? "AutoShop",
+                },
+                {
+                  jobId: `provision-${tenantId}`,
+                  attempts: 5,
+                  backoff: { type: "exponential", delay: 5_000 },
+                }
+              );
+              console.info(
+                `[stripe] Provisioning Twilio number for tenant ${tenantId} (area code ${areaCode})`
+              );
+            } catch (enqueueErr) {
+              console.error(
+                `[stripe] CRITICAL: Failed to enqueue provisioning for tenant ${tenantId} — tenant paid but has no number:`,
+                (enqueueErr as Error).message
+              );
+              // Mark provisioning as failed so dashboard shows error state
+              try {
+                await query(
+                  `UPDATE tenants SET provisioning_state = 'error', updated_at = NOW() WHERE id = $1`,
+                  [tenantId]
+                );
+              } catch { /* non-fatal */ }
+              // Create pipeline alert for operator
+              try {
+                const { raiseAlert } = await import("../../services/pipeline-alerts");
+                await raiseAlert({
+                  tenantId,
+                  traceId: null,
+                  severity: "critical",
+                  alertType: "pipeline_failed",
+                  summary: "Twilio number provisioning failed to enqueue after Stripe payment",
+                  details: `Stripe subscription.created processed but provisionNumberQueue.add() failed: ${(enqueueErr as Error).message}. Tenant was charged but has no phone number. Manual provisioning required.`,
+                });
+              } catch { /* non-fatal */ }
+            }
           }
         }
       }
