@@ -78,6 +78,24 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .upgrade-modal .um-features li{font-size:13px;color:var(--text-secondary);margin-bottom:6px;list-style:none;padding-left:20px;position:relative}
 .upgrade-modal .um-features li::before{content:'✓';position:absolute;left:0;color:#4A6CF7;font-weight:700}
 .upgrade-modal .um-note{font-size:12px;color:var(--text-tertiary);margin-top:12px}
+.um-plans{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;text-align:center}
+.um-plan{border:2px solid var(--border);border-radius:10px;padding:16px 10px;cursor:pointer;transition:border-color .2s,background .2s}
+.um-plan:hover{border-color:#4A6CF7;background:rgba(74,108,247,.04)}
+.um-plan.selected{border-color:#4A6CF7;background:rgba(74,108,247,.06)}
+.um-plan-badge{display:none;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#fff;background:#4A6CF7;padding:2px 8px;border-radius:4px;margin:0 auto 8px}
+.um-plan.popular .um-plan-badge{display:inline-block}
+.um-plan-name{font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:2px}
+.um-plan-price{font-size:22px;font-weight:800;color:var(--text-primary);margin-bottom:2px}
+.um-plan-price span{font-size:13px;font-weight:500;color:var(--text-tertiary)}
+.um-plan-convs{font-size:11px;color:var(--text-secondary)}
+.um-plan-divider{font-size:12px;color:var(--text-tertiary);margin-bottom:16px;text-align:center}
+.you-are-live-card{background:linear-gradient(135deg,#F0FDF4,#ECFDF5);border:2px solid #86EFAC;border-radius:14px;padding:28px 24px;margin-bottom:24px}
+.you-are-live-card h3{font-size:20px;font-weight:800;color:#166534;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+.you-are-live-card ol{margin:0 0 16px 18px;font-size:14px;color:#15803D;line-height:1.8}
+.you-are-live-card ol strong{color:#166534}
+.you-are-live-card .live-test-hint{font-size:13px;color:#166534;background:rgba(22,101,52,.06);border-radius:8px;padding:10px 14px;margin-bottom:16px}
+.you-are-live-card .live-dismiss{background:none;border:1px solid #86EFAC;color:#15803D;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:background .2s}
+.you-are-live-card .live-dismiss:hover{background:rgba(34,197,94,.08)}
 .banner-left{display:flex;align-items:center;gap:14px}
 .banner-label{font-size:12px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap}
 .banner-label.rust{color:var(--rust)}
@@ -1178,19 +1196,38 @@ function toggleSidebar(){
 <div id="bannerContainer"></div>
 <!-- Upgrade modal (demo→trial) -->
 <div class="upgrade-modal-bg" id="upgradeModal">
-<div class="upgrade-modal">
+<div class="upgrade-modal" style="max-width:540px;">
 <h2>Start Your Free Trial</h2>
 <p class="um-sub">Card required to activate. No charge today.</p>
+<div class="um-plans" id="umPlans">
+  <div class="um-plan" data-plan="starter" onclick="selectPlan('starter')">
+    <div class="um-plan-name">Starter</div>
+    <div class="um-plan-price">$199<span>/mo</span></div>
+    <div class="um-plan-convs">150 conversations</div>
+  </div>
+  <div class="um-plan popular selected" data-plan="pro" onclick="selectPlan('pro')">
+    <div class="um-plan-badge">Best Value</div>
+    <div class="um-plan-name">Pro</div>
+    <div class="um-plan-price">$299<span>/mo</span></div>
+    <div class="um-plan-convs">400 conversations</div>
+  </div>
+  <div class="um-plan" data-plan="premium" onclick="selectPlan('premium')">
+    <div class="um-plan-name">Premium</div>
+    <div class="um-plan-price">$499<span>/mo</span></div>
+    <div class="um-plan-convs">1,000 conversations</div>
+  </div>
+</div>
+<div class="um-plan-divider">All plans include 14-day free trial. Cancel anytime. After trial: charged automatically.</div>
 <ul class="um-features">
 <li>14-day free trial period</li>
-<li>Up to 50 AI conversations</li>
+<li id="umConvLine">50 AI conversations during trial, then 400/mo</li>
 <li>Dedicated phone number for your shop</li>
 <li>Automatic missed-call SMS recovery</li>
 <li>AI-powered appointment booking</li>
 <li>Google Calendar sync</li>
 </ul>
-<button class="btn-start-trial" onclick="startTrialCheckout()">Start 14-Day Free Trial</button>
-<p class="um-note">Cancel anytime. After trial: plans start at $199/mo.</p>
+<button class="btn-start-trial" id="umTrialBtn" onclick="startTrialCheckout()">Start Free Trial — Pro Plan</button>
+<p class="um-note">Cancel anytime.</p>
 <br>
 <a href="#" onclick="closeUpgradeModal();return false;" style="font-size:13px;color:var(--text-tertiary)">Maybe later</a>
 </div>
@@ -1304,6 +1341,9 @@ function toggleSidebar(){
         <h2 id="dashPageTitle">Revenue Intelligence Dashboard</h2>
         <p id="dashSubtitle">Real-time performance metrics and AI-driven customer engagement</p>
       </div>
+
+      <!-- ── 0. YOU'RE LIVE CARD (shows for new real users with 0 conversations) ── -->
+      <div id="youAreLiveCard"></div>
 
       <!-- ── 1. KPI ROW (4 cards) ── -->
       <div class="kpi-grid" id="kpiGrid"></div>
@@ -3680,9 +3720,26 @@ function renderBanners() {
 }
 
 
+var _selectedPlan = 'pro';
+var _planConvLimits = { starter: '150', pro: '400', premium: '1,000' };
+var _planLabels = { starter: 'Starter', pro: 'Pro', premium: 'Premium' };
+
+function selectPlan(plan) {
+  _selectedPlan = plan;
+  var cards = document.querySelectorAll('.um-plan');
+  for (var i = 0; i < cards.length; i++) {
+    cards[i].classList.toggle('selected', cards[i].getAttribute('data-plan') === plan);
+  }
+  var btn = document.getElementById('umTrialBtn');
+  if (btn) btn.textContent = 'Start Free Trial — ' + _planLabels[plan] + ' Plan';
+  var convLine = document.getElementById('umConvLine');
+  if (convLine) convLine.textContent = '50 AI conversations during trial, then ' + _planConvLimits[plan] + '/mo';
+}
+
 function showUpgradeModal() {
   var modal = document.getElementById('upgradeModal');
   if (modal) modal.classList.add('visible');
+  selectPlan(_selectedPlan);
 }
 
 function closeUpgradeModal() {
@@ -3702,7 +3759,7 @@ async function startTrialCheckout() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({
-        plan: 'starter',
+        plan: _selectedPlan,
         startTrial: true,
         successUrl: window.location.origin + '/app/dashboard?trial=activated',
         cancelUrl: window.location.origin + '/app/billing?billing=canceled'
@@ -5183,6 +5240,49 @@ function renderLiveKPIs() {
   if (drr) drr.textContent = '$' + recoveredRev.toLocaleString();
   var dab = document.getElementById('dashAvgBooking');
   if (dab) dab.textContent = totalRev > 0 && (k.total_completed_bookings || 0) > 0 ? '$' + Math.round(totalRev / k.total_completed_bookings).toLocaleString() : '$0';
+
+  // Render "You're live!" card above KPIs for new real users
+  renderYouAreLiveCard();
+}
+
+function renderYouAreLiveCard() {
+  var container = document.getElementById('youAreLiveCard');
+  if (!container) return;
+
+  // Only show for non-demo users with 0 conversations and active phone
+  var isDemo = tenantState.isDemo || tenantState.status === 'demo';
+  var hasConversations = (dashboardStats && dashboardStats.total_conversations > 0) || (liveConversationsData && liveConversationsData.length > 0);
+  var phoneReady = tenantState.provisioningState === 'ready' || (tenantState._twilioPhone && tenantState.integrations.twilioNumber === 'active');
+  var dismissed = localStorage.getItem('youAreLiveDismissed') === '1';
+
+  if (isDemo || hasConversations || !phoneReady || dismissed) {
+    container.innerHTML = '';
+    return;
+  }
+
+  var phoneLine = tenantState._twilioPhone
+    ? '<li>They get a text within 10 seconds from your AI number: <strong>' + tenantState._twilioPhone + '</strong></li>'
+    : '<li>They get a text within 10 seconds from your AI number</li>';
+
+  container.innerHTML =
+    '<div class="you-are-live-card">' +
+      '<h3>&#9989; You\'re live!</h3>' +
+      '<p style="font-size:14px;color:#15803D;margin-bottom:12px;">Here\'s what happens next:</p>' +
+      '<ol>' +
+        '<li>Someone calls your shop and nobody picks up</li>' +
+        phoneLine +
+        '<li>AI handles the conversation and books the appointment</li>' +
+        '<li>You see it right here on your dashboard</li>' +
+      '</ol>' +
+      '<div class="live-test-hint">Want to test it? Call your shop from a different phone, let it ring 4\u20135 times, and watch this page.</div>' +
+      '<button class="live-dismiss" onclick="dismissYouAreLive()">&#10003; Dismiss</button>' +
+    '</div>';
+}
+
+function dismissYouAreLive() {
+  localStorage.setItem('youAreLiveDismissed', '1');
+  var container = document.getElementById('youAreLiveCard');
+  if (container) container.innerHTML = '';
 }
 
 function renderLiveTodayActivity() {
