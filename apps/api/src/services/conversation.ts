@@ -221,7 +221,7 @@ export async function openConversation(
 // ── Retry wrapper ───────────────────────────────────────────────────────────
 
 const LOCK_RETRY_ATTEMPTS = 3;
-const LOCK_RETRY_DELAY_MS = 500;
+const LOCK_RETRY_BASE_DELAY_MS = 500; // Exponential: 500ms, 1000ms, 2000ms
 
 /**
  * Opens a conversation with retry logic for Redis lock contention.
@@ -242,9 +242,10 @@ export async function openConversationWithRetry(
     if (result.blocked) return result;
     if (result.conversationId) return result;
 
-    // Lock contention (null conversationId) — wait and retry
+    // Lock contention (null conversationId) — wait and retry with exponential backoff
     if (attempt < LOCK_RETRY_ATTEMPTS) {
-      await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY_DELAY_MS));
+      const delay = LOCK_RETRY_BASE_DELAY_MS * Math.pow(2, attempt - 1);
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
 

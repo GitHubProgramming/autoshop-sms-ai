@@ -1,5 +1,8 @@
 import { query } from "../db/client";
 import { getConfig } from "../db/app-config";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("release-twilio-number");
 
 export interface ReleaseResult {
   released: number;
@@ -40,7 +43,7 @@ export async function releaseExpiredSuspendedNumbers(): Promise<ReleaseResult> {
   const authToken = await getConfig("TWILIO_AUTH_TOKEN");
 
   if (!accountSid || !authToken) {
-    console.error("[release-numbers] Twilio credentials not configured — skipping");
+    log.error("Twilio credentials not configured — skipping");
     return { released: 0, errors: rows.length, skipped: 0 };
   }
 
@@ -68,8 +71,9 @@ export async function releaseExpiredSuspendedNumbers(): Promise<ReleaseResult> {
           [row.id]
         );
         released++;
-        console.info(
-          `[release-numbers] Released ${row.phone_number} (tenant ${row.tenant_id.slice(0, 8)}, suspended since ${row.suspended_at})`
+        log.info(
+          { phone: row.phone_number, tenantId: row.tenant_id.slice(0, 8), suspendedAt: row.suspended_at },
+          "Released number"
         );
       } else if (res.status === 404) {
         // Number not found in Twilio — already released externally
@@ -80,20 +84,22 @@ export async function releaseExpiredSuspendedNumbers(): Promise<ReleaseResult> {
           [row.id]
         );
         skipped++;
-        console.info(
-          `[release-numbers] ${row.phone_number} not found in Twilio (already released) — marking as released`
+        log.info(
+          { phone: row.phone_number },
+          "Number not found in Twilio (already released) — marking as released"
         );
       } else {
         const body = await res.text().catch(() => "");
-        console.error(
-          `[release-numbers] Twilio DELETE failed for ${row.phone_number}: ${res.status} ${body}`
+        log.error(
+          { phone: row.phone_number, status: res.status, body },
+          "Twilio DELETE failed"
         );
         errors++;
       }
     } catch (err) {
-      console.error(
-        `[release-numbers] Error releasing ${row.phone_number}:`,
-        (err as Error).message
+      log.error(
+        { phone: row.phone_number, err: (err as Error).message },
+        "Error releasing number"
       );
       errors++;
     }

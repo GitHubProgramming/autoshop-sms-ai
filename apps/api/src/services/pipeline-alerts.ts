@@ -15,6 +15,9 @@
 
 import { query } from "../db/client";
 import { sendTwilioSms } from "./missed-call-sms";
+import { createLogger } from "../utils/logger";
+
+const pipelineLog = createLogger("pipeline-alerts");
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -118,7 +121,7 @@ export async function raiseAlert(
     return alertId;
   } catch (err) {
     // Non-fatal: alerting must never break the pipeline
-    console.error(`[pipeline-alerts] Failed to raise alert: ${(err as Error).message}`);
+    pipelineLog.error({ err: (err as Error).message }, "Failed to raise alert");
     return null;
   }
 }

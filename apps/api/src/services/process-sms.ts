@@ -13,6 +13,9 @@
 
 import { query } from "../db/client";
 import { getMaxConversationTurns } from "../config/conversation";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("process-sms");
 import { detectBookingIntent, extractFieldsFromMessage, mergeBookingFields } from "./booking-intent";
 import { createAppointment, type BookingState } from "./appointments";
 import { createCalendarEvent } from "./google-calendar";
@@ -190,9 +193,9 @@ export async function processSms(
     );
     const maxTurns = getMaxConversationTurns();
     if (turnRows.length > 0 && turnRows[0].turn_count >= maxTurns) {
-      console.info(
-        `[max-turns] Conversation ${result.conversationId} reached turn limit ` +
-        `(${turnRows[0].turn_count}/${maxTurns}) — closing`
+      log.info(
+        { conversationId: result.conversationId, turnCount: turnRows[0].turn_count, maxTurns },
+        "Conversation reached turn limit — closing"
       );
 
       // Close conversation using canonical path
@@ -235,7 +238,7 @@ export async function processSms(
       return result;
     }
   } catch (err) {
-    console.error(`[max-turns] Failed to check turn count: ${(err as Error).message}`);
+    log.error({ err: (err as Error).message }, "Failed to check turn count");
     // Fail-open: continue processing if turn check fails
   }
 
@@ -244,13 +247,9 @@ export async function processSms(
   // to the shop owner via checkAndNotifyUsage() after conversation counting.
   // The atSoftLimit flag is logged but does not block the AI response.
   if (input.atSoftLimit) {
-    console.info(
-      JSON.stringify({
-        event: "soft_limit_reached",
-        tenant_id: input.tenantId,
-        conversation_id: result.conversationId,
-        note: "Active user at soft limit — proceeding with AI response",
-      })
+    log.info(
+      { tenantId: input.tenantId, conversationId: result.conversationId },
+      "Active user at soft limit — proceeding with AI response"
     );
     // Fire usage warning to shop owner (non-blocking, non-fatal)
     try {
@@ -585,13 +584,9 @@ export async function processSms(
     );
     if (dupeCheck.length > 0) {
       smsDuplicate = true;
-      console.info(
-        JSON.stringify({
-          event: "sms_duplicate_blocked",
-          tenant_id: input.tenantId,
-          conversation_id: result.conversationId,
-          message_preview: smsBody.slice(0, 50),
-        })
+      log.info(
+        { tenantId: input.tenantId, conversationId: result.conversationId },
+        "SMS duplicate blocked"
       );
     }
   } catch {

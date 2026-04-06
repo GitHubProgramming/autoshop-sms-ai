@@ -1139,7 +1139,7 @@ function loadAccounts(filter, search, attention) {
     .then(d => {
       const tbody = d.tenants.length > 0 ? d.tenants.map(t => {
         const days = t.trial_days_left !== null ? `${t.trial_days_left}d` : '—';
-        return `<tr onclick="navigate('account-detail',{id:'${t.id}'})">
+        return `<tr onclick="navigate('account-detail',{id:'${escHtml(t.id)}'})">
           <td style="font-weight:600">${escHtml(t.shop_name)}</td>
           <td class="mono dim">${escHtml(t.owner_email)}</td>
           <td>${statusBadge(t.billing_status)}</td>
@@ -2137,7 +2137,7 @@ async function loadBilling() {
     };
 
     const tbody = d.billing.length > 0 ? d.billing.map(row => `<tr ${rowColor(row)}>
-      <td style="font-weight:600" onclick="navigate('account-detail',{id:'${row.id}'})" style="cursor:pointer">${escHtml(row.shop_name)}</td>
+      <td style="font-weight:600;cursor:pointer" onclick="navigate('account-detail',{id:'${escHtml(row.id)}'})">${escHtml(row.shop_name)}</td>
       <td class="mono dim">${escHtml(row.owner_email)}</td>
       <td>${statusBadge(row.billing_status)}</td>
       <td class="mono dim">${row.plan_id || '—'}</td>
@@ -2189,7 +2189,7 @@ async function loadIntegrations() {
       else if (!hasCal || tokenSoon) { rowClass = 'style="background:rgba(217,119,6,.04)"'; degraded++; }
       else { healthy++; }
 
-      return `<tr ${rowClass} onclick="navigate('account-detail',{id:'${row.id}'})">
+      return `<tr ${rowClass} onclick="navigate('account-detail',{id:'${escHtml(row.id)}'})">
         <td style="font-weight:600">${escHtml(row.shop_name)}</td>
         <td class="mono dim">${row.twilio_phone || '<span style="color:var(--red)">None</span>'}</td>
         <td>${row.twilio_status ? statusBadge(row.twilio_status) : '<span class="mono dim">—</span>'}</td>
