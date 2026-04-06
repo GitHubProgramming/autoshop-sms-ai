@@ -277,20 +277,23 @@ export async function processSms(
   // Also fetch owner_phone for calendar-sync failure alerts
   let ownerPhone: string | null = null;
   let shopName: string | null = null;
+  let tenantTimezone: string | null = null;
   try {
     const tenantRows = await query<{
       shop_name: string | null;
       business_hours: string | null;
       services_description: string | null;
       owner_phone: string | null;
+      timezone: string | null;
     }>(
-      `SELECT shop_name, business_hours, services_description, owner_phone FROM tenants WHERE id = $1`,
+      `SELECT shop_name, business_hours, services_description, owner_phone, timezone FROM tenants WHERE id = $1`,
       [input.tenantId]
     );
     if (tenantRows.length > 0) {
       const t = tenantRows[0];
       ownerPhone = t.owner_phone;
       shopName = t.shop_name;
+      tenantTimezone = t.timezone;
       const contextParts: string[] = [];
       if (t.shop_name) contextParts.push(`Shop name: ${t.shop_name}`);
       if (t.business_hours) contextParts.push(`Business hours: ${t.business_hours}`);
@@ -462,6 +465,7 @@ export async function processSms(
           licensePlate: intent.licensePlate,
           issueDescription: intent.issueDescription,
           scheduledAt: intent.scheduledAt,
+          timeZone: tenantTimezone ?? undefined,
         },
         fetchFn
       );
@@ -524,6 +528,7 @@ export async function processSms(
                   licensePlate: intent.licensePlate,
                   issueDescription: intent.issueDescription,
                   scheduledAt: intent.scheduledAt,
+                  timeZone: tenantTimezone ?? undefined,
                 },
                 {
                   attempts: 4,
