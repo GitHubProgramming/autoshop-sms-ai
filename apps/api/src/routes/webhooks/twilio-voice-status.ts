@@ -1,10 +1,11 @@
-import { FastifyInstance } from "fastify";
+import { FastifyInstance, FastifyBaseLogger } from "fastify";
 import { z } from "zod";
 import { validateTwilioSignature } from "../../middleware/twilio-validate";
 import { getTenantByPhoneNumber, getBlockReason } from "../../db/tenants";
 import { smsInboundQueue, checkMissedCallDedupe } from "../../queues/redis";
 import { deduplicateWebhook } from "../../db/webhook-events";
 import { startTrace, resumeTrace } from "../../services/pipeline-trace";
+import { handleMissedCallSms, type MissedCallInput } from "../../services/missed-call-sms";
 
 const TwilioVoiceStatusBody = z.object({
   CallSid: z.string(),
@@ -135,16 +136,21 @@ export async function twilioVoiceStatusRoute(app: FastifyInstance) {
 
       // Enqueue missed-call SMS trigger
       // This must fire within 5–20 seconds — worker sends the first SMS
-      // Wrapped in try/catch: always return 200 to Twilio even if Redis is down.
+      // If Redis is down, fall back to direct synchronous processing so the
+      // customer still gets the SMS (never silently drop a missed call).
+      const missedCallInput: MissedCallInput = {
+        tenantId: tenant.id,
+        customerPhone: From,
+        ourPhone: To,
+        callSid: CallSid,
+        callStatus: CallStatus,
+      };
+
       try {
         await smsInboundQueue.add(
           "missed-call-trigger",
           {
-            tenantId: tenant.id,
-            customerPhone: From,
-            ourPhone: To,
-            callSid: CallSid,
-            callStatus: CallStatus,
+            ...missedCallInput,
             triggerType: "missed_call",
             traceId,
           },
@@ -167,19 +173,78 @@ export async function twilioVoiceStatusRoute(app: FastifyInstance) {
         }
       } catch (err) {
         request.log.error(
-          { err, tenantId: tenant.id, callSid: CallSid },
-          "Failed to enqueue missed-call job — Redis may be down"
+          { err, tenantId: tenant.id, callSid: CallSid, customerPhone: From },
+          "Redis unavailable — falling back to synchronous missed-call SMS"
         );
         if (traceId) {
           try {
             const t = await resumeTrace(traceId);
-            await t.step("job_enqueued", "fail", `Redis error: ${(err as Error).message}`);
-            await t.fail(`Failed to enqueue job: ${(err as Error).message}`);
+            await t.step("job_enqueued", "fail", `Redis error — using sync fallback: ${(err as Error).message}`);
           } catch { /* non-fatal */ }
         }
+
+        // Fire-and-forget: process the missed call directly so Twilio
+        // gets 200 immediately while we still attempt the SMS.
+        runMissedCallFallback(missedCallInput, traceId, request.log);
       }
 
       return reply.status(200).type("text/xml").send("<Response/>");
     }
   );
+}
+
+/**
+ * Synchronous fallback for missed-call SMS when Redis/BullMQ is unavailable.
+ *
+ * Runs via setImmediate so the Twilio webhook response is not blocked.
+ * Has its own try/catch so a failure here can never crash the process.
+ */
+function runMissedCallFallback(
+  input: MissedCallInput,
+  traceId: string | null,
+  log: FastifyBaseLogger
+): void {
+  setImmediate(async () => {
+    try {
+      const result = await handleMissedCallSms(input);
+
+      if (result.success) {
+        log.info(
+          { tenantId: input.tenantId, smsSent: result.smsSent, conversationId: result.conversationId },
+          "Sync fallback: missed-call SMS processed successfully"
+        );
+        if (traceId) {
+          try {
+            const t = await resumeTrace(traceId);
+            await t.step("sync_fallback", "ok", `SMS sent=${result.smsSent}`);
+            await t.complete();
+          } catch { /* non-fatal */ }
+        }
+      } else {
+        log.error(
+          { tenantId: input.tenantId, customerPhone: input.customerPhone, error: result.error },
+          "Sync fallback: missed-call SMS FAILED"
+        );
+        if (traceId) {
+          try {
+            const t = await resumeTrace(traceId);
+            await t.step("sync_fallback", "fail", result.error ?? "unknown");
+            await t.fail(`Sync fallback failed: ${result.error}`);
+          } catch { /* non-fatal */ }
+        }
+      }
+    } catch (fallbackErr) {
+      log.error(
+        { tenantId: input.tenantId, customerPhone: input.customerPhone, err: fallbackErr },
+        "CRITICAL: missed-call SMS lost — both queue and sync fallback failed"
+      );
+      if (traceId) {
+        try {
+          const t = await resumeTrace(traceId);
+          await t.step("sync_fallback", "fail", (fallbackErr as Error).message);
+          await t.fail(`Both queue and fallback failed: ${(fallbackErr as Error).message}`);
+        } catch { /* non-fatal */ }
+      }
+    }
+  });
 }

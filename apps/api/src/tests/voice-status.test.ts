@@ -8,6 +8,9 @@ const mocks = vi.hoisted(() => ({
   deduplicateWebhook: vi.fn().mockResolvedValue({ isDuplicate: false, source: "twilio_voice_status", eventSid: "" }),
   getTenantByPhoneNumber: vi.fn(),
   getBlockReason: vi.fn((): string | null => null),
+  handleMissedCallSms: vi.fn().mockResolvedValue({
+    success: true, conversationId: "conv-1", smsSent: true, twilioSid: "SM123", error: null,
+  }),
 }));
 
 vi.mock("../db/client", () => ({
@@ -27,6 +30,10 @@ vi.mock("../db/webhook-events", () => ({
 vi.mock("../db/tenants", () => ({
   getTenantByPhoneNumber: mocks.getTenantByPhoneNumber,
   getBlockReason: mocks.getBlockReason,
+}));
+
+vi.mock("../services/missed-call-sms", () => ({
+  handleMissedCallSms: mocks.handleMissedCallSms,
 }));
 
 vi.mock("../services/pipeline-trace", () => ({
@@ -431,6 +438,76 @@ describe("POST /webhooks/twilio/voice-status", () => {
 
     expect(res.statusCode).toBe(200);
     expect(mocks.add).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  // ── Redis-down fallback tests ───────────────────────────────────────────
+
+  it("returns 200 and falls back to handleMissedCallSms when queue.add throws", async () => {
+    mocks.add.mockRejectedValueOnce(new Error("ECONNREFUSED"));
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/webhooks/twilio/voice-status",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: voicePayload({ CallStatus: "no-answer" }),
+    });
+
+    // Twilio must get 200 immediately
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toContain("<Response");
+
+    // Allow setImmediate to fire
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Fallback should have been called directly
+    expect(mocks.handleMissedCallSms).toHaveBeenCalledOnce();
+    expect(mocks.handleMissedCallSms).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: MOCK_TENANT.id,
+        customerPhone: TEST_FROM,
+        ourPhone: TEST_TO,
+        callSid: TEST_CALL_SID,
+        callStatus: "no-answer",
+      })
+    );
+    await app.close();
+  });
+
+  it("does not call fallback when queue.add succeeds", async () => {
+    mocks.add.mockResolvedValueOnce({ id: "job-ok" });
+    const app = await buildApp();
+
+    await app.inject({
+      method: "POST",
+      url: "/webhooks/twilio/voice-status",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: voicePayload({ CallStatus: "no-answer" }),
+    });
+
+    await new Promise((r) => setTimeout(r, 50));
+    expect(mocks.handleMissedCallSms).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("does not crash when both queue and fallback fail", async () => {
+    mocks.add.mockRejectedValueOnce(new Error("ECONNREFUSED"));
+    mocks.handleMissedCallSms.mockRejectedValueOnce(new Error("DB down too"));
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/webhooks/twilio/voice-status",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: voicePayload({ CallStatus: "no-answer" }),
+    });
+
+    // Must still return 200
+    expect(res.statusCode).toBe(200);
+
+    // Allow setImmediate to fire — should not throw
+    await new Promise((r) => setTimeout(r, 50));
     await app.close();
   });
 });
