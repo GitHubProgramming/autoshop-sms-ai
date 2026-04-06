@@ -16,6 +16,7 @@ Workflow:
 - Add Docker smoke verification and fix compose path
 - Add autonomous AI workflow files
 - Fix CI lint step when ESLint config is missing
+- Add verifiable work audit trail (dc7ec57, 2026-04-06)
 
 ## OPEN
 - Add Stripe checkout endpoint for subscription creation
