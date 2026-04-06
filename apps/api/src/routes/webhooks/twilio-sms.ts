@@ -31,7 +31,20 @@ export async function twilioSmsRoute(app: FastifyInstance) {
       const { MessageSid, From, To, Body, NumSegments } = parsed.data;
       const inboundSegments = NumSegments ? parseInt(NumSegments, 10) : null;
 
-      // ── 0. Start execution trace ──────────────────────────────────────────
+      // ── 0. Idempotency (Twilio retries if no 200 within 15s) ──────────────
+      // Two-tier: Redis (fast) + PostgreSQL webhook_events (persistent)
+      // MUST run before any DB writes (including startTrace) to prevent
+      // duplicate pipeline traces on Twilio retries.
+      const dedup = await deduplicateWebhook("twilio_sms", MessageSid);
+      if (dedup.isDuplicate) {
+        request.log.info(
+          { MessageSid, source: "twilio_sms", event: "webhook_duplicate_detected" },
+          "Duplicate SMS webhook — skipping"
+        );
+        return reply.status(200).type("text/xml").send("<Response/>");
+      }
+
+      // ── 1. Start execution trace ──────────────────────────────────────────
       let traceId: string | null = null;
       try {
         const trace = await startTrace({
@@ -43,17 +56,6 @@ export async function twilioSmsRoute(app: FastifyInstance) {
         await trace.step("webhook_received", "ok", `POST /webhooks/twilio/sms from ${From}`);
       } catch {
         // Non-fatal: tracing must never break the pipeline
-      }
-
-      // ── 1. Idempotency (Twilio retries if no 200 within 15s) ──────────────
-      // Two-tier: Redis (fast) + PostgreSQL webhook_events (persistent)
-      const dedup = await deduplicateWebhook("twilio_sms", MessageSid);
-      if (dedup.isDuplicate) {
-        request.log.info(
-          { MessageSid, source: "twilio_sms", event: "webhook_duplicate_detected" },
-          "Duplicate SMS webhook — skipping"
-        );
-        return reply.status(200).type("text/xml").send("<Response/>");
       }
 
       // ── 2. Tenant lookup by inbound phone number ───────────────────────────
