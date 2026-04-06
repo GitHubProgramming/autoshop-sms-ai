@@ -1,7 +1,9 @@
 import { Worker, Queue } from "bullmq";
 import { bullmqConnection as connection } from "../queues/redis";
 import { releaseExpiredSuspendedNumbers } from "../services/release-twilio-number";
+import { createLogger } from "../utils/logger";
 
+const log = createLogger("release-numbers-worker");
 const QUEUE_NAME = "release-suspended-numbers";
 
 /** Queue with a repeatable job — runs once per day (every 24 hours) */
@@ -18,7 +20,7 @@ export function startReleaseNumbersWorker(): Worker {
   releaseNumbersQueue
     .add("release-numbers", {}, { repeat: { every: 24 * 60 * 60 * 1000 } })
     .catch((err) =>
-      console.error("[release-numbers-worker] Failed to register repeatable job:", err)
+      log.error({ err }, "Failed to register repeatable job")
     );
 
   const worker = new Worker(
@@ -26,8 +28,9 @@ export function startReleaseNumbersWorker(): Worker {
     async () => {
       const result = await releaseExpiredSuspendedNumbers();
       if (result.released > 0 || result.errors > 0 || result.skipped > 0) {
-        console.info(
-          `[release-numbers-worker] Released ${result.released}, errors ${result.errors}, skipped ${result.skipped}`
+        log.info(
+          { released: result.released, errors: result.errors, skipped: result.skipped },
+          "Release cycle complete"
         );
       }
     },
@@ -35,7 +38,7 @@ export function startReleaseNumbersWorker(): Worker {
   );
 
   worker.on("failed", (_job, err) => {
-    console.error("[release-numbers-worker] Job failed:", err.message);
+    log.error({ err: err.message }, "Job failed");
   });
 
   return worker;

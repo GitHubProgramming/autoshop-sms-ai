@@ -1,7 +1,9 @@
 import { Worker, Queue } from "bullmq";
 import { bullmqConnection as connection } from "../queues/redis";
 import { expireTrials } from "../services/trial-expiry";
+import { createLogger } from "../utils/logger";
 
+const log = createLogger("trial-expiry-worker");
 const QUEUE_NAME = "trial-expiry";
 
 /** Queue with a repeatable job — runs every hour */
@@ -18,7 +20,7 @@ export function startTrialExpiryWorker(): Worker {
   trialExpiryQueue
     .add("expire-trials", {}, { repeat: { every: 60 * 60 * 1000 } })
     .catch((err) =>
-      console.error("[trial-expiry-worker] Failed to register repeatable job:", err)
+      log.error({ err }, "Failed to register repeatable job")
     );
 
   const worker = new Worker(
@@ -26,16 +28,14 @@ export function startTrialExpiryWorker(): Worker {
     async () => {
       const expired = await expireTrials();
       if (expired > 0) {
-        console.info(
-          `[trial-expiry-worker] Expired ${expired} trial(s)`
-        );
+        log.info({ expired }, "Expired trial(s)");
       }
     },
     { connection, concurrency: 1 }
   );
 
   worker.on("failed", (_job, err) => {
-    console.error("[trial-expiry-worker] Job failed:", err.message);
+    log.error({ err: err.message }, "Job failed");
   });
 
   return worker;

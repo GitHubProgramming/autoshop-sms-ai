@@ -90,7 +90,7 @@ export async function openConversation(
          WHERE tenant_id = $1
            AND customer_phone = $2
            AND status = 'open'
-           AND opened_at > NOW() - INTERVAL '${DEDUP_WINDOW_HOURS} hours'
+           AND opened_at > NOW() - INTERVAL '24 hours'
          ORDER BY opened_at DESC
          LIMIT 1`,
         [tenantId, customerPhone]

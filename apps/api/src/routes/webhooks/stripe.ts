@@ -1,10 +1,13 @@
 import { FastifyInstance, FastifyRequest } from "fastify";
 import Stripe from "stripe";
 import { query } from "../../db/client";
-import { updateBillingStatus, activateTrial } from "../../db/tenants";
+import { updateBillingStatus } from "../../db/tenants";
 import { billingQueue, provisionNumberQueue } from "../../queues/redis";
 import { deduplicateWebhook } from "../../db/webhook-events";
 import { getSharedTestNumber } from "../../utils/test-tenant";
+import { createLogger } from "../../utils/logger";
+
+const log = createLogger("stripe-webhook");
 
 type BillingStatus =
   | "demo" | "trial" | "trial_expired" | "active" | "scheduled_cancel"
@@ -99,7 +102,7 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
       const priceId = sub.items.data[0]?.price.id ?? "";
       const planId = getPlanFromStripePrice(priceId);
       if (!planId) {
-        console.error(`[stripe] Unknown Stripe price ID "${priceId}" — cannot map to plan. Event ${event.id} skipped. Set STRIPE_PRICE_* env vars.`);
+        log.error({ priceId, eventId: event.id }, "Unknown Stripe price ID — cannot map to plan. Set STRIPE_PRICE_* env vars.");
         return;
       }
       const convLimit = PLAN_LIMITS[planId];
@@ -164,7 +167,7 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
         );
 
         if (wasDemo) {
-          console.info(`[stripe] Demo→trial transition for tenant ${tenantId}`);
+          log.info({ tenantId }, "Demo→trial transition");
         }
       } else {
         // Downgrade protection: if the new plan limit is lower than current usage,
@@ -196,9 +199,9 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
              subscriptionAmountCents, subscriptionCurrency, subscriptionInterval,
              cancelAt ? new Date(cancelAt * 1000).toISOString() : null, tenantId]
           );
-          console.info(
-            `[stripe] Downgrade deferred for tenant ${tenantId}: ` +
-            `current ${currentUsed}/${currentLimit}, new limit ${convLimit} pending next cycle`
+          log.info(
+            { tenantId, currentUsed, currentLimit, newLimit: convLimit },
+            "Downgrade deferred — new limit pending next cycle"
           );
         } else {
           await query(
@@ -232,7 +235,7 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
 
           // Test tenants: skip Twilio purchase entirely — dashboard shows shared number via fallback
           if (tenantRows[0]?.is_test) {
-            console.info(`[stripe] Test tenant ${tenantId} — skipping Twilio purchase (shared test number)`);
+            log.info({ tenantId }, "Test tenant — skipping Twilio purchase (shared test number)");
           } else {
             const areaCode =
               tenantRows[0]?.owner_phone?.replace(/\D/g, "").slice(1, 4) || "512";
@@ -250,13 +253,11 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
                   backoff: { type: "exponential", delay: 5_000 },
                 }
               );
-              console.info(
-                `[stripe] Provisioning Twilio number for tenant ${tenantId} (area code ${areaCode})`
-              );
+              log.info({ tenantId, areaCode }, "Provisioning Twilio number");
             } catch (enqueueErr) {
-              console.error(
-                `[stripe] CRITICAL: Failed to enqueue provisioning for tenant ${tenantId} — tenant paid but has no number:`,
-                (enqueueErr as Error).message
+              log.error(
+                { tenantId, err: (enqueueErr as Error).message },
+                "CRITICAL: Failed to enqueue provisioning — tenant paid but has no number"
               );
               // Mark provisioning as failed so dashboard shows error state
               try {
@@ -324,7 +325,7 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
          WHERE tenant_id = $1 AND status = 'active'`,
         [tenantId]
       );
-      console.info(`[stripe] Suspended Twilio number(s) for canceled tenant ${tenantId}`);
+      log.info({ tenantId }, "Suspended Twilio number(s) for canceled tenant");
       break;
     }
 
@@ -337,9 +338,9 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
            WHERE tenant_id = $1 AND status = 'active'`,
           [tenantId]
         );
-        console.info(`[stripe] Suspended Twilio number(s) for disputed tenant ${tenantId}`);
+        log.info({ tenantId }, "Suspended Twilio number(s) for disputed tenant");
       } catch (err) {
-        console.error(`[stripe] Failed to suspend Twilio number for disputed tenant ${tenantId}:`, (err as Error).message);
+        log.error({ tenantId, err: (err as Error).message }, "Failed to suspend Twilio number for disputed tenant");
       }
       // Alert admin via pipeline alerts system
       try {

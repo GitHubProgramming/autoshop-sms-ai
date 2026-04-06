@@ -2,10 +2,12 @@ import { Worker, Job } from "bullmq";
 import { bullmqConnection as connection } from "../queues/redis";
 import { moveToDeadLetter } from "../queues/dead-letter";
 import { query } from "../db/client";
+import { createLogger } from "../utils/logger";
 
+const log = createLogger("provision-worker");
 const N8N_INTERNAL_URL = process.env.N8N_INTERNAL_URL ?? "http://n8n:5678";
 const N8N_PROVISION_WEBHOOK = `${N8N_INTERNAL_URL}/webhook/provision-number`;
-console.info(`[provision-worker] posting to ${N8N_PROVISION_WEBHOOK}`);
+log.info({ endpoint: N8N_PROVISION_WEBHOOK }, "Provisioning endpoint configured");
 
 /**
  * Update provisioning_state on the tenant row.
@@ -21,9 +23,9 @@ async function setProvisioningState(
       [state, tenantId]
     );
   } catch (err) {
-    console.error(
-      `[provision-worker] failed to set provisioning_state=${state} for tenant ${tenantId}:`,
-      err
+    log.error(
+      { tenantId, state, err },
+      "Failed to set provisioning_state"
     );
   }
 }
@@ -40,9 +42,9 @@ async function hasActivePhoneNumber(tenantId: string): Promise<boolean> {
     );
     return (rows as any[]).length > 0;
   } catch (err) {
-    console.error(
-      `[provision-worker] failed to check phone number for tenant ${tenantId}:`,
-      err
+    log.error(
+      { tenantId, err },
+      "Failed to check phone number"
     );
     return false;
   }
@@ -89,13 +91,12 @@ export function startProvisionNumberWorker(): Worker {
         const active = await hasActivePhoneNumber(tenantId);
         if (active) {
           await setProvisioningState(tenantId, "ready");
-          console.info(
-            `[provision-worker] tenant ${tenantId}: phone number confirmed active`
-          );
+          log.info({ tenantId }, "Phone number confirmed active");
         } else {
           // n8n said OK but no active number in DB — treat as failure
-          console.error(
-            `[provision-worker] tenant ${tenantId}: n8n returned 200 but no active phone number found in DB`
+          log.error(
+            { tenantId },
+            "n8n returned 200 but no active phone number found in DB"
           );
           await setProvisioningState(tenantId, "error");
         }
@@ -108,14 +109,13 @@ export function startProvisionNumberWorker(): Worker {
   );
 
   worker.on("completed", (job) => {
-    console.info(
-      `[provision-worker] job ${job.id} (${job.name}) completed`
-    );
+    log.info({ jobId: job.id, jobName: job.name }, "Job completed");
   });
 
   worker.on("failed", (job, err) => {
-    console.error(
-      `[provision-worker] job ${job?.id} (${job?.name}) FAILED: ${err.message}`
+    log.error(
+      { jobId: job?.id, jobName: job?.name, err: err.message },
+      "Job FAILED"
     );
 
     // Update provisioning state on final failure

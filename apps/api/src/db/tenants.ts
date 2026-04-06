@@ -109,29 +109,6 @@ export async function updateBillingStatus(
 }
 
 /**
- * Transition a demo account to trial after billing activation.
- * Sets trial dates, usage counters, workspace mode, and provisioning state.
- */
-export async function activateTrial(tenantId: string): Promise<void> {
-  await query(
-    `UPDATE tenants SET
-       billing_status       = 'trial',
-       trial_started_at     = NOW(),
-       trial_ends_at        = NOW() + INTERVAL '14 days',
-       trial_conv_limit     = 50,
-       conv_limit_this_cycle = 50,
-       conv_used_this_cycle = 0,
-       warned_80pct         = FALSE,
-       warned_100pct        = FALSE,
-       workspace_mode       = 'live_empty',
-       provisioning_state   = 'pending_setup',
-       updated_at           = NOW()
-     WHERE id = $1 AND billing_status = 'demo'`,
-    [tenantId]
-  );
-}
-
-/**
  * Check if a tenant is in demo mode (no live infrastructure allowed).
  */
 export function isDemoMode(tenant: Tenant): boolean {
