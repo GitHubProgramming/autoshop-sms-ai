@@ -3613,20 +3613,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         } catch (e) { /* retry */ }
         await new Promise(function(r) { setTimeout(r, 2000); });
       }
-      // Webhook still hasn't arrived — reload data and let banner system handle routing.
-      // The "SETUP REQUIRED" banner will appear once billing_status flips from demo,
-      // giving the user a persistent link to /onboarding even if this poll exhausted.
-      showToast('Trial activated! Your workspace is being set up \u2014 the setup banner will appear shortly.');
+      // Webhook still hasn't arrived — show clear message with refresh option.
+      if (banner) banner.innerHTML = '<div class="banner demo" style="justify-content:center;text-align:center;">' +
+        '<div class="banner-left"><span class="banner-label blue">ACTIVATING</span>' +
+        '<span class="banner-msg blue">Activation is taking longer than expected. Please refresh the page in 1 minute. If you still see this message, email <a href="mailto:hello@autoshopsmsai.com" style="color:inherit;text-decoration:underline;">hello@autoshopsmsai.com</a></span></div>' +
+        '<button onclick="window.location.reload()" style="margin-left:12px;padding:8px 16px;border-radius:6px;border:1px solid #93C5FD;background:#EFF6FF;color:#1E40AF;font-size:13px;font-weight:600;cursor:pointer;">Refresh Page</button>' +
+        '</div>';
       await loadDashboardData();
       renderBanners();
-      // Re-check after another 10s in case webhook just landed
-      setTimeout(async function() {
-        await loadDashboardData();
-        if (tenantState.activation && tenantState.activation.state === 'needs_onboarding') {
-          renderBanners();
-          showToast('Setup is ready \u2014 click "Complete Setup" to continue.');
-        }
-      }, 10000);
     })();
   } else if (billingParam === 'success') {
     showToast('Subscription activated! Your plan will update shortly.');
@@ -5254,6 +5248,19 @@ function renderYouAreLiveCard() {
   var hasConversations = (dashboardStats && dashboardStats.total_conversations > 0) || (liveConversationsData && liveConversationsData.length > 0);
   var phoneReady = tenantState.provisioningState === 'ready' || (tenantState._twilioPhone && tenantState.integrations.twilioNumber === 'active');
   var dismissed = localStorage.getItem('youAreLiveDismissed') === '1';
+
+  var isProvisioning = !isDemo && !hasConversations && !phoneReady &&
+    (tenantState.provisioningState === 'provisioning' ||
+     tenantState.provisioningState === 'pending_setup' ||
+     tenantState.provisioningState === 'not_started');
+
+  if (isProvisioning && !dismissed) {
+    container.innerHTML = '<div class="you-are-live-card" style="border-color:#93C5FD;background:#EFF6FF;">' +
+      '<h3 style="color:#1E40AF;">&#9203; Setting up your phone number...</h3>' +
+      '<p style="color:#1E40AF;font-size:14px;">This takes about 30 seconds. Your dashboard will update automatically.</p>' +
+      '</div>';
+    return;
+  }
 
   if (isDemo || hasConversations || !phoneReady || dismissed) {
     container.innerHTML = '';
