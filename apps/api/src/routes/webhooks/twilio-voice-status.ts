@@ -44,6 +44,18 @@ export async function twilioVoiceStatusRoute(app: FastifyInstance) {
         return reply.status(200).type("text/xml").send("<Response/>");
       }
 
+      // ── Idempotency (two-tier: Redis + PostgreSQL) ────────────────────────
+      // MUST run before any DB writes (including startTrace) to prevent
+      // duplicate pipeline traces on Twilio retries.
+      const dedup = await deduplicateWebhook("twilio_voice_status", CallSid);
+      if (dedup.isDuplicate) {
+        request.log.info(
+          { CallSid, source: "twilio_voice_status", event: "webhook_duplicate_detected" },
+          "Duplicate voice-status webhook — skipping"
+        );
+        return reply.status(200).type("text/xml").send("<Response/>");
+      }
+
       // ── Start execution trace ──────────────────────────────────────────
       let traceId: string | null = null;
       try {
@@ -56,16 +68,6 @@ export async function twilioVoiceStatusRoute(app: FastifyInstance) {
         await trace.step("webhook_received", "ok", `POST /webhooks/twilio/voice-status — ${CallStatus}`);
       } catch {
         // Non-fatal
-      }
-
-      // ── Idempotency (two-tier: Redis + PostgreSQL) ────────────────────────
-      const dedup = await deduplicateWebhook("twilio_voice_status", CallSid);
-      if (dedup.isDuplicate) {
-        request.log.info(
-          { CallSid, source: "twilio_voice_status", event: "webhook_duplicate_detected" },
-          "Duplicate voice-status webhook — skipping"
-        );
-        return reply.status(200).type("text/xml").send("<Response/>");
       }
 
       const tenant = await getTenantByPhoneNumber(To);
