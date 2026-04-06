@@ -17,7 +17,7 @@
 import { query } from "../db/client";
 import { getConfig } from "../db/app-config";
 import { getTenantAiPolicy, buildRuntimePolicy, AI_SETTINGS_DEFAULTS } from "./ai-settings";
-import { openConversation } from "./conversation";
+import { openConversationWithRetry } from "./conversation";
 
 export interface MissedCallInput {
   tenantId: string;
@@ -198,7 +198,7 @@ export async function handleMissedCallSms(
   let conversationId: string | null = null;
   let isNew = false;
   try {
-    const convResult = await openConversation(input.tenantId, input.customerPhone);
+    const convResult = await openConversationWithRetry(input.tenantId, input.customerPhone);
 
     if (convResult.blocked) {
       return {

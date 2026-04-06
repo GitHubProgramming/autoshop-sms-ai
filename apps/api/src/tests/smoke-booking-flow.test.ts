@@ -59,6 +59,7 @@ vi.mock("../services/pipeline-trace", () => ({
 
 const conversationMocks = vi.hoisted(() => ({
   openConversation: vi.fn(),
+  openConversationWithRetry: vi.fn(),
 }));
 
 vi.mock("../services/conversation", () => conversationMocks);
@@ -160,7 +161,7 @@ describe("SMOKE STEP 2 — Missed Call → Auto SMS", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    conversationMocks.openConversation.mockResolvedValue({
+    conversationMocks.openConversationWithRetry.mockResolvedValue({
       blocked: false, existing: false, conversationId: "conv-smoke-1", isNew: true,
     });
 
