@@ -330,6 +330,17 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
 
     case "charge.dispute.created": {
       await updateBillingStatus(tenantId, "paused");
+      // Suspend Twilio number(s) — stop SMS during fraud dispute
+      try {
+        await query(
+          `UPDATE tenant_phone_numbers SET status = 'suspended', suspended_at = NOW()
+           WHERE tenant_id = $1 AND status = 'active'`,
+          [tenantId]
+        );
+        console.info(`[stripe] Suspended Twilio number(s) for disputed tenant ${tenantId}`);
+      } catch (err) {
+        console.error(`[stripe] Failed to suspend Twilio number for disputed tenant ${tenantId}:`, (err as Error).message);
+      }
       // Alert admin via pipeline alerts system
       try {
         const { raiseAlert } = await import("../../services/pipeline-alerts");
