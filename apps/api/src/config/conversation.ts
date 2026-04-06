@@ -1,4 +1,4 @@
-const DEFAULT_MAX_TURNS = 50;
+const DEFAULT_MAX_TURNS = 20;
 
 export function getMaxConversationTurns(): number {
   const raw = process.env.MAX_CONVERSATION_TURNS;

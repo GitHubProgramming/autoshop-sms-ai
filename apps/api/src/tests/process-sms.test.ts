@@ -1081,8 +1081,8 @@ describe("processSms — max turns enforcement", () => {
     expect(openaiCalls.length).toBeGreaterThan(0);
   });
 
-  it("closes at exactly the limit boundary (turn_count === 50)", async () => {
-    setupDbMocks({ turnCount: 50 });
+  it("closes at exactly the limit boundary (turn_count === 20)", async () => {
+    setupDbMocks({ turnCount: 20 });
     const fetchMock = mockFetchAll();
 
     const result = await processSms(validInput(), fetchMock);
@@ -1091,8 +1091,8 @@ describe("processSms — max turns enforcement", () => {
     expect(result.aiResponse).toContain("message limit");
   });
 
-  it("does not close at turn_count 49 (one below limit)", async () => {
-    setupDbMocks({ turnCount: 49 });
+  it("does not close at turn_count 19 (one below limit)", async () => {
+    setupDbMocks({ turnCount: 19 });
     const fetchMock = mockFetchAll();
 
     const result = await processSms(validInput(), fetchMock);
