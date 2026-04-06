@@ -559,8 +559,8 @@
           <div id="fwdTestStatus" style="margin-top:12px;display:none;font-size:13px;line-height:1.5;"></div>
         </div>
 
-        <button class="btn-primary" id="fwdDoneBtn" onclick="goStep(4)">Done — I've set it up</button>
-        <button class="btn-secondary" onclick="goStep(4)">I'll do this later</button>
+        <button class="btn-primary" id="fwdDoneBtn" onclick="localStorage.setItem('onboarding_fwd_confirmed','1');goStep(4)">Done — I've set it up</button>
+        <button class="btn-secondary" onclick="localStorage.setItem('onboarding_fwd_confirmed','0');goStep(4)">I'll do this later</button>
       </div>
     </div>
 
@@ -613,11 +613,21 @@
     <!-- ════════════════════════════════════════ -->
     <div class="wiz-step" id="step-6">
       <div class="section-card" style="text-align:center;padding:44px 32px;">
-        <div style="font-size:48px;margin-bottom:12px;">&#127881;</div>
+        <div style="font-size:48px;margin-bottom:12px;" id="successEmoji">&#127881;</div>
         <div class="section-title" style="font-size:28px;" id="successTitle">Your system is live</div>
-        <p class="section-sub" style="max-width:380px;margin:0 auto 28px;">
+        <p class="section-sub" style="max-width:380px;margin:0 auto 28px;" id="successSub">
           Your AI receptionist is ready. Missed calls will automatically trigger SMS follow-up and book appointments for you.
         </p>
+
+        <!-- Forwarding warning (hidden by default, shown when fwd not confirmed) -->
+        <div id="fwdWarningBox" style="display:none;max-width:400px;margin:0 auto 24px;padding:16px 20px;border:2px solid #D97706;border-radius:10px;background:#FFFBEB;text-align:left;">
+          <div style="font-weight:600;color:#92400E;margin-bottom:6px;">&#9888;&#65039; Call forwarding not set up yet</div>
+          <div style="font-size:13px;color:#78350F;line-height:1.5;">Your AI phone number is ready, but missed calls won't reach it until you forward your shop's calls.</div>
+          <div style="margin-top:14px;text-align:center;">
+            <button class="btn-primary" onclick="goStep(3)" style="font-size:14px;padding:10px 20px;margin-bottom:8px;">Set Up Call Forwarding &rarr;</button><br>
+            <button class="btn-secondary" onclick="window.location.href='/app/dashboard'" style="font-size:13px;padding:8px 16px;">I'll do this later &rarr;</button>
+          </div>
+        </div>
 
         <div style="text-align:left;max-width:360px;margin:0 auto 28px;">
           <div class="summary-row">
@@ -638,7 +648,7 @@
           </div>
         </div>
 
-        <button class="btn-primary" onclick="window.location.href='/app/dashboard'" style="max-width:300px;margin:0 auto;">Go to Dashboard</button>
+        <button class="btn-primary" id="dashboardBtn" onclick="window.location.href='/app/dashboard'" style="max-width:300px;margin:0 auto;">Go to Dashboard</button>
       </div>
     </div>
 
@@ -742,6 +752,7 @@ if (!jwt) {
     var ob = data.onboarding || {};
     if (ob.onboarding_complete) {
       localStorage.removeItem('onboarding_step');
+      localStorage.removeItem('onboarding_fwd_confirmed');
       window.location.replace('/app/dashboard');
       return;
     }
@@ -1051,6 +1062,7 @@ async function testCallForwarding() {
 
         if (statusData.result === 'forwarding_detected') {
           clearInterval(_fwdTestPollTimer);
+          localStorage.setItem('onboarding_fwd_confirmed', '1');
           statusEl.innerHTML = '<div style="color:#16A34A;font-weight:600;">\u2705 Forwarding works! Your missed calls will be handled automatically.</div>';
           btn.textContent = 'Test Again';
           btn.disabled = false;
@@ -1162,6 +1174,8 @@ function updateTestNumber() {
 // STEP 6: SUMMARY
 // ════════════════════════════════════════════
 function renderSummary() {
+  var fwdConfirmed = localStorage.getItem('onboarding_fwd_confirmed') === '1';
+
   // Number
   var numEl = document.getElementById('sumNumber');
   if (assignedPhone) {
@@ -1182,11 +1196,14 @@ function renderSummary() {
     smsEl.className = 'summary-val pending';
   }
 
-  // Calls
+  // Calls — reflect forwarding state
   var callsEl = document.getElementById('sumCalls');
-  if (assignedPhone) {
+  if (assignedPhone && fwdConfirmed) {
     callsEl.textContent = 'Ready';
     callsEl.className = 'summary-val active';
+  } else if (assignedPhone) {
+    callsEl.textContent = '\u26A0 Forwarding not verified';
+    callsEl.className = 'summary-val pending';
   } else {
     callsEl.textContent = 'Set up forwarding';
     callsEl.className = 'summary-val pending';
@@ -1202,10 +1219,31 @@ function renderSummary() {
     calEl.className = 'summary-val skip';
   }
 
-  // Adjust title based on actual state
+  // Adjust title, subtitle, emoji, and warning based on actual state
   var titleEl = document.getElementById('successTitle');
+  var subEl = document.getElementById('successSub');
+  var emojiEl = document.getElementById('successEmoji');
+  var warningBox = document.getElementById('fwdWarningBox');
+  var dashBtn = document.getElementById('dashboardBtn');
+
   if (!assignedPhone) {
     titleEl.textContent = 'Setup started';
+    emojiEl.innerHTML = '&#128736;';
+    subEl.textContent = 'Complete the steps above to activate your AI receptionist.';
+    warningBox.style.display = 'none';
+    dashBtn.style.display = '';
+  } else if (!fwdConfirmed) {
+    titleEl.textContent = 'Almost ready \u2014 one more step!';
+    emojiEl.innerHTML = '&#128221;';
+    subEl.textContent = 'Your AI number is provisioned, but missed calls won\u2019t reach it until call forwarding is set up.';
+    warningBox.style.display = '';
+    dashBtn.style.display = 'none';
+  } else {
+    titleEl.textContent = 'Your system is live';
+    emojiEl.innerHTML = '&#127881;';
+    subEl.textContent = 'Your AI receptionist is ready. Missed calls will automatically trigger SMS follow-up and book appointments for you.';
+    warningBox.style.display = 'none';
+    dashBtn.style.display = '';
   }
 }
 
