@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyBaseLogger } from "fastify";
 import { z } from "zod";
 import { validateTwilioSignature } from "../../middleware/twilio-validate";
 import { getTenantByPhoneNumber, getBlockReason } from "../../db/tenants";
-import { smsInboundQueue, checkMissedCallDedupe } from "../../queues/redis";
+import { smsInboundQueue, checkMissedCallDedupe, redis } from "../../queues/redis";
 import { deduplicateWebhook } from "../../db/webhook-events";
 import { startTrace, resumeTrace } from "../../services/pipeline-trace";
 import { handleMissedCallSms, type MissedCallInput } from "../../services/missed-call-sms";
@@ -90,6 +90,33 @@ export async function twilioVoiceStatusRoute(app: FastifyInstance) {
           await t.setTenant(tenant.id);
           await t.step("tenant_resolved", "ok", `${tenant.shop_name ?? "unknown"} (${tenant.id.slice(0, 8)})`);
         } catch { /* non-fatal */ }
+      }
+
+      // ── Forwarding test detection ─────────────────────────────────────────
+      // If this tenant has an active call-forwarding test, the inbound missed
+      // call is the forwarded test call arriving back. Mark it and skip normal
+      // missed-call SMS processing.
+      try {
+        const fwdTestRaw = await redis.get(`fwd_test:${tenant.id}`);
+        if (fwdTestRaw) {
+          const fwdTest = JSON.parse(fwdTestRaw);
+          fwdTest.forwardingDetected = true;
+          await redis.setex(`fwd_test:${tenant.id}`, 120, JSON.stringify(fwdTest));
+          request.log.info(
+            { tenantId: tenant.id, CallSid },
+            "Forwarding test — inbound call detected, marking forwarding as working"
+          );
+          if (traceId) {
+            try {
+              const t = await resumeTrace(traceId);
+              await t.step("fwd_test_detected", "ok", "Call forwarding test — forwarding confirmed");
+              await t.complete();
+            } catch { /* non-fatal */ }
+          }
+          return reply.status(200).type("text/xml").send("<Response/>");
+        }
+      } catch {
+        // Redis failure — continue normal flow
       }
 
       // ── Caller dedupe (tenant + phone + 5min window) ────────────────────

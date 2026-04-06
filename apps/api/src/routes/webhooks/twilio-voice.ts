@@ -47,12 +47,14 @@ export async function twilioVoiceRoute(app: FastifyInstance) {
       // Look up the forwarding number for this Twilio number
       let forwardTo: string | null = null;
       let shopName: string | null = null;
+      let tenantId: string | null = null;
       try {
         const rows = await query<{
+          tenant_id: string;
           forward_to: string | null;
           shop_name: string | null;
         }>(
-          `SELECT tpn.forward_to, t.shop_name
+          `SELECT tpn.tenant_id, tpn.forward_to, t.shop_name
            FROM tenant_phone_numbers tpn
            JOIN tenants t ON t.id = tpn.tenant_id
            WHERE tpn.phone_number = $1
@@ -62,11 +64,42 @@ export async function twilioVoiceRoute(app: FastifyInstance) {
         );
 
         if (rows.length > 0) {
+          tenantId = rows[0].tenant_id;
           forwardTo = rows[0].forward_to;
           shopName = rows[0].shop_name;
         }
       } catch (err) {
         request.log.error({ err, to: To }, "Failed to look up forwarding number");
+      }
+
+      // ── Forwarding test detection ───────────────────────────────────────
+      // If this tenant has an active call-forwarding test, the inbound call
+      // is the forwarded test call arriving back. Mark it detected and
+      // return a short TwiML response instead of normal call handling.
+      if (tenantId) {
+        try {
+          const { redis: redisClient } = await import("../../queues/redis");
+          const fwdTestRaw = await redisClient.get(`fwd_test:${tenantId}`);
+          if (fwdTestRaw) {
+            const fwdTest = JSON.parse(fwdTestRaw);
+            fwdTest.forwardingDetected = true;
+            await redisClient.setex(`fwd_test:${tenantId}`, 120, JSON.stringify(fwdTest));
+            request.log.info(
+              { tenantId, CallSid },
+              "Forwarding test — inbound call detected on voice webhook"
+            );
+            const twiml = [
+              '<?xml version="1.0" encoding="UTF-8"?>',
+              "<Response>",
+              '  <Say voice="alice">Forwarding test successful. You can hang up now.</Say>',
+              "  <Hangup/>",
+              "</Response>",
+            ].join("\n");
+            return reply.status(200).type("text/xml").send(twiml);
+          }
+        } catch {
+          // Redis failure — continue normal flow
+        }
       }
 
       // Build the voice-status callback URL for missed-call detection
