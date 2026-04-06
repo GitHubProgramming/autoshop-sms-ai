@@ -193,6 +193,7 @@ export async function createCalendarEvent(
         "Content-Type": "application/json",
       },
       body: JSON.stringify(eventBody),
+      signal: AbortSignal.timeout(10_000),
     });
 
     // 401 → token may have expired mid-flight; force-refresh and retry once
@@ -207,6 +208,7 @@ export async function createCalendarEvent(
             "Content-Type": "application/json",
           },
           body: JSON.stringify(eventBody),
+          signal: AbortSignal.timeout(10_000),
         });
       }
     }
@@ -322,6 +324,7 @@ export async function deleteCalendarEvent(
       headers: {
         Authorization: `Bearer ${tokens.accessToken}`,
       },
+      signal: AbortSignal.timeout(10_000),
     });
 
     // 401 → token may have expired; force-refresh and retry once
@@ -333,6 +336,7 @@ export async function deleteCalendarEvent(
           headers: {
             Authorization: `Bearer ${refreshed}`,
           },
+          signal: AbortSignal.timeout(10_000),
         });
       }
     }

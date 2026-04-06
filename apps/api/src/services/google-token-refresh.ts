@@ -59,6 +59,7 @@ export async function refreshAccessToken(
         refresh_token: refreshToken,
         grant_type: "refresh_token",
       }).toString(),
+      signal: AbortSignal.timeout(10_000),
     });
   } catch {
     return null;
