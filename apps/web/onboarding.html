@@ -362,6 +362,21 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* ── PROVISIONING STATES ── */
+  .provision-progress { padding: 24px 16px; text-align: center; }
+  .provision-progress .spinner-lg { display: block; width: 32px; height: 32px; border: 3px solid var(--border-str); border-top-color: var(--rust); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto 16px; }
+  .provision-progress-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .provision-progress-sub { font-size: 12px; color: var(--text-tert); }
+  .provision-timeout, .provision-error { padding: 28px 20px; text-align: center; border-radius: var(--radius-sm, 8px); border: 1px solid; margin: 8px 0; }
+  .provision-timeout { background: #FFFBEB; border-color: #FCD34D; }
+  .provision-error { background: #FEF2F2; border-color: #FECACA; }
+  .provision-timeout-icon, .provision-error-icon { font-size: 28px; margin-bottom: 10px; }
+  .provision-timeout-title, .provision-error-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .provision-timeout-msg, .provision-error-msg { font-size: 13px; color: #6B7280; margin-bottom: 16px; line-height: 1.5; }
+  .provision-timeout .btn-primary, .provision-error .btn-primary { font-size: 14px; padding: 10px 24px; }
+  .provision-support { font-size: 12px; color: #9CA3AF; margin-top: 12px; }
+  .provision-support a { color: #6B7280; text-decoration: underline; }
+
   /* ── FORWARDING INSTRUCTIONS ── */
   .fwd-step {
     display: flex;
@@ -867,14 +882,19 @@ function checkAutoProvision() {
     if (btn) btn.disabled = true;
     if (statusEl) {
       statusEl.style.display = 'block';
-      statusEl.innerHTML = '<span class="spinner"></span> Your phone number is being set up automatically. Checking status...';
+      statusEl.innerHTML = '<div class="provision-progress"><div class="spinner-lg"></div><div class="provision-progress-title">Setting up your phone number\u2026</div><div class="provision-progress-sub">This usually takes 20\u201330 seconds. Please don\u2019t close this page.</div></div>';
     }
     pollForNumber(0);
   } else if (window._provisionFailed) {
-    var errorEl = document.getElementById('step2Error');
-    if (errorEl) {
-      errorEl.textContent = 'Phone provisioning failed. Enter your preferred area code and try again.';
-      errorEl.classList.add('visible');
+    var statusEl2 = document.getElementById('provisionStatus');
+    if (statusEl2) {
+      statusEl2.style.display = 'block';
+      statusEl2.innerHTML = '<div class="provision-error">' +
+        '<div class="provision-error-icon">&#9888;</div>' +
+        '<div class="provision-error-title">Phone provisioning failed</div>' +
+        '<div class="provision-error-msg">Enter your preferred area code and try again.</div>' +
+        '<div class="provision-support">Need help? Email <a href="mailto:hello@autoshopsmsai.com">hello@autoshopsmsai.com</a></div>' +
+        '</div>';
     }
   }
 }
@@ -893,7 +913,7 @@ async function requestNumber() {
   errorEl.classList.remove('visible');
   btn.disabled = true;
   statusEl.style.display = 'block';
-  statusEl.innerHTML = '<span class="spinner"></span> Requesting number with area code ' + areaCode + '...';
+  statusEl.innerHTML = '<div class="provision-progress"><div class="spinner-lg"></div><div class="provision-progress-title">Setting up your phone number\u2026</div><div class="provision-progress-sub">This usually takes 20\u201330 seconds. Please don\u2019t close this page.</div></div>';
 
   try {
     var res = await fetch('/tenant/provision-number', {
@@ -903,33 +923,42 @@ async function requestNumber() {
     });
 
     if (res.ok) {
-      statusEl.innerHTML = '<span class="spinner"></span> Number provisioning queued. Checking status...';
-      // Poll for the number to appear on the tenant
+      statusEl.innerHTML = '<div class="provision-progress"><div class="spinner-lg"></div><div class="provision-progress-title">Number provisioning started\u2026</div><div class="provision-progress-sub">Waiting for your number to be assigned. This usually takes 20\u201330 seconds.</div></div>';
       pollForNumber(0);
     } else {
       var data = await res.json().catch(function() { return {}; });
-      statusEl.innerHTML = '';
-      errorEl.textContent = data.error || 'Failed to request number. You can set this up later from Settings.';
-      errorEl.classList.add('visible');
+      statusEl.innerHTML = '<div class="provision-error">' +
+        '<div class="provision-error-icon">&#9888;</div>' +
+        '<div class="provision-error-title">Couldn\u2019t set up your phone number</div>' +
+        '<div class="provision-error-msg">' + (data.error || 'The provisioning request failed. Please try again.') + '</div>' +
+        '<button class="btn-primary" onclick="requestNumber()">Try Again</button>' +
+        '<div class="provision-support">Need help? Email <a href="mailto:hello@autoshopsmsai.com">hello@autoshopsmsai.com</a></div>' +
+        '</div>';
       btn.disabled = false;
     }
   } catch (err) {
-    statusEl.innerHTML = '';
-    errorEl.textContent = 'Connection error. You can set this up later from Settings.';
-    errorEl.classList.add('visible');
+    statusEl.innerHTML = '<div class="provision-error">' +
+      '<div class="provision-error-icon">&#9888;</div>' +
+      '<div class="provision-error-title">Connection error</div>' +
+      '<div class="provision-error-msg">We couldn\u2019t reach the server. Please check your connection and try again.</div>' +
+      '<button class="btn-primary" onclick="requestNumber()">Try Again</button>' +
+      '<div class="provision-support">Need help? Email <a href="mailto:hello@autoshopsmsai.com">hello@autoshopsmsai.com</a></div>' +
+      '</div>';
     btn.disabled = false;
   }
 }
 
 function pollForNumber(attempts) {
   if (attempts > 30) {
-    // 30 attempts * 3s = 90s max — show status with retry option
+    // 30 attempts * 3s = 90s max — show timeout with clear guidance
     var statusEl = document.getElementById('provisionStatus');
-    statusEl.innerHTML = '<div class="info-box">' +
-      'Number provisioning is still in progress. This can take a few minutes.' +
-      '<br><br>You can continue setup — your number will appear on the dashboard when ready.' +
-      '<br><button type="button" class="btn-sm" style="margin-top:12px;" ' +
-      'onclick="pollForNumber(0)">Check again</button>' +
+    statusEl.innerHTML = '<div class="provision-timeout">' +
+      '<div class="provision-timeout-icon">&#9203;</div>' +
+      '<div class="provision-timeout-title">This is taking longer than expected</div>' +
+      '<div class="provision-timeout-msg">Your phone number may still be setting up in the background. Please wait a minute, then refresh this page to check.</div>' +
+      '<button class="btn-primary" onclick="window.location.reload()">Refresh Page</button>' +
+      '<br><button class="btn-primary" style="margin-top:8px;background:transparent;color:var(--rust);border:1px solid var(--rust);" onclick="pollForNumber(0)">Check Again</button>' +
+      '<div class="provision-support">Still having issues? Email <a href="mailto:hello@autoshopsmsai.com">hello@autoshopsmsai.com</a></div>' +
       '</div>';
     document.getElementById('provisionBtn').style.display = 'none';
     return;
