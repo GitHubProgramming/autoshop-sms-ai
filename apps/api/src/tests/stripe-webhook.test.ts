@@ -407,7 +407,7 @@ describe("POST /webhooks/stripe", () => {
 
   // ── Event: charge.dispute.created ─────────────────────────────────────────
 
-  it("pauses tenant on charge.dispute.created and raises admin alert", async () => {
+  it("pauses tenant on charge.dispute.created, suspends Twilio number, and raises admin alert", async () => {
     const obj = { id: "dp_test_001", metadata: { tenant_id: TEST_TENANT_ID } };
     const evt = makeEvent("charge.dispute.created", obj);
     mocks.constructEvent.mockReturnValue(evt);
@@ -416,6 +416,16 @@ describe("POST /webhooks/stripe", () => {
     await postStripe(app);
 
     expect(mocks.updateBillingStatus).toHaveBeenCalledWith(TEST_TENANT_ID, "paused");
+
+    // Verify Twilio number was suspended
+    const suspendCall = mocks.query.mock.calls.find(
+      (c: unknown[]) => typeof c[0] === "string" &&
+        (c[0] as string).includes("tenant_phone_numbers") &&
+        (c[0] as string).includes("status = 'suspended'")
+    );
+    expect(suspendCall).toBeTruthy();
+    expect(suspendCall![1]).toEqual([TEST_TENANT_ID]);
+
     expect(mockRaiseAlert).toHaveBeenCalledWith(
       expect.objectContaining({
         tenantId: TEST_TENANT_ID,
