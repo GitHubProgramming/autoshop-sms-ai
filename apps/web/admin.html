@@ -862,6 +862,37 @@ async function loadOverview() {
         </div>
       </div>
 
+      <!-- ═══ D2. GROSS MARGIN ═══ -->
+      ${(() => {
+        const mrr = rev.mrr || 0;
+        const totalCost = (cost.month?.ai || 0) + (cost.month?.sms || 0);
+        const margin = mrr - totalCost;
+        const marginPct = mrr > 0 ? Math.round((margin / mrr) * 100) : null;
+        const marginColor = marginPct === null ? 'var(--steel)' : marginPct > 50 ? 'var(--green)' : marginPct >= 30 ? 'var(--amber)' : 'var(--red)';
+        const marginBg = marginPct === null ? 'rgba(107,114,128,.08)' : marginPct > 50 ? 'var(--green-dim)' : marginPct >= 30 ? 'rgba(217,119,6,.08)' : 'var(--red-dim)';
+        return `<div style="display:flex;align-items:center;gap:20px;padding:16px 24px;border-radius:12px;border:2px solid ${marginColor};background:${marginBg};margin-bottom:20px;">
+          <div style="flex:1">
+            <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--steel)">Gross Margin (30d)</div>
+            <div style="display:flex;align-items:baseline;gap:16px;margin-top:6px;">
+              <span style="font-size:32px;font-weight:700;color:${marginColor}">${mrr > 0 ? '$' + margin.toLocaleString(undefined, {minimumFractionDigits:0, maximumFractionDigits:0}) + ' / mo' : '—'}</span>
+              <span style="font-size:20px;font-weight:700;color:${marginColor}">${marginPct !== null ? marginPct + '% margin' : ''}</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:24px;font-size:12px;font-family:var(--mono);color:var(--steel)">
+            <div style="text-align:center"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">MRR</div><div style="font-size:16px;font-weight:700;color:var(--green)">$${mrr.toLocaleString()}</div></div>
+            <div style="text-align:center"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">AI Cost</div><div style="font-size:16px;font-weight:700;color:var(--white)">${fmtUsd(cost.month?.ai)}</div></div>
+            <div style="text-align:center"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">SMS Cost</div><div style="font-size:16px;font-weight:700;color:var(--white)">${fmtUsd(cost.month?.sms)}</div></div>
+          </div>
+        </div>`;
+      })()}
+
+      <!-- ═══ D3. CONVERSATION TREND ═══ -->
+      <div class="section-label">Conversation Trend — Last 14 Days</div>
+      <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:20px;position:relative;min-height:200px;">
+        <canvas id="convTrendCanvas" width="900" height="180" style="width:100%;height:180px;"></canvas>
+        <div id="convTrendEmpty" style="display:none;position:absolute;top:0;left:0;right:0;bottom:0;align-items:center;justify-content:center;color:var(--steel);font-size:13px;">No data yet</div>
+      </div>
+
       <!-- ═══ E. UNIFIED ACTION QUEUE ═══ -->
       <div class="section-label">Action Queue</div>
       ${actions.length > 0 ? `
@@ -944,8 +975,121 @@ async function loadOverview() {
         </div>
       </div>
     `;
+
+    // ── Draw conversation trend chart (async, non-blocking) ──
+    drawConvTrendChart();
+
   } catch (err) {
     document.getElementById('mainContent').innerHTML = renderError(err);
+  }
+}
+
+async function drawConvTrendChart() {
+  const canvas = document.getElementById('convTrendCanvas');
+  const emptyEl = document.getElementById('convTrendEmpty');
+  if (!canvas) return;
+  try {
+    const data = await apiFetch('/internal/admin/metrics/conversation-health', { days: '14' });
+    const daily = data.daily || [];
+    if (daily.length === 0 || daily.every(d => d.opened === 0 && d.booked === 0)) {
+      canvas.style.display = 'none';
+      if (emptyEl) { emptyEl.style.display = 'flex'; }
+      return;
+    }
+    if (emptyEl) emptyEl.style.display = 'none';
+
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    const W = rect.width, H = rect.height;
+
+    const padL = 36, padR = 16, padT = 16, padB = 36;
+    const chartW = W - padL - padR, chartH = H - padT - padB;
+
+    const maxVal = Math.max(1, ...daily.map(d => d.opened));
+    const n = daily.length;
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 1;
+    const gridLines = 4;
+    for (let i = 0; i <= gridLines; i++) {
+      const y = padT + (chartH / gridLines) * i;
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(Math.round(maxVal - (maxVal / gridLines) * i).toString(), padL - 6, y + 3);
+    }
+
+    // X-axis labels
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    daily.forEach((d, i) => {
+      const x = padL + (chartW / (n - 1 || 1)) * i;
+      if (i % 2 === 0 || n <= 7) {
+        const label = d.day ? d.day.slice(5) : '';
+        ctx.fillText(label, x, H - padB + 18);
+      }
+    });
+
+    // Helper to plot a line
+    function plotLine(values, color, fillColor) {
+      if (values.length < 2) return;
+      ctx.beginPath();
+      values.forEach((v, i) => {
+        const x = padL + (chartW / (n - 1 || 1)) * i;
+        const y = padT + chartH - (v / maxVal) * chartH;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+
+      // Fill area under
+      if (fillColor) {
+        ctx.lineTo(padL + (chartW / (n - 1 || 1)) * (values.length - 1), padT + chartH);
+        ctx.lineTo(padL, padT + chartH);
+        ctx.closePath();
+        ctx.fillStyle = fillColor;
+        ctx.fill();
+      }
+
+      // Dots
+      values.forEach((v, i) => {
+        const x = padL + (chartW / (n - 1 || 1)) * i;
+        const y = padT + chartH - (v / maxVal) * chartH;
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+      });
+    }
+
+    plotLine(daily.map(d => d.opened), '#f97316', 'rgba(249,115,22,0.08)');
+    plotLine(daily.map(d => d.booked), '#22c55e', 'rgba(34,197,94,0.06)');
+
+    // Legend
+    ctx.font = '11px sans-serif';
+    const legY = padT + 2;
+    ctx.fillStyle = '#f97316';
+    ctx.fillRect(W - padR - 190, legY, 10, 10);
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.textAlign = 'left';
+    ctx.fillText('Conversations', W - padR - 176, legY + 9);
+    ctx.fillStyle = '#22c55e';
+    ctx.fillRect(W - padR - 80, legY, 10, 10);
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fillText('Booked', W - padR - 66, legY + 9);
+  } catch (e) {
+    // Non-critical — just show empty state
+    canvas.style.display = 'none';
+    if (emptyEl) { emptyEl.style.display = 'flex'; }
   }
 }
 
@@ -2085,9 +2229,37 @@ async function loadIntegrations() {
 }
 
 // ── SECTION 8: ERRORS ────────────────────────────────────────────────────────
+async function acknowledgeAlert(alertId, btnEl) {
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = '…'; }
+  try {
+    const resp = await fetch(API + '/internal/admin/alerts/' + encodeURIComponent(alertId) + '/acknowledge', {
+      method: 'POST',
+      credentials: 'same-origin',
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: resp.statusText }));
+      throw new Error(err.error || resp.statusText);
+    }
+    // Remove the row from UI
+    const row = btnEl?.closest('tr');
+    if (row) {
+      row.style.opacity = '0.4';
+      row.style.textDecoration = 'line-through';
+      btnEl.textContent = '✓';
+      btnEl.style.color = 'var(--green)';
+    }
+  } catch (err) {
+    if (btnEl) { btnEl.disabled = false; btnEl.textContent = '✓ Ack'; }
+    alert('Failed to acknowledge: ' + err.message);
+  }
+}
+
 async function loadErrors() {
   try {
-    const d = await apiFetch('/internal/admin/errors');
+    const [d, alertsData] = await Promise.all([
+      apiFetch('/internal/admin/errors'),
+      apiFetch('/internal/admin/alerts?acknowledged=false').catch(() => null),
+    ]);
     const high   = d.errors.filter(e => e.severity === 'high');
     const medium = d.errors.filter(e => e.severity === 'medium');
     const low    = d.errors.filter(e => e.severity === 'low');
@@ -2110,12 +2282,31 @@ async function loadErrors() {
         </div>`;
     };
 
+    // Pipeline alerts with acknowledge buttons
+    const pipelineAlerts = alertsData?.alerts || [];
+    const alertsSection = pipelineAlerts.length > 0 ? `
+      <div class="section-label">Pipeline Alerts — Unacknowledged (${pipelineAlerts.length})</div>
+      <div class="table-wrap" style="margin-bottom:16px">
+        <table class="data-table">
+          <thead><tr><th>Severity</th><th>Type</th><th>Tenant</th><th>Time</th><th>Summary</th><th style="width:70px"></th></tr></thead>
+          <tbody>${pipelineAlerts.map(a => `<tr>
+            <td>${statusBadge(a.severity || 'high')}</td>
+            <td class="mono">${escHtml(a.alert_type || '—')}</td>
+            <td>${a.tenant_id ? `<span class="mono dim" style="font-size:9px">${a.tenant_id}</span>` : '—'}</td>
+            <td class="mono dim">${relTime(a.created_at)}</td>
+            <td style="font-size:12px;max-width:350px;word-break:break-word">${escHtml(a.summary || '')}</td>
+            <td><button class="btn-sm" style="font-size:11px;padding:4px 10px;" onclick="acknowledgeAlert('${a.id}',this)">✓ Ack</button></td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>` : '';
+
     document.getElementById('mainContent').innerHTML = `
       <div class="page-header">
         <div><div class="page-title">Errors &amp; Alerts</div><div class="page-subtitle">System issues requiring attention</div></div>
         <button class="btn-sm" onclick="navigate('errors')">↻ Refresh</button>
       </div>
-      ${d.errors.length === 0
+      ${alertsSection}
+      ${d.errors.length === 0 && pipelineAlerts.length === 0
         ? `<div class="table-wrap">${renderEmpty('No active errors — system is healthy')}</div>`
         : renderGroup('High Severity', high) + renderGroup('Medium Severity', medium) + renderGroup('Low Severity', low)
       }`;
