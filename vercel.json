@@ -76,6 +76,12 @@
     }
   ],
   "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.autoshopsmsai.com" }],
+      "destination": "https://autoshopsmsai.com/:path*",
+      "permanent": true
+    },
     { "source": "/app.html", "destination": "/app/dashboard", "permanent": false },
     { "source": "/app", "destination": "/app/dashboard", "permanent": false },
     { "source": "/dashboard", "destination": "/app/dashboard", "permanent": false },

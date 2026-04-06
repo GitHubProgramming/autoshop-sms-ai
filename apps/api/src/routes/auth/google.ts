@@ -89,34 +89,14 @@ async function fetchGoogleEmail(accessToken: string): Promise<string | undefined
   }
 }
 
-// ── OAuth state store (server-side, in-memory with TTL) ──────────────────────
+// ── OAuth state store (Redis-backed with TTL) ───────────────────────────────
 // Stores login nonces for CSRF validation. Single-use, 10-minute expiry.
+// Uses Redis so state survives deploys and works across multiple instances.
 
-const STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
-const STATE_CLEANUP_INTERVAL_MS = 60 * 1000; // sweep every minute
-
-interface StoredState {
-  createdAt: number;
-}
-
-export const oauthStateStore = new Map<string, StoredState>();
-
-// Periodic cleanup of expired states
-const stateCleanupTimer = setInterval(() => {
-  const now = Date.now();
-  for (const [key, val] of oauthStateStore) {
-    if (now - val.createdAt > STATE_TTL_MS) {
-      oauthStateStore.delete(key);
-    }
-  }
-}, STATE_CLEANUP_INTERVAL_MS);
-stateCleanupTimer.unref(); // don't keep process alive
-
-// ── One-time auth code store (replaces JWT-in-URL) ───────────────────────────
-// After successful Google login, server stores code → session data.
-// Frontend exchanges code for JWT via POST (no token in URL/history/referrer).
-
-const AUTH_CODE_TTL_MS = 60 * 1000; // 1 minute — must be exchanged quickly
+const STATE_TTL_SECONDS = 600; // 10 minutes
+const STATE_TTL_MS = STATE_TTL_SECONDS * 1000;
+const AUTH_CODE_TTL_SECONDS = 300; // 5 minutes
+const AUTH_CODE_TTL_MS = AUTH_CODE_TTL_SECONDS * 1000;
 
 interface StoredAuthCode {
   jwt: string;
@@ -127,17 +107,43 @@ interface StoredAuthCode {
   createdAt: number;
 }
 
-export const authCodeStore = new Map<string, StoredAuthCode>();
+// Lazy Redis import — avoids REDIS_URL check at module load time (breaks tests)
+async function getRedis() {
+  const { redis } = await import("../../queues/redis");
+  return redis;
+}
 
-const authCodeCleanupTimer = setInterval(() => {
-  const now = Date.now();
-  for (const [key, val] of authCodeStore) {
-    if (now - val.createdAt > AUTH_CODE_TTL_MS) {
-      authCodeStore.delete(key);
-    }
-  }
-}, STATE_CLEANUP_INTERVAL_MS);
-authCodeCleanupTimer.unref();
+/** Store an OAuth nonce in Redis with 10-minute TTL. */
+export async function setOAuthState(nonce: string): Promise<void> {
+  const r = await getRedis();
+  await r.set(`oauth_state:${nonce}`, String(Date.now()), "EX", STATE_TTL_SECONDS);
+}
+
+/** Retrieve and delete (single-use) an OAuth nonce. Returns createdAt or null. */
+export async function consumeOAuthState(nonce: string): Promise<{ createdAt: number } | null> {
+  const r = await getRedis();
+  const raw = await r.get(`oauth_state:${nonce}`);
+  if (!raw) return null;
+  // Delete immediately — single-use
+  await r.del(`oauth_state:${nonce}`);
+  return { createdAt: parseInt(raw, 10) };
+}
+
+/** Store a one-time auth code in Redis with 5-minute TTL. */
+export async function setAuthCode(code: string, data: StoredAuthCode): Promise<void> {
+  const r = await getRedis();
+  await r.set(`oauth_code:${code}`, JSON.stringify(data), "EX", AUTH_CODE_TTL_SECONDS);
+}
+
+/** Retrieve and delete (single-use) a one-time auth code. */
+export async function consumeAuthCode(code: string): Promise<StoredAuthCode | null> {
+  const r = await getRedis();
+  const raw = await r.get(`oauth_code:${code}`);
+  // Delete immediately — single-use regardless of validity
+  await r.del(`oauth_code:${code}`);
+  if (!raw) return null;
+  return JSON.parse(raw) as StoredAuthCode;
+}
 
 // ── State helpers ─────────────────────────────────────────────────────────────
 
@@ -187,13 +193,14 @@ export async function googleAuthRoute(app: FastifyInstance) {
       return reply.status(503).send({ error: "Google OAuth not configured" });
     }
 
-    // Generate a cryptographic nonce and persist it server-side
+    // Generate a cryptographic nonce and persist it in Redis
     const nonce = randomBytes(16).toString("hex");
-    if (oauthStateStore.size >= 1000) {
-      const firstKey = oauthStateStore.keys().next().value;
-      if (firstKey !== undefined) oauthStateStore.delete(firstKey);
+    try {
+      await setOAuthState(nonce);
+    } catch (err) {
+      request.log.error({ err }, "Failed to store OAuth state in Redis");
+      return reply.status(503).send({ error: "Authentication temporarily unavailable. Please try again." });
     }
-    oauthStateStore.set(nonce, { createdAt: Date.now() });
 
     // Support ?intent=signup|admin to route through the right callback path
     const intentQuery = (request.query as Record<string, string>)?.intent;
@@ -224,9 +231,13 @@ export async function googleAuthRoute(app: FastifyInstance) {
       return reply.status(400).send({ error: "Auth code is required" });
     }
 
-    const stored = authCodeStore.get(body.data.code);
-    // Delete immediately — single-use regardless of validity
-    authCodeStore.delete(body.data.code);
+    let stored: StoredAuthCode | null = null;
+    try {
+      stored = await consumeAuthCode(body.data.code);
+    } catch (err) {
+      request.log.error({ err }, "Failed to read auth code from Redis");
+      return reply.status(503).send({ error: "Authentication temporarily unavailable. Please try again." });
+    }
 
     if (!stored) {
       return reply.status(400).send({ error: "Invalid or expired auth code" });
@@ -307,9 +318,15 @@ export async function googleAuthRoute(app: FastifyInstance) {
 
       // Validate the nonce server-side — reject missing, expired, or reused
       const nonce = state.slice(prefix.length);
-      const storedState = oauthStateStore.get(nonce);
-      // Delete immediately — single-use regardless of outcome
-      oauthStateStore.delete(nonce);
+      let storedState: { createdAt: number } | null = null;
+      try {
+        storedState = await consumeOAuthState(nonce);
+      } catch (err) {
+        request.log.error({ err }, "Failed to read OAuth state from Redis");
+        return reply.redirect(
+          `${publicOrigin}${errorPage}?error=Authentication+temporarily+unavailable.+Please+try+again.`
+        );
+      }
 
       if (!storedState) {
         request.log.warn({ state }, "Google auth: invalid or reused OAuth state");
@@ -505,18 +522,25 @@ export async function googleAuthRoute(app: FastifyInstance) {
         `Google ${isSignup ? "signup" : "login"} successful`
       );
 
-      // Store a one-time auth code; redirect with only the opaque code in the URL.
+      // Store a one-time auth code in Redis; redirect with only the opaque code in the URL.
       // Frontend exchanges code → JWT via POST /auth/google/exchange.
       // JWT never appears in URL, browser history, logs, or referrer headers.
       const authCode = randomBytes(32).toString("hex");
-      authCodeStore.set(authCode, {
-        jwt,
-        tenantId: tenant.id,
-        shopName: tenant.shop_name,
-        email: tenant.owner_email,
-        isNewAccount,
-        createdAt: Date.now(),
-      });
+      try {
+        await setAuthCode(authCode, {
+          jwt,
+          tenantId: tenant.id,
+          shopName: tenant.shop_name,
+          email: tenant.owner_email,
+          isNewAccount,
+          createdAt: Date.now(),
+        });
+      } catch (err) {
+        request.log.error({ err }, "Failed to store auth code in Redis");
+        return reply.redirect(
+          `${publicOrigin}${errorPage}?error=Authentication+temporarily+unavailable.+Please+try+again.`
+        );
+      }
 
       // Signup → redirect to signup page (which handles onboarding redirect)
       // Login → redirect to login page (which handles dashboard redirect)
