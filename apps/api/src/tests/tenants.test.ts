@@ -127,6 +127,25 @@ describe("getBlockReason", () => {
     // scheduled_cancel users are not blocked by count — still active until period ends
     expect(getBlockReason(tenant)).toBeNull();
   });
+
+  it("does NOT block scheduled_cancel tenant at 200% usage", () => {
+    const tenant = makeTenant({
+      billing_status: "scheduled_cancel",
+      conv_used_this_cycle: 800, // 200% of 400
+      conv_limit_this_cycle: 400,
+    });
+    expect(getBlockReason(tenant)).toBeNull();
+  });
+
+  it("does NOT block past_due tenant at high usage (grace period)", () => {
+    const tenant = makeTenant({
+      billing_status: "past_due",
+      conv_used_this_cycle: 800, // 200% of 400
+      conv_limit_this_cycle: 400,
+    });
+    // past_due users are in grace period — never blocked by count
+    expect(getBlockReason(tenant)).toBeNull();
+  });
 });
 
 describe("getTenantByPhoneNumber", () => {
