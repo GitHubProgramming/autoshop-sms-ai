@@ -45,6 +45,12 @@ vi.mock("../services/pipeline-trace", () => ({
   }),
 }));
 
+const conversationMocks = vi.hoisted(() => ({
+  openConversation: vi.fn(),
+}));
+
+vi.mock("../services/conversation", () => conversationMocks);
+
 // ── Import REAL services (not mocked) ──────────────────────────────────────
 
 import {
@@ -218,6 +224,9 @@ describe("SCENARIO C — Missed Call SMS Disabled", () => {
 describe("SCENARIO D — Missed Call SMS Enabled", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    conversationMocks.openConversation.mockResolvedValue({
+      blocked: false, existing: false, conversationId: "conv-001", isNew: true,
+    });
     mocks.query.mockImplementation((sql: string) => {
       if (sql.includes("SELECT") && sql.includes("billing_status")) {
         return [defaultTenantRow()];
@@ -228,9 +237,6 @@ describe("SCENARIO D — Missed Call SMS Enabled", () => {
             missedCallSms: { enabled: true, preset: "2", template: "" },
           },
         }];
-      }
-      if (sql.includes("get_or_create_conversation")) {
-        return [{ conversation_id: "conv-001", is_new: true }];
       }
       if (sql.includes("INSERT INTO messages")) return [];
       if (sql.includes("touch_conversation")) return [];

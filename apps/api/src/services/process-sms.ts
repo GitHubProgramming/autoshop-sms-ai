@@ -19,6 +19,7 @@ import { createCalendarEvent } from "./google-calendar";
 import { sendTwilioSms } from "./missed-call-sms";
 import { calendarQueue } from "../queues/redis";
 import { checkAndNotifyUsage } from "./usage-warnings";
+import { openConversation } from "./conversation";
 import {
   getTenantAiPolicy,
   buildPromptPolicySection,
@@ -95,19 +96,23 @@ export async function processSms(
     error: null,
   };
 
-  // ── 1. Get or create conversation ────────────────────────────────────────
+  // ── 1. Open conversation (race-condition-safe) ───────────────────────────
+  // Uses Redis SETNX mutex + PostgreSQL FOR UPDATE to prevent concurrent
+  // duplicate opens and atomic usage counting.
   try {
-    const rows = await query<{ conversation_id: string | null; is_new: boolean }>(
-      `SELECT * FROM get_or_create_conversation($1, $2)`,
-      [input.tenantId, input.customerPhone]
-    );
+    const convResult = await openConversation(input.tenantId, input.customerPhone);
 
-    if (rows.length === 0 || !rows[0].conversation_id) {
-      result.error = "Conversation creation blocked (cooldown active)";
+    if (convResult.blocked) {
+      result.error = `Conversation blocked: ${convResult.reason}`;
       return result;
     }
 
-    result.conversationId = rows[0].conversation_id;
+    if (!convResult.conversationId) {
+      result.error = "Conversation creation failed (concurrent request or cooldown)";
+      return result;
+    }
+
+    result.conversationId = convResult.conversationId;
   } catch (err) {
     result.error = `Conversation creation failed: ${(err as Error).message}`;
     return result;
@@ -219,30 +224,25 @@ export async function processSms(
     // Fail-open: continue processing if turn check fails
   }
 
-  // ── 4. Soft limit check ──────────────────────────────────────────────────
+  // ── 4. Soft limit check (non-blocking for active users) ─────────────────
+  // Active/paid users are NEVER blocked by usage count. Warnings are sent
+  // to the shop owner via checkAndNotifyUsage() after conversation counting.
+  // The atSoftLimit flag is logged but does not block the AI response.
   if (input.atSoftLimit) {
-    result.aiResponse = SOFT_LIMIT_RESPONSE;
-    const smsResult = await sendTwilioSms(
-      input.customerPhone,
-      SOFT_LIMIT_RESPONSE,
-      fetchFn
+    console.info(
+      JSON.stringify({
+        event: "soft_limit_reached",
+        tenant_id: input.tenantId,
+        conversation_id: result.conversationId,
+        note: "Active user at soft limit — proceeding with AI response",
+      })
     );
-    result.smsSent = !!smsResult.sid;
-
-    // Log outbound (with real segment count from Twilio)
+    // Fire usage warning to shop owner (non-blocking, non-fatal)
     try {
-      await query(
-        `INSERT INTO messages (tenant_id, conversation_id, direction, body, sms_segments)
-         VALUES ($1, $2, 'outbound', $3, $4)`,
-        [input.tenantId, result.conversationId, SOFT_LIMIT_RESPONSE,
-         smsResult.numSegments ?? 1]
-      );
+      await checkAndNotifyUsage(input.tenantId, fetchFn);
     } catch {
       // Non-fatal
     }
-
-    result.success = true;
-    return result;
   }
 
   // ── 5. Fetch AI runtime policy + system prompt + tenant context ─────────

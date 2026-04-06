@@ -50,3 +50,25 @@ export async function query<T = unknown>(
   const result = await db.query(sql, params);
   return result.rows as T[];
 }
+
+/**
+ * Execute a callback inside a PostgreSQL transaction (BEGIN/COMMIT/ROLLBACK).
+ * The callback receives a PoolClient that must be used for all queries within
+ * the transaction. If the callback throws, the transaction is rolled back.
+ */
+export async function withTransaction<T>(
+  fn: (client: PoolClient) => Promise<T>
+): Promise<T> {
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await fn(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}

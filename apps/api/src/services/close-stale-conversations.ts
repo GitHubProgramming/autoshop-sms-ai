@@ -8,43 +8,33 @@ import { checkAndNotifyUsage } from "./usage-warnings";
  * - Only closes conversations with status = 'open'
  * - Only closes when last_message_at < NOW() - 24 hours
  * - Sets status = 'closed', close_reason = 'inactivity_24h'
- * - Uses counted = FALSE guard for idempotency (matches close_conversation() semantics)
- * - Increments tenant conv_used_this_cycle for each closed conversation
- * - Fires usage warnings for affected tenants after counting
+ * - Does NOT increment tenant conv_used_this_cycle (counting happens at OPEN time)
+ * - Fires usage warnings for affected tenants after closing
  * - Safe to run repeatedly — already-closed rows are not touched
  */
 export async function closeStaleConversations(): Promise<number> {
-  const result = await query<{ closed_count: number; tenant_id: string }>(
-    `WITH stale AS (
-       UPDATE conversations
-       SET status       = 'closed',
-           close_reason = 'inactivity_24h',
-           closed_at    = NOW(),
-           counted      = TRUE
-       WHERE status         = 'open'
-         AND counted        = FALSE
-         AND last_message_at < NOW() - INTERVAL '24 hours'
-         AND tenant_id NOT IN (SELECT id FROM tenants WHERE billing_status = 'demo')
-       RETURNING tenant_id
-     )
-     UPDATE tenants
-     SET conv_used_this_cycle = conv_used_this_cycle + sub.cnt,
-         updated_at           = NOW()
-     FROM (
-       SELECT tenant_id, COUNT(*)::INT AS cnt
-       FROM stale
-       GROUP BY tenant_id
-     ) sub
-     WHERE tenants.id = sub.tenant_id
-     RETURNING sub.cnt AS closed_count, sub.tenant_id`
+  // Close stale conversations — no tenant usage increment needed
+  // (counting moved to conversation OPEN time in migration 045)
+  const result = await query<{ tenant_id: string }>(
+    `UPDATE conversations
+     SET status       = 'closed',
+         close_reason = 'inactivity_24h',
+         closed_at    = NOW(),
+         counted      = TRUE
+     WHERE status         = 'open'
+       AND last_message_at < NOW() - INTERVAL '24 hours'
+       AND tenant_id NOT IN (SELECT id FROM tenants WHERE billing_status = 'demo')
+     RETURNING tenant_id`
   );
 
-  const total = result.reduce((sum, r) => sum + r.closed_count, 0);
+  const total = result.length;
 
   // Fire usage warnings for each affected tenant (non-fatal)
-  for (const row of result) {
+  // Deduplicate tenant IDs to avoid sending multiple warnings
+  const tenantIds = [...new Set(result.map((r) => r.tenant_id))];
+  for (const tenantId of tenantIds) {
     try {
-      await checkAndNotifyUsage(row.tenant_id);
+      await checkAndNotifyUsage(tenantId);
     } catch {
       // Non-fatal: warning failure must not break stale closer
     }

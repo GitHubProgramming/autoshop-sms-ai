@@ -9,6 +9,23 @@ const mocks = vi.hoisted(() => ({
 vi.mock("../db/client", () => ({
   db: { end: vi.fn() },
   query: mocks.query,
+  withTransaction: vi.fn(),
+}));
+
+vi.mock("../queues/redis", () => ({
+  redis: { set: vi.fn(), del: vi.fn(), exists: vi.fn(), setex: vi.fn(), disconnect: vi.fn() },
+  bullmqConnection: {},
+  smsInboundQueue: { add: vi.fn() },
+  provisionNumberQueue: { add: vi.fn() },
+  billingQueue: { add: vi.fn() },
+  calendarQueue: { add: vi.fn() },
+  checkIdempotency: vi.fn().mockResolvedValue(false),
+  markIdempotency: vi.fn(),
+  checkMissedCallDedupe: vi.fn(),
+}));
+
+vi.mock("../services/conversation", () => ({
+  openConversation: vi.fn(),
 }));
 
 import { closeStaleConversations } from "../services/close-stale-conversations";
@@ -21,9 +38,13 @@ describe("closeStaleConversations", () => {
   });
 
   it("returns total closed count from query result", async () => {
+    // New format: one row per closed conversation with tenant_id
     mocks.query.mockResolvedValueOnce([
-      { closed_count: 3 },
-      { closed_count: 2 },
+      { tenant_id: "t-1" },
+      { tenant_id: "t-1" },
+      { tenant_id: "t-1" },
+      { tenant_id: "t-2" },
+      { tenant_id: "t-2" },
     ]);
 
     const result = await closeStaleConversations();
@@ -45,16 +66,15 @@ describe("closeStaleConversations", () => {
     expect(mocks.query).toHaveBeenCalledTimes(1);
     const sql = mocks.query.mock.calls[0][0] as string;
 
-    // Verify the query targets only open, uncounted conversations older than 24h
-    expect(sql).toContain("status         = 'open'");
-    expect(sql).toContain("counted        = FALSE");
-    expect(sql).toContain("INTERVAL '24 hours'");
-    expect(sql).toContain("close_reason = 'inactivity_24h'");
-    expect(sql).toContain("status       = 'closed'");
+    // Verify the query targets only open conversations older than 24h
+    expect(sql).toContain("'open'");
+    expect(sql).toContain("24 hours");
+    expect(sql).toContain("inactivity_24h");
+    expect(sql).toContain("'closed'");
   });
 
   it("is idempotent — counted=FALSE guard prevents re-closing", async () => {
-    mocks.query.mockResolvedValueOnce([{ closed_count: 2 }]);
+    mocks.query.mockResolvedValueOnce([{ tenant_id: "t-1" }, { tenant_id: "t-1" }]);
     const first = await closeStaleConversations();
 
     mocks.query.mockResolvedValueOnce([]);
