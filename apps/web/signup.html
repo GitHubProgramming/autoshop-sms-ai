@@ -543,7 +543,7 @@ async function handleSignup(e) {
         window.location.href = '/app/dashboard';
       }, 1200);
     } else if (res.status === 409) {
-      showError(data.error || 'An account with this email already exists.');
+      showError(data.error || 'An account may already exist with this email. Please try signing in instead.');
       submitBtn.disabled = false;
       submitBtn.textContent = 'Create Free Account';
     } else if (res.status === 400 && data.fields) {

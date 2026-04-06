@@ -8,6 +8,9 @@
  */
 
 import { query } from "../db/client";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("appointments");
 import {
   getTenantAiPolicy,
   getMissingRequiredFields,
@@ -227,13 +230,9 @@ export async function createAppointment(
     const upserted = row.xmax !== "0";
 
     if (upserted) {
-      console.info(
-        JSON.stringify({
-          event: "booking_duplicate_blocked",
-          tenant_id: input.tenantId,
-          conversation_id: input.conversationId,
-          appointment_id: row.id,
-        })
+      log.info(
+        { tenantId: input.tenantId, conversationId: input.conversationId, appointmentId: row.id },
+        "Booking duplicate blocked (upsert)"
       );
     }
 
