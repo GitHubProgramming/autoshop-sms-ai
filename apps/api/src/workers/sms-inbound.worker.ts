@@ -2,13 +2,14 @@ import { Worker, Job } from "bullmq";
 import { bullmqConnection as connection } from "../queues/redis";
 import { moveToDeadLetter } from "../queues/dead-letter";
 import { raiseAlert } from "../services/pipeline-alerts";
+import { createLogger } from "../utils/logger";
 
+const log = createLogger("sms-worker");
 const API_INTERNAL_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
 const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY ?? "";
 const MISSED_CALL_ENDPOINT = `${API_INTERNAL_URL}/internal/missed-call-sms`;
 const PROCESS_SMS_ENDPOINT = `${API_INTERNAL_URL}/internal/process-sms`;
-console.info(`[sms-worker] SMS replies → ${PROCESS_SMS_ENDPOINT}`);
-console.info(`[sms-worker] Missed calls → ${MISSED_CALL_ENDPOINT}`);
+log.info({ sms: PROCESS_SMS_ENDPOINT, missedCall: MISSED_CALL_ENDPOINT }, "Endpoints configured");
 
 /**
  * BullMQ worker: consumes jobs from "sms-inbound" queue and routes them:
@@ -50,14 +51,13 @@ export function startSmsInboundWorker(): Worker {
   );
 
   worker.on("completed", (job) => {
-    console.info(
-      `[sms-worker] job ${job.id} (${job.name}) delivered to API`
-    );
+    log.info({ jobId: job.id, jobName: job.name }, "Job delivered to API");
   });
 
   worker.on("failed", (job, err) => {
-    console.error(
-      `[sms-worker] job ${job?.id} (${job?.name}) failed: ${err.message}`
+    log.error(
+      { jobId: job?.id, jobName: job?.name, err: err.message },
+      "Job failed"
     );
 
     // Raise alert when job exhausts all retries (dead letter)

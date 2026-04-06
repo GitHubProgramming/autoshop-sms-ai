@@ -4,6 +4,9 @@ import { moveToDeadLetter } from "../queues/dead-letter";
 import { createCalendarEvent, type CalendarEventInput } from "../services/google-calendar";
 import { raiseAlert } from "../services/pipeline-alerts";
 import { query } from "../db/client";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("calendar-sync-worker");
 
 /**
  * BullMQ worker: retries failed Google Calendar sync jobs.
@@ -20,8 +23,9 @@ export function startCalendarSyncWorker(): Worker {
     "calendar-sync",
     async (job: Job<CalendarEventInput>) => {
       const input = job.data;
-      console.info(
-        `[calendar-sync-worker] Retrying calendar sync for appointment ${input.appointmentId} (attempt ${job.attemptsMade + 1})`
+      log.info(
+        { appointmentId: input.appointmentId, attempt: job.attemptsMade + 1 },
+        "Retrying calendar sync"
       );
 
       const result = await createCalendarEvent(input);
@@ -40,8 +44,9 @@ export function startCalendarSyncWorker(): Worker {
         // Non-fatal: event was created even if state update fails
       }
 
-      console.info(
-        `[calendar-sync-worker] Calendar sync succeeded for appointment ${input.appointmentId} (event: ${result.googleEventId})`
+      log.info(
+        { appointmentId: input.appointmentId, googleEventId: result.googleEventId },
+        "Calendar sync succeeded"
       );
     },
     {
@@ -51,14 +56,16 @@ export function startCalendarSyncWorker(): Worker {
   );
 
   worker.on("completed", (job) => {
-    console.info(
-      `[calendar-sync-worker] job ${job.id} completed — appointment ${job.data.appointmentId} synced`
+    log.info(
+      { jobId: job.id, appointmentId: job.data.appointmentId },
+      "Job completed — appointment synced"
     );
   });
 
   worker.on("failed", (job, err) => {
-    console.error(
-      `[calendar-sync-worker] job ${job?.id} failed (attempt ${job?.attemptsMade}): ${err.message}`
+    log.error(
+      { jobId: job?.id, attempt: job?.attemptsMade, err: err.message },
+      "Job failed"
     );
 
     // Raise critical alert when all retries exhausted

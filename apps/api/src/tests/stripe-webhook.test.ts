@@ -29,7 +29,6 @@ vi.mock("../db/webhook-events", () => ({
 
 vi.mock("../db/tenants", () => ({
   updateBillingStatus: mocks.updateBillingStatus,
-  activateTrial: vi.fn().mockResolvedValue(undefined),
 }));
 
 const mockRaiseAlert = vi.fn().mockResolvedValue("alert-id");

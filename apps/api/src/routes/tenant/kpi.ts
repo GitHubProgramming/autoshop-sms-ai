@@ -230,6 +230,7 @@ export async function tenantKpiRoute(app: FastifyInstance) {
     const { tenantId } = request.user as { tenantId: string; email: string };
     const rawDays = (request.query as Record<string, string>).days;
     const allowed = [7, 30, 90];
+    // Safe: numDays is validated against a fixed allowlist — not user-controlled
     const numDays = allowed.includes(Number(rawDays)) ? Number(rawDays) : 30;
 
     const rows = await query<{ day: string; total: string }>(
@@ -408,6 +409,7 @@ export async function tenantKpiRoute(app: FastifyInstance) {
     const { tenantId } = request.user as { tenantId: string; email: string };
     const rawDays = (request.query as Record<string, string>).days;
     const allowed = [7, 30, 90];
+    // Safe: numDays is validated against a fixed allowlist — not user-controlled
     const numDays = allowed.includes(Number(rawDays)) ? Number(rawDays) : 30;
 
     const rows = await query<{ day: string; total: string }>(

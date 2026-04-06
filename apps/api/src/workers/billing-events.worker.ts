@@ -2,6 +2,9 @@ import { Worker, Job } from "bullmq";
 import { bullmqConnection as connection } from "../queues/redis";
 import { moveToDeadLetter } from "../queues/dead-letter";
 import { query } from "../db/client";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("billing-worker");
 
 /**
  * BullMQ worker: consumes jobs from "billing-events" queue.
@@ -25,16 +28,12 @@ export function startBillingEventsWorker(): Worker {
         );
 
         if (updated.length > 0) {
-          console.warn(
-            `[billing-worker] Tenant ${tenantId} blocked: still past_due after grace period`
-          );
+          log.warn({ tenantId }, "Tenant blocked: still past_due after grace period");
         } else {
-          console.info(
-            `[billing-worker] Tenant ${tenantId} no longer past_due — no action needed`
-          );
+          log.info({ tenantId }, "Tenant no longer past_due — no action needed");
         }
       } else {
-        console.warn(`[billing-worker] Unknown job type: ${job.name}`);
+        log.warn({ jobName: job.name }, "Unknown job type");
       }
     },
     {
@@ -44,12 +43,13 @@ export function startBillingEventsWorker(): Worker {
   );
 
   worker.on("completed", (job) => {
-    console.info(`[billing-worker] job ${job.id} (${job.name}) completed`);
+    log.info({ jobId: job.id, jobName: job.name }, "Job completed");
   });
 
   worker.on("failed", (job, err) => {
-    console.error(
-      `[billing-worker] job ${job?.id} (${job?.name}) FAILED: ${err.message}`
+    log.error(
+      { jobId: job?.id, jobName: job?.name, err: err.message },
+      "Job FAILED"
     );
 
     // Preserve in dead letter queue when all retries exhausted

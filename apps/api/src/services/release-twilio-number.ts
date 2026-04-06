@@ -27,7 +27,7 @@ export async function releaseExpiredSuspendedNumbers(): Promise<ReleaseResult> {
      FROM tenant_phone_numbers
      WHERE status = 'suspended'
        AND suspended_at IS NOT NULL
-       AND suspended_at < NOW() - INTERVAL '${GRACE_DAYS} days'
+       AND suspended_at < NOW() - INTERVAL '30 days'
      ORDER BY suspended_at ASC`,
     []
   );
