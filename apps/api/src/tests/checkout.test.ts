@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   markIdempotency: vi.fn().mockResolvedValue(undefined),
   requireAuth: vi.fn(),
   stripeCustomersCreate: vi.fn(),
+  stripeCustomersRetrieve: vi.fn().mockResolvedValue({ id: "cus_test123", deleted: false }),
   stripeCheckoutCreate: vi.fn(),
 }));
 
@@ -46,7 +47,7 @@ vi.mock("../middleware/require-auth", () => ({
 vi.mock("stripe", () => {
   return {
     default: class StripeMock {
-      customers = { create: mocks.stripeCustomersCreate };
+      customers = { create: mocks.stripeCustomersCreate, retrieve: mocks.stripeCustomersRetrieve };
       checkout = { sessions: { create: mocks.stripeCheckoutCreate } };
     },
   };
@@ -119,7 +120,7 @@ describe("POST /billing/checkout", () => {
     expect(res.json().url).toBe(SESSION_URL);
     expect(mocks.stripeCustomersCreate).toHaveBeenCalledOnce();
     expect(mocks.stripeCheckoutCreate).toHaveBeenCalledOnce();
-    expect(mocks.markIdempotency).toHaveBeenCalledWith(`checkout:${TENANT_ID}:starter`);
+    expect(mocks.markIdempotency).toHaveBeenCalledWith(`co2:${TENANT_ID}:starter`);
     await app.close();
   });
 
@@ -169,8 +170,8 @@ describe("POST /billing/checkout", () => {
       payload: validBody({ plan: "pro" }),
     });
 
-    expect(mocks.checkIdempotency).toHaveBeenCalledWith(`checkout:${TENANT_ID}:pro`);
-    expect(mocks.markIdempotency).toHaveBeenCalledWith(`checkout:${TENANT_ID}:pro`);
+    expect(mocks.checkIdempotency).toHaveBeenCalledWith(`co2:${TENANT_ID}:pro`);
+    expect(mocks.markIdempotency).toHaveBeenCalledWith(`co2:${TENANT_ID}:pro`);
     await app.close();
   });
 
