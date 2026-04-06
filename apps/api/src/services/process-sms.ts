@@ -30,6 +30,7 @@ import {
   type AiRuntimePolicy,
   type ConversationCollectedData,
 } from "./ai-settings";
+import { isOptOutKeyword, isOptInKeyword, recordOptOut, recordOptIn } from "./opt-out";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -69,6 +70,10 @@ const DEFAULT_SYSTEM_PROMPT =
   "Be friendly, professional, and concise. Keep responses under 160 characters when possible (SMS length). " +
   "When a customer confirms a time and service, clearly confirm the appointment details.";
 
+const OPT_OUT_CONFIRMATION =
+  "You have been unsubscribed. You will not receive further messages. " +
+  "Reply START to resubscribe.";
+
 const SOFT_LIMIT_RESPONSE =
   "We've reached our monthly messaging limit. " +
   "Please call us directly to schedule your appointment. Thank you!";
@@ -95,6 +100,16 @@ export async function processSms(
     conversationClosed: false,
     error: null,
   };
+
+  // ── 0. TCPA opt-in handling ──────────────────────────────────────────────
+  // If customer sends START/UNSTOP/YES, clear their opt-out before proceeding.
+  if (isOptInKeyword(input.body)) {
+    try {
+      await recordOptIn(input.tenantId, input.customerPhone);
+    } catch {
+      // Non-fatal: opt-in recording failure should not block conversation
+    }
+  }
 
   // ── 1. Open conversation (race-condition-safe) ───────────────────────────
   // Uses Redis SETNX mutex + PostgreSQL FOR UPDATE to prevent concurrent
@@ -651,6 +666,26 @@ export async function processSms(
       await checkAndNotifyUsage(input.tenantId, fetchFn);
     } catch {
       // Non-fatal
+    }
+
+    // ── 12b. TCPA opt-out: record and confirm when message is a STOP keyword ──
+    if (isOptOutKeyword(input.body)) {
+      try {
+        await recordOptOut(input.tenantId, input.customerPhone);
+      } catch {
+        // Non-fatal: opt-out recording failure should not crash pipeline
+      }
+      // Send TCPA-required confirmation (overwrite the AI response already sent above)
+      try {
+        await sendTwilioSms(input.customerPhone, OPT_OUT_CONFIRMATION, fetchFn);
+        await query(
+          `INSERT INTO messages (tenant_id, conversation_id, direction, body, sms_segments)
+           VALUES ($1, $2, 'outbound', $3, 1)`,
+          [input.tenantId, result.conversationId, OPT_OUT_CONFIRMATION]
+        );
+      } catch {
+        // Non-fatal
+      }
     }
   }
 
