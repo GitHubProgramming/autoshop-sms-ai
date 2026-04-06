@@ -516,4 +516,46 @@ describe("POST /webhooks/stripe", () => {
     );
     await app.close();
   });
+
+  it("sets provisioning_state=error and raises alert when queue enqueue fails", async () => {
+    mocks.provisionQueueAdd.mockRejectedValueOnce(new Error("Redis connection refused"));
+
+    const evt = makeEvent("customer.subscription.created", subscriptionObject({
+      status: "trialing",
+      trial_end: Math.floor(Date.now() / 1000) + 14 * 86400,
+    }));
+    mocks.constructEvent.mockReturnValue(evt);
+
+    mocks.query
+      .mockResolvedValueOnce([]) // billing_events INSERT
+      .mockResolvedValueOnce([{ billing_status: "demo" }]) // SELECT billing_status
+      .mockResolvedValueOnce([]) // UPDATE tenants (subscription data)
+      .mockResolvedValueOnce([]) // no existing phone
+      .mockResolvedValueOnce([{ shop_name: "Queue Fail Shop", owner_phone: "+15125551234", is_test: false }]) // tenant info
+      .mockResolvedValueOnce([]) // UPDATE provisioning_state = 'error'
+    ;
+
+    const app = await buildApp();
+    const res = await postStripe(app);
+
+    // Webhook must still return 200 — Stripe should not retry
+    expect(res.statusCode).toBe(200);
+
+    // provisioning_state should be set to 'error'
+    const provStateCall = mocks.query.mock.calls.find(
+      (c: unknown[]) => typeof c[0] === "string" && (c[0] as string).includes("provisioning_state = 'error'")
+    );
+    expect(provStateCall).toBeTruthy();
+
+    // raiseAlert should have been called with provisioning_failed
+    expect(mockRaiseAlert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: TEST_TENANT_ID,
+        severity: "critical",
+        alertType: "pipeline_failed",
+      })
+    );
+
+    await app.close();
+  });
 });
