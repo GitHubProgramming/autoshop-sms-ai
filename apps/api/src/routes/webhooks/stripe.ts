@@ -294,7 +294,7 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
       // Suspend Twilio number(s) so inbound messages stop routing to this tenant.
       // Number is NOT released from Twilio (reversible if tenant resubscribes).
       await query(
-        `UPDATE tenant_phone_numbers SET status = 'suspended', updated_at = NOW()
+        `UPDATE tenant_phone_numbers SET status = 'suspended', suspended_at = NOW()
          WHERE tenant_id = $1 AND status = 'active'`,
         [tenantId]
       );
