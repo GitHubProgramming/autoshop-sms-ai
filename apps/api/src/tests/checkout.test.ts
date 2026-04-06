@@ -64,8 +64,8 @@ const SESSION_URL = "https://checkout.stripe.com/session/test";
 function validBody(overrides: Record<string, unknown> = {}) {
   return {
     plan: "starter",
-    successUrl: "https://app.example.com/success",
-    cancelUrl: "https://app.example.com/cancel",
+    successUrl: "http://localhost:3000/app/dashboard?trial=activated",
+    cancelUrl: "http://localhost:3000/app/dashboard?billing=cancel",
     ...overrides,
   };
 }
@@ -198,6 +198,35 @@ describe("POST /billing/checkout", () => {
     });
 
     expect(res.statusCode).toBe(400);
+    await app.close();
+  });
+
+  it("returns 400 for external successUrl (open redirect prevention)", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/billing/checkout",
+      payload: validBody({ successUrl: "https://evil.com/phishing" }),
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toContain("Invalid redirect URL");
+    // Should NOT call Stripe
+    expect(mocks.stripeCustomersCreate).not.toHaveBeenCalled();
+    expect(mocks.stripeCheckoutCreate).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("returns 400 for external cancelUrl (open redirect prevention)", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/billing/checkout",
+      payload: validBody({ cancelUrl: "https://attacker.example.com/steal" }),
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toContain("Invalid redirect URL");
     await app.close();
   });
 

@@ -12,6 +12,24 @@ const PLAN_PRICE_MAP: Record<string, string | undefined> = {
   premium: process.env.STRIPE_PRICE_PREMIUM,
 };
 
+// ── Redirect URL validation (prevent open redirect after Stripe payment) ────
+const ALLOWED_ORIGINS = [
+  process.env.PUBLIC_ORIGIN ?? "https://autoshopsmsai.com",
+  "http://localhost:3000",
+  "http://localhost:5173",
+];
+
+function isAllowedRedirectUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return ALLOWED_ORIGINS.some(
+      (origin) => parsed.origin === new URL(origin).origin
+    );
+  } catch {
+    return false;
+  }
+}
+
 const CheckoutBody = z.object({
   plan: z.enum(["starter", "pro", "premium"]),
   successUrl: z.string().url(),
@@ -41,6 +59,11 @@ export async function billingCheckoutRoute(app: FastifyInstance) {
 
     const { plan, successUrl, cancelUrl, startTrial } = parsed.data;
     const { tenantId } = request.user as { tenantId: string };
+
+    // Validate redirect URLs against allowed origins (prevent open redirect)
+    if (!isAllowedRedirectUrl(successUrl) || !isAllowedRedirectUrl(cancelUrl)) {
+      return reply.status(400).send({ error: "Invalid redirect URL" });
+    }
 
     const priceId = PLAN_PRICE_MAP[plan];
     if (!priceId) {
