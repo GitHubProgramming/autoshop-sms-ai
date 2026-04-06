@@ -41,6 +41,10 @@ vi.mock("../services/pipeline-trace", () => ({
   }),
 }));
 
+vi.mock("../services/opt-out", () => ({
+  isOptedOut: vi.fn().mockResolvedValue(false),
+}));
+
 const conversationMocks = vi.hoisted(() => ({
   openConversation: vi.fn(),
   openConversationWithRetry: vi.fn(),

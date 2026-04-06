@@ -18,6 +18,7 @@ import { query } from "../db/client";
 import { getConfig } from "../db/app-config";
 import { getTenantAiPolicy, buildRuntimePolicy, AI_SETTINGS_DEFAULTS } from "./ai-settings";
 import { openConversationWithRetry } from "./conversation";
+import { isOptedOut } from "./opt-out";
 
 export interface MissedCallInput {
   tenantId: string;
@@ -192,6 +193,23 @@ export async function handleMissedCallSms(
       twilioSid: null,
       error: null,
     };
+  }
+
+  // 2c. TCPA opt-out check — do NOT send SMS to customers who opted out
+  try {
+    const optedOut = await isOptedOut(input.tenantId, input.customerPhone);
+    if (optedOut) {
+      return {
+        success: true,
+        conversationId: null,
+        smsSent: false,
+        twilioSid: null,
+        error: null,
+      };
+    }
+  } catch {
+    // Fail-open: if opt-out check fails, still send SMS
+    // (better to risk a TCPA issue on DB failure than to silently drop all missed-call SMS)
   }
 
   // 3. Open conversation (race-condition-safe)
