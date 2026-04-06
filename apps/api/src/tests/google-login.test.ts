@@ -7,6 +7,9 @@ import fastifyJwt from "@fastify/jwt";
 const mocks = vi.hoisted(() => ({
   query: vi.fn().mockResolvedValue([]),
   fetch: vi.fn(),
+  redisGet: vi.fn(),
+  redisSet: vi.fn(),
+  redisDel: vi.fn(),
 }));
 
 vi.mock("../db/client", () => ({
@@ -14,10 +17,19 @@ vi.mock("../db/client", () => ({
   query: mocks.query,
 }));
 
+// Mock Redis — used by OAuth state and auth code stores
+vi.mock("../queues/redis", () => ({
+  redis: {
+    get: (...args: unknown[]) => mocks.redisGet(...args),
+    set: (...args: unknown[]) => mocks.redisSet(...args),
+    del: (...args: unknown[]) => mocks.redisDel(...args),
+  },
+}));
+
 // Mock global fetch for Google API calls
 vi.stubGlobal("fetch", mocks.fetch);
 
-import { googleAuthRoute, oauthStateStore, authCodeStore } from "../routes/auth/google";
+import { googleAuthRoute, setOAuthState, setAuthCode, consumeOAuthState, consumeAuthCode } from "../routes/auth/google";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -40,9 +52,20 @@ function buildApp() {
   return app;
 }
 
-/** Seed a valid nonce into the state store so callback tests pass state validation. */
-function seedNonce(nonce: string) {
-  oauthStateStore.set(nonce, { createdAt: Date.now() });
+/** Seed a valid nonce into Redis mock so callback tests pass state validation. */
+function seedNonce(nonce: string, createdAt = Date.now()) {
+  mocks.redisGet.mockImplementation(async (key: string) => {
+    if (key === `oauth_state:${nonce}`) return String(createdAt);
+    return null;
+  });
+}
+
+/** Seed an auth code into Redis mock. */
+function seedAuthCode(code: string, data: Record<string, unknown>) {
+  mocks.redisGet.mockImplementation(async (key: string) => {
+    if (key === `oauth_code:${code}`) return JSON.stringify(data);
+    return null;
+  });
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -50,7 +73,8 @@ function seedNonce(nonce: string) {
 describe("GET /auth/google/login/start", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    oauthStateStore.clear();
+    mocks.redisSet.mockResolvedValue("OK");
+    mocks.redisDel.mockResolvedValue(1);
   });
 
   it("redirects to Google OAuth consent URL", async () => {
@@ -68,11 +92,26 @@ describe("GET /auth/google/login/start", () => {
     expect(location).toMatch(/state=login%3A[0-9a-f]+/);
   });
 
-  it("persists nonce in server-side state store", async () => {
+  it("persists nonce in Redis", async () => {
     const app = buildApp();
-    expect(oauthStateStore.size).toBe(0);
     await app.inject({ method: "GET", url: "/auth/google/login/start" });
-    expect(oauthStateStore.size).toBe(1);
+    expect(mocks.redisSet).toHaveBeenCalledWith(
+      expect.stringMatching(/^oauth_state:[0-9a-f]+$/),
+      expect.any(String),
+      "EX",
+      600
+    );
+  });
+
+  it("returns 503 when Redis is down", async () => {
+    mocks.redisSet.mockRejectedValueOnce(new Error("Redis connection refused"));
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/auth/google/login/start",
+    });
+    expect(res.statusCode).toBe(503);
+    expect(JSON.parse(res.body).error).toContain("temporarily unavailable");
   });
 
   it("returns 503 when Google OAuth not configured", async () => {
@@ -93,12 +132,13 @@ describe("GET /auth/google/login/start", () => {
 describe("GET /auth/google/callback (login flow)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    oauthStateStore.clear();
-    authCodeStore.clear();
+    mocks.redisSet.mockResolvedValue("OK");
+    mocks.redisDel.mockResolvedValue(1);
+    mocks.redisGet.mockResolvedValue(null);
   });
 
   it("rejects callback with invalid/missing state nonce", async () => {
-    // Do NOT seed nonce — state is unknown to server
+    // redisGet returns null — state is unknown
     const app = buildApp();
     const res = await app.inject({
       method: "GET",
@@ -111,8 +151,16 @@ describe("GET /auth/google/callback (login flow)", () => {
   });
 
   it("rejects callback with reused state nonce", async () => {
-    seedNonce("reuse_nonce");
-    // First use consumes it
+    // First call returns the nonce, second call returns null (consumed)
+    let consumed = false;
+    mocks.redisGet.mockImplementation(async (key: string) => {
+      if (key.startsWith("oauth_state:") && !consumed) {
+        consumed = true;
+        return String(Date.now());
+      }
+      return null;
+    });
+
     mocks.fetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ access_token: "google-token-123" }),
@@ -139,7 +187,7 @@ describe("GET /auth/google/callback (login flow)", () => {
 
   it("rejects callback with expired state nonce", async () => {
     // Seed nonce with expired timestamp (11 minutes ago)
-    oauthStateStore.set("expired_nonce", { createdAt: Date.now() - 11 * 60 * 1000 });
+    seedNonce("expired_nonce", Date.now() - 11 * 60 * 1000);
     const app = buildApp();
     const res = await app.inject({
       method: "GET",
@@ -210,8 +258,13 @@ describe("GET /auth/google/callback (login flow)", () => {
     expect(location).toContain("/login?google_code=");
     expect(location).not.toContain("google_token=");
     expect(location).not.toContain("tenantId=");
-    // Auth code should be stored server-side
-    expect(authCodeStore.size).toBe(1);
+    // Auth code should be stored in Redis
+    expect(mocks.redisSet).toHaveBeenCalledWith(
+      expect.stringMatching(/^oauth_code:/),
+      expect.any(String),
+      "EX",
+      300
+    );
   });
 
   it("handles Google token exchange failure gracefully", async () => {
@@ -261,12 +314,14 @@ describe("GET /auth/google/callback (login flow)", () => {
 describe("POST /auth/google/exchange", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    authCodeStore.clear();
+    mocks.redisSet.mockResolvedValue("OK");
+    mocks.redisDel.mockResolvedValue(1);
+    mocks.redisGet.mockResolvedValue(null);
   });
 
   it("returns JWT for valid auth code", async () => {
     const app = buildApp();
-    authCodeStore.set("valid-code-123", {
+    seedAuthCode("valid-code-123", {
       jwt: "test.jwt.token",
       tenantId: TENANT_ID,
       shopName: "Test Auto",
@@ -303,13 +358,20 @@ describe("POST /auth/google/exchange", () => {
 
   it("auth code is single-use (second attempt fails)", async () => {
     const app = buildApp();
-    authCodeStore.set("one-time-code", {
-      jwt: "test.jwt.token",
-      tenantId: TENANT_ID,
-      shopName: "Test Auto",
-      email: TEST_EMAIL,
-      isNewAccount: false,
-      createdAt: Date.now(),
+    let consumed = false;
+    mocks.redisGet.mockImplementation(async (key: string) => {
+      if (key === "oauth_code:one-time-code" && !consumed) {
+        consumed = true;
+        return JSON.stringify({
+          jwt: "test.jwt.token",
+          tenantId: TENANT_ID,
+          shopName: "Test Auto",
+          email: TEST_EMAIL,
+          isNewAccount: false,
+          createdAt: Date.now(),
+        });
+      }
+      return null;
     });
 
     const res1 = await app.inject({
@@ -332,13 +394,13 @@ describe("POST /auth/google/exchange", () => {
 
   it("rejects expired auth code", async () => {
     const app = buildApp();
-    authCodeStore.set("expired-code", {
+    seedAuthCode("expired-code", {
       jwt: "test.jwt.token",
       tenantId: TENANT_ID,
       shopName: "Test Auto",
       email: TEST_EMAIL,
       isNewAccount: false,
-      createdAt: Date.now() - 2 * 60 * 1000, // 2 minutes ago (> 1 min TTL)
+      createdAt: Date.now() - 6 * 60 * 1000, // 6 minutes ago (> 5 min TTL)
     });
 
     const res = await app.inject({
@@ -365,6 +427,8 @@ describe("POST /auth/google/exchange", () => {
 describe("GET /auth/google/callback (calendar flow — backward compatibility)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.redisSet.mockResolvedValue("OK");
+    mocks.redisDel.mockResolvedValue(1);
   });
 
   it("still handles UUID state as calendar flow", async () => {
