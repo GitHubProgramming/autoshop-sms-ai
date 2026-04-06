@@ -189,6 +189,10 @@ export async function googleAuthRoute(app: FastifyInstance) {
 
     // Generate a cryptographic nonce and persist it server-side
     const nonce = randomBytes(16).toString("hex");
+    if (oauthStateStore.size >= 1000) {
+      const firstKey = oauthStateStore.keys().next().value;
+      if (firstKey !== undefined) oauthStateStore.delete(firstKey);
+    }
     oauthStateStore.set(nonce, { createdAt: Date.now() });
 
     // Support ?intent=signup|admin to route through the right callback path

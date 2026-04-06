@@ -465,6 +465,10 @@
 </head>
 <body>
 
+<div id="authCheckOverlay" style="position:fixed;inset:0;background:var(--bg, #fff);display:flex;align-items:center;justify-content:center;z-index:9999;">
+  <div style="text-align:center;color:var(--text-sec, #6B7280);font-size:14px;">Loading...</div>
+</div>
+
 <nav class="topnav">
   <a href="/" class="nav-logo">AutoShop <span>SMS</span> AI</a>
   <div class="trial-pill">14-Day Free Trial</div>
@@ -555,6 +559,7 @@
       <div class="skip-link">
         <a href="#" onclick="goStep(3);return false;">I'll set this up later</a>
       </div>
+      <div class="skip-link"><a href="#" onclick="goStep(1);return false;">&larr; Back</a></div>
     </div>
 
     <!-- ════════════════════════════════════════ -->
@@ -645,6 +650,7 @@
 
         <button class="btn-primary" id="fwdDoneBtn" onclick="localStorage.setItem('onboarding_fwd_confirmed','1');goStep(4)">Done — I've set it up</button>
         <button class="btn-secondary" onclick="localStorage.setItem('onboarding_fwd_confirmed','0');goStep(4)">I'll do this later</button>
+        <div class="skip-link"><a href="#" onclick="goStep(2);return false;">&larr; Back</a></div>
       </div>
     </div>
 
@@ -670,6 +676,7 @@
           <button class="btn-primary" onclick="goStep(5)">Continue</button>
         </div>
         <button class="btn-secondary" onclick="goStep(5)" id="calSkipBtn">Skip — I don't use Google Calendar</button>
+        <div class="skip-link"><a href="#" onclick="goStep(3);return false;">&larr; Back</a></div>
       </div>
     </div>
 
@@ -688,6 +695,7 @@
           </div>
           <button class="btn-primary" onclick="goStep(6)">I've sent a test message</button>
           <button class="btn-secondary" onclick="goStep(6)">Skip — I'll test later</button>
+          <div class="skip-link"><a href="#" onclick="goStep(4);return false;">&larr; Back</a></div>
         </div>
       </div>
     </div>
@@ -749,7 +757,7 @@ var session = JSON.parse(localStorage.getItem('autoshop_session') || '{}');
 var assignedPhone = '';
 var calConnected = false;
 
-var STEP_LABELS = ['Welcome', 'Shop', 'Number', 'Forward', 'Calendar', 'Test', 'Live'];
+var STEP_LABELS = ['Welcome', 'Shop', 'Number', 'Phone', 'Calendar', 'Test', 'Live'];
 
 // ── Auth guard ──
 if (!jwt) {
@@ -763,12 +771,14 @@ if (!jwt) {
   fetch('/tenant/dashboard', { headers: { 'Authorization': 'Bearer ' + jwt } })
     .then(function(res) { return res.ok ? res.json() : null; })
     .then(function(data) {
-      if (!data || !data.tenant) return;
+      if (!data || !data.tenant) { document.getElementById('authCheckOverlay').style.display = 'none'; return; }
       if (data.tenant.billing_status === 'demo') {
         window.location.replace('/app/dashboard');
+        return;
       }
+      document.getElementById('authCheckOverlay').style.display = 'none';
     })
-    .catch(function() { /* network error — let onboarding load normally */ });
+    .catch(function() { document.getElementById('authCheckOverlay').style.display = 'none'; });
 })();
 
 // ── Prefill from session / hash (legacy compat) ──

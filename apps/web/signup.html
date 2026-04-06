@@ -336,8 +336,8 @@
   <div class="card">
     <div class="card-tag">Start free trial</div>
     <h1>Start Your Trial</h1>
-    <p class="sub">14 days free. No credit card required.</p>
-    <p class="sub-detail">Includes 50 AI conversations.</p>
+    <p class="sub">Create your free account.</p>
+    <p class="sub-detail">Card required to start your 14-day trial.</p>
 
     <div class="error-msg" id="errorMsg"></div>
 
@@ -453,7 +453,7 @@ function startGoogleSignup() {
           email: result.data.email || '',
           tenantId: result.data.tenantId || '',
           shopName: result.data.shopName || '',
-          trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+          trialEndsAt: null,
           loginAt: Date.now()
         }));
         if (result.data.shopName) localStorage.setItem('tenant_name', result.data.shopName);
