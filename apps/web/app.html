@@ -4085,10 +4085,10 @@ function convRow(c, showActions) {
        </div></td>`
     : `<td><button class="view-btn" onclick="openModal('${c.id}')">View</button></td>`;
   const dur = showActions ? `<td class="td-date">${c.duration}</td>` : '';
-  return `<tr data-status="${c.status}" data-phone="${c.phone}">
-    <td class="td-date">${c.date}</td>
-    <td class="td-phone">${c.phone}</td>
-    <td class="td-issue">${c.issue}</td>
+  return `<tr data-status="${c.status}" data-phone="${escHtml(c.phone)}">
+    <td class="td-date">${escHtml(c.date)}</td>
+    <td class="td-phone">${escHtml(c.phone)}</td>
+    <td class="td-issue">${escHtml(c.issue)}</td>
     <td><span class="status-pill ${c.status}">${pillLabel(c.status)}</span></td>
     ${aroHtml}${dur}${actions}
   </tr>`;
@@ -4118,12 +4118,12 @@ function renderDashConvTable(data) {
     var statusLabel = {booked:'Booked', active:'AI Handling', 'no-response':'No Response', lost:'Lost', resolved:'Resolved'}[c.status] || c.status;
     var timeAgo = c.date || '';
     return '<div class="conv-card-item" data-conv-id="' + c.id + '" onclick="openConversationPanel(\'' + c.id + '\')">' +
-      '<div class="conv-avatar">' + initial + '</div>' +
+      '<div class="conv-avatar">' + escHtml(initial) + '</div>' +
       '<div class="conv-card-body">' +
-        '<div class="conv-card-top"><div class="conv-card-name">' + (c.issue || 'Customer') + '</div><div class="conv-card-time">' + timeAgo + '</div></div>' +
-        '<div class="conv-card-phone">' + c.phone + '</div>' +
-        '<div class="conv-card-msg">' + (c.issue || 'SMS conversation') + '</div>' +
-        '<span class="' + badgeCls + '">' + statusLabel + '</span>' +
+        '<div class="conv-card-top"><div class="conv-card-name">' + escHtml(c.issue || 'Customer') + '</div><div class="conv-card-time">' + escHtml(timeAgo) + '</div></div>' +
+        '<div class="conv-card-phone">' + escHtml(c.phone) + '</div>' +
+        '<div class="conv-card-msg">' + escHtml(c.issue || 'SMS conversation') + '</div>' +
+        '<span class="' + badgeCls + '">' + escHtml(statusLabel) + '</span>' +
       '</div>' +
     '</div>';
   }).join('');
@@ -4642,14 +4642,14 @@ async function loadConversationPanel(id, conv, booking) {
       html += '<div class="conv-panel-info-block">' +
         '<div class="conv-panel-block-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Contact</div>';
       if (conv.customerName) {
-        html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Name</span><span class="conv-panel-info-value">' + conv.customerName + '</span></div>';
+        html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Name</span><span class="conv-panel-info-value">' + escHtml(conv.customerName) + '</span></div>';
       }
-      html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Phone</span><span class="conv-panel-info-value">' + conv.phone + '</span></div>';
+      html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Phone</span><span class="conv-panel-info-value">' + escHtml(conv.phone) + '</span></div>';
       if (conv.email) {
-        html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Email</span><span class="conv-panel-info-value">' + conv.email + '</span></div>';
+        html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Email</span><span class="conv-panel-info-value">' + escHtml(conv.email) + '</span></div>';
       }
       if (conv.location) {
-        html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Location</span><span class="conv-panel-info-value">' + conv.location + '</span></div>';
+        html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Location</span><span class="conv-panel-info-value">' + escHtml(conv.location) + '</span></div>';
       }
       html += '</div>';
     }
@@ -4660,16 +4660,16 @@ async function loadConversationPanel(id, conv, booking) {
       html += '<div class="conv-panel-info-block">' +
         '<div class="conv-panel-block-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Vehicle</div>';
       if (conv.vehicleModel) {
-        html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Vehicle</span><span class="conv-panel-info-value">' + conv.vehicleModel + '</span></div>';
+        html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Vehicle</span><span class="conv-panel-info-value">' + escHtml(conv.vehicleModel) + '</span></div>';
       }
       if (conv.vin) {
-        html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">VIN</span><span class="conv-panel-info-value">' + conv.vin + '</span></div>';
+        html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">VIN</span><span class="conv-panel-info-value">' + escHtml(conv.vin) + '</span></div>';
       }
       if (conv.licensePlate) {
-        html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Plate</span><span class="conv-panel-info-value">' + conv.licensePlate + '</span></div>';
+        html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Plate</span><span class="conv-panel-info-value">' + escHtml(conv.licensePlate) + '</span></div>';
       }
       if (conv.mileage) {
-        html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Mileage</span><span class="conv-panel-info-value">' + conv.mileage + '</span></div>';
+        html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Mileage</span><span class="conv-panel-info-value">' + escHtml(conv.mileage) + '</span></div>';
       }
       html += '</div>';
     }
@@ -4680,7 +4680,7 @@ async function loadConversationPanel(id, conv, booking) {
         '<div class="conv-panel-block-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Appointment</div>';
       html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Status</span><span class="conv-panel-booking-status ' + booking.syncStatus + '">' + booking.syncLabel + '</span></div>';
       if (booking.service) {
-        html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Service</span><span class="conv-panel-info-value">' + booking.service + '</span></div>';
+        html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Service</span><span class="conv-panel-info-value">' + escHtml(booking.service) + '</span></div>';
       }
       if (booking.date) {
         html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Scheduled</span><span class="conv-panel-info-value">' + booking.date + '</span></div>';
@@ -4776,7 +4776,7 @@ async function loadConversationPanel(id, conv, booking) {
 
   // Fallback: show available info
   if (conv && conv.lastMessage && conv.lastMessage !== 'SMS Conversation') {
-    messagesContainer.innerHTML = '<div class="conv-slide-msg ai"><div class="conv-slide-msg-sender">AutoShop AI</div>' + conv.lastMessage + '</div>';
+    messagesContainer.innerHTML = '<div class="conv-slide-msg ai"><div class="conv-slide-msg-sender">AutoShop AI</div>' + escHtml(conv.lastMessage) + '</div>';
   } else {
     messagesContainer.innerHTML = '<div class="conv-slide-empty">Message history will appear here as conversations progress.</div>';
   }
@@ -5787,11 +5787,11 @@ function renderConvThread(body, data) {
   if (!body || !data) return;
   var thread = '';
   data.thread.forEach(function(m) {
-    if (m.ts) thread += '<div class="msg-time">' + m.ts + '</div>';
-    if (m.d === 'ai') thread += '<div class="msg-row"><div class="msg-bubble ai"><div class="msg-sender">AutoShop AI</div>' + m.t + '<div class="msg-ts">' + (m.ts || '') + '</div></div></div>';
-    else thread += '<div class="msg-row right"><div class="msg-bubble customer">' + m.t + '<div class="msg-ts">' + (m.ts || '') + '</div></div></div>';
+    if (m.ts) thread += '<div class="msg-time">' + escHtml(m.ts) + '</div>';
+    if (m.d === 'ai') thread += '<div class="msg-row"><div class="msg-bubble ai"><div class="msg-sender">AutoShop AI</div>' + escHtml(m.t) + '<div class="msg-ts">' + escHtml(m.ts || '') + '</div></div></div>';
+    else thread += '<div class="msg-row right"><div class="msg-bubble customer">' + escHtml(m.t) + '<div class="msg-ts">' + escHtml(m.ts || '') + '</div></div></div>';
   });
-  if (data.result) thread += '<div class="modal-result"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0D1B2A" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><div class="modal-result-text"><strong>' + data.result + '</strong></div></div>';
+  if (data.result) thread += '<div class="modal-result"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0D1B2A" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><div class="modal-result-text"><strong>' + escHtml(data.result) + '</strong></div></div>';
   body.innerHTML = thread;
   body.scrollTop = body.scrollHeight;
 }
@@ -6124,8 +6124,8 @@ function renderTodayAppointments() {
     var timeStr = b.rawScheduledAt ? new Date(b.rawScheduledAt).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}) : '';
     return '<div class="appt-card-item">' +
       '<div class="appt-card-top"><div class="appt-card-time">' + timeStr + '</div><span class="appt-card-status ' + statusCls + '">' + statusLabel + '</span></div>' +
-      '<div class="appt-card-customer">' + (b.customerName || b.phone || 'Customer') + '</div>' +
-      '<div class="appt-card-service">' + (b.service || 'Service') + '</div>' +
+      '<div class="appt-card-customer">' + escHtml(b.customerName || b.phone || 'Customer') + '</div>' +
+      '<div class="appt-card-service">' + escHtml(b.service || 'Service') + '</div>' +
       '<div class="appt-card-source">Source: ' + b.source + '</div>' +
     '</div>';
   }).join('') + '</div>';
@@ -6233,9 +6233,9 @@ function renderCustomerPage() {
       var vehicle = c.vehicle ? c.vehicle : 'Not provided';
       var spent = c.totalSpent != null ? '$' + c.totalSpent : 'No completed jobs yet';
       var lastDateDisplay = c.lastDate ? c.lastDate : 'No visits yet';
-      return '<tr data-phone="' + c.phone + '" data-status="' + statusClass + '">' +
-        '<td><div class="cust-name-cell"><div class="cust-avatar">' + initial + '</div><div><div class="cust-name">' + displayName + '</div><div class="cust-phone">' + c.phone + '</div></div></div></td>' +
-        '<td><div class="cust-icon-cell"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.8 3.8 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>' + vehicle + '</div></td>' +
+      return '<tr data-phone="' + escHtml(c.phone) + '" data-status="' + statusClass + '">' +
+        '<td><div class="cust-name-cell"><div class="cust-avatar">' + escHtml(initial) + '</div><div><div class="cust-name">' + escHtml(displayName) + '</div><div class="cust-phone">' + escHtml(c.phone) + '</div></div></div></td>' +
+        '<td><div class="cust-icon-cell"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.8 3.8 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>' + escHtml(vehicle) + '</div></td>' +
         '<td><div class="cust-icon-cell"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>' + lastDateDisplay + '</div></td>' +
         '<td><div class="cust-icon-cell"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22z"/></svg>' + (c.apptCount || 0) + '</div></td>' +
         '<td><span class="cust-spent">' + spent + '</span></td>' +
@@ -6377,10 +6377,10 @@ function renderAppointmentsPage() {
         return '<div class="appt-today-card">' +
           '<div class="appt-time-block">' + h + '<span class="appt-time-ampm">' + ampm + '</span></div>' +
           '<div class="appt-today-body">' +
-            '<div class="appt-today-top"><div><div class="appt-today-name">' + (b.customerName || b.phone || 'Customer') + '</div><div class="appt-today-service">' + (b.service || 'Service') + '</div></div>' +
+            '<div class="appt-today-top"><div><div class="appt-today-name">' + escHtml(b.customerName || b.phone || 'Customer') + '</div><div class="appt-today-service">' + escHtml(b.service || 'Service') + '</div></div>' +
             '<span class="appt-status-badge ' + sc + '">' + sl + '</span></div>' +
             '<div class="appt-today-meta">' +
-              '<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.362 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>' + (b.phone || '—') + '</span>' +
+              '<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.362 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>' + escHtml(b.phone || '—') + '</span>' +
               '<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' + (b.duration || '—') + '</span>' +
               '<span>' + srcIcon(source) + ' ' + source + '</span>' +
             '</div>' +
