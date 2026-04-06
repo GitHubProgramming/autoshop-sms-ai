@@ -76,6 +76,7 @@ vi.mock("../queues/redis", () => ({
 
 const conversationMocks = vi.hoisted(() => ({
   openConversation: vi.fn(),
+  openConversationWithRetry: vi.fn(),
 }));
 
 vi.mock("../services/conversation", () => conversationMocks);
@@ -172,11 +173,11 @@ function setupDbMocks(options: {
 } = {}) {
   // Mock openConversation (replaces get_or_create_conversation SQL mock)
   if (options.conversationBlocked) {
-    conversationMocks.openConversation.mockResolvedValue({
+    conversationMocks.openConversationWithRetry.mockResolvedValue({
       blocked: true, reason: "trial_limit", existing: false, conversationId: null, isNew: false,
     });
   } else {
-    conversationMocks.openConversation.mockResolvedValue({
+    conversationMocks.openConversationWithRetry.mockResolvedValue({
       blocked: false, existing: true, conversationId: CONVERSATION_ID, isNew: false,
     });
   }
@@ -577,7 +578,7 @@ describe("processSms — error handling", () => {
   });
 
   it("returns error when conversation creation throws", async () => {
-    conversationMocks.openConversation.mockRejectedValue(new Error("DB connection lost"));
+    conversationMocks.openConversationWithRetry.mockRejectedValue(new Error("DB connection lost"));
     const fetchMock = mockFetchAll();
 
     const result = await processSms(validInput(), fetchMock);
@@ -655,7 +656,7 @@ describe("processSms — error handling", () => {
 
   it("continues with empty history when history query fails", async () => {
     const callCount = 0;
-    conversationMocks.openConversation.mockResolvedValue({
+    conversationMocks.openConversationWithRetry.mockResolvedValue({
       blocked: false, existing: true, conversationId: CONVERSATION_ID, isNew: false,
     });
     mocks.query.mockImplementation(async (sql: string) => {
@@ -681,7 +682,7 @@ describe("processSms — history ordering (no duplicate messages)", () => {
     // History should NOT include the current inbound message because
     // history is fetched BEFORE the inbound is logged to the DB.
     let historyCallArgs: unknown[] | undefined;
-    conversationMocks.openConversation.mockResolvedValue({
+    conversationMocks.openConversationWithRetry.mockResolvedValue({
       blocked: false, existing: true, conversationId: CONVERSATION_ID, isNew: false,
     });
     mocks.query.mockImplementation(async (sql: string, params?: unknown[]) => {
@@ -717,7 +718,7 @@ describe("processSms — history ordering (no duplicate messages)", () => {
 
   it("history fetch occurs before inbound message insert", async () => {
     const callOrder: string[] = [];
-    conversationMocks.openConversation.mockResolvedValue({
+    conversationMocks.openConversationWithRetry.mockResolvedValue({
       blocked: false, existing: true, conversationId: CONVERSATION_ID, isNew: false,
     });
     mocks.query.mockImplementation(async (sql: string) => {
@@ -783,7 +784,7 @@ describe("processSms — additional edge cases", () => {
 
   it("handles appointment creation failure gracefully", async () => {
     // Simulate DB error during appointment insert
-    conversationMocks.openConversation.mockResolvedValue({
+    conversationMocks.openConversationWithRetry.mockResolvedValue({
       blocked: false, existing: true, conversationId: CONVERSATION_ID, isNew: false,
     });
     mocks.query.mockImplementation(async (sql: string) => {
@@ -847,7 +848,7 @@ describe("processSms — additional edge cases", () => {
   });
 
   it("booking detected but close_conversation fails is non-fatal", async () => {
-    conversationMocks.openConversation.mockResolvedValue({
+    conversationMocks.openConversationWithRetry.mockResolvedValue({
       blocked: false, existing: true, conversationId: CONVERSATION_ID, isNew: false,
     });
     mocks.query.mockImplementation(async (sql: string) => {

@@ -14,7 +14,7 @@
  */
 
 import { PoolClient } from "pg";
-import { withTransaction } from "../db/client";
+import { withTransaction, query } from "../db/client";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -216,4 +216,65 @@ export async function openConversation(
       // Non-fatal: lock will expire via TTL
     }
   }
+}
+
+// ── Retry wrapper ───────────────────────────────────────────────────────────
+
+const LOCK_RETRY_ATTEMPTS = 3;
+const LOCK_RETRY_DELAY_MS = 500;
+
+/**
+ * Opens a conversation with retry logic for Redis lock contention.
+ *
+ * When openConversation() returns { conversationId: null } because
+ * another request holds the Redis SETNX lock, this wrapper retries
+ * up to 3 times with 500ms delay. After retries, falls back to a
+ * direct DB lookup for the open conversation.
+ */
+export async function openConversationWithRetry(
+  tenantId: string,
+  customerPhone: string
+): Promise<OpenConversationResult> {
+  for (let attempt = 1; attempt <= LOCK_RETRY_ATTEMPTS; attempt++) {
+    const result = await openConversation(tenantId, customerPhone);
+
+    // Success or definitive block — return immediately
+    if (result.blocked) return result;
+    if (result.conversationId) return result;
+
+    // Lock contention (null conversationId) — wait and retry
+    if (attempt < LOCK_RETRY_ATTEMPTS) {
+      await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY_DELAY_MS));
+    }
+  }
+
+  // Retries exhausted — try to find existing open conversation directly from DB.
+  // The lock holder should have created/found the conversation by now.
+  const rows = await query<{ id: string }>(
+    `SELECT id FROM conversations
+     WHERE tenant_id = $1
+       AND customer_phone = $2
+       AND status = 'open'
+       AND opened_at > NOW() - INTERVAL '24 hours'
+     ORDER BY opened_at DESC
+     LIMIT 1`,
+    [tenantId, customerPhone]
+  );
+
+  if (rows.length > 0) {
+    return {
+      blocked: false,
+      existing: true,
+      conversationId: rows[0].id,
+      isNew: false,
+    };
+  }
+
+  // Nothing found after retries + DB fallback
+  return {
+    blocked: false,
+    existing: false,
+    conversationId: null,
+    isNew: false,
+  };
 }

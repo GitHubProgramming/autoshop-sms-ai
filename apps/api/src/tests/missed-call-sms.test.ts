@@ -43,6 +43,7 @@ vi.mock("../services/pipeline-trace", () => ({
 
 const conversationMocks = vi.hoisted(() => ({
   openConversation: vi.fn(),
+  openConversationWithRetry: vi.fn(),
 }));
 
 vi.mock("../services/conversation", () => conversationMocks);
@@ -181,7 +182,7 @@ describe("sendTwilioSms", () => {
 
 describe("handleMissedCallSms", () => {
   it("completes full flow successfully", async () => {
-    conversationMocks.openConversation.mockResolvedValue({
+    conversationMocks.openConversationWithRetry.mockResolvedValue({
       blocked: false, existing: false, conversationId: CONVERSATION_ID, isNew: true,
     });
     mocks.query
@@ -228,7 +229,7 @@ describe("handleMissedCallSms", () => {
   });
 
   it("returns error when conversation blocked by cooldown", async () => {
-    conversationMocks.openConversation.mockResolvedValue({
+    conversationMocks.openConversationWithRetry.mockResolvedValue({
       blocked: true, reason: "cooldown", existing: false, conversationId: null, isNew: false,
     });
     mocks.query
@@ -242,7 +243,7 @@ describe("handleMissedCallSms", () => {
   });
 
   it("returns error when Twilio SMS fails", async () => {
-    conversationMocks.openConversation.mockResolvedValue({
+    conversationMocks.openConversationWithRetry.mockResolvedValue({
       blocked: false, existing: false, conversationId: CONVERSATION_ID, isNew: true,
     });
     mocks.query
@@ -273,7 +274,7 @@ describe("handleMissedCallSms", () => {
   });
 
   it("handles conversation creation failure", async () => {
-    conversationMocks.openConversation.mockRejectedValue(new Error("DB error"));
+    conversationMocks.openConversationWithRetry.mockRejectedValue(new Error("DB error"));
     mocks.query
       .mockResolvedValueOnce([
         { id: TENANT_ID, shop_name: "Joe's Auto", billing_status: "active" },
@@ -285,7 +286,7 @@ describe("handleMissedCallSms", () => {
   });
 
   it("continues even if inbound message logging fails", async () => {
-    conversationMocks.openConversation.mockResolvedValue({
+    conversationMocks.openConversationWithRetry.mockResolvedValue({
       blocked: false, existing: false, conversationId: CONVERSATION_ID, isNew: true,
     });
     mocks.query
@@ -303,7 +304,7 @@ describe("handleMissedCallSms", () => {
   });
 
   it("includes shop name in SMS text", async () => {
-    conversationMocks.openConversation.mockResolvedValue({
+    conversationMocks.openConversationWithRetry.mockResolvedValue({
       blocked: false, existing: false, conversationId: CONVERSATION_ID, isNew: true,
     });
     const fakeFetch = mockFetchSuccess();
@@ -325,7 +326,7 @@ describe("handleMissedCallSms", () => {
   });
 
   it("allows trial billing status", async () => {
-    conversationMocks.openConversation.mockResolvedValue({
+    conversationMocks.openConversationWithRetry.mockResolvedValue({
       blocked: false, existing: false, conversationId: CONVERSATION_ID, isNew: true,
     });
     mocks.query
@@ -342,7 +343,7 @@ describe("handleMissedCallSms", () => {
   });
 
   it("logs missed call info in inbound message", async () => {
-    conversationMocks.openConversation.mockResolvedValue({
+    conversationMocks.openConversationWithRetry.mockResolvedValue({
       blocked: false, existing: false, conversationId: CONVERSATION_ID, isNew: true,
     });
     mocks.query
@@ -370,7 +371,7 @@ describe("handleMissedCallSms", () => {
 
 describe("POST /internal/missed-call-sms — route", () => {
   it("returns 200 on success", async () => {
-    conversationMocks.openConversation.mockResolvedValue({
+    conversationMocks.openConversationWithRetry.mockResolvedValue({
       blocked: false, existing: false, conversationId: CONVERSATION_ID, isNew: true,
     });
     mocks.query

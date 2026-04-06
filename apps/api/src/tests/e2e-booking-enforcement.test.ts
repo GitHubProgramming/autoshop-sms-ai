@@ -47,6 +47,7 @@ vi.mock("../services/pipeline-trace", () => ({
 
 const conversationMocks = vi.hoisted(() => ({
   openConversation: vi.fn(),
+  openConversationWithRetry: vi.fn(),
 }));
 
 vi.mock("../services/conversation", () => conversationMocks);
@@ -224,7 +225,7 @@ describe("SCENARIO C — Missed Call SMS Disabled", () => {
 describe("SCENARIO D — Missed Call SMS Enabled", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    conversationMocks.openConversation.mockResolvedValue({
+    conversationMocks.openConversationWithRetry.mockResolvedValue({
       blocked: false, existing: false, conversationId: "conv-001", isNew: true,
     });
     mocks.query.mockImplementation((sql: string) => {

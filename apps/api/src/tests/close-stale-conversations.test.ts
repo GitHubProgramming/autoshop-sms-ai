@@ -26,6 +26,7 @@ vi.mock("../queues/redis", () => ({
 
 vi.mock("../services/conversation", () => ({
   openConversation: vi.fn(),
+  openConversationWithRetry: vi.fn(),
 }));
 
 import { closeStaleConversations } from "../services/close-stale-conversations";

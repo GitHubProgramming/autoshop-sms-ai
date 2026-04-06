@@ -19,7 +19,7 @@ import { createCalendarEvent } from "./google-calendar";
 import { sendTwilioSms } from "./missed-call-sms";
 import { calendarQueue } from "../queues/redis";
 import { checkAndNotifyUsage } from "./usage-warnings";
-import { openConversation } from "./conversation";
+import { openConversationWithRetry } from "./conversation";
 import {
   getTenantAiPolicy,
   buildPromptPolicySection,
@@ -100,7 +100,7 @@ export async function processSms(
   // Uses Redis SETNX mutex + PostgreSQL FOR UPDATE to prevent concurrent
   // duplicate opens and atomic usage counting.
   try {
-    const convResult = await openConversation(input.tenantId, input.customerPhone);
+    const convResult = await openConversationWithRetry(input.tenantId, input.customerPhone);
 
     if (convResult.blocked) {
       result.error = `Conversation blocked: ${convResult.reason}`;
