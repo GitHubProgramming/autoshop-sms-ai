@@ -38,6 +38,7 @@ export async function fetchTwilioNumberConfig(
     const res = await fetchFn(url, {
       method: "GET",
       headers: { Authorization: `Basic ${auth}` },
+      signal: AbortSignal.timeout(15_000),
     });
 
     if (!res.ok) {

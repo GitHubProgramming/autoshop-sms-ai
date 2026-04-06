@@ -56,6 +56,7 @@ export async function releaseExpiredSuspendedNumbers(): Promise<ReleaseResult> {
       const res = await fetch(deleteUrl, {
         method: "DELETE",
         headers: { Authorization: `Basic ${auth}` },
+        signal: AbortSignal.timeout(15_000),
       });
 
       if (res.status === 204 || res.ok) {

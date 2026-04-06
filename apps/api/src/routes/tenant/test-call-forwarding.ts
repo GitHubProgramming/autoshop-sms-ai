@@ -103,6 +103,7 @@ export async function testCallForwardingRoute(app: FastifyInstance) {
             `Twiml=${encodeURIComponent(twiml)}`,
             `Timeout=25`,
           ].join("&"),
+          signal: AbortSignal.timeout(15_000),
         });
 
         const data = (await res.json()) as {
@@ -201,6 +202,7 @@ export async function testCallForwardingRoute(app: FastifyInstance) {
             const auth = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
             const res = await fetch(statusUrl, {
               headers: { Authorization: `Basic ${auth}` },
+              signal: AbortSignal.timeout(15_000),
             });
             if (res.ok) {
               const callData = (await res.json()) as {

@@ -83,6 +83,7 @@ export async function sendTwilioSms(
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: `MessagingServiceSid=${encodeURIComponent(messagingServiceSid)}&To=${encodeURIComponent(to)}&Body=${encodeURIComponent(body)}`,
+      signal: AbortSignal.timeout(15_000),
     });
 
     const data = (await res.json()) as {
