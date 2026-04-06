@@ -17,6 +17,7 @@
 import { query } from "../db/client";
 import { getConfig } from "../db/app-config";
 import { getTenantAiPolicy, buildRuntimePolicy, AI_SETTINGS_DEFAULTS } from "./ai-settings";
+import { openConversation } from "./conversation";
 
 export interface MissedCallInput {
   tenantId: string;
@@ -192,27 +193,35 @@ export async function handleMissedCallSms(
     };
   }
 
-  // 3. Get or create conversation
+  // 3. Open conversation (race-condition-safe)
+  // Uses Redis SETNX mutex + PostgreSQL FOR UPDATE for atomic counting.
   let conversationId: string | null = null;
   let isNew = false;
   try {
-    const rows = await query<{ conversation_id: string | null; is_new: boolean }>(
-      `SELECT * FROM get_or_create_conversation($1, $2)`,
-      [input.tenantId, input.customerPhone]
-    );
+    const convResult = await openConversation(input.tenantId, input.customerPhone);
 
-    if (rows.length === 0 || !rows[0].conversation_id) {
+    if (convResult.blocked) {
       return {
         success: false,
         conversationId: null,
         smsSent: false,
         twilioSid: null,
-        error: "Conversation creation blocked (cooldown active)",
+        error: `Conversation blocked: ${convResult.reason}`,
       };
     }
 
-    conversationId = rows[0].conversation_id;
-    isNew = rows[0].is_new;
+    if (!convResult.conversationId) {
+      return {
+        success: false,
+        conversationId: null,
+        smsSent: false,
+        twilioSid: null,
+        error: "Conversation creation failed (concurrent request or cooldown)",
+      };
+    }
+
+    conversationId = convResult.conversationId;
+    isNew = convResult.isNew;
   } catch (err) {
     return {
       success: false,

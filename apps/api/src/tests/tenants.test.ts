@@ -96,34 +96,36 @@ describe("getBlockReason", () => {
     expect(getBlockReason(tenant)).toBeNull();
   });
 
-  it("hard-blocks active paid tenant at overage cap (120%)", () => {
+  it("does NOT block active paid tenant at overage cap (active never blocked by count)", () => {
     const tenant = makeTenant({
       billing_status: "active",
       conv_used_this_cycle: 480, // 120% of 400
       conv_limit_this_cycle: 400,
       overage_cap_pct: 120,
     });
-    expect(getBlockReason(tenant)).toBe("paid_limit_reached");
+    // Active users are NEVER blocked by usage count — only by billing_state
+    expect(getBlockReason(tenant)).toBeNull();
   });
 
-  it("does NOT hard-block active paid tenant below overage cap", () => {
+  it("does NOT block active paid tenant even well over limit", () => {
     const tenant = makeTenant({
       billing_status: "active",
-      conv_used_this_cycle: 479, // just under 120% of 400
+      conv_used_this_cycle: 800, // 200% of 400
       conv_limit_this_cycle: 400,
       overage_cap_pct: 120,
     });
     expect(getBlockReason(tenant)).toBeNull();
   });
 
-  it("hard-blocks scheduled_cancel tenant at overage cap", () => {
+  it("does NOT block scheduled_cancel tenant by count", () => {
     const tenant = makeTenant({
       billing_status: "scheduled_cancel",
       conv_used_this_cycle: 480,
       conv_limit_this_cycle: 400,
       overage_cap_pct: 120,
     });
-    expect(getBlockReason(tenant)).toBe("paid_limit_reached");
+    // scheduled_cancel users are not blocked by count — still active until period ends
+    expect(getBlockReason(tenant)).toBeNull();
   });
 });
 

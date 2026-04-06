@@ -57,6 +57,12 @@ vi.mock("../services/pipeline-trace", () => ({
   }),
 }));
 
+const conversationMocks = vi.hoisted(() => ({
+  openConversation: vi.fn(),
+}));
+
+vi.mock("../services/conversation", () => conversationMocks);
+
 // ── Import REAL services ────────────────────────────────────────────────────
 
 import {
@@ -154,6 +160,10 @@ describe("SMOKE STEP 2 — Missed Call → Auto SMS", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    conversationMocks.openConversation.mockResolvedValue({
+      blocked: false, existing: false, conversationId: "conv-smoke-1", isNew: true,
+    });
+
     mocks.query.mockImplementation((sql: string) => {
       if (sql.includes("billing_status")) {
         return [{
@@ -165,9 +175,6 @@ describe("SMOKE STEP 2 — Missed Call → Auto SMS", () => {
       }
       if (sql.includes("ai_settings")) {
         return [{ ai_settings: SCENARIO_SETTINGS }];
-      }
-      if (sql.includes("get_or_create_conversation")) {
-        return [{ conversation_id: "conv-smoke-1", is_new: true }];
       }
       if (sql.includes("INSERT INTO messages")) return [];
       if (sql.includes("touch_conversation")) return [];

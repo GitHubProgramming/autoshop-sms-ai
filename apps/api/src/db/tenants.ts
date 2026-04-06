@@ -76,7 +76,7 @@ export async function getTenantById(id: string): Promise<Tenant | null> {
 export function getBlockReason(tenant: Tenant): string | null {
   const {
     billing_status, conv_used_this_cycle, conv_limit_this_cycle,
-    trial_ends_at, overage_cap_pct,
+    trial_ends_at,
   } = tenant;
 
   // Demo accounts are always blocked from live processing
@@ -91,14 +91,9 @@ export function getBlockReason(tenant: Tenant): string | null {
     if (conv_used_this_cycle >= conv_limit_this_cycle) return "trial_limit_reached";
   }
 
-  // Paid active — hard block at overage cap (default 120% of plan limit)
-  if (
-    (billing_status === "active" || billing_status === "scheduled_cancel") &&
-    conv_limit_this_cycle > 0
-  ) {
-    const cap = Math.floor(conv_limit_this_cycle * (overage_cap_pct ?? 120) / 100);
-    if (conv_used_this_cycle >= cap) return "paid_limit_reached";
-  }
+  // IMPORTANT: active/past_due/scheduled_cancel users are NEVER blocked by
+  // usage count alone. They are only blocked by billing_state (suspended/canceled).
+  // Usage warnings (80%/100%) are sent to the owner but do not block conversations.
 
   return null;
 }

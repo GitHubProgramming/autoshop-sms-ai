@@ -41,6 +41,12 @@ vi.mock("../services/pipeline-trace", () => ({
   }),
 }));
 
+const conversationMocks = vi.hoisted(() => ({
+  openConversation: vi.fn(),
+}));
+
+vi.mock("../services/conversation", () => conversationMocks);
+
 import { missedCallSmsRoute } from "../routes/internal/missed-call-sms";
 import {
   handleMissedCallSms,
@@ -175,13 +181,14 @@ describe("sendTwilioSms", () => {
 
 describe("handleMissedCallSms", () => {
   it("completes full flow successfully", async () => {
+    conversationMocks.openConversation.mockResolvedValue({
+      blocked: false, existing: false, conversationId: CONVERSATION_ID, isNew: true,
+    });
     mocks.query
       .mockResolvedValueOnce([
         { id: TENANT_ID, shop_name: "Joe's Auto", billing_status: "active" },
       ])
-      .mockResolvedValueOnce([
-        { conversation_id: CONVERSATION_ID, is_new: true },
-      ])
+      .mockResolvedValueOnce([]) // missed_calls insert
       .mockResolvedValueOnce([]) // log inbound
       .mockResolvedValueOnce([]) // log outbound
       .mockResolvedValueOnce([]); // touch conversation
@@ -221,11 +228,13 @@ describe("handleMissedCallSms", () => {
   });
 
   it("returns error when conversation blocked by cooldown", async () => {
+    conversationMocks.openConversation.mockResolvedValue({
+      blocked: true, reason: "cooldown", existing: false, conversationId: null, isNew: false,
+    });
     mocks.query
       .mockResolvedValueOnce([
         { id: TENANT_ID, shop_name: "Joe's Auto", billing_status: "active" },
-      ])
-      .mockResolvedValueOnce([{ conversation_id: null, is_new: false }]);
+      ]);
 
     const result = await handleMissedCallSms(validInput(), mockFetchSuccess());
     expect(result.success).toBe(false);
@@ -233,13 +242,14 @@ describe("handleMissedCallSms", () => {
   });
 
   it("returns error when Twilio SMS fails", async () => {
+    conversationMocks.openConversation.mockResolvedValue({
+      blocked: false, existing: false, conversationId: CONVERSATION_ID, isNew: true,
+    });
     mocks.query
       .mockResolvedValueOnce([
         { id: TENANT_ID, shop_name: "Joe's Auto", billing_status: "active" },
       ])
-      .mockResolvedValueOnce([
-        { conversation_id: CONVERSATION_ID, is_new: true },
-      ])
+      .mockResolvedValueOnce([]) // missed_calls insert
       .mockResolvedValueOnce([]) // log inbound
       .mockResolvedValueOnce([]) // log outbound
       .mockResolvedValueOnce([]); // touch
@@ -263,11 +273,11 @@ describe("handleMissedCallSms", () => {
   });
 
   it("handles conversation creation failure", async () => {
+    conversationMocks.openConversation.mockRejectedValue(new Error("DB error"));
     mocks.query
       .mockResolvedValueOnce([
         { id: TENANT_ID, shop_name: "Joe's Auto", billing_status: "active" },
-      ])
-      .mockRejectedValueOnce(new Error("DB error"));
+      ]);
 
     const result = await handleMissedCallSms(validInput(), mockFetchSuccess());
     expect(result.success).toBe(false);
@@ -275,13 +285,14 @@ describe("handleMissedCallSms", () => {
   });
 
   it("continues even if inbound message logging fails", async () => {
+    conversationMocks.openConversation.mockResolvedValue({
+      blocked: false, existing: false, conversationId: CONVERSATION_ID, isNew: true,
+    });
     mocks.query
       .mockResolvedValueOnce([
         { id: TENANT_ID, shop_name: "Joe's Auto", billing_status: "active" },
       ])
-      .mockResolvedValueOnce([
-        { conversation_id: CONVERSATION_ID, is_new: true },
-      ])
+      .mockResolvedValueOnce([]) // missed_calls insert
       .mockRejectedValueOnce(new Error("log fail")) // inbound log fails
       .mockResolvedValueOnce([]) // outbound log
       .mockResolvedValueOnce([]); // touch
@@ -292,14 +303,15 @@ describe("handleMissedCallSms", () => {
   });
 
   it("includes shop name in SMS text", async () => {
+    conversationMocks.openConversation.mockResolvedValue({
+      blocked: false, existing: false, conversationId: CONVERSATION_ID, isNew: true,
+    });
     const fakeFetch = mockFetchSuccess();
     mocks.query
       .mockResolvedValueOnce([
         { id: TENANT_ID, shop_name: "Joe's Auto Repair", billing_status: "active" },
       ])
-      .mockResolvedValueOnce([
-        { conversation_id: CONVERSATION_ID, is_new: true },
-      ])
+      .mockResolvedValueOnce([]) // missed_calls insert
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
@@ -313,13 +325,14 @@ describe("handleMissedCallSms", () => {
   });
 
   it("allows trial billing status", async () => {
+    conversationMocks.openConversation.mockResolvedValue({
+      blocked: false, existing: false, conversationId: CONVERSATION_ID, isNew: true,
+    });
     mocks.query
       .mockResolvedValueOnce([
         { id: TENANT_ID, shop_name: "Test Shop", billing_status: "trial" },
       ])
-      .mockResolvedValueOnce([
-        { conversation_id: CONVERSATION_ID, is_new: true },
-      ])
+      .mockResolvedValueOnce([]) // missed_calls insert
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
@@ -329,20 +342,21 @@ describe("handleMissedCallSms", () => {
   });
 
   it("logs missed call info in inbound message", async () => {
+    conversationMocks.openConversation.mockResolvedValue({
+      blocked: false, existing: false, conversationId: CONVERSATION_ID, isNew: true,
+    });
     mocks.query
       .mockResolvedValueOnce([
         { id: TENANT_ID, shop_name: "Test Shop", billing_status: "active" },
       ])
-      .mockResolvedValueOnce([
-        { conversation_id: CONVERSATION_ID, is_new: true },
-      ])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([]) // missed_calls insert
+      .mockResolvedValueOnce([]) // inbound log
+      .mockResolvedValueOnce([]) // outbound log
+      .mockResolvedValueOnce([]); // touch
 
     await handleMissedCallSms(validInput(), mockFetchSuccess());
 
-    // Third query is the inbound message log
+    // Third query (index 2) is the inbound message log
     const inboundCall = mocks.query.mock.calls[2];
     expect(inboundCall[1][2]).toContain("Missed call");
     expect(inboundCall[1][2]).toContain("no-answer");
@@ -356,13 +370,14 @@ describe("handleMissedCallSms", () => {
 
 describe("POST /internal/missed-call-sms — route", () => {
   it("returns 200 on success", async () => {
+    conversationMocks.openConversation.mockResolvedValue({
+      blocked: false, existing: false, conversationId: CONVERSATION_ID, isNew: true,
+    });
     mocks.query
       .mockResolvedValueOnce([
         { id: TENANT_ID, shop_name: "Test Shop", billing_status: "active" },
       ])
-      .mockResolvedValueOnce([
-        { conversation_id: CONVERSATION_ID, is_new: true },
-      ])
+      .mockResolvedValueOnce([]) // missed_calls insert
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);

@@ -65,7 +65,7 @@ vi.mock("../services/ai-settings", () => aiSettingsMocks);
 
 vi.mock("../queues/redis", () => ({
   calendarQueue: { add: vi.fn().mockResolvedValue({ id: "mock-job" }) },
-  redis: { exists: vi.fn(), setex: vi.fn(), disconnect: vi.fn() },
+  redis: { exists: vi.fn(), setex: vi.fn(), disconnect: vi.fn(), set: vi.fn(), del: vi.fn() },
   bullmqConnection: {},
   smsInboundQueue: { add: vi.fn() },
   provisionNumberQueue: { add: vi.fn() },
@@ -73,6 +73,12 @@ vi.mock("../queues/redis", () => ({
   checkIdempotency: vi.fn().mockResolvedValue(false),
   markIdempotency: vi.fn(),
 }));
+
+const conversationMocks = vi.hoisted(() => ({
+  openConversation: vi.fn(),
+}));
+
+vi.mock("../services/conversation", () => conversationMocks);
 
 import { processSms, ProcessSmsInput } from "../services/process-sms";
 import { processSmsRoute } from "../routes/internal/process-sms";
@@ -164,12 +170,18 @@ function setupDbMocks(options: {
   hasOwnerPhone?: boolean;
   turnCount?: number;
 } = {}) {
+  // Mock openConversation (replaces get_or_create_conversation SQL mock)
+  if (options.conversationBlocked) {
+    conversationMocks.openConversation.mockResolvedValue({
+      blocked: true, reason: "trial_limit", existing: false, conversationId: null, isNew: false,
+    });
+  } else {
+    conversationMocks.openConversation.mockResolvedValue({
+      blocked: false, existing: true, conversationId: CONVERSATION_ID, isNew: false,
+    });
+  }
+
   mocks.query.mockImplementation(async (sql: string, params?: unknown[]) => {
-    // get_or_create_conversation
-    if (sql.includes("get_or_create_conversation")) {
-      if (options.conversationBlocked) return [];
-      return [{ conversation_id: CONVERSATION_ID, is_new: false }];
-    }
 
     // Insert message (inbound or outbound)
     if (sql.includes("INSERT INTO messages")) {
@@ -533,7 +545,7 @@ describe("processSms — conversation close", () => {
 });
 
 describe("processSms — soft limit", () => {
-  it("sends soft limit response instead of AI", async () => {
+  it("active users at soft limit are NOT blocked — AI response proceeds", async () => {
     setupDbMocks();
     const fetchMock = mockFetchAll();
 
@@ -542,13 +554,14 @@ describe("processSms — soft limit", () => {
       fetchMock
     );
 
+    // Active users are never blocked by usage count — AI response proceeds normally
     expect(result.success).toBe(true);
-    expect(result.aiResponse).toContain("monthly messaging limit");
-    // Should NOT call OpenAI
+    expect(result.aiResponse).not.toContain("monthly messaging limit");
+    // OpenAI SHOULD be called (not blocked)
     const openaiCall = (fetchMock as ReturnType<typeof vi.fn>).mock.calls.find(
       (call: unknown[]) => typeof call[0] === "string" && (call[0] as string).includes("openai.com")
     );
-    expect(openaiCall).toBeUndefined();
+    expect(openaiCall).toBeDefined();
   });
 });
 
@@ -560,11 +573,11 @@ describe("processSms — error handling", () => {
     const result = await processSms(validInput(), fetchMock);
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain("cooldown");
+    expect(result.error).toContain("Conversation blocked");
   });
 
   it("returns error when conversation creation throws", async () => {
-    mocks.query.mockRejectedValueOnce(new Error("DB connection lost"));
+    conversationMocks.openConversation.mockRejectedValue(new Error("DB connection lost"));
     const fetchMock = mockFetchAll();
 
     const result = await processSms(validInput(), fetchMock);
@@ -642,10 +655,10 @@ describe("processSms — error handling", () => {
 
   it("continues with empty history when history query fails", async () => {
     const callCount = 0;
+    conversationMocks.openConversation.mockResolvedValue({
+      blocked: false, existing: true, conversationId: CONVERSATION_ID, isNew: false,
+    });
     mocks.query.mockImplementation(async (sql: string) => {
-      if (sql.includes("get_or_create_conversation")) {
-        return [{ conversation_id: CONVERSATION_ID, is_new: false }];
-      }
       if (sql.includes("SELECT direction, body FROM messages")) {
         throw new Error("DB timeout");
       }
@@ -668,10 +681,10 @@ describe("processSms — history ordering (no duplicate messages)", () => {
     // History should NOT include the current inbound message because
     // history is fetched BEFORE the inbound is logged to the DB.
     let historyCallArgs: unknown[] | undefined;
+    conversationMocks.openConversation.mockResolvedValue({
+      blocked: false, existing: true, conversationId: CONVERSATION_ID, isNew: false,
+    });
     mocks.query.mockImplementation(async (sql: string, params?: unknown[]) => {
-      if (sql.includes("get_or_create_conversation")) {
-        return [{ conversation_id: CONVERSATION_ID, is_new: false }];
-      }
       // History fetch — capture what gets returned
       if (sql.includes("SELECT direction, body FROM messages")) {
         historyCallArgs = params;
@@ -704,11 +717,10 @@ describe("processSms — history ordering (no duplicate messages)", () => {
 
   it("history fetch occurs before inbound message insert", async () => {
     const callOrder: string[] = [];
+    conversationMocks.openConversation.mockResolvedValue({
+      blocked: false, existing: true, conversationId: CONVERSATION_ID, isNew: false,
+    });
     mocks.query.mockImplementation(async (sql: string) => {
-      if (sql.includes("get_or_create_conversation")) {
-        callOrder.push("get_or_create");
-        return [{ conversation_id: CONVERSATION_ID, is_new: false }];
-      }
       if (sql.includes("SELECT direction, body FROM messages")) {
         callOrder.push("fetch_history");
         return [];
@@ -771,10 +783,10 @@ describe("processSms — additional edge cases", () => {
 
   it("handles appointment creation failure gracefully", async () => {
     // Simulate DB error during appointment insert
+    conversationMocks.openConversation.mockResolvedValue({
+      blocked: false, existing: true, conversationId: CONVERSATION_ID, isNew: false,
+    });
     mocks.query.mockImplementation(async (sql: string) => {
-      if (sql.includes("get_or_create_conversation")) {
-        return [{ conversation_id: CONVERSATION_ID, is_new: false }];
-      }
       if (sql.includes("system_prompts")) return [];
       if (sql.includes("SELECT direction, body FROM messages")) return [];
       if (sql.includes("SELECT shop_name, business_hours")) {
@@ -804,18 +816,19 @@ describe("processSms — additional edge cases", () => {
     expect(result.aiResponse).toContain("call");
   });
 
-  it("soft limit with Twilio failure still succeeds", async () => {
+  it("soft limit for active users does NOT block — proceeds with AI response", async () => {
     setupDbMocks();
-    const fetchMock = mockFetchAll({ twilioOk: false });
+    const fetchMock = mockFetchAll();
 
     const result = await processSms(
       validInput({ atSoftLimit: true }),
       fetchMock
     );
 
+    // Active users are never blocked by usage count — AI response proceeds normally
     expect(result.success).toBe(true);
-    expect(result.aiResponse).toContain("monthly messaging limit");
-    expect(result.smsSent).toBe(false);
+    expect(result.aiResponse).not.toContain("monthly messaging limit");
+    expect(result.smsSent).toBe(true);
   });
 
   it("handles OpenAI fetch throwing non-Error object", async () => {
@@ -834,10 +847,10 @@ describe("processSms — additional edge cases", () => {
   });
 
   it("booking detected but close_conversation fails is non-fatal", async () => {
+    conversationMocks.openConversation.mockResolvedValue({
+      blocked: false, existing: true, conversationId: CONVERSATION_ID, isNew: false,
+    });
     mocks.query.mockImplementation(async (sql: string) => {
-      if (sql.includes("get_or_create_conversation")) {
-        return [{ conversation_id: CONVERSATION_ID, is_new: false }];
-      }
       if (sql.includes("system_prompts")) return [];
       if (sql.includes("SELECT direction, body FROM messages")) return [];
       if (sql.includes("SELECT shop_name, business_hours")) {
@@ -991,7 +1004,7 @@ describe("POST /internal/process-sms — route", () => {
     });
 
     expect(res.statusCode).toBe(500);
-    expect(res.json().error).toContain("cooldown");
+    expect(res.json().error).toContain("Conversation blocked");
   });
 
   it("defaults atSoftLimit to false", async () => {
