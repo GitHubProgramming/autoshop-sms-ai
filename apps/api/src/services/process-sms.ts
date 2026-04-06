@@ -60,7 +60,7 @@ export interface ProcessSmsResult {
 
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_MODEL = "gpt-4o-mini";
-const OPENAI_MAX_TOKENS = 800;
+const OPENAI_MAX_TOKENS = 300;
 const OPENAI_TEMPERATURE = 0.3;
 const HISTORY_LIMIT = 8;
 
