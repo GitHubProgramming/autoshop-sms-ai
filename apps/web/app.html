@@ -2286,6 +2286,13 @@ let apptSummary = null; // Real appointment KPIs from /tenant/appointments-summa
 // - past_due (without _blocked) is NOT blocking — Stripe smart-retries window.
 const BLOCKING_STATES = ['suspended', 'canceled', 'trial_expired', 'past_due_blocked', 'paused'];
 
+// Hard cap on messages rendered in the conversation thread view.
+// Prevents browser freeze on pathological threads (1000+ messages).
+// Current usage model: conversations typically have <20 messages before
+// booking/timeout. If this cap is ever hit in production, revisit with
+// real pagination instead of just truncation.
+const CONV_THREAD_MESSAGE_CAP = 100;
+
 // Fetch state flags — track loading/error for each data section
 let dashboardLoadError = false;
 let kpiLoadError = false;
@@ -4932,20 +4939,24 @@ async function loadConversationPanel(id, conv, booking) {
         if (dc.license_plate) conv.licensePlate = dc.license_plate;
       }
       if (data.messages && data.messages.length > 0) {
+        var _total = data.messages.length;
+        var _capped = _total > CONV_THREAD_MESSAGE_CAP;
+        var _slice = _capped ? data.messages.slice(-CONV_THREAD_MESSAGE_CAP) : data.messages;
         convThreads[id] = {
           title: conv ? (conv.customerName || conv.phone) : 'Conversation',
           meta: conv ? conv.phone : '',
-          thread: data.messages.map(function(m) {
+          thread: _slice.map(function(m) {
             return {
               d: m.direction === 'outbound' ? 'ai' : 'customer',
               t: m.body,
               ts: m.sent_at ? fmtDate(m.sent_at) : ''
             };
           }),
+          _truncatedTotal: _capped ? _total : 0,
           result: null,
           info: []
         };
-        renderSlideMessages(messagesContainer, convThreads[id].thread, conv, booking);
+        renderSlideMessages(messagesContainer, convThreads[id].thread, conv, booking, convThreads[id]._truncatedTotal);
         return;
       }
     }
@@ -4969,8 +4980,12 @@ function updatePanelFooter(conv, booking) {
   footer.innerHTML = btns;
 }
 
-function renderSlideMessages(container, thread, conv, booking) {
+function renderSlideMessages(container, thread, conv, booking, truncatedTotal) {
   var html = '';
+
+  if (truncatedTotal && truncatedTotal > CONV_THREAD_MESSAGE_CAP) {
+    html += '<div class="conv-thread-cap-notice" style="text-align:center;font-size:11px;color:var(--text-tertiary);padding:8px 12px;">Showing most recent ' + CONV_THREAD_MESSAGE_CAP + ' messages of ' + truncatedTotal + '. Older messages hidden for performance.</div>';
+  }
 
   // No synthetic "Conversation started" event — only real messages are shown
 
@@ -5982,6 +5997,9 @@ if (window.visualViewport) {
 function renderConvThread(body, data) {
   if (!body || !data) return;
   var thread = '';
+  if (data._truncatedTotal && data._truncatedTotal > CONV_THREAD_MESSAGE_CAP) {
+    thread += '<div class="conv-thread-cap-notice" style="text-align:center;font-size:11px;color:var(--text-tertiary);padding:8px 12px;">Showing most recent ' + CONV_THREAD_MESSAGE_CAP + ' messages of ' + data._truncatedTotal + '. Older messages hidden for performance.</div>';
+  }
   data.thread.forEach(function(m) {
     if (m.ts) thread += '<div class="msg-time">' + escHtml(m.ts) + '</div>';
     if (m.d === 'ai') thread += '<div class="msg-row"><div class="msg-bubble ai"><div class="msg-sender">AutoShop AI</div>' + escHtml(m.t) + '<div class="msg-ts">' + escHtml(m.ts || '') + '</div></div></div>';
@@ -6053,16 +6071,20 @@ function selectConversation(el, id) {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         var json = await res.json();
         if (json.messages && json.messages.length > 0) {
+          var _total2 = json.messages.length;
+          var _capped2 = _total2 > CONV_THREAD_MESSAGE_CAP;
+          var _slice2 = _capped2 ? json.messages.slice(-CONV_THREAD_MESSAGE_CAP) : json.messages;
           convThreads[id] = {
             title: conv ? (conv.customerName || conv.phone) : 'Conversation',
             meta: conv ? conv.phone : '',
-            thread: json.messages.map(function(m) {
+            thread: _slice2.map(function(m) {
               return {
                 d: m.direction === 'outbound' ? 'ai' : 'customer',
                 t: m.body,
                 ts: m.sent_at ? fmtDate(m.sent_at) : ''
               };
             }),
+            _truncatedTotal: _capped2 ? _total2 : 0,
             result: null,
             info: []
           };
