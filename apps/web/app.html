@@ -2519,15 +2519,31 @@ function getDemoConvData(numDays) {
 function _tenantTz() { return (tenantState && tenantState.timezone) || 'America/Chicago'; }
 function fmtTenantDate(iso, opts) {
   if (!iso) return '';
-  return new Date(iso).toLocaleDateString('en-US', Object.assign({ timeZone: _tenantTz() }, opts || {}));
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-US', Object.assign({ timeZone: _tenantTz() }, opts || {}));
 }
 function fmtTenantTime(iso, opts) {
   if (!iso) return '';
-  return new Date(iso).toLocaleTimeString('en-US', Object.assign({ timeZone: _tenantTz(), hour: 'numeric', minute: '2-digit' }, opts || {}));
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString('en-US', Object.assign({ timeZone: _tenantTz(), hour: 'numeric', minute: '2-digit' }, opts || {}));
 }
 function fmtTenantDateTime(iso, opts) {
   if (!iso) return '';
-  return new Date(iso).toLocaleString('en-US', Object.assign({ timeZone: _tenantTz() }, opts || {}));
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleString('en-US', Object.assign({ timeZone: _tenantTz() }, opts || {}));
+}
+
+// Safely format a price value that may be null, undefined, string, or number.
+// Postgres NUMERIC fields serialize as strings in JSON; this normalizes them
+// and prevents `.toFixed is not a function` crashes when rendering bookings.
+function fmtPrice(value) {
+  if (value == null || value === '') return '0.00';
+  var n = Number(value);
+  if (isNaN(n)) return '0.00';
+  return n.toFixed(2);
 }
 // Returns YYYY-MM-DD for "today" in the tenant's timezone.
 function tenantToday() {
@@ -4331,7 +4347,7 @@ function renderBookings() {
         : `<span class="status-pill ${b.syncStatus}">${b.syncLabel || b.syncStatus.charAt(0).toUpperCase() + b.syncStatus.slice(1)}</span>`;
     const failNote = b.failNote && !isCompleted ? `<div style="font-family:var(--mono);font-size:11px;color:var(--red);margin-top:4px;">${b.failNote}</div>` : '';
     const priceCell = b.finalPrice != null
-      ? `<span style="font-family:var(--mono);font-weight:600;color:var(--navy);">$${b.finalPrice.toFixed(2)}</span>`
+      ? `<span style="font-family:var(--mono);font-weight:600;color:var(--navy);">$${fmtPrice(b.finalPrice)}</span>`
       : `<span style="font-family:var(--mono);font-size:11px;color:var(--steel);">—</span>`;
     let action;
     var isCancelled = b.bookingState === 'CANCELLED';
@@ -4485,7 +4501,7 @@ function renderBillingPage() {
       <td><span style="font-weight:500;color:var(--text);">${inv.id}</span></td>
       <td><span style="color:var(--text-tertiary);">${inv.period}</span></td>
       <td>${inv.date}</td>
-      <td><span style="font-weight:500;">$${inv.amount.toFixed(2)}</span></td>
+      <td><span style="font-weight:500;">$${fmtPrice(inv.amount)}</span></td>
       <td><span class="billing-invoice-status">${inv.status}</span></td>
       <td>${inv.url ? `<a class="billing-invoice-dl" href="${inv.url}" target="_blank" rel="noopener">${svgDl} View</a>` : `<button class="billing-invoice-dl" onclick="openBillingPortal()">${svgDl} Portal</button>`}</td>
     </tr>`).join('');
@@ -4791,7 +4807,7 @@ async function loadConversationPanel(id, conv, booking) {
         html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Completed</span><span class="conv-panel-info-value">' + fmtDate(booking.completedAt) + '</span></div>';
       }
       if (booking.finalPrice != null) {
-        html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Price</span><span class="conv-panel-info-value">$' + booking.finalPrice.toFixed(2) + '</span></div>';
+        html += '<div class="conv-panel-info-row"><span class="conv-panel-info-label">Price</span><span class="conv-panel-info-value">$' + fmtPrice(booking.finalPrice) + '</span></div>';
       }
       if (booking.failNote) {
         html += '<div class="conv-panel-info-row" style="color:var(--red,#EF4444);font-size:12px;">' + booking.failNote + '</div>';
@@ -4936,7 +4952,7 @@ function openCompleteModal(apptId) {
   var b = bookingsData.find(function(x) { return x.id === apptId; });
   var isEdit = b && b.completedAt && b.finalPrice != null;
   document.getElementById('completeModalMeta').textContent = b ? b.service + ' — ' + b.phone : '';
-  document.getElementById('completePriceInput').value = isEdit ? b.finalPrice.toFixed(2) : '';
+  document.getElementById('completePriceInput').value = isEdit ? fmtPrice(b.finalPrice) : '';
   document.getElementById('completeNotesInput').value = '';
   document.getElementById('completePriceError').style.display = 'none';
   document.getElementById('completeSubmitBtn').disabled = false;
