@@ -57,6 +57,21 @@ export async function getTenantByPhoneNumber(
   return rows[0] ?? null;
 }
 
+/**
+ * Returns the tenant's IANA timezone (e.g. 'America/Chicago').
+ * Falls back to 'America/Chicago' if missing — this is the project default
+ * set at signup (apps/api/src/routes/auth/signup.ts) and matches the
+ * Texas-shop pilot. Used by date-bucketed KPI queries that must reflect
+ * shop-local "today" rather than DB server time.
+ */
+export async function getTenantTimezone(tenantId: string): Promise<string> {
+  const rows = await query<{ timezone: string | null }>(
+    `SELECT timezone FROM tenants WHERE id = $1 LIMIT 1`,
+    [tenantId]
+  );
+  return rows[0]?.timezone || "America/Chicago";
+}
+
 export async function getTenantById(id: string): Promise<Tenant | null> {
   const rows = await query<Tenant>(
     `SELECT * FROM tenants WHERE id = $1 LIMIT 1`,

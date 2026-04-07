@@ -14,8 +14,29 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
   app.get("/dashboard", { preHandler: [requireAuth] }, async (request, reply) => {
     const { tenantId } = request.user as { tenantId: string; email: string };
 
+    // Fetch the tenant row first so subsequent date-bucketed queries can be
+    // anchored in the tenant's local timezone (not server time). This adds a
+    // single round trip but is the cleanest correctness fix for "today" /
+    // "this month" KPIs across regions.
+    const tenantRows = await query(
+      `SELECT id, shop_name, owner_email, owner_phone, billing_status, plan_id,
+              conv_used_this_cycle, conv_limit_this_cycle,
+              trial_started_at, trial_ends_at,
+              warned_80pct, warned_100pct, created_at,
+              business_hours, is_test,
+              workspace_mode, provisioning_state,
+              subscription_amount_cents, overage_cap_pct,
+              pending_conv_limit, cycle_reset_at, cancel_at, timezone
+       FROM tenants WHERE id = $1`,
+      [tenantId]
+    );
+    const tenantPreflight = (tenantRows as any[])[0];
+    if (!tenantPreflight) {
+      return reply.status(404).send({ error: "Tenant not found" });
+    }
+    const tz: string = tenantPreflight.timezone || "America/Chicago";
+
     const [
-      tenantRows,
       calendarRows,
       phoneRows,
       convsTodayRows,
@@ -29,19 +50,6 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
       recentBookingRows,
       liveConvRows,
     ] = await Promise.all([
-      // Tenant identity + billing + business hours + lifecycle state
-      query(
-        `SELECT id, shop_name, owner_email, owner_phone, billing_status, plan_id,
-                conv_used_this_cycle, conv_limit_this_cycle,
-                trial_started_at, trial_ends_at,
-                warned_80pct, warned_100pct, created_at,
-                business_hours, is_test,
-                workspace_mode, provisioning_state,
-                subscription_amount_cents, overage_cap_pct,
-                pending_conv_limit, cycle_reset_at, cancel_at
-         FROM tenants WHERE id = $1`,
-        [tenantId]
-      ),
       // Google Calendar integration
       query(
         `SELECT calendar_id, connected_at, last_refreshed, token_expiry,
@@ -56,20 +64,20 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
          ORDER BY provisioned_at DESC LIMIT 1`,
         [tenantId]
       ),
-      // Conversations today
+      // Conversations today (tenant-local day)
       query(
         `SELECT COUNT(*)::int AS count FROM conversations
-         WHERE tenant_id = $1 AND opened_at >= CURRENT_DATE`,
-        [tenantId]
+         WHERE tenant_id = $1
+           AND (opened_at AT TIME ZONE $2)::date = (now() AT TIME ZONE $2)::date`,
+        [tenantId, tz]
       ),
-      // Appointments scheduled for today (exclude cancelled)
+      // Appointments scheduled for today (tenant-local day, exclude cancelled)
       query(
         `SELECT COUNT(*)::int AS count FROM appointments
          WHERE tenant_id = $1
-           AND scheduled_at >= CURRENT_DATE
-           AND scheduled_at < CURRENT_DATE + INTERVAL '1 day'
+           AND (scheduled_at AT TIME ZONE $2)::date = (now() AT TIME ZONE $2)::date
            AND booking_state NOT IN ('CANCELLED', 'FAILED')`,
-        [tenantId]
+        [tenantId, tz]
       ),
       // Active conversations
       query(
@@ -77,20 +85,20 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
          WHERE tenant_id = $1 AND status = 'open'`,
         [tenantId]
       ),
-      // Conversations this month
+      // Conversations this month (tenant-local month)
       query(
         `SELECT COUNT(*)::int AS count FROM conversations
          WHERE tenant_id = $1
-           AND opened_at >= date_trunc('month', CURRENT_DATE)`,
-        [tenantId]
+           AND (opened_at AT TIME ZONE $2) >= date_trunc('month', (now() AT TIME ZONE $2))`,
+        [tenantId, tz]
       ),
-      // Appointments this month (exclude cancelled/failed)
+      // Appointments this month (tenant-local month, exclude cancelled/failed)
       query(
         `SELECT COUNT(*)::int AS count FROM appointments
          WHERE tenant_id = $1
-           AND created_at >= date_trunc('month', CURRENT_DATE)
+           AND (created_at AT TIME ZONE $2) >= date_trunc('month', (now() AT TIME ZONE $2))
            AND booking_state NOT IN ('CANCELLED', 'FAILED')`,
-        [tenantId]
+        [tenantId, tz]
       ),
       // Total conversations (all time)
       query(
@@ -137,10 +145,7 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
       ),
     ]);
 
-    const tenant = (tenantRows as any[])[0];
-    if (!tenant) {
-      return reply.status(404).send({ error: "Tenant not found" });
-    }
+    const tenant = tenantPreflight;
 
     const calendar = (calendarRows as any[])[0] || null;
     let phone = (phoneRows as any[])[0] || null;
@@ -225,6 +230,7 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
         pending_conv_limit: tenant.pending_conv_limit ?? null,
         cycle_reset_at: tenant.cycle_reset_at ?? null,
         cancel_at: tenant.cancel_at ?? null,
+        timezone: tz,
       },
       integrations: {
         google_calendar: {

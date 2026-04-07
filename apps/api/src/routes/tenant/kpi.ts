@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { query } from "../../db/client";
 import { requireAuth } from "../../middleware/require-auth";
 import { deleteCalendarEvent } from "../../services/google-calendar";
+import { getTenantTimezone } from "../../db/tenants";
 
 /**
  * Tenant KPI endpoints — all values come from real data only.
@@ -112,6 +113,7 @@ export async function tenantKpiRoute(app: FastifyInstance) {
    */
   app.get("/kpi/summary", { preHandler: [requireAuth] }, async (request, reply) => {
     const { tenantId } = request.user as { tenantId: string; email: string };
+    const tz = await getTenantTimezone(tenantId);
 
     const [
       recoveredRows,
@@ -143,25 +145,24 @@ export async function tenantKpiRoute(app: FastifyInstance) {
            AND completed_at >= NOW() - INTERVAL '30 days'`,
         [tenantId]
       ),
-      // AI-booked appointments this month (have conversation_id, exclude FAILED + CANCELLED)
+      // AI-booked appointments this month (tenant-local month)
       query<{ count: string }>(
         `SELECT COUNT(*)::text AS count
          FROM appointments
          WHERE tenant_id = $1
            AND conversation_id IS NOT NULL
            AND booking_state NOT IN ('FAILED', 'CANCELLED')
-           AND created_at >= date_trunc('month', CURRENT_DATE)`,
-        [tenantId]
+           AND (created_at AT TIME ZONE $2) >= date_trunc('month', (now() AT TIME ZONE $2))`,
+        [tenantId, tz]
       ),
-      // Appointments today (exclude cancelled/failed)
+      // Appointments today (tenant-local day, exclude cancelled/failed)
       query<{ count: string }>(
         `SELECT COUNT(*)::text AS count
          FROM appointments
          WHERE tenant_id = $1
-           AND scheduled_at >= CURRENT_DATE
-           AND scheduled_at < CURRENT_DATE + INTERVAL '1 day'
+           AND (scheduled_at AT TIME ZONE $2)::date = (now() AT TIME ZONE $2)::date
            AND booking_state NOT IN ('CANCELLED', 'FAILED')`,
-        [tenantId]
+        [tenantId, tz]
       ),
       // Active conversations
       query<{ count: string }>(
@@ -170,22 +171,22 @@ export async function tenantKpiRoute(app: FastifyInstance) {
          WHERE tenant_id = $1 AND status = 'open'`,
         [tenantId]
       ),
-      // Conversations this month
+      // Conversations this month (tenant-local month)
       query<{ count: string }>(
         `SELECT COUNT(*)::text AS count
          FROM conversations
          WHERE tenant_id = $1
-           AND opened_at >= date_trunc('month', CURRENT_DATE)`,
-        [tenantId]
+           AND (opened_at AT TIME ZONE $2) >= date_trunc('month', (now() AT TIME ZONE $2))`,
+        [tenantId, tz]
       ),
-      // Conversations that led to bookings this month
+      // Conversations that led to bookings this month (tenant-local month)
       query<{ count: string }>(
         `SELECT COUNT(*)::text AS count
          FROM conversations
          WHERE tenant_id = $1
            AND status = 'booked'
-           AND opened_at >= date_trunc('month', CURRENT_DATE)`,
-        [tenantId]
+           AND (opened_at AT TIME ZONE $2) >= date_trunc('month', (now() AT TIME ZONE $2))`,
+        [tenantId, tz]
       ),
       // Past appointments not yet marked complete (revenue loss risk)
       query<{ count: string }>(
@@ -228,6 +229,7 @@ export async function tenantKpiRoute(app: FastifyInstance) {
    */
   app.get("/kpi/daily-revenue", { preHandler: [requireAuth] }, async (request, reply) => {
     const { tenantId } = request.user as { tenantId: string; email: string };
+    const tz = await getTenantTimezone(tenantId);
     const rawDays = (request.query as Record<string, string>).days;
     const allowed = [7, 30, 90];
     // Safe: numDays is validated against a fixed allowlist — not user-controlled
@@ -237,17 +239,17 @@ export async function tenantKpiRoute(app: FastifyInstance) {
       `SELECT d.day::date::text AS day,
               COALESCE(SUM(a.final_price), 0)::text AS total
        FROM generate_series(
-              CURRENT_DATE - INTERVAL '${numDays - 1} days',
-              CURRENT_DATE,
+              (now() AT TIME ZONE $2)::date - INTERVAL '${numDays - 1} days',
+              (now() AT TIME ZONE $2)::date,
               '1 day'
             ) AS d(day)
        LEFT JOIN appointments a
          ON a.tenant_id = $1
          AND a.completed_at IS NOT NULL
-         AND a.completed_at::date = d.day::date
+         AND (a.completed_at AT TIME ZONE $2)::date = d.day::date
        GROUP BY d.day
        ORDER BY d.day`,
-      [tenantId]
+      [tenantId, tz]
     );
 
     return reply.status(200).send({
@@ -276,6 +278,7 @@ export async function tenantKpiRoute(app: FastifyInstance) {
    */
   app.get("/kpi/missed-call-recovery", { preHandler: [requireAuth] }, async (request, reply) => {
     const { tenantId } = request.user as { tenantId: string; email: string };
+    const tz = await getTenantTimezone(tenantId);
 
     const rows = await query<{
       missed_total: string;
@@ -299,8 +302,8 @@ export async function tenantKpiRoute(app: FastifyInstance) {
          ON a.conversation_id = mc.conversation_id
          AND a.booking_state NOT IN ('FAILED', 'CANCELLED')
        WHERE mc.tenant_id = $1
-         AND mc.created_at >= date_trunc('month', CURRENT_DATE)`,
-      [tenantId]
+         AND (mc.created_at AT TIME ZONE $2) >= date_trunc('month', (now() AT TIME ZONE $2))`,
+      [tenantId, tz]
     );
 
     const missed = parseInt(rows[0]?.missed_total ?? "0", 10);
@@ -337,6 +340,7 @@ export async function tenantKpiRoute(app: FastifyInstance) {
    */
   app.get("/kpi/response-time", { preHandler: [requireAuth] }, async (request, reply) => {
     const { tenantId } = request.user as { tenantId: string; email: string };
+    const tz = await getTenantTimezone(tenantId);
 
     // For each AI outbound message this month:
     // 1. Find the previous outbound in the same conversation (if any)
@@ -371,7 +375,7 @@ export async function tenantKpiRoute(app: FastifyInstance) {
          WHERE ob.tenant_id = $1
            AND ob.direction = 'outbound'
            AND ob.model_version IS NOT NULL
-           AND ob.sent_at >= date_trunc('month', CURRENT_DATE)
+           AND (ob.sent_at AT TIME ZONE $2) >= date_trunc('month', (now() AT TIME ZONE $2))
            AND first_inb.sent_at IS NOT NULL
        )
        SELECT
@@ -381,7 +385,7 @@ export async function tenantKpiRoute(app: FastifyInstance) {
          COUNT(*)::text AS sample_size
        FROM pairs
        WHERE delta > 0`,
-      [tenantId]
+      [tenantId, tz]
     );
 
     const avg = rows[0]?.avg_seconds != null ? parseInt(rows[0].avg_seconds, 10) : null;
@@ -407,6 +411,7 @@ export async function tenantKpiRoute(app: FastifyInstance) {
    */
   app.get("/kpi/daily-conversations", { preHandler: [requireAuth] }, async (request, reply) => {
     const { tenantId } = request.user as { tenantId: string; email: string };
+    const tz = await getTenantTimezone(tenantId);
     const rawDays = (request.query as Record<string, string>).days;
     const allowed = [7, 30, 90];
     // Safe: numDays is validated against a fixed allowlist — not user-controlled
@@ -416,16 +421,16 @@ export async function tenantKpiRoute(app: FastifyInstance) {
       `SELECT d.day::date::text AS day,
               COUNT(c.id)::text AS total
        FROM generate_series(
-              CURRENT_DATE - INTERVAL '${numDays - 1} days',
-              CURRENT_DATE,
+              (now() AT TIME ZONE $2)::date - INTERVAL '${numDays - 1} days',
+              (now() AT TIME ZONE $2)::date,
               '1 day'
             ) AS d(day)
        LEFT JOIN conversations c
          ON c.tenant_id = $1
-         AND c.opened_at::date = d.day::date
+         AND (c.opened_at AT TIME ZONE $2)::date = d.day::date
        GROUP BY d.day
        ORDER BY d.day`,
-      [tenantId]
+      [tenantId, tz]
     );
 
     return reply.status(200).send({
@@ -605,6 +610,7 @@ export async function tenantKpiRoute(app: FastifyInstance) {
    */
   app.get("/appointments-summary", { preHandler: [requireAuth] }, async (request, reply) => {
     const { tenantId } = request.user as { tenantId: string; email: string };
+    const tz = await getTenantTimezone(tenantId);
 
     const appointmentFields = `id, conversation_id, customer_phone, customer_name,
                 service_type, scheduled_at, calendar_synced,
@@ -623,25 +629,24 @@ export async function tenantKpiRoute(app: FastifyInstance) {
       todayApptRows,
       upcomingApptRows,
     ] = await Promise.all([
-      // Today's appointments count (exclude cancelled/failed)
+      // Today's appointments count (tenant-local day, exclude cancelled/failed)
       query<{ count: string }>(
         `SELECT COUNT(*)::text AS count
          FROM appointments
          WHERE tenant_id = $1
-           AND scheduled_at >= CURRENT_DATE
-           AND scheduled_at < CURRENT_DATE + INTERVAL '1 day'
+           AND (scheduled_at AT TIME ZONE $2)::date = (now() AT TIME ZONE $2)::date
            AND booking_state NOT IN ('CANCELLED', 'FAILED')`,
-        [tenantId]
+        [tenantId, tz]
       ),
-      // This week (Monday-relative for consistency)
+      // This week (tenant-local Monday-relative)
       query<{ count: string }>(
         `SELECT COUNT(*)::text AS count
          FROM appointments
          WHERE tenant_id = $1
-           AND scheduled_at >= date_trunc('week', CURRENT_DATE)
-           AND scheduled_at < date_trunc('week', CURRENT_DATE) + INTERVAL '7 days'
+           AND (scheduled_at AT TIME ZONE $2) >= date_trunc('week', (now() AT TIME ZONE $2))
+           AND (scheduled_at AT TIME ZONE $2) <  date_trunc('week', (now() AT TIME ZONE $2)) + INTERVAL '7 days'
            AND booking_state NOT IN ('CANCELLED', 'FAILED')`,
-        [tenantId]
+        [tenantId, tz]
       ),
       // AI-booked (have conversation_id, exclude failed/cancelled)
       query<{ count: string }>(
@@ -660,56 +665,55 @@ export async function tenantKpiRoute(app: FastifyInstance) {
            AND booking_state NOT IN ('FAILED', 'CANCELLED')`,
         [tenantId]
       ),
-      // Upcoming count (future, not today, exclude cancelled/failed)
+      // Upcoming count (tenant-local: future days only)
       query<{ count: string }>(
         `SELECT COUNT(*)::text AS count
          FROM appointments
          WHERE tenant_id = $1
-           AND scheduled_at >= CURRENT_DATE + INTERVAL '1 day'
+           AND (scheduled_at AT TIME ZONE $2)::date > (now() AT TIME ZONE $2)::date
            AND booking_state NOT IN ('CANCELLED', 'FAILED')`,
-        [tenantId]
+        [tenantId, tz]
       ),
-      // AI-booked this month (same filters as all-time, scoped to current month)
+      // AI-booked this month (tenant-local month)
       query<{ count: string }>(
         `SELECT COUNT(*)::text AS count
          FROM appointments
          WHERE tenant_id = $1
            AND conversation_id IS NOT NULL
            AND booking_state NOT IN ('FAILED', 'CANCELLED')
-           AND created_at >= date_trunc('month', CURRENT_DATE)`,
-        [tenantId]
+           AND (created_at AT TIME ZONE $2) >= date_trunc('month', (now() AT TIME ZONE $2))`,
+        [tenantId, tz]
       ),
-      // Total valid appointments this month (AI + Manual — same filters, no conversation_id filter)
+      // Total valid appointments this month (tenant-local month)
       query<{ count: string }>(
         `SELECT COUNT(*)::text AS count
          FROM appointments
          WHERE tenant_id = $1
            AND booking_state NOT IN ('FAILED', 'CANCELLED')
-           AND created_at >= date_trunc('month', CURRENT_DATE)`,
-        [tenantId]
+           AND (created_at AT TIME ZONE $2) >= date_trunc('month', (now() AT TIME ZONE $2))`,
+        [tenantId, tz]
       ),
-      // Today's appointment rows for card rendering
+      // Today's appointment rows for card rendering (tenant-local day)
       query(
         `SELECT ${appointmentFields}
          FROM appointments
          WHERE tenant_id = $1
-           AND scheduled_at >= CURRENT_DATE
-           AND scheduled_at < CURRENT_DATE + INTERVAL '1 day'
+           AND (scheduled_at AT TIME ZONE $2)::date = (now() AT TIME ZONE $2)::date
            AND booking_state NOT IN ('CANCELLED', 'FAILED')
          ORDER BY scheduled_at ASC
          LIMIT 20`,
-        [tenantId]
+        [tenantId, tz]
       ),
-      // Upcoming appointment rows for card rendering (next 7 days, not today)
+      // Upcoming appointment rows for card rendering (tenant-local: future days)
       query(
         `SELECT ${appointmentFields}
          FROM appointments
          WHERE tenant_id = $1
-           AND scheduled_at >= CURRENT_DATE + INTERVAL '1 day'
+           AND (scheduled_at AT TIME ZONE $2)::date > (now() AT TIME ZONE $2)::date
            AND booking_state NOT IN ('CANCELLED', 'FAILED')
          ORDER BY scheduled_at ASC
          LIMIT 8`,
-        [tenantId]
+        [tenantId, tz]
       ),
     ]);
 
@@ -735,6 +739,7 @@ export async function tenantKpiRoute(app: FastifyInstance) {
       total_non_test: total,
       today_appointments: todayApptRows,
       upcoming_appointments: upcomingApptRows,
+      timezone: tz,
     });
   });
 }

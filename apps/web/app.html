@@ -2219,6 +2219,8 @@ let tenantState = {
   subscriptionAmountCents: null,
   overageCapPct: 120,
   pendingConvLimit: null,
+  timezone: 'America/Chicago',
+  cancelAt: null,
   availablePlans: [],
   _invoices: [],
   _invoiceStatus: null,
@@ -2461,14 +2463,30 @@ function getDemoConvData(numDays) {
 // ════════════════════════════════════════════
 // FORMAT HELPERS
 // ════════════════════════════════════════════
+// Tenant-timezone aware date/time helpers. All display of backend timestamps
+// should go through these so a Texas shop owner traveling to California still
+// sees their shop's local "today" rather than the browser's.
+function _tenantTz() { return (tenantState && tenantState.timezone) || 'America/Chicago'; }
+function fmtTenantDate(iso, opts) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('en-US', Object.assign({ timeZone: _tenantTz() }, opts || {}));
+}
+function fmtTenantTime(iso, opts) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleTimeString('en-US', Object.assign({ timeZone: _tenantTz(), hour: 'numeric', minute: '2-digit' }, opts || {}));
+}
+function fmtTenantDateTime(iso, opts) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleString('en-US', Object.assign({ timeZone: _tenantTz() }, opts || {}));
+}
+// Returns YYYY-MM-DD for "today" in the tenant's timezone.
+function tenantToday() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: _tenantTz() });
+}
+
 function fmtDate(iso) {
   if (!iso) return '—';
-  var d = new Date(iso);
-  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  var h = d.getHours(); var m = d.getMinutes();
-  var ampm = h >= 12 ? 'PM' : 'AM';
-  h = h % 12 || 12;
-  return months[d.getMonth()] + ' ' + d.getDate() + ', ' + h + ':' + (m < 10 ? '0' : '') + m + ' ' + ampm;
+  return fmtTenantDateTime(iso, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
 function fmtPhone(phone) {
@@ -2630,6 +2648,7 @@ async function loadDashboardData() {
     tenantState.pendingConvLimit = t.pending_conv_limit ?? null;
     tenantState.billingRenewalDate = t.cycle_reset_at ? new Date(t.cycle_reset_at).toISOString().slice(0,10) : '';
     tenantState.cancelAt = t.cancel_at || null;
+    tenantState.timezone = t.timezone || 'America/Chicago';
     tenantState.availablePlans = data.available_plans || [];
 
     // Integrations
@@ -3702,7 +3721,7 @@ function renderBanners() {
   } else if (s.status === 'scheduled_cancel') {
     // Subscription queued to cancel at period end — service still works until then
     const cancelDateStr = s.cancelAt
-      ? new Date(s.cancelAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+      ? fmtTenantDate(s.cancelAt, { month: 'short', day: 'numeric', year: 'numeric' })
       : 'soon';
     html += `<div class="banner warning-80"><div class="banner-left"><span class="banner-label amber">Subscription ending ${cancelDateStr}</span><span class="banner-msg amber">Your subscription will end on ${cancelDateStr}. You can reactivate anytime before then to keep your service running.</span></div><a href="#" onclick="openBillingPortal();return false;" class="btn-upgrade amber">Reactivate</a></div>`;
     if (headerBtn) { headerBtn.style.display = 'inline-block'; headerBtn.textContent = 'Manage Plan'; }
@@ -4333,7 +4352,7 @@ function renderBillingPage() {
     warningsHtml = `<div class="billing-warning red"><div class="billing-warning-icon">⚠</div><div class="billing-warning-text"><strong>Service paused — payment failed</strong><p>Your last payment didn't go through after multiple attempts. Update your card to restore service.</p></div><button class="billing-btn-primary" onclick="openBillingPortal()" style="white-space:nowrap;">Update payment method</button></div>`;
   } else if (s.status === 'scheduled_cancel') {
     const cancelDateStr = s.cancelAt
-      ? new Date(s.cancelAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+      ? fmtTenantDate(s.cancelAt, { month: 'short', day: 'numeric', year: 'numeric' })
       : 'soon';
     warningsHtml = `<div class="billing-warning amber"><div class="billing-warning-icon">⚡</div><div class="billing-warning-text"><strong>Subscription ending ${cancelDateStr}</strong><p>Your subscription will end on ${cancelDateStr}. You can reactivate anytime before then to keep your service running.</p></div><button class="billing-btn-primary" onclick="openBillingPortal()" style="white-space:nowrap;">Reactivate</button></div>`;
   } else if (isSuspended) {
@@ -6147,7 +6166,7 @@ function renderTodayAppointments() {
   body.innerHTML = '<div class="appt-card-list">' + todayAppts.slice(0, 6).map(function(b) {
     var statusCls = (b.syncStatus === 'synced' || b.syncStatus === 'confirmed') ? 'confirmed' : 'pending';
     var statusLabel = (b.syncStatus === 'synced' || b.syncStatus === 'confirmed') ? 'confirmed' : (b.syncLabel || b.syncStatus || 'pending');
-    var timeStr = b.rawScheduledAt ? new Date(b.rawScheduledAt).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}) : '';
+    var timeStr = b.rawScheduledAt ? fmtTenantTime(b.rawScheduledAt) : '';
     return '<div class="appt-card-item">' +
       '<div class="appt-card-top"><div class="appt-card-time">' + timeStr + '</div><span class="appt-card-status ' + statusCls + '">' + statusLabel + '</span></div>' +
       '<div class="appt-card-customer">' + escHtml(b.customerName || b.phone || 'Customer') + '</div>' +
@@ -6335,7 +6354,9 @@ function renderAppointmentsPage() {
     if (upEl) upEl.innerHTML = '';
     return;
   }
-  var today = new Date();
+  // "Today" label uses tenant timezone — backend has already filtered the
+  // appointment list by tenant-local day, so the label must match.
+  var todayLabel = new Date().toLocaleDateString('en-US', { timeZone: _tenantTz(), month: 'long', day: 'numeric', year: 'numeric' });
 
   // ── ALL data from backend — no client-side date filtering ──
   var s = apptSummary || {};
@@ -6357,9 +6378,8 @@ function renderAppointmentsPage() {
   if (el('apptStatShowup')) el('apptStatShowup').textContent = showupRate != null ? showupRate + '%' : '—';
   if (el('apptStatShowupSub')) el('apptStatShowupSub').textContent = showupRate != null ? 'Completed appointments' : 'Tracking soon';
 
-  // Today title with date
-  var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  if (el('apptTodayTitle')) el('apptTodayTitle').textContent = 'Today - ' + months[today.getMonth()] + ' ' + today.getDate() + ', ' + today.getFullYear();
+  // Today title — tenant-local date
+  if (el('apptTodayTitle')) el('apptTodayTitle').textContent = 'Today - ' + todayLabel;
 
   // Helper: source icon SVG
   function srcIcon(source) {
@@ -6392,11 +6412,16 @@ function renderAppointmentsPage() {
       todayContainer.innerHTML = '<div style="padding:24px 0;text-align:center;font-size:13px;color:var(--text-tertiary);">' + todayCount + ' appointment(s) today — details syncing</div>';
     } else {
       todayContainer.innerHTML = todayAppts.map(function(b) {
-        var d = new Date(b.rawScheduledAt);
-        var hour = d.getHours();
-        var ampm = hour >= 12 ? 'PM' : 'AM';
-        var h = hour % 12 || 12;
-        var timeStr = h + ':' + String(d.getMinutes()).padStart(2, '0') + ' ' + ampm;
+        // Render time in tenant timezone (split into parts for the styled hour/AMPM block)
+        var parts = b.rawScheduledAt
+          ? new Intl.DateTimeFormat('en-US', { timeZone: _tenantTz(), hour: 'numeric', minute: '2-digit', hour12: true }).formatToParts(new Date(b.rawScheduledAt))
+          : [];
+        var partMap = {};
+        parts.forEach(function(p) { partMap[p.type] = p.value; });
+        var h = partMap.hour || '—';
+        var minute = partMap.minute || '00';
+        var ampm = partMap.dayPeriod || '';
+        var timeStr = h + ':' + minute + ' ' + ampm;
         var source = b.source;
         var sc = statusCls(b.syncStatus);
         var sl = statusLabel(b.syncStatus);
@@ -6423,9 +6448,9 @@ function renderAppointmentsPage() {
       upcomingContainer.innerHTML = '<div style="padding:24px 0;text-align:center;font-size:13px;color:var(--text-tertiary);">No upcoming appointments</div>';
     } else {
       upcomingContainer.innerHTML = upcomingAppts.map(function(b) {
-        var d = new Date(b.rawScheduledAt);
-        var dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        var timeStr = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        // Tenant-local date/time for display
+        var dateStr = b.rawScheduledAt ? fmtTenantDate(b.rawScheduledAt, { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+        var timeStr = b.rawScheduledAt ? fmtTenantTime(b.rawScheduledAt) : '';
         var source = b.source;
         var sc = statusCls(b.syncStatus);
         var sl = statusLabel(b.syncStatus);
