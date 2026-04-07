@@ -2835,7 +2835,27 @@ async function loadConversationsData() {
     var data = await res.json();
     conversationsLoadError = false;
     conversationsData = (data.conversations || []).map(function(c) {
-      var status = c.status === 'booked' ? 'booked' : c.status === 'expired' ? 'expired' : c.status === 'closed' ? 'lost' : (c.turn_count <= 1 ? 'no-response' : 'active');
+      // Map server status + close_reason to a UI badge. close_reason values
+      // come from the conversation lifecycle (process-sms / cron / user).
+      var status;
+      if (c.status === 'booked') {
+        status = 'booked';
+      } else if (c.status === 'expired') {
+        status = 'expired';
+      } else if (c.status === 'closed') {
+        var reason = c.close_reason || '';
+        if (reason === 'inactivity' || reason === 'timeout') status = 'timed-out';
+        else if (reason === 'lost_lead') status = 'lost';
+        else if (reason === 'blocked' || reason === 'quota_blocked') status = 'blocked';
+        else if (reason === 'user_closed' || reason === 'explicit') status = 'resolved';
+        else status = 'resolved'; // unknown closed reason
+      } else {
+        status = c.turn_count <= 1 ? 'no-response' : 'active';
+      }
+      // Preview text: for open conversations, show the most recent customer
+      // message (server-provided last_inbound_preview); fall back to the
+      // related appointment's issue description, then a generic label.
+      var preview = c.last_inbound_preview || c.issue_description || 'SMS Conversation';
       return {
         id: c.id,
         date: fmtDate(c.opened_at),
@@ -2847,8 +2867,10 @@ async function loadConversationsData() {
         vin: c.vin || '',
         mileage: c.mileage || '',
         licensePlate: c.license_plate || '',
-        issue: c.issue_description || 'SMS Conversation',
-        lastMessage: c.last_message || c.issue_description || 'SMS Conversation',
+        issue: preview,
+        lastMessage: c.last_message || preview,
+        lastInboundPreview: c.last_inbound_preview || '',
+        closeReason: c.close_reason || '',
         lastMessageAt: c.last_message_at || c.opened_at || null,
         timeAgo: fmtDate(c.last_message_at || c.opened_at),
         status: status,
@@ -4210,7 +4232,7 @@ function convRow(c, showActions) {
        </div></td>`
     : `<td><button class="view-btn" onclick="openModal('${c.id}')">View</button></td>`;
   const dur = showActions ? `<td class="td-date">${c.duration}</td>` : '';
-  return `<tr data-status="${c.status}" data-phone="${escHtml(c.phone)}">
+  return `<tr data-conv-id="${escHtml(c.id)}" data-status="${c.status}" data-phone="${escHtml(c.phone)}">
     <td class="td-date">${escHtml(c.date)}</td>
     <td class="td-phone">${escHtml(c.phone)}</td>
     <td class="td-issue">${escHtml(c.issue)}</td>
@@ -4220,7 +4242,7 @@ function convRow(c, showActions) {
 }
 
 function pillLabel(s) {
-  return {booked:'Booked', active:'Active', 'no-response':'No Response', lost:'Lost', resolved:'Resolved', closed:'Closed'}[s] || s;
+  return {booked:'Booked', active:'Active', 'no-response':'No Response', lost:'Lost', resolved:'Resolved', closed:'Closed', 'timed-out':'Timed Out', blocked:'Quota Blocked', expired:'Expired'}[s] || s;
 }
 
 function renderDashConvTable(data) {
@@ -4305,8 +4327,28 @@ function filterFullConv(btn, status) {
 }
 
 function searchConv(val) {
-  const rows = document.querySelectorAll('#fullConvBody tr');
-  rows.forEach(r => { r.style.display = r.dataset.phone.includes(val) ? '' : 'none'; });
+  // Normalize query: lowercase trim, plus a digits-only variant for phone
+  // matching so "(555) 123-4567" matches "5551234567" or "555-1234".
+  var q = (val || '').toLowerCase().trim();
+  var qDigits = q.replace(/\D+/g, '');
+  var rows = document.querySelectorAll('#fullConvBody tr');
+  rows.forEach(function(r) {
+    if (!q) { r.style.display = ''; return; }
+    var id = r.getAttribute('data-conv-id') || '';
+    var conv = conversationsData.find(function(c) { return c.id === id; });
+    var name = (conv && conv.customerName ? conv.customerName : '').toLowerCase();
+    var preview = (conv && conv.lastInboundPreview ? conv.lastInboundPreview : '').toLowerCase();
+    var reason = (conv && conv.closeReason ? conv.closeReason : '').toLowerCase();
+    var phoneRaw = (r.dataset.phone || '');
+    var phoneDigits = phoneRaw.replace(/\D+/g, '');
+    var matches =
+      name.includes(q) ||
+      preview.includes(q) ||
+      reason.includes(q) ||
+      phoneRaw.toLowerCase().includes(q) ||
+      (qDigits && phoneDigits.includes(qDigits));
+    r.style.display = matches ? '' : 'none';
+  });
 }
 
 async function markResolved(btn, id) {
@@ -5714,8 +5756,12 @@ async function cancelAppointment(apptId) {
       }
     }
     renderBookings();
-    await loadApptSummary();
+    // Refresh conversations too — a cancelled booking can flip a conversation
+    // out of 'booked' status, and we want the inbox to reflect that without
+    // requiring a page reload.
+    await Promise.all([loadApptSummary(), loadConversationsData()]);
     renderAppointmentsPage();
+    renderFullConvTable(conversationsData);
     // Surface calendar result
     if (data.calendar_error) {
       showToast('Appointment cancelled. Calendar event could not be removed: ' + data.calendar_error);
