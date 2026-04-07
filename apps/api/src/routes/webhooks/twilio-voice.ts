@@ -4,10 +4,13 @@ import { validateTwilioSignature } from "../../middleware/twilio-validate";
 import { query } from "../../db/client";
 import { deduplicateWebhook } from "../../db/webhook-events";
 
+// Permissive E.164 — accepts any international phone format Twilio sends
+const E164 = z.string().regex(/^\+\d{7,15}$/, "Must be E.164 phone format");
+
 const TwilioVoiceBody = z.object({
   CallSid: z.string(),
-  To: z.string(), // shop's Twilio number
-  From: z.string(), // customer's phone
+  To: E164,        // shop's Twilio number
+  From: E164,      // customer's phone
   CallStatus: z.string().optional(),
 });
 

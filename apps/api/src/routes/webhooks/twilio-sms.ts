@@ -6,15 +6,18 @@ import { smsInboundQueue } from "../../queues/redis";
 import { deduplicateWebhook } from "../../db/webhook-events";
 import { startTrace } from "../../services/pipeline-trace";
 
+// Permissive E.164 — accepts any international phone format Twilio sends
+const E164 = z.string().regex(/^\+\d{7,15}$/, "Must be E.164 phone format");
+
 // Twilio sends form-encoded body
 const TwilioSmsBody = z.object({
   MessageSid: z.string(),
   AccountSid: z.string(),
-  From: z.string(), // customer's phone
-  To: z.string(),   // our Twilio number (= tenant's number)
-  Body: z.string(),
+  From: E164,                            // customer's phone
+  To: E164,                              // our Twilio number (= tenant's number)
+  Body: z.string().min(1).max(1600),     // Twilio max is 1600 chars
   NumMedia: z.string().optional(),
-  NumSegments: z.string().optional(), // Real segment count from Twilio
+  NumSegments: z.string().optional(),    // Real segment count from Twilio
 });
 
 export async function twilioSmsRoute(app: FastifyInstance) {

@@ -308,7 +308,10 @@ async function bootstrap() {
   app.log.info(`AutoShop API running on port ${port}`);
 }
 
-bootstrap().catch((err) => {
-  console.error("Fatal startup error:", err);
+bootstrap().catch(async (err) => {
+  // Use a standalone pino logger so structured fields reach the log aggregator
+  // even if Fastify itself failed to initialize.
+  const { createLogger } = await import("./utils/logger");
+  createLogger("bootstrap").fatal({ err: err instanceof Error ? err.message : String(err) }, "Fatal startup error");
   process.exit(1);
 });
