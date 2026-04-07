@@ -1192,6 +1192,11 @@ function toggleSidebar(){
 })();
 </script>
 
+<!-- Persistent DEMO badge — only visible when tenantState.isDemo is true.
+     Distinct amber color, non-dismissible, sits above all other banners. -->
+<div id="demoBadge" style="display:none;position:sticky;top:0;z-index:9999;background:#FCD34D;color:#78350F;border-bottom:2px solid #B45309;padding:8px 16px;text-align:center;font-size:13px;font-weight:700;letter-spacing:0.02em;font-family:var(--sans);">
+  DEMO DATA — not real customer data
+</div>
 <!-- BANNERS -->
 <div id="bannerContainer"></div>
 <!-- Upgrade modal (demo→trial) -->
@@ -2258,12 +2263,26 @@ let dashboardLoadError = false;
 let kpiLoadError = false;
 let apptLoadError = false;
 
+// True once any /tenant/dashboard fetch has succeeded in this session.
+// Used to prevent injectDemoData() from ever overwriting real data fetched
+// for a paying customer if the API later fails on a refresh.
+let _hasFetchedRealData = false;
+
 // ════════════════════════════════════════════
 // DEMO MODE — sample data for new accounts
 // ════════════════════════════════════════════
 var _isDemoMode = false;
+var _demoInjected = false;
 
 function injectDemoData() {
+  // Hard guard: once we have a confirmed real data fetch for this session,
+  // never overwrite it with demo numbers — even if isDemo flips for some
+  // reason. Protects paying customers from seeing fake KPIs after an outage.
+  if (_hasFetchedRealData && !(tenantState.isDemo || tenantState.status === 'demo')) {
+    return;
+  }
+  if (_demoInjected) return;
+  _demoInjected = true;
   _isDemoMode = true;
 
   var now = new Date();
@@ -2418,6 +2437,31 @@ function injectDemoData() {
       result: null, info: []
     }
   };
+}
+
+// Clear all demo overlay data when a tenant transitions out of demo mode
+// (e.g. demo → trial after starting a trial). Resets in-memory caches so
+// real data fetched on the next refresh is not commingled with stale demo
+// numbers, and hides the persistent demo badge.
+function clearDemoData() {
+  _isDemoMode = false;
+  _demoInjected = false;
+  kpiSummary = null;
+  apptSummary = null;
+  conversationsData = [];
+  liveConversationsData = [];
+  bookingsData = [];
+  convThreads = {};
+  renderDemoBadge();
+}
+
+// Show/hide the persistent DEMO badge based on tenantState. Called whenever
+// tenantState changes (load, retry, status flip).
+function renderDemoBadge() {
+  var el = document.getElementById('demoBadge');
+  if (!el) return;
+  var isDemo = !!(tenantState && (tenantState.isDemo || tenantState.status === 'demo'));
+  el.style.display = isDemo ? '' : 'none';
 }
 
 // Generate demo revenue chart data (upward trend)
@@ -2626,6 +2670,12 @@ async function loadDashboardData() {
     // ── Map API response → tenantState ──
     var t = data.tenant;
     var isDemo = t.billing_status === 'demo';
+    // If we previously had a demo session and the tenant has now moved out
+    // of demo (e.g. trial started), clear the cached demo overlay so real
+    // data is not mixed with stale fake numbers.
+    if (_demoInjected && !isDemo) {
+      clearDemoData();
+    }
     var isTrial = t.billing_status === 'trial';
     var planId = t.plan_id || (isDemo ? 'demo' : isTrial ? 'trial' : 'starter');
 
@@ -2701,6 +2751,12 @@ async function loadDashboardData() {
     var session = JSON.parse(localStorage.getItem('autoshop_session') || '{}');
     session.shopName = t.shop_name;
     localStorage.setItem('autoshop_session', JSON.stringify(session));
+
+    // Mark that we have a confirmed real-data fetch for this session.
+    // Once true, injectDemoData() will refuse to overwrite real data even
+    // if a later refresh is in an inconsistent state.
+    _hasFetchedRealData = true;
+    renderDemoBadge();
 
     return true;
   } catch (err) {
