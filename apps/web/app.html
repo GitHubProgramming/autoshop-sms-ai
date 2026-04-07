@@ -3871,15 +3871,22 @@ function renderBanners() {
       daysRemaining = Math.max(0, Math.ceil(diff / 86400000));
     }
     if (pct >= 80) {
-      // State 2: Near-limit trial (>=80% used)
-      html += `<div class="banner trial"><div class="banner-left"><span class="banner-label red">Almost out of conversations — ${s.convUsed}/${limit != null ? limit : '—'} used</span><span class="banner-msg red">Upgrade to keep responding to customers</span></div><a href="#" onclick="switchView('billing');return false;" class="btn-upgrade">Upgrade Plan</a></div>`;
+      // State 2: Near-limit trial (>=80% used) — single combined banner
+      // that folds the trial countdown and the usage warning into one CTA.
+      const headline = pct >= 100
+        ? `Trial limit reached — ${s.convUsed}/${limit != null ? limit : '—'} used`
+        : `Trial: ${daysRemaining} day${daysRemaining === 1 ? '' : 's'} left, ${pct}% of conversations used`;
+      html += `<div class="banner trial"><div class="banner-left"><span class="banner-label red">${headline}</span><span class="banner-msg red">Upgrade now to keep your shop running after the trial ends.</span></div><a href="#" onclick="showUpgradeModal();return false;" class="btn-upgrade">Upgrade now</a></div>`;
     } else {
       // State 1: Normal trial
       const remainText = remaining != null ? remaining + ' conversations left' : 'Free Trial';
       html += `<div class="banner trial"><div class="banner-left"><span class="banner-label rust">Free Trial &middot; ${remainText}</span><span class="banner-days">${daysRemaining} days remaining</span></div><a href="#" onclick="switchView('billing');return false;" class="btn-upgrade">Upgrade Now</a></div>`;
     }
   } else if (s.status === 'past_due') {
-    html += `<div class="banner warning-80"><div class="banner-left"><span class="banner-label amber">Payment Past Due</span><span class="banner-msg amber">Update your payment method to prevent service interruption.</span></div><a href="#" onclick="openBillingPortal();return false;" class="btn-upgrade amber">Update Payment</a></div>`;
+    // Soft past_due — Stripe smart retries window. Service is STILL running;
+    // copy must reassure rather than imply suspension (the past_due_blocked
+    // branch above is the one that means service has actually stopped).
+    html += `<div class="banner warning-80"><div class="banner-left"><span class="banner-label amber">Payment failed — we're retrying</span><span class="banner-msg amber">Service continues for now. Update your card to avoid interruption when retries end.</span></div><a href="#" onclick="openBillingPortal();return false;" class="btn-upgrade amber">Update card</a></div>`;
     if (headerBtn) { headerBtn.style.display = 'inline-block'; headerBtn.textContent = 'Manage Plan'; }
   } else if (s.status === 'scheduled_cancel') {
     // Subscription queued to cancel at period end — service still works until then
