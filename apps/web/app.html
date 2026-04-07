@@ -5112,7 +5112,7 @@ function renderSystemHero() {
   const twilioFail = intg.twilioNumber !== 'active';
   const webhookFail = h.twilioWebhooks.status === 'failing';
   const aiDegraded = h.aiEngine.status === 'degraded';
-  const isSuspended = ['suspended','canceled','trial_expired'].includes(tenantState.status);
+  const isSuspended = ['suspended','canceled','trial_expired','past_due_blocked','paused'].includes(tenantState.status);
 
   if (isSuspended) {
     strip.className = 'system-hero error';
@@ -6460,7 +6460,7 @@ function renderSidebarStatus() {
   if (!el) return;
   var h = tenantState.health;
   var intg = tenantState.integrations;
-  var isSuspended = ['suspended','canceled','trial_expired'].includes(tenantState.status);
+  var isSuspended = ['suspended','canceled','trial_expired','past_due_blocked','paused'].includes(tenantState.status);
   var calFail = intg.googleCalendar !== 'connected';
   var twilioFail = intg.twilioNumber !== 'active';
   var webhookFail = h.twilioWebhooks.status === 'failing';
