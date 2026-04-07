@@ -2258,6 +2258,12 @@ let dashboardStats = {};
 let kpiSummary = null; // Real KPI data from /tenant/kpi/summary
 let apptSummary = null; // Real appointment KPIs from /tenant/appointments-summary
 
+// States where service is paused / blocked. Single source of truth used by
+// all UI gating logic (banners, billing page, sidebar status, system hero).
+// - scheduled_cancel is NOT blocking — service runs until period end.
+// - past_due (without _blocked) is NOT blocking — Stripe smart-retries window.
+const BLOCKING_STATES = ['suspended', 'canceled', 'trial_expired', 'past_due_blocked', 'paused'];
+
 // Fetch state flags — track loading/error for each data section
 let dashboardLoadError = false;
 let kpiLoadError = false;
@@ -3719,7 +3725,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 function renderBanners() {
   const s = tenantState;
   let html = '';
-  const isSuspended = ['suspended','canceled','trial_expired','past_due_blocked','paused'].includes(s.status);
+  const isSuspended = BLOCKING_STATES.includes(s.status);
   const headerBtn = document.getElementById('headerUpgradeBtn');
 
   if (s.isDemo || s.status === 'demo') {
@@ -4383,7 +4389,7 @@ function renderBillingPage() {
   const s = tenantState;
   const isDemo = s.isDemo || s.status === 'demo';
   const isTrial = s.status === 'trial';
-  const isSuspended = ['suspended','canceled','trial_expired','past_due_blocked','paused'].includes(s.status);
+  const isSuspended = BLOCKING_STATES.includes(s.status);
   const limit = isTrial ? s.trialLimit : s.convLimit;
   const pct = limit != null ? Math.min((s.convUsed / limit) * 100, 100) : 0;
   const barCls = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : '';
@@ -4415,6 +4421,11 @@ function renderBillingPage() {
     warningsHtml = `<div class="billing-warning red"><div class="billing-warning-icon">⚠</div><div class="billing-warning-text"><strong>Service Paused</strong><p>Your account is ${s.status.replace('_',' ')}. Reactivate to resume recovering missed-call revenue.</p></div></div>`;
   } else if (atHardCap) {
     warningsHtml = `<div class="billing-warning red"><div class="billing-warning-icon">⚠</div><div class="billing-warning-text"><strong>Service Paused — Monthly Limit Reached</strong><p>You've used ${s.convUsed} of ${limit} included conversations (${overageCap} max with overage buffer). New messages are blocked until your next billing cycle. Upgrade now to restore service immediately.</p></div><button class="billing-btn-primary" onclick="switchView('billing')" style="white-space:nowrap;">Upgrade Plan</button></div>`;
+  } else if (!isTrial && !isSuspended && overageCap > 0 && s.convUsed >= Math.ceil(overageCap * 0.95)) {
+    // Approaching hard cap (>=95% of overage cap, but not yet at it). Service
+    // still runs — this is a heads-up before the hard block kicks in.
+    const remaining = Math.max(1, overageCap - s.convUsed);
+    warningsHtml = `<div class="billing-warning amber"><div class="billing-warning-icon">⚡</div><div class="billing-warning-text"><strong>Approaching usage hard cap</strong><p>You're approaching your usage hard cap. After ${remaining} more conversation${remaining === 1 ? '' : 's'}, service will pause until your next billing cycle or upgrade.</p></div><button class="billing-btn-primary" onclick="switchView('billing')" style="white-space:nowrap;">Upgrade Plan</button></div>`;
   } else if (pct >= 100 && !isTrial && s.warnings.at100) {
     warningsHtml = `<div class="billing-warning red"><div class="billing-warning-icon">⚠</div><div class="billing-warning-text"><strong>Usage Limit Reached</strong><p>All ${limit} conversations used. Service continues with a grace buffer up to ${overageCap} — upgrade to increase your limit.${pendingNote}</p></div></div>`;
   } else if (pct >= 80 && !isTrial && s.warnings.at80) {
@@ -5206,7 +5217,7 @@ function renderSystemHero() {
   const twilioFail = intg.twilioNumber !== 'active';
   const webhookFail = h.twilioWebhooks.status === 'failing';
   const aiDegraded = h.aiEngine.status === 'degraded';
-  const isSuspended = ['suspended','canceled','trial_expired','past_due_blocked','paused'].includes(tenantState.status);
+  const isSuspended = BLOCKING_STATES.includes(tenantState.status);
 
   if (isSuspended) {
     strip.className = 'system-hero error';
@@ -6560,7 +6571,7 @@ function renderSidebarStatus() {
   if (!el) return;
   var h = tenantState.health;
   var intg = tenantState.integrations;
-  var isSuspended = ['suspended','canceled','trial_expired','past_due_blocked','paused'].includes(tenantState.status);
+  var isSuspended = BLOCKING_STATES.includes(tenantState.status);
   var calFail = intg.googleCalendar !== 'connected';
   var twilioFail = intg.twilioNumber !== 'active';
   var webhookFail = h.twilioWebhooks.status === 'failing';
