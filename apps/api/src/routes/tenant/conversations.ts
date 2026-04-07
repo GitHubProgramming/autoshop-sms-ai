@@ -19,7 +19,8 @@ export async function tenantConversationsRoute(app: FastifyInstance) {
               COALESCE(a.customer_name, cu.name) AS customer_name,
               a.car_model,
               a.issue_description,
-              a.license_plate
+              a.license_plate,
+              LEFT(m.body, 60) AS last_inbound_preview
        FROM conversations c
        LEFT JOIN customers cu ON cu.tenant_id = c.tenant_id AND cu.phone = c.customer_phone
        LEFT JOIN LATERAL (
@@ -29,6 +30,16 @@ export async function tenantConversationsRoute(app: FastifyInstance) {
          ORDER BY created_at DESC
          LIMIT 1
        ) a ON true
+       LEFT JOIN LATERAL (
+         SELECT body
+         FROM messages
+         WHERE conversation_id = c.id
+           AND tenant_id = c.tenant_id
+           AND direction = 'inbound'
+           AND body NOT LIKE '[%'
+         ORDER BY sent_at DESC
+         LIMIT 1
+       ) m ON true
        WHERE c.tenant_id = $1
        ORDER BY c.last_message_at DESC`,
       [tenantId]
