@@ -4259,10 +4259,10 @@ function renderBookings() {
     const testBadge = b.isTest ? ' <span style="font-size:9px;font-weight:700;color:#D97706;background:#FEF3C7;padding:1px 4px;border-radius:3px;margin-left:4px;">TEST</span>' : '';
     return `<tr data-appt-id="${b.id}"${b.isTest ? ' style="opacity:0.6"' : ''}>
       <td class="td-date">${b.date}</td>
-      <td class="td-phone">${b.phone}${testBadge}</td>
-      <td class="td-issue">${b.service}</td>
-      <td><span class="source-tag ${b.source === 'AI' ? 'ai' : 'manual'}">${b.source}</span></td>
-      <td class="td-date">${b.vehicle}</td>
+      <td class="td-phone">${escHtml(b.phone)}${testBadge}</td>
+      <td class="td-issue">${escHtml(b.service)}</td>
+      <td><span class="source-tag ${b.source === 'AI' ? 'ai' : 'manual'}">${escHtml(b.source)}</span></td>
+      <td class="td-date">${escHtml(b.vehicle)}</td>
       <td>${priceCell}</td>
       <td>${syncEl}${failNote}</td>
       <td>${action}</td>
@@ -5911,9 +5911,9 @@ function selectConversation(el, id) {
 
     html += '<div class="conv-detail-section">' +
       '<div class="conv-detail-label">Contact Information</div>' +
-      '<div class="conv-detail-row">' + phoneSvg + '<span>' + conv.phone + '</span></div>' +
-      '<div class="conv-detail-row">' + mailSvg + (email ? '<span>' + email + '</span>' : '<span class="conv-detail-placeholder">No email available</span>') + '</div>' +
-      '<div class="conv-detail-row">' + pinSvg + (location ? '<span>' + location + '</span>' : '<span class="conv-detail-placeholder">No location available</span>') + '</div>' +
+      '<div class="conv-detail-row">' + phoneSvg + '<span>' + escHtml(conv.phone) + '</span></div>' +
+      '<div class="conv-detail-row">' + mailSvg + (email ? '<span>' + escHtml(email) + '</span>' : '<span class="conv-detail-placeholder">No email available</span>') + '</div>' +
+      '<div class="conv-detail-row">' + pinSvg + (location ? '<span>' + escHtml(location) + '</span>' : '<span class="conv-detail-placeholder">No location available</span>') + '</div>' +
     '</div>';
 
     // ── Vehicle Information (always shown) ──
@@ -5922,10 +5922,10 @@ function selectConversation(el, id) {
       '<div class="conv-detail-label">Vehicle Information</div>';
     if (hasVehicle) {
       html += '<div class="conv-detail-vehicle"><div class="conv-detail-vehicle-row">' + carSvg + '<div>' +
-        (vehicleModel ? '<div class="conv-detail-vehicle-name">' + vehicleModel + '</div>' : '') +
-        (vin ? '<div class="conv-detail-vehicle-sub">VIN: ' + vin + '</div>' : '') +
-        (licensePlate ? '<div class="conv-detail-vehicle-sub">Plate: ' + licensePlate + '</div>' : '') +
-        (mileage ? '<div class="conv-detail-vehicle-sub">' + mileage + '</div>' : '') +
+        (vehicleModel ? '<div class="conv-detail-vehicle-name">' + escHtml(vehicleModel) + '</div>' : '') +
+        (vin ? '<div class="conv-detail-vehicle-sub">VIN: ' + escHtml(vin) + '</div>' : '') +
+        (licensePlate ? '<div class="conv-detail-vehicle-sub">Plate: ' + escHtml(licensePlate) + '</div>' : '') +
+        (mileage ? '<div class="conv-detail-vehicle-sub">' + escHtml(mileage) + '</div>' : '') +
       '</div></div></div>';
     } else {
       html += '<div class="conv-detail-vehicle"><div class="conv-detail-vehicle-row">' + carSvg +
@@ -5941,9 +5941,9 @@ function selectConversation(el, id) {
       convAppts.slice(0, 3).forEach(function(a) {
         var tagCls = a.syncStatus === 'synced' ? 'upcoming' : 'completed';
         html += '<div class="conv-detail-appt">' +
-          '<div class="conv-detail-appt-name">' + a.service + '</div>' +
-          '<div class="conv-detail-appt-date">' + a.date + '</div>' +
-          '<span class="conv-detail-appt-tag ' + tagCls + '">' + a.syncLabel + '</span>' +
+          '<div class="conv-detail-appt-name">' + escHtml(a.service) + '</div>' +
+          '<div class="conv-detail-appt-date">' + escHtml(a.date) + '</div>' +
+          '<span class="conv-detail-appt-tag ' + tagCls + '">' + escHtml(a.syncLabel) + '</span>' +
         '</div>';
       });
     } else {
@@ -6416,11 +6416,11 @@ function renderAppointmentsPage() {
             '<span class="date-text">' + dateStr + '</span>' +
             '<span class="time-text">at ' + timeStr + '</span>' +
           '</div>' +
-          '<div class="appt-upcoming-name">' + (b.customerName || b.phone || 'Customer') + '</div>' +
-          '<div class="appt-upcoming-service">' + (b.service || 'Service') + '</div>' +
+          '<div class="appt-upcoming-name">' + escHtml(b.customerName || b.phone || 'Customer') + '</div>' +
+          '<div class="appt-upcoming-service">' + escHtml(b.service || 'Service') + '</div>' +
           '<div class="appt-upcoming-tags">' +
             '<span class="appt-status-badge ' + sc + '">' + sl + '</span>' +
-            '<span class="appt-source-inline">' + srcIcon(source) + ' ' + source + '</span>' +
+            '<span class="appt-source-inline">' + srcIcon(source) + ' ' + escHtml(source) + '</span>' +
           '</div>' +
         '</div>';
       }).join('');
