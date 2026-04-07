@@ -123,7 +123,8 @@ describe("GET /tenant/kpi/total-revenue", () => {
 
 describe("GET /tenant/kpi/summary", () => {
   it("returns all zeros when no data exists", async () => {
-    // 7 parallel queries
+    // 1 timezone preflight + 7 parallel queries
+    mocks.query.mockResolvedValueOnce([{ timezone: "America/Chicago" }]);
     for (let i = 0; i < 7; i++) {
       mocks.query.mockResolvedValueOnce([{ total: "0", count: "0" }]);
     }
@@ -144,6 +145,7 @@ describe("GET /tenant/kpi/summary", () => {
 
   it("returns real computed values", async () => {
     mocks.query
+      .mockResolvedValueOnce([{ timezone: "America/Chicago" }])    // tz preflight
       .mockResolvedValueOnce([{ total: "2700.00", count: "5" }])  // recovered rev
       .mockResolvedValueOnce([{ total: "4500.00" }])               // total rev
       .mockResolvedValueOnce([{ count: "8" }])                     // ai booked this month
@@ -168,6 +170,7 @@ describe("GET /tenant/kpi/summary", () => {
   });
 
   it("does not contain any hardcoded demo values", async () => {
+    mocks.query.mockResolvedValueOnce([{ timezone: "America/Chicago" }]);
     for (let i = 0; i < 7; i++) {
       mocks.query.mockResolvedValueOnce([{ total: "0", count: "0" }]);
     }
@@ -189,6 +192,7 @@ describe("GET /tenant/kpi/summary", () => {
   });
 
   it("queries appointments table not bookings", async () => {
+    mocks.query.mockResolvedValueOnce([{ timezone: "America/Chicago" }]);
     for (let i = 0; i < 7; i++) {
       mocks.query.mockResolvedValueOnce([{ total: "0", count: "0" }]);
     }
@@ -196,8 +200,8 @@ describe("GET /tenant/kpi/summary", () => {
     const app = buildApp();
     await app.inject({ method: "GET", url: "/tenant/kpi/summary" });
 
-    // First 4 queries should hit appointments, not bookings
-    for (let i = 0; i < 4; i++) {
+    // First call is the timezone preflight; the next 4 should hit appointments
+    for (let i = 1; i < 5; i++) {
       const sql = mocks.query.mock.calls[i][0] as string;
       expect(sql).toContain("appointments");
       expect(sql).not.toContain("FROM bookings");

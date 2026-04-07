@@ -173,8 +173,9 @@ describe("KPI summary excludes cancelled appointments", () => {
     const app = await buildApp();
     const token = makeToken(app);
 
-    // Mock the 8 queries in kpi/summary Promise.all
+    // Mock the timezone preflight + 8 queries in kpi/summary Promise.all
     mocks.query
+      .mockResolvedValueOnce([{ timezone: "America/Chicago" }]) // tz preflight
       .mockResolvedValueOnce([{ total: "0", count: "0" }]) // recovered revenue
       .mockResolvedValueOnce([{ total: "0", count: "0" }]) // total revenue
       .mockResolvedValueOnce([{ count: "3" }]) // ai_booked_this_month
@@ -193,13 +194,13 @@ describe("KPI summary excludes cancelled appointments", () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.payload);
 
-    // Verify the SQL for ai_booked_this_month excludes CANCELLED
-    const aiBookedCall = mocks.query.mock.calls[2];
+    // Index 0 is the tz preflight; ai_booked_this_month is now at index 3.
+    const aiBookedCall = mocks.query.mock.calls[3];
     expect(aiBookedCall[0]).toContain("CANCELLED");
     expect(aiBookedCall[0]).toContain("NOT IN");
 
-    // Verify the SQL for appointments_today excludes CANCELLED
-    const apptTodayCall = mocks.query.mock.calls[3];
+    // appointments_today is now at index 4.
+    const apptTodayCall = mocks.query.mock.calls[4];
     expect(apptTodayCall[0]).toContain("CANCELLED");
     expect(apptTodayCall[0]).toContain("NOT IN");
 
