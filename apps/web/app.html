@@ -754,6 +754,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .conv-layout{display:grid;grid-template-columns:320px 1fr 320px;gap:0;height:calc(100vh - 200px);border:1px solid #E6E1D9;border-radius:var(--radius);overflow:hidden;background:#FFFFFF}
 @media(max-width:1400px){.conv-layout{grid-template-columns:280px 1fr;}.conv-detail-panel{display:none}}
 @media(max-width:1100px){.conv-layout{grid-template-columns:240px 1fr}}
+/* iPad / small landscape tablets — short viewport, conv detail must fit
+   without scrolling the page. Tighten the wrapper height and let the
+   message thread scroll internally. */
+@media (min-width:768px) and (max-width:1024px) and (orientation:landscape){
+  .main{padding:12px 16px 16px}
+  .conv-layout{height:calc(100vh - 96px);min-height:0}
+  .conv-thread-panel{min-height:0}
+  .conv-thread-header{padding:8px 16px;position:sticky;top:0;background:#FFFFFF;z-index:2}
+  .page-header{margin-bottom:8px}
+}
 @media(max-width:768px){.conv-layout{grid-template-columns:1fr;height:auto;min-height:calc(100vh - 200px)}.conv-inbox{border-right:none;border-bottom:1px solid var(--border);max-height:none}.conv-thread-panel{min-height:50vh;display:none}.conv-layout.thread-open .conv-inbox{display:none}.conv-layout.thread-open .conv-thread-panel{display:flex}.conv-back-btn{display:flex}}
 .conv-back-btn{display:none;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;border:none;background:none;cursor:pointer;color:var(--text-secondary);transition:background .15s;flex-shrink:0}
 .conv-back-btn:hover{background:var(--bg-hover)}
@@ -1169,6 +1179,18 @@ function toggleSidebar(){
   var ov=document.getElementById('sidebarOverlay');
   if(sb&&ov){sb.classList.toggle('open');ov.classList.toggle('open');}
 }
+// Close the mobile sidebar on Escape. Backdrop click and nav-link clicks
+// are already handled (sidebar-overlay onclick + switchView() removes
+// .open on every navigation), so this only adds the keyboard path.
+document.addEventListener('keydown', function(e){
+  if(e.key !== 'Escape') return;
+  var sb=document.getElementById('appSidebar');
+  if(sb && sb.classList.contains('open')){
+    sb.classList.remove('open');
+    var ov=document.getElementById('sidebarOverlay');
+    if(ov) ov.classList.remove('open');
+  }
+});
 
 // Sync auth gate — runs before any dashboard HTML is parsed/painted.
 // If no JWT, redirect immediately; the loading screen covers everything.
