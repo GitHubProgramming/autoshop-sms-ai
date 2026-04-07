@@ -38,7 +38,7 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
                 business_hours, is_test,
                 workspace_mode, provisioning_state,
                 subscription_amount_cents, overage_cap_pct,
-                pending_conv_limit, cycle_reset_at
+                pending_conv_limit, cycle_reset_at, cancel_at
          FROM tenants WHERE id = $1`,
         [tenantId]
       ),
@@ -224,6 +224,7 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
         overage_cap_pct: tenant.overage_cap_pct ?? 120,
         pending_conv_limit: tenant.pending_conv_limit ?? null,
         cycle_reset_at: tenant.cycle_reset_at ?? null,
+        cancel_at: tenant.cancel_at ?? null,
       },
       integrations: {
         google_calendar: {
