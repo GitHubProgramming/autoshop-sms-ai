@@ -1,5 +1,8 @@
 import { Queue, Job } from "bullmq";
 import { bullmqConnection as connection } from "./redis";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("dead-letter");
 
 // ── Dead Letter Queue ────────────────────────────────────────────────────────
 // Shared DLQ for all BullMQ workers.  When a job exhausts its retry attempts
@@ -61,13 +64,15 @@ export async function moveToDeadLetter(
     await deadLetterQueue.add("dead-letter-entry", payload, {
       jobId: `dlq-${sourceQueue}-${payload.jobId}`, // prevent duplicate DLQ inserts
     });
-    console.warn(
-      `[dead-letter] Captured terminal failure: queue=${sourceQueue} job=${payload.jobName} id=${payload.jobId}`
+    log.warn(
+      { sourceQueue, jobName: payload.jobName, jobId: payload.jobId },
+      "Captured terminal failure"
     );
   } catch (dlqErr) {
     // Never swallow silently — log so ops can detect DLQ write failures
-    console.error(
-      `[dead-letter] FAILED to enqueue DLQ entry for queue=${sourceQueue} job=${payload.jobName}: ${dlqErr instanceof Error ? dlqErr.message : dlqErr}`
+    log.error(
+      { sourceQueue, jobName: payload.jobName, err: dlqErr instanceof Error ? dlqErr.message : String(dlqErr) },
+      "FAILED to enqueue DLQ entry"
     );
   }
 }

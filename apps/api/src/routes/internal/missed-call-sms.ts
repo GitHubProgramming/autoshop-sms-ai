@@ -5,12 +5,14 @@ import { resumeTrace } from "../../services/pipeline-trace";
 import { alertFromTraceFailure } from "../../services/pipeline-alerts";
 import { requireInternal } from "../../middleware/require-internal";
 
+const E164 = z.string().regex(/^\+\d{7,15}$/, "Must be E.164 phone format");
+
 const BodySchema = z.object({
   tenantId: z.string().uuid(),
-  customerPhone: z.string().min(1),
-  ourPhone: z.string().min(1),
-  callSid: z.string().min(1),
-  callStatus: z.string().min(1),
+  customerPhone: E164,
+  ourPhone: E164,
+  callSid: z.string().min(1).max(200),
+  callStatus: z.string().min(1).max(64),
   traceId: z.string().uuid().nullable().optional(),
 });
 

@@ -7,12 +7,15 @@ import { deduplicateWebhook } from "../../db/webhook-events";
 import { startTrace, resumeTrace } from "../../services/pipeline-trace";
 import { handleMissedCallSms, type MissedCallInput } from "../../services/missed-call-sms";
 
+// Permissive E.164 — accepts any international phone format Twilio sends
+const E164 = z.string().regex(/^\+\d{7,15}$/, "Must be E.164 phone format");
+
 const TwilioVoiceStatusBody = z.object({
   CallSid: z.string(),
   CallStatus: z.string().optional(),     // from statusCallback
   DialCallStatus: z.string().optional(), // from <Dial action="...">
-  To: z.string(),         // shop's number
-  From: z.string(),       // customer's number
+  To: E164,                              // shop's number (always our AI number — strict)
+  From: z.string().min(1).max(64),       // customer's number — may be "anonymous"/"Restricted"
   Direction: z.string().optional(),
 });
 
