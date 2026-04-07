@@ -7,6 +7,7 @@ import {
   provisionNumberForTenant,
   verifyNumberInMessagingService,
 } from "../services/twilio-provisioning";
+import { sendWelcomeEmailForProvisionedTenant } from "../services/welcome-email";
 
 const log = createLogger("provision-worker");
 
@@ -119,6 +120,11 @@ async function processProvisionJob(job: Job): Promise<{
       }
 
       await setProvisioningState(tenantId, "ready", null);
+      await sendWelcomeEmailForProvisionedTenant(
+        tenantId,
+        existing.phone_number,
+        query,
+      );
       return {
         success: true,
         phoneNumber: existing.phone_number,
@@ -152,6 +158,12 @@ async function processProvisionJob(job: Job): Promise<{
     );
 
     await setProvisioningState(tenantId, "ready", null);
+
+    await sendWelcomeEmailForProvisionedTenant(
+      tenantId,
+      result.phoneNumber,
+      query,
+    );
 
     log.info(
       {
