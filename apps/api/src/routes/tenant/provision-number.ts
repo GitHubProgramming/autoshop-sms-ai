@@ -91,4 +91,98 @@ export async function tenantProvisionNumberRoute(app: FastifyInstance) {
       jobId: job.id,
     });
   });
+
+  /**
+   * POST /tenant/provision-number/retry
+   *
+   * Manual retry for tenants stuck in 'error' or 'pending_setup'. Used by the
+   * dashboard "Retry provisioning" action and by ops when a transient Twilio
+   * issue caused a permanent failure.
+   *
+   * Guards:
+   *   - 'ready'        → 400 already_provisioned
+   *   - 'provisioning' → 409 already_in_progress
+   *   - 'demo'         → 403 demo_mode (covered by isDemoMode)
+   *   - test tenant    → returns the shared test number, no requeue
+   *
+   * On accept: clears provisioning_error_reason, enqueues a fresh job, returns 202.
+   */
+  app.post(
+    "/provision-number/retry",
+    { preHandler: [requireAuth] },
+    async (request, reply) => {
+      const { tenantId } = request.user as { tenantId: string; email: string };
+
+      const tenant = await getTenantById(tenantId);
+      if (!tenant) {
+        return reply.status(404).send({ error: "Tenant not found" });
+      }
+      if (isDemoMode(tenant)) {
+        return reply.status(403).send({
+          error:
+            "Provisioning requires an active trial or subscription. Start your free trial to activate.",
+        });
+      }
+      if (tenant.provisioning_state === "ready") {
+        return reply
+          .status(400)
+          .send({ error: "already_provisioned" });
+      }
+      if (tenant.provisioning_state === "provisioning") {
+        return reply
+          .status(409)
+          .send({ error: "already_in_progress" });
+      }
+
+      // Test tenants short-circuit to the shared test number — same as the
+      // initial provisioning endpoint above.
+      const tenantRows = await query<{ shop_name: string; is_test: boolean }>(
+        `SELECT shop_name, is_test FROM tenants WHERE id = $1`,
+        [tenantId],
+      );
+      if (tenantRows[0]?.is_test) {
+        const result = getSharedTestNumber();
+        if (!result.ok) {
+          return reply.status(500).send({ error: result.error });
+        }
+        return reply.status(200).send({
+          status: "assigned",
+          phone_number: result.phoneNumber,
+          test: true,
+        });
+      }
+
+      // Clear stale error_reason before re-enqueue so the dashboard reflects
+      // the in-flight retry rather than the previous failure.
+      await query(
+        `UPDATE tenants
+           SET provisioning_state = 'pending_setup',
+               provisioning_error_reason = NULL,
+               updated_at = NOW()
+         WHERE id = $1`,
+        [tenantId],
+      );
+
+      const shopName = tenantRows[0]?.shop_name ?? "My Shop";
+      const job = await provisionNumberQueue.add(
+        "provision-twilio-number",
+        { tenantId, shopName },
+        {
+          jobId: `provision-retry-${tenantId}-${Date.now()}`,
+          attempts: 5,
+          backoff: { type: "exponential", delay: 5_000 },
+        },
+      );
+
+      request.log.info(
+        { tenantId, jobId: job.id },
+        "Provision retry job enqueued",
+      );
+
+      return reply.status(202).send({
+        status: "queued",
+        jobId: job.id,
+      });
+    },
+  );
 }

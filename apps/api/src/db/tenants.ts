@@ -30,6 +30,7 @@ export interface Tenant {
   warned_100pct: boolean;
   workspace_mode: WorkspaceMode;
   provisioning_state: ProvisioningState;
+  provisioning_error_reason: string | null;
 }
 
 /**
