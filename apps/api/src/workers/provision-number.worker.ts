@@ -3,110 +3,190 @@ import { bullmqConnection as connection } from "../queues/redis";
 import { moveToDeadLetter } from "../queues/dead-letter";
 import { query } from "../db/client";
 import { createLogger } from "../utils/logger";
+import {
+  provisionNumberForTenant,
+  verifyNumberInMessagingService,
+} from "../services/twilio-provisioning";
 
 const log = createLogger("provision-worker");
-const N8N_INTERNAL_URL = process.env.N8N_INTERNAL_URL ?? "http://n8n:5678";
-const N8N_PROVISION_WEBHOOK = `${N8N_INTERNAL_URL}/webhook/provision-number`;
-log.info({ endpoint: N8N_PROVISION_WEBHOOK }, "Provisioning endpoint configured");
 
 /**
- * Update provisioning_state on the tenant row.
- * Best-effort — failure here should not crash the worker.
+ * Parse a 3-digit US area code from an E.164 phone number. Returns null if
+ * the input doesn't look like a +1 number with at least 4 digits after the
+ * country code.
  */
+function parseAreaCodeFromPhone(phone: string | null | undefined): string | null {
+  if (!phone) return null;
+  const m = phone.match(/^\+?1?(\d{3})\d{4,}$/);
+  return m ? m[1]! : null;
+}
+
 async function setProvisioningState(
   tenantId: string,
-  state: "provisioning" | "ready" | "error"
+  state: "provisioning" | "ready" | "error",
+  reason: string | null = null,
 ): Promise<void> {
   try {
     await query(
-      `UPDATE tenants SET provisioning_state = $1, updated_at = NOW() WHERE id = $2`,
-      [state, tenantId]
+      `UPDATE tenants
+         SET provisioning_state = $1,
+             provisioning_error_reason = $2,
+             updated_at = NOW()
+       WHERE id = $3`,
+      [state, reason, tenantId],
     );
   } catch (err) {
-    log.error(
-      { tenantId, state, err },
-      "Failed to set provisioning_state"
-    );
+    log.error({ tenantId, state, err }, "Failed to set provisioning_state");
   }
 }
 
 /**
- * Check tenant_phone_numbers for an active row — the only proof that
- * Twilio actually purchased and registered a number for this tenant.
- */
-async function hasActivePhoneNumber(tenantId: string): Promise<boolean> {
-  try {
-    const rows = await query(
-      `SELECT 1 FROM tenant_phone_numbers WHERE tenant_id = $1 AND status = 'active' LIMIT 1`,
-      [tenantId]
-    );
-    return (rows as any[]).length > 0;
-  } catch (err) {
-    log.error(
-      { tenantId, err },
-      "Failed to check phone number"
-    );
-    return false;
-  }
-}
-
-/**
- * BullMQ worker: consumes jobs from "provision-number" queue and forwards
- * each job's payload to the n8n WF-007 webhook trigger.
+ * Process one provision-number job.
  *
- * Job type: "provision-twilio-number"
- * Payload: { tenantId, areaCode, shopName }
+ * Flow:
+ *   1. Mark tenant 'provisioning' (clear any prior error_reason)
+ *   2. Look up tenant, derive area code from owner_phone (default '512')
+ *   3. Call provisionNumberForTenant() — handles search, purchase, add to
+ *      Messaging Service, verify, and area-code fallback
+ *   4. INSERT into tenant_phone_numbers (active row)
+ *   5. Mark tenant 'ready'
+ *
+ * On any failure: tenant goes to 'error' with provisioning_error_reason set
+ * to the error message (truncated to 500 chars). The job throws so BullMQ
+ * retries via the configured backoff.
+ */
+async function processProvisionJob(job: Job): Promise<{
+  success: boolean;
+  phoneNumber?: string;
+  sid?: string;
+}> {
+  const tenantId: string | undefined = job.data?.tenantId;
+  if (!tenantId) {
+    throw new Error("provision_job_missing_tenantId");
+  }
+
+  await setProvisioningState(tenantId, "provisioning");
+
+  try {
+    const tenantRows = await query<{
+      shop_name: string;
+      owner_phone: string | null;
+    }>(
+      `SELECT shop_name, owner_phone FROM tenants WHERE id = $1 LIMIT 1`,
+      [tenantId],
+    );
+    if (tenantRows.length === 0) {
+      throw new Error(`tenant_not_found: ${tenantId}`);
+    }
+    const tenant = tenantRows[0]!;
+
+    // Idempotency: if this tenant already has an active phone number
+    // (e.g., a previous attempt purchased + service-added but the worker
+    // died before the DB INSERT), skip the purchase and just mark ready.
+    // This prevents orphaned Twilio numbers on retry after mid-flow crashes.
+    const existingRows = await query<{
+      twilio_sid: string;
+      phone_number: string;
+    }>(
+      `SELECT twilio_sid, phone_number
+         FROM tenant_phone_numbers
+        WHERE tenant_id = $1 AND status = 'active'
+        LIMIT 1`,
+      [tenantId],
+    );
+
+    if (existingRows.length > 0) {
+      const existing = existingRows[0]!;
+      log.info(
+        {
+          tenantId,
+          existingSid: existing.twilio_sid,
+          existingPhone: existing.phone_number,
+        },
+        "tenant already has active number — verifying and marking ready",
+      );
+
+      // Sanity check: confirm the number is still in the Messaging Service.
+      // If not, something is wrong and we surface it as an error rather than
+      // attempting auto-recovery (safer to alert ops).
+      const stillInService = await verifyNumberInMessagingService(
+        existing.twilio_sid,
+      );
+      if (!stillInService) {
+        throw new Error(
+          `existing_number_not_in_messaging_service: ${existing.twilio_sid}`,
+        );
+      }
+
+      await setProvisioningState(tenantId, "ready", null);
+      return {
+        success: true,
+        phoneNumber: existing.phone_number,
+        sid: existing.twilio_sid,
+      };
+    }
+
+    const preferredAreaCode =
+      // Job-level area code override (e.g., manual retry with a specific code)
+      (typeof job.data?.areaCode === "string" && /^\d{3}$/.test(job.data.areaCode)
+        ? job.data.areaCode
+        : null) ??
+      parseAreaCodeFromPhone(tenant.owner_phone) ??
+      "512";
+
+    log.info(
+      { tenantId, preferredAreaCode, shopName: tenant.shop_name },
+      "starting provision",
+    );
+
+    const result = await provisionNumberForTenant({
+      preferredAreaCode,
+      shopName: tenant.shop_name,
+    });
+
+    await query(
+      `INSERT INTO tenant_phone_numbers (tenant_id, twilio_sid, phone_number, status, provisioned_at)
+       VALUES ($1, $2, $3, 'active', NOW())
+       ON CONFLICT (twilio_sid) DO NOTHING`,
+      [tenantId, result.sid, result.phoneNumber],
+    );
+
+    await setProvisioningState(tenantId, "ready", null);
+
+    log.info(
+      {
+        tenantId,
+        phoneNumber: result.phoneNumber,
+        sid: result.sid,
+        areaCodeUsed: result.areaCodeUsed,
+        attemptedAreaCodes: result.attemptedAreaCodes,
+      },
+      "provisioning succeeded",
+    );
+
+    return { success: true, phoneNumber: result.phoneNumber, sid: result.sid };
+  } catch (err: any) {
+    const reason = (err?.message ?? "unknown_error").substring(0, 500);
+    log.error({ tenantId, err: reason }, "provisioning failed");
+    await setProvisioningState(tenantId, "error", reason);
+    throw err;
+  }
+}
+
+/**
+ * BullMQ worker entrypoint. Consumes the "provision-number" queue with
+ * concurrency 2. All Twilio API calls happen inline — no n8n.
  *
  * State transitions:
  *   pending_setup → provisioning  (job starts)
- *   provisioning  → ready         (ONLY if tenant_phone_numbers has active row)
- *   provisioning  → error         (n8n failed OR no active row after n8n returned)
+ *   provisioning  → ready         (purchase + service add + verify all OK)
+ *   provisioning  → error         (any failure; provisioning_error_reason set)
  */
 export function startProvisionNumberWorker(): Worker {
-  const worker = new Worker(
-    "provision-number",
-    async (job: Job) => {
-      const tenantId = job.data?.tenantId;
-
-      // Mark provisioning in-progress
-      if (tenantId) {
-        await setProvisioningState(tenantId, "provisioning");
-      }
-
-      const res = await fetch(N8N_PROVISION_WEBHOOK, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(job.data),
-        signal: AbortSignal.timeout(60_000),
-      });
-
-      if (!res.ok) {
-        const body = await res.text().catch(() => "");
-        throw new Error(`n8n provision webhook returned ${res.status}: ${body}`);
-      }
-
-      // n8n returned 200 — but that only means the workflow ran.
-      // Verify the number was actually purchased and saved to DB.
-      if (tenantId) {
-        const active = await hasActivePhoneNumber(tenantId);
-        if (active) {
-          await setProvisioningState(tenantId, "ready");
-          log.info({ tenantId }, "Phone number confirmed active");
-        } else {
-          // n8n said OK but no active number in DB — treat as failure
-          log.error(
-            { tenantId },
-            "n8n returned 200 but no active phone number found in DB"
-          );
-          await setProvisioningState(tenantId, "error");
-        }
-      }
-    },
-    {
-      connection,
-      concurrency: 2,
-    }
-  );
+  const worker = new Worker("provision-number", processProvisionJob, {
+    connection,
+    concurrency: 2,
+  });
 
   worker.on("completed", (job) => {
     log.info({ jobId: job.id, jobName: job.name }, "Job completed");
@@ -115,16 +195,21 @@ export function startProvisionNumberWorker(): Worker {
   worker.on("failed", (job, err) => {
     log.error(
       { jobId: job?.id, jobName: job?.name, err: err.message },
-      "Job FAILED"
+      "Job FAILED",
     );
 
-    // Update provisioning state on final failure
     const tenantId = job?.data?.tenantId;
     const attempts = job?.attemptsMade ?? 0;
     const maxAttempts = job?.opts?.attempts ?? 3;
     if (attempts >= maxAttempts) {
       if (tenantId) {
-        setProvisioningState(tenantId, "error");
+        // Final failure — already marked 'error' inside processProvisionJob,
+        // but ensure the reason is up-to-date with the last attempt's message.
+        setProvisioningState(
+          tenantId,
+          "error",
+          (err.message ?? "max_retries_exceeded").substring(0, 500),
+        );
       }
       moveToDeadLetter("provision-number", job, err);
     }
@@ -132,3 +217,6 @@ export function startProvisionNumberWorker(): Worker {
 
   return worker;
 }
+
+// Exported for tests
+export const __test__ = { processProvisionJob, parseAreaCodeFromPhone };
