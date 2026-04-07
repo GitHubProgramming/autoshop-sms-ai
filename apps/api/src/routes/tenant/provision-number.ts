@@ -164,11 +164,31 @@ export async function tenantProvisionNumberRoute(app: FastifyInstance) {
       );
 
       const shopName = tenantRows[0]?.shop_name ?? "My Shop";
+
+      // Use the same jobId pattern as the Stripe webhook so BullMQ dedups
+      // against any in-flight provision job for this tenant. The state
+      // guard above already returns 409 for state='provisioning', but the
+      // jobId dedup is the safety net for the race window between check
+      // and enqueue. Failed/completed jobs with this id need to be removed
+      // first so the retry can re-enqueue.
+      try {
+        const prior = await provisionNumberQueue.getJob(`provision-${tenantId}`);
+        if (prior && ((await prior.isFailed()) || (await prior.isCompleted()))) {
+          await prior.remove();
+        }
+      } catch (cleanupErr) {
+        request.log.warn(
+          { tenantId, err: (cleanupErr as Error).message },
+          "failed to clean up prior provision job before retry",
+        );
+        // Non-fatal — proceed to add()
+      }
+
       const job = await provisionNumberQueue.add(
         "provision-twilio-number",
         { tenantId, shopName },
         {
-          jobId: `provision-retry-${tenantId}-${Date.now()}`,
+          jobId: `provision-${tenantId}`,
           attempts: 5,
           backoff: { type: "exponential", delay: 5_000 },
         },

@@ -3,7 +3,10 @@ import { bullmqConnection as connection } from "../queues/redis";
 import { moveToDeadLetter } from "../queues/dead-letter";
 import { query } from "../db/client";
 import { createLogger } from "../utils/logger";
-import { provisionNumberForTenant } from "../services/twilio-provisioning";
+import {
+  provisionNumberForTenant,
+  verifyNumberInMessagingService,
+} from "../services/twilio-provisioning";
 
 const log = createLogger("provision-worker");
 
@@ -76,6 +79,52 @@ async function processProvisionJob(job: Job): Promise<{
       throw new Error(`tenant_not_found: ${tenantId}`);
     }
     const tenant = tenantRows[0]!;
+
+    // Idempotency: if this tenant already has an active phone number
+    // (e.g., a previous attempt purchased + service-added but the worker
+    // died before the DB INSERT), skip the purchase and just mark ready.
+    // This prevents orphaned Twilio numbers on retry after mid-flow crashes.
+    const existingRows = await query<{
+      twilio_sid: string;
+      phone_number: string;
+    }>(
+      `SELECT twilio_sid, phone_number
+         FROM tenant_phone_numbers
+        WHERE tenant_id = $1 AND status = 'active'
+        LIMIT 1`,
+      [tenantId],
+    );
+
+    if (existingRows.length > 0) {
+      const existing = existingRows[0]!;
+      log.info(
+        {
+          tenantId,
+          existingSid: existing.twilio_sid,
+          existingPhone: existing.phone_number,
+        },
+        "tenant already has active number — verifying and marking ready",
+      );
+
+      // Sanity check: confirm the number is still in the Messaging Service.
+      // If not, something is wrong and we surface it as an error rather than
+      // attempting auto-recovery (safer to alert ops).
+      const stillInService = await verifyNumberInMessagingService(
+        existing.twilio_sid,
+      );
+      if (!stillInService) {
+        throw new Error(
+          `existing_number_not_in_messaging_service: ${existing.twilio_sid}`,
+        );
+      }
+
+      await setProvisioningState(tenantId, "ready", null);
+      return {
+        success: true,
+        phoneNumber: existing.phone_number,
+        sid: existing.twilio_sid,
+      };
+    }
 
     const preferredAreaCode =
       // Job-level area code override (e.g., manual retry with a specific code)
