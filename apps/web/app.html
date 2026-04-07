@@ -2629,6 +2629,7 @@ async function loadDashboardData() {
     tenantState.overageCapPct = t.overage_cap_pct ?? 120;
     tenantState.pendingConvLimit = t.pending_conv_limit ?? null;
     tenantState.billingRenewalDate = t.cycle_reset_at ? new Date(t.cycle_reset_at).toISOString().slice(0,10) : '';
+    tenantState.cancelAt = t.cancel_at || null;
     tenantState.availablePlans = data.available_plans || [];
 
     // Integrations
@@ -3698,6 +3699,13 @@ function renderBanners() {
   } else if (s.status === 'past_due') {
     html += `<div class="banner warning-80"><div class="banner-left"><span class="banner-label amber">Payment Past Due</span><span class="banner-msg amber">Update your payment method to prevent service interruption.</span></div><a href="#" onclick="openBillingPortal();return false;" class="btn-upgrade amber">Update Payment</a></div>`;
     if (headerBtn) { headerBtn.style.display = 'inline-block'; headerBtn.textContent = 'Manage Plan'; }
+  } else if (s.status === 'scheduled_cancel') {
+    // Subscription queued to cancel at period end — service still works until then
+    const cancelDateStr = s.cancelAt
+      ? new Date(s.cancelAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+      : 'soon';
+    html += `<div class="banner warning-80"><div class="banner-left"><span class="banner-label amber">Subscription ending ${cancelDateStr}</span><span class="banner-msg amber">Your subscription will end on ${cancelDateStr}. You can reactivate anytime before then to keep your service running.</span></div><a href="#" onclick="openBillingPortal();return false;" class="btn-upgrade amber">Reactivate</a></div>`;
+    if (headerBtn) { headerBtn.style.display = 'inline-block'; headerBtn.textContent = 'Manage Plan'; }
   } else {
     // State 3: Paid — no trial banner, show header CTA as "Manage Plan"
     if (headerBtn) { headerBtn.style.display = 'inline-block'; headerBtn.textContent = 'Manage Plan'; }
@@ -4323,6 +4331,11 @@ function renderBillingPage() {
     warningsHtml = `<div class="billing-warning" style="background:#F0F4FF;border-color:#4A6CF7;"><div class="billing-warning-icon" style="color:#4A6CF7;">ℹ</div><div class="billing-warning-text"><strong>No Active Subscription</strong><p>Start your 14-day free trial to activate AI-powered missed-call recovery. No charge today.</p></div><button class="btn-start-trial" onclick="showUpgradeModal()">Start Free Trial</button></div>`;
   } else if (s.status === 'past_due_blocked') {
     warningsHtml = `<div class="billing-warning red"><div class="billing-warning-icon">⚠</div><div class="billing-warning-text"><strong>Service paused — payment failed</strong><p>Your last payment didn't go through after multiple attempts. Update your card to restore service.</p></div><button class="billing-btn-primary" onclick="openBillingPortal()" style="white-space:nowrap;">Update payment method</button></div>`;
+  } else if (s.status === 'scheduled_cancel') {
+    const cancelDateStr = s.cancelAt
+      ? new Date(s.cancelAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+      : 'soon';
+    warningsHtml = `<div class="billing-warning amber"><div class="billing-warning-icon">⚡</div><div class="billing-warning-text"><strong>Subscription ending ${cancelDateStr}</strong><p>Your subscription will end on ${cancelDateStr}. You can reactivate anytime before then to keep your service running.</p></div><button class="billing-btn-primary" onclick="openBillingPortal()" style="white-space:nowrap;">Reactivate</button></div>`;
   } else if (isSuspended) {
     warningsHtml = `<div class="billing-warning red"><div class="billing-warning-icon">⚠</div><div class="billing-warning-text"><strong>Service Paused</strong><p>Your account is ${s.status.replace('_',' ')}. Reactivate to resume recovering missed-call revenue.</p></div></div>`;
   } else if (atHardCap) {
