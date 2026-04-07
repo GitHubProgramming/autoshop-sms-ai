@@ -5252,6 +5252,7 @@ function getViewFromPath() {
   return 'dashboard';
 }
 
+var _currentView = null;
 function switchView(view, opts) {
   // Close mobile sidebar on navigation
   var sb=document.getElementById('appSidebar'),ov=document.getElementById('sidebarOverlay');
@@ -5259,6 +5260,21 @@ function switchView(view, opts) {
   // Backward compat aliases
   if (VIEW_ALIASES[view]) view = VIEW_ALIASES[view];
   if (VALID_VIEWS.indexOf(view) === -1) view = 'dashboard';
+
+  // Refetch tenant data on the OPEN transition into Settings so cached
+  // values like the Twilio phone number reflect the current server state
+  // (re-provisioning, admin changes). Only fires on the transition; if
+  // the user is already on Settings nothing happens.
+  if (view === 'settings' && _currentView !== 'settings') {
+    (async function() {
+      try {
+        await loadDashboardData();
+        renderNav();
+        renderBanners();
+      } catch (e) { /* swallow — the existing view stays usable */ }
+    })();
+  }
+  _currentView = view;
 
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
@@ -5488,7 +5504,10 @@ function renderYouAreLiveCard() {
   var isDemo = tenantState.isDemo || tenantState.status === 'demo';
   var hasConversations = (dashboardStats && dashboardStats.total_conversations > 0) || (liveConversationsData && liveConversationsData.length > 0);
   var phoneReady = tenantState.provisioningState === 'ready' || (tenantState._twilioPhone && tenantState.integrations.twilioNumber === 'active');
-  var dismissed = localStorage.getItem('youAreLiveDismissed') === '1';
+  var dismissed = _liveCardDismissed || (function(){
+    try { return localStorage.getItem('youAreLiveDismissed') === '1'; }
+    catch (e) { return false; }
+  })();
 
   var isProvisioning = !isDemo && !hasConversations && !phoneReady &&
     (tenantState.provisioningState === 'provisioning' ||
@@ -5527,8 +5546,18 @@ function renderYouAreLiveCard() {
     '</div>';
 }
 
+// In-memory fallback when localStorage is unavailable (private browsing,
+// quota exceeded). Keeps the dismissal sticky for the rest of the session
+// even if the persisted flag couldn't be written.
+var _liveCardDismissed = false;
+
 function dismissYouAreLive() {
-  localStorage.setItem('youAreLiveDismissed', '1');
+  _liveCardDismissed = true;
+  try {
+    localStorage.setItem('youAreLiveDismissed', '1');
+  } catch (e) {
+    console.warn('[live-card] localStorage.setItem failed; dismissal will only persist for this session', e);
+  }
   var container = document.getElementById('youAreLiveCard');
   if (container) container.innerHTML = '';
 }
