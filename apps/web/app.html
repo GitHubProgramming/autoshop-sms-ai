@@ -198,6 +198,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .kpi-icon-box.amber{background:none;color:var(--steel)}
 .kpi-icon-box.purple{background:none;color:var(--steel)}
 .kpi-card .kpi-value{font-size:42px;font-weight:800;color:var(--text);line-height:1;margin-bottom:6px;letter-spacing:-.03em}
+@keyframes kpi-pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.kpi-skeleton{display:inline-block;width:80px;height:36px;background:#E5E7EB;border-radius:6px;animation:kpi-pulse 1.5s ease-in-out infinite;vertical-align:middle}
+.kpi-skeleton.label{height:14px;width:120px;margin-top:8px}
 .kpi-card .kpi-label{font-family:var(--display);font-size:12px;color:var(--steel);margin-bottom:8px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
 .kpi-card .kpi-change{font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px}
 .kpi-card .kpi-change.up{color:var(--rust);background:var(--rust-tint)}
@@ -3648,7 +3651,17 @@ async function loadMissedCallRecovery() {
 // ════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════
+// Render skeleton placeholders into the KPI grid before the first fetch
+// completes, so users can distinguish "still loading" from a real "0".
+function renderKpiSkeletons() {
+  var grid = document.getElementById('kpiGrid');
+  if (!grid || grid.children.length > 0) return;
+  var card = '<div class="kpi-card"><div class="kpi-icon-box"></div><div class="kpi-value"><span class="kpi-skeleton"></span></div><div class="kpi-label"><span class="kpi-skeleton label"></span></div></div>';
+  grid.innerHTML = card + card + card + card;
+}
+
 document.addEventListener('DOMContentLoaded', async function() {
+  renderKpiSkeletons();
   await loadDashboardData();
   await loadConversationsData();
   await loadKpiData();
@@ -3672,6 +3685,27 @@ document.addEventListener('DOMContentLoaded', async function() {
       }
     }).catch(function() { /* not admin — hide section */ });
   })();
+
+  // Trial countdown auto-refresh — keep "N days remaining" current for users
+  // who leave the dashboard tab open across day boundaries. Re-render banners
+  // every 60s while in trial, and immediately on tab visibility change.
+  var _trialTimer = null;
+  function _tickTrialCountdown() {
+    if (!tenantState || tenantState.status !== 'trial') {
+      if (_trialTimer) { clearInterval(_trialTimer); _trialTimer = null; }
+      return;
+    }
+    renderBanners();
+  }
+  if (tenantState && tenantState.status === 'trial') {
+    _trialTimer = setInterval(_tickTrialCountdown, 60000);
+  }
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible' && tenantState && tenantState.status === 'trial') {
+      _tickTrialCountdown();
+      if (!_trialTimer) _trialTimer = setInterval(_tickTrialCountdown, 60000);
+    }
+  });
 
   renderBanners();
   renderNav();
@@ -5609,10 +5643,17 @@ function renderLiveRevenueBlocks() {
       '<div class="rev-sub-row" style="border-bottom:none;"><span class="rev-sub-label">Status</span><span class="rev-sub-value" style="color:var(--navy);">' + tenantState.status.replace(/_/g,' ') + '</span></div>';
   }
 
-  // Analytics conversion rate
+  // Analytics conversion rate — clamp to [0,100] in case of cross-query
+  // races where appointment count briefly exceeds conversation count.
   var acr = document.getElementById('analyticsConvRate');
   if (acr) {
-    var rate = (s.total_conversations || 0) > 0 ? Math.round(((s.total_appointments || 0) / (s.total_conversations || 1)) * 100) : 0;
+    var totalConvs = s.total_conversations || 0;
+    var totalAppts = s.total_appointments || 0;
+    var rawRate = totalConvs > 0 ? Math.round((totalAppts / totalConvs) * 100) : 0;
+    if (rawRate > 100) {
+      console.warn('[kpi] conversion rate >100% — appts=' + totalAppts + ' convs=' + totalConvs + ', clamping');
+    }
+    var rate = Math.min(100, Math.max(0, rawRate));
     acr.textContent = rate + '%';
   }
 
