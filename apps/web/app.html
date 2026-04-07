@@ -3643,7 +3643,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 function renderBanners() {
   const s = tenantState;
   let html = '';
-  const isSuspended = ['suspended','canceled','trial_expired'].includes(s.status);
+  const isSuspended = ['suspended','canceled','trial_expired','past_due_blocked','paused'].includes(s.status);
   const headerBtn = document.getElementById('headerUpgradeBtn');
 
   if (s.isDemo || s.status === 'demo') {
@@ -3666,10 +3666,14 @@ function renderBanners() {
         : 'Complete setup to start receiving missed-call bookings.';
     html += `<div class="banner demo"><div class="banner-left"><span class="banner-label rust">SETUP REQUIRED</span><span class="banner-msg rust">${msg}</span></div><a href="/onboarding" class="btn-start-trial" style="text-decoration:none;">Complete Setup</a></div>`;
     if (headerBtn) { headerBtn.style.display = 'inline-block'; headerBtn.textContent = 'Complete Setup'; headerBtn.onclick = function(){ window.location.href='/onboarding'; return false; }; }
+  } else if (s.status === 'past_due_blocked') {
+    // Hard payment failure — Stripe smart retries exhausted, service paused
+    html += `<div class="banner paused"><div class="banner-left"><span class="banner-label red">⚠ Service paused — payment failed</span><span class="banner-msg red">Your last payment didn't go through after multiple attempts. Update your card to restore service.</span></div><a href="#" onclick="openBillingPortal();return false;" class="btn-upgrade red">Update payment method</a></div>`;
+    if (headerBtn) headerBtn.style.display = 'none';
   } else if (isSuspended) {
-    // State 4: Suspended / canceled / trial_expired — show banner CTA only, hide header CTA
-    const msgs = { suspended:'Your account has been suspended. Service is paused — no new conversations will be started.', canceled:'Your subscription is canceled. Reactivate to resume missed-call recovery.', trial_expired:'Your trial has expired. Upgrade to continue recovering missed-call revenue.' };
-    html += `<div class="banner paused"><div class="banner-left"><span class="banner-label red">⚠ Service Paused</span><span class="banner-msg red">${msgs[s.status]}</span></div><a href="#" onclick="switchView('billing');return false;" class="btn-upgrade red">Reactivate Now</a></div>`;
+    // State 4: Suspended / canceled / trial_expired / paused — show banner CTA only, hide header CTA
+    const msgs = { suspended:'Your account has been suspended. Service is paused — no new conversations will be started.', canceled:'Your subscription is canceled. Reactivate to resume missed-call recovery.', trial_expired:'Your trial has expired. Upgrade to continue recovering missed-call revenue.', paused:'Your subscription is paused. Resume to restart missed-call recovery.' };
+    html += `<div class="banner paused"><div class="banner-left"><span class="banner-label red">⚠ Service Paused</span><span class="banner-msg red">${msgs[s.status] || 'Service is paused.'}</span></div><a href="#" onclick="switchView('billing');return false;" class="btn-upgrade red">Reactivate Now</a></div>`;
     if (headerBtn) headerBtn.style.display = 'none';
   } else if (s.status === 'trial') {
     // Trial states — hide header CTA, show banner CTA only
@@ -4296,7 +4300,7 @@ function renderBillingPage() {
   const s = tenantState;
   const isDemo = s.isDemo || s.status === 'demo';
   const isTrial = s.status === 'trial';
-  const isSuspended = ['suspended','canceled','trial_expired'].includes(s.status);
+  const isSuspended = ['suspended','canceled','trial_expired','past_due_blocked','paused'].includes(s.status);
   const limit = isTrial ? s.trialLimit : s.convLimit;
   const pct = limit != null ? Math.min((s.convUsed / limit) * 100, 100) : 0;
   const barCls = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : '';
@@ -4317,6 +4321,8 @@ function renderBillingPage() {
   let warningsHtml = '';
   if (isDemo) {
     warningsHtml = `<div class="billing-warning" style="background:#F0F4FF;border-color:#4A6CF7;"><div class="billing-warning-icon" style="color:#4A6CF7;">ℹ</div><div class="billing-warning-text"><strong>No Active Subscription</strong><p>Start your 14-day free trial to activate AI-powered missed-call recovery. No charge today.</p></div><button class="btn-start-trial" onclick="showUpgradeModal()">Start Free Trial</button></div>`;
+  } else if (s.status === 'past_due_blocked') {
+    warningsHtml = `<div class="billing-warning red"><div class="billing-warning-icon">⚠</div><div class="billing-warning-text"><strong>Service paused — payment failed</strong><p>Your last payment didn't go through after multiple attempts. Update your card to restore service.</p></div><button class="billing-btn-primary" onclick="openBillingPortal()" style="white-space:nowrap;">Update payment method</button></div>`;
   } else if (isSuspended) {
     warningsHtml = `<div class="billing-warning red"><div class="billing-warning-icon">⚠</div><div class="billing-warning-text"><strong>Service Paused</strong><p>Your account is ${s.status.replace('_',' ')}. Reactivate to resume recovering missed-call revenue.</p></div></div>`;
   } else if (atHardCap) {
