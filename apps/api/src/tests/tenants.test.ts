@@ -31,6 +31,7 @@ function makeTenant(overrides: Partial<Tenant> = {}): Tenant {
     workspace_mode: "live_active",
     provisioning_state: "ready",
     provisioning_error_reason: null,
+    is_pilot_tenant: false,
     ...overrides,
   };
 }
