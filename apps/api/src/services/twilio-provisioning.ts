@@ -15,6 +15,35 @@
 
 import { createLogger } from "../utils/logger";
 
+/**
+ * ⚠️ LT/US ISOLATION INVARIANT — READ BEFORE ADDING CALLERS
+ *
+ * This file contains US-specific Twilio provisioning logic. It assumes all tenants
+ * are US tenants. It hardcodes Texas area codes (see TEXAS_AREA_CODES below), uses
+ * +1 phone parsing, and will silently fall back to Austin 512 for any non-US phone
+ * number.
+ *
+ * Callers MUST guard against pilot tenants BEFORE calling any function in this file.
+ * Existing guards:
+ *   - apps/api/src/routes/webhooks/stripe.ts (PR #494)
+ *   - apps/api/src/workers/provision-number.worker.ts (PR #495)
+ *
+ * If you add a new caller, you MUST add an isPilotTenant() check before the call.
+ * See apps/api/src/utils/tenant-region.ts for the helper.
+ *
+ * Why this is a documentation invariant rather than an in-file code guard:
+ * provisionNumberForTenant returns a non-optional ProvisionResult { sid, phoneNumber,
+ * areaCodeUsed, attemptedAreaCodes }. Any "benign no-op" return for a pilot tenant
+ * would either (a) populate required fields with undefined and crash the caller's
+ * INSERT, (b) require widening ProvisionResult to a union with a `skipped` discriminator
+ * and updating dead-code paths in the already-guarded worker, or (c) throw an error
+ * that would trigger BullMQ retries and DLQ. None are cleaner than enforcing the
+ * invariant at every caller. See PR #496 for the full reasoning.
+ *
+ * TODO: when multi-region launch is planned, refactor this file to accept a region
+ * parameter and remove the invariant.
+ */
+
 const log = createLogger("twilio-provisioning");
 
 const TWILIO_API_BASE = "https://api.twilio.com/2010-04-01";
