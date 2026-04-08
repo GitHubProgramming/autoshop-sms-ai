@@ -8,6 +8,7 @@ import {
   verifyNumberInMessagingService,
 } from "../services/twilio-provisioning";
 import { sendWelcomeEmailForProvisionedTenant } from "../services/welcome-email";
+import { isPilotTenant } from "../utils/tenant-region";
 
 const log = createLogger("provision-worker");
 
@@ -72,14 +73,25 @@ async function processProvisionJob(job: Job): Promise<{
     const tenantRows = await query<{
       shop_name: string;
       owner_phone: string | null;
+      is_pilot_tenant: boolean;
     }>(
-      `SELECT shop_name, owner_phone FROM tenants WHERE id = $1 LIMIT 1`,
+      `SELECT shop_name, owner_phone, is_pilot_tenant FROM tenants WHERE id = $1 LIMIT 1`,
       [tenantId],
     );
     if (tenantRows.length === 0) {
       throw new Error(`tenant_not_found: ${tenantId}`);
     }
     const tenant = tenantRows[0]!;
+
+    // LT/US pilot isolation guard — second layer of defense. stripe.ts:241 is the first layer (PR #494). This guard protects against any code path that enqueues this job without going through the Stripe webhook. TODO: replace with proper region logic when multi-region launch is planned.
+    if (isPilotTenant(tenant)) {
+      log.info(
+        { tenantId, jobId: job.id, reason: "skipped Twilio provisioning: pilot tenant (worker layer)" },
+        "Pilot tenant — skipping Twilio purchase (LT/US isolation guard)",
+      );
+      await setProvisioningState(tenantId, "ready", null);
+      return { success: true };
+    }
 
     // Idempotency: if this tenant already has an active phone number
     // (e.g., a previous attempt purchased + service-added but the worker
