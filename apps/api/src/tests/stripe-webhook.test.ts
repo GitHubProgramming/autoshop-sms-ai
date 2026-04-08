@@ -262,6 +262,52 @@ describe("POST /webhooks/stripe", () => {
     await app.close();
   });
 
+  it("US tenant baseline — provisions Twilio number when is_pilot_tenant=false (regression)", async () => {
+    const sub = subscriptionObject();
+    const evt = makeEvent("customer.subscription.created", sub);
+    mocks.constructEvent.mockReturnValue(evt);
+
+    mocks.query
+      .mockResolvedValueOnce([]) // billing_events INSERT
+      .mockResolvedValueOnce([{ billing_status: "trial" }]) // SELECT billing_status
+      .mockResolvedValueOnce([]) // UPDATE tenants
+      .mockResolvedValueOnce([]) // SELECT tenant_phone_numbers (none)
+      .mockResolvedValueOnce([
+        { shop_name: "Joe's Auto", owner_phone: "+15125551234", is_test: false, is_pilot_tenant: false },
+      ]); // SELECT tenant
+
+    const app = await buildApp();
+    await postStripe(app);
+
+    expect(mocks.provisionQueueAdd).toHaveBeenCalledWith(
+      "provision-twilio-number",
+      expect.objectContaining({ tenantId: TEST_TENANT_ID, areaCode: "512", shopName: "Joe's Auto" }),
+      expect.any(Object)
+    );
+    await app.close();
+  });
+
+  it("LT pilot tenant — does NOT provision Twilio number when is_pilot_tenant=true", async () => {
+    const sub = subscriptionObject();
+    const evt = makeEvent("customer.subscription.created", sub);
+    mocks.constructEvent.mockReturnValue(evt);
+
+    mocks.query
+      .mockResolvedValueOnce([]) // billing_events INSERT
+      .mockResolvedValueOnce([{ billing_status: "trial" }]) // SELECT billing_status
+      .mockResolvedValueOnce([]) // UPDATE tenants
+      .mockResolvedValueOnce([]) // SELECT tenant_phone_numbers (none)
+      .mockResolvedValueOnce([
+        { shop_name: "Proteros Servisas", owner_phone: "+37067577829", is_test: false, is_pilot_tenant: true },
+      ]); // SELECT tenant
+
+    const app = await buildApp();
+    await postStripe(app);
+
+    expect(mocks.provisionQueueAdd).not.toHaveBeenCalled();
+    await app.close();
+  });
+
   it("does NOT provision number if tenant already has an active number", async () => {
     const sub = subscriptionObject();
     const evt = makeEvent("customer.subscription.created", sub);

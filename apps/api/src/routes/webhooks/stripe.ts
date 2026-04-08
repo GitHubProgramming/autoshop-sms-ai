@@ -6,6 +6,7 @@ import { billingQueue, provisionNumberQueue } from "../../queues/redis";
 import { deduplicateWebhook } from "../../db/webhook-events";
 import { getSharedTestNumber } from "../../utils/test-tenant";
 import { createLogger } from "../../utils/logger";
+import { isPilotTenant } from "../../utils/tenant-region";
 
 const log = createLogger("stripe-webhook");
 
@@ -228,14 +229,20 @@ async function routeStripeEvent(event: Stripe.Event, tenantId: string) {
           [tenantId]
         );
         if (existing.length === 0) {
-          const tenantRows = await query<{ shop_name: string; owner_phone: string | null; is_test: boolean }>(
-            `SELECT shop_name, owner_phone, is_test FROM tenants WHERE id = $1`,
+          const tenantRows = await query<{ shop_name: string; owner_phone: string | null; is_test: boolean; is_pilot_tenant: boolean }>(
+            `SELECT shop_name, owner_phone, is_test, is_pilot_tenant FROM tenants WHERE id = $1`,
             [tenantId]
           );
 
           // Test tenants: skip Twilio purchase entirely — dashboard shows shared number via fallback
           if (tenantRows[0]?.is_test) {
             log.info({ tenantId }, "Test tenant — skipping Twilio purchase (shared test number)");
+          // LT/US pilot isolation guard — skip US-specific Twilio provisioning for pilot tenants (e.g. LT Proteros). See LT/US strategy docs. TODO: replace with proper region logic when multi-region launch is planned.
+          } else if (tenantRows[0] && isPilotTenant(tenantRows[0])) {
+            log.info(
+              { tenantId, eventType: event.type, reason: "skipped Twilio provisioning: pilot tenant" },
+              "Pilot tenant — skipping Twilio purchase (LT/US isolation guard)"
+            );
           } else {
             const areaCode =
               tenantRows[0]?.owner_phone?.replace(/\D/g, "").slice(1, 4) || "512";
