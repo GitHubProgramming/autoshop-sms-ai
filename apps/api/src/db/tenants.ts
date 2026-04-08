@@ -31,6 +31,7 @@ export interface Tenant {
   workspace_mode: WorkspaceMode;
   provisioning_state: ProvisioningState;
   provisioning_error_reason: string | null;
+  is_pilot_tenant: boolean;
 }
 
 /**
