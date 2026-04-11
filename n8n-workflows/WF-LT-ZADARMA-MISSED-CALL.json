@@ -30,25 +30,25 @@
               "id": "caller-number",
               "name": "caller_number",
               "type": "string",
-              "value": "={{ $json.body?.caller_id || $json.body?.from || $json.caller_id || $json.from || '' }}"
+              "value": "={{ ($json.body?.caller_id || $json.body?.from || $json.caller_id || $json.from || '').toString() }}"
             },
             {
               "id": "called-number",
               "name": "called_number",
               "type": "string",
-              "value": "={{ $json.body?.called_did || $json.body?.destination || $json.called_did || $json.destination || '+37045512300' }}"
+              "value": "={{ ($json.body?.called_did || $json.body?.called_number || $json.body?.to || $json.called_did || $json.called_number || $json.to || '').toString() }}"
             },
             {
               "id": "event-type",
               "name": "event_type",
               "type": "string",
-              "value": "={{ $json.body?.event || $json.event || '' }}"
+              "value": "={{ ($json.body?.event || $json.body?.event_type || $json.event || $json.event_type || '').toString() }}"
             },
             {
               "id": "call-status",
               "name": "call_status",
               "type": "string",
-              "value": "={{ ($json.body?.disposition || $json.body?.status || $json.disposition || $json.status || '').toString().toLowerCase() }}"
+              "value": "={{ ($json.body?.call_status || $json.body?.disposition || $json.body?.status || $json.call_status || $json.disposition || $json.status || '').toString().toLowerCase() }}"
             },
             {
               "id": "call-start",
