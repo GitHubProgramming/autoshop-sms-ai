@@ -41,6 +41,8 @@ import { configRoute } from "./routes/internal/config";
 import { githubIssuesRoute } from "./routes/internal/github-issues";
 import { dlqRoute } from "./routes/internal/dlq";
 import { ltLogConversationRoute } from "./routes/internal/lt-log-conversation";
+import { ltSendSmsRoute } from "./routes/internal/lt-send-sms";
+import { ltRecentConversationsRoute } from "./routes/internal/lt-recent-conversations";
 import { devLoopRoute } from "./routes/internal/dev-loop";
 import { devLoopExecuteRoute } from "./routes/internal/dev-loop-execute";
 import { leadsRoute } from "./routes/internal/leads";
@@ -160,6 +162,8 @@ async function bootstrap() {
   await app.register(githubIssuesRoute, { prefix: "/internal" });
   await app.register(dlqRoute, { prefix: "/internal" });
   await app.register(ltLogConversationRoute, { prefix: "/internal" });
+  await app.register(ltSendSmsRoute, { prefix: "/internal" });
+  await app.register(ltRecentConversationsRoute, { prefix: "/internal" });
   await app.register(devLoopRoute, { prefix: "/internal" });
   await app.register(devLoopExecuteRoute, { prefix: "/internal" });
   await app.register(leadsRoute, { prefix: "/internal" });
