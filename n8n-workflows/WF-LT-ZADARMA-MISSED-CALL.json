@@ -1,0 +1,324 @@
+{
+  "name": "WF-LT-ZADARMA-MISSED-CALL",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lt-zadarma-missed-call",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "lt-zd-webhook",
+      "name": "Webhook: Zadarma Missed Call",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "lt-zadarma-missed-call",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "zadarma-webhook-secret"
+        }
+      },
+      "notes": "Header Auth credential must be created manually in n8n as 'zadarma-webhook-secret' with header name 'x-zadarma-secret'."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "caller-number",
+              "name": "caller_number",
+              "type": "string",
+              "value": "={{ $json.body?.caller_id || $json.body?.from || $json.caller_id || $json.from || '' }}"
+            },
+            {
+              "id": "called-number",
+              "name": "called_number",
+              "type": "string",
+              "value": "={{ $json.body?.called_did || $json.body?.destination || $json.called_did || $json.destination || '+37045512300' }}"
+            },
+            {
+              "id": "event-type",
+              "name": "event_type",
+              "type": "string",
+              "value": "={{ $json.body?.event || $json.event || '' }}"
+            },
+            {
+              "id": "call-status",
+              "name": "call_status",
+              "type": "string",
+              "value": "={{ ($json.body?.disposition || $json.body?.status || $json.disposition || $json.status || '').toString().toLowerCase() }}"
+            },
+            {
+              "id": "call-start",
+              "name": "call_start",
+              "type": "string",
+              "value": "={{ $json.body?.call_start || $json.body?.start || $json.call_start || $json.start || new Date().toISOString() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "lt-zd-parse",
+      "name": "Parse Zadarma payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-status-missed",
+              "leftValue": "={{ ['no answer','busy','cancel'].includes($json.call_status) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "cond-caller-not-empty",
+              "leftValue": "={{ $json.caller_number }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "cond-not-self-call",
+              "leftValue": "={{ $json.caller_number !== $json.called_number }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "lt-zd-if-missed",
+      "name": "Is missed call?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "sms-to",
+              "name": "to",
+              "type": "string",
+              "value": "={{ $json.caller_number }}"
+            },
+            {
+              "id": "sms-from",
+              "name": "from",
+              "type": "string",
+              "value": "+37045512300"
+            },
+            {
+              "id": "sms-text",
+              "name": "text",
+              "type": "string",
+              "value": "Labas, čia Proteros Servisas. Negalėjau atsiliepti — parašykit kokia problema su automobiliu, ir aš jums padėsiu suplanuoti vizitą. Ačiū!"
+            },
+            {
+              "id": "sms-tenant",
+              "name": "tenant_id",
+              "type": "string",
+              "value": "lt-proteros-servisas"
+            },
+            {
+              "id": "sms-source",
+              "name": "source",
+              "type": "string",
+              "value": "zadarma-missed-call"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "lt-zd-build-sms",
+      "name": "Build SMS payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://httpbin.org/post",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $json.to, from: $json.from, text: $json.text, tenant_id: $json.tenant_id, source: $json.source }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "lt-zd-send-sms",
+      "name": "Send SMS via Zadarma",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 200],
+      "continueOnFail": true,
+      "notes": "PLACEHOLDER: posts to httpbin.org/post until Step 2 swaps in the real Zadarma SMS API endpoint."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://autoshop-api-7ek9.onrender.com/internal/lt-log-conversation",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenant_id: $('Build SMS payload').item.json.tenant_id, caller_number: $('Build SMS payload').item.json.to, direction: 'outbound', message_text: $('Build SMS payload').item.json.text, source: 'zadarma-missed-call' }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "lt-zd-log-api",
+      "name": "Log to internal API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 200],
+      "continueOnFail": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "internal-api-key"
+        }
+      },
+      "notes": "Header Auth credential must be created manually in n8n as 'internal-api-key' with header name 'x-internal-key'."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": true } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "lt-zd-respond-ok",
+      "name": "Respond: OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1560, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": true, \"skipped\": true, \"reason\": \"not a missed call\" } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "lt-zd-respond-skip",
+      "name": "Respond: Skipped",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [900, 440]
+    }
+  ],
+  "connections": {
+    "Webhook: Zadarma Missed Call": {
+      "main": [
+        [
+          {
+            "node": "Parse Zadarma payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Zadarma payload": {
+      "main": [
+        [
+          {
+            "node": "Is missed call?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is missed call?": {
+      "main": [
+        [
+          {
+            "node": "Build SMS payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: Skipped",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build SMS payload": {
+      "main": [
+        [
+          {
+            "node": "Send SMS via Zadarma",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send SMS via Zadarma": {
+      "main": [
+        [
+          {
+            "node": "Log to internal API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to internal API": {
+      "main": [
+        [
+          {
+            "node": "Respond: OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "errorWorkflow": ""
+  },
+  "active": false,
+  "tags": [
+    { "name": "LT_Proteros" },
+    { "name": "zadarma" },
+    { "name": "missed-call" },
+    { "name": "step-1-of-3" }
+  ]
+}
