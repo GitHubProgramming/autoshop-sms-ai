@@ -163,10 +163,12 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://httpbin.org/post",
+        "url": "https://autoshop-api-7ek9.onrender.com/internal/lt-send-sms",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ to: $json.to, from: $json.from, text: $json.text, tenant_id: $json.tenant_id, source: $json.source }) }}",
+        "jsonBody": "={{ JSON.stringify({ to: $('Build SMS payload').item.json.to, message: $('Build SMS payload').item.json.text, tenant_id: $('Build SMS payload').item.json.tenant_id, source: $('Build SMS payload').item.json.source }) }}",
         "options": {
           "timeout": 15000
         }
@@ -177,7 +179,12 @@
       "typeVersion": 4.2,
       "position": [1120, 200],
       "continueOnFail": true,
-      "notes": "PLACEHOLDER: posts to httpbin.org/post until Step 2 swaps in the real Zadarma SMS API endpoint."
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "internal-api-key"
+        }
+      },
+      "notes": "Posts to backend /internal/lt-send-sms. Backend wraps Zadarma HMAC-SHA1 signing, sends via api.zadarma.com, persists the outbound message to the LT conversations table, and returns { ok:true } on success or { ok:false, error, zadarma_response } on failure (always HTTP 200 so n8n never retries a 5xx and double-sends). Reuses the same 'internal-api-key' Header Auth credential (header: x-internal-key) as the Log to internal API node."
     },
     {
       "parameters": {
