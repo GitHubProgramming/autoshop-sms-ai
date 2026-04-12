@@ -31,7 +31,11 @@ const FIXED = {
 const EXPECTED_QUERY_STRING =
   "caller_id=%2B37045512300&message=Labas&number=%2B37061234567";
 const EXPECTED_MD5 = "734a00543ffe1d82b86a9b5c0f9c8ada";
-const EXPECTED_AUTH_HEADER = "test_key:hxo7RqQ8n5R5MaL2udTyZdzhnG0=";
+// Signature is base64(hex(hmac)) → 56 chars, NOT base64(raw_hmac) → 28 chars.
+// Confirmed by Zadarma support (2026-04-11) and their GAS reference code.
+const EXPECTED_HMAC_HEX = "871a3b46a43c9f947931a2f6b9d4f265dce19c6d";
+const EXPECTED_AUTH_HEADER =
+  "test_key:ODcxYTNiNDZhNDNjOWY5NDc5MzFhMmY2YjlkNGYyNjVkY2UxOWM2ZA==";
 
 describe("signZadarmaRequest", () => {
   it("produces the pinned Authorization header for known inputs", () => {
@@ -56,8 +60,9 @@ describe("signZadarmaRequest", () => {
   });
 
   it("signature derivation matches the raw crypto primitives (algorithm pin)", () => {
-    // Recompute step-by-step with stock crypto and compare — catches any
-    // future drift where the helper diverges from the Zadarma formula.
+    // Recompute step-by-step with stock crypto, mirroring PHP's
+    // base64_encode(hash_hmac('sha1', $data, $key)) where hash_hmac
+    // returns hex by default (raw_output=false).
     const md5 = crypto
       .createHash("md5")
       .update(EXPECTED_QUERY_STRING)
@@ -65,10 +70,13 @@ describe("signZadarmaRequest", () => {
     expect(md5).toBe(EXPECTED_MD5);
 
     const signData = FIXED.apiPath + EXPECTED_QUERY_STRING + md5;
-    const signature = crypto
+    const hmacHex = crypto
       .createHmac("sha1", FIXED.apiSecret)
       .update(signData)
-      .digest("base64");
+      .digest("hex");
+    expect(hmacHex).toBe(EXPECTED_HMAC_HEX);
+
+    const signature = Buffer.from(hmacHex, "utf8").toString("base64");
 
     const { authHeader } = signZadarmaRequest(
       FIXED.apiPath,
@@ -129,6 +137,21 @@ describe("signZadarmaRequest", () => {
     expect(diffMessage.authHeader).not.toBe(base.authHeader);
     expect(diffSecret.authHeader).not.toBe(base.authHeader);
     expect(diffPath.authHeader).not.toBe(base.authHeader);
+  });
+
+  it("base64-encodes HEX string, not raw bytes (56 chars, not 28)", () => {
+    // SHA-1 raw = 20 bytes → base64 = 28 chars (WRONG for Zadarma)
+    // SHA-1 hex = 40 chars → base64 = 56 chars (CORRECT for Zadarma)
+    // This test catches the exact bug that caused every API call to return
+    // 401 Not authorized before the 2026-04-12 fix.
+    const { authHeader } = signZadarmaRequest(
+      FIXED.apiPath,
+      FIXED.params,
+      FIXED.apiKey,
+      FIXED.apiSecret
+    );
+    const sigPart = authHeader.split(":").slice(1).join(":");
+    expect(sigPart.length).toBe(56);
   });
 
   it("url-encodes values containing '+' and spaces", () => {
