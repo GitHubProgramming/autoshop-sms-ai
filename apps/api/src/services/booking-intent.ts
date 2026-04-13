@@ -22,6 +22,7 @@ export interface BookingIntentResult {
 // ── Booking confirmation patterns (checked against AI response) ─────────────
 
 const HIGH_CONFIDENCE_PATTERNS = [
+  // English
   "appointment is confirmed",
   "appointment confirmed",
   "your appointment is set",
@@ -38,9 +39,19 @@ const HIGH_CONFIDENCE_PATTERNS = [
   "i have scheduled you",
   "appointment has been booked",
   "appointment has been scheduled",
+  // Lithuanian (LT pilot)
+  "vizitas patvirtintas",       // appointment confirmed
+  "vizitas rezervuotas",        // appointment reserved
+  "vizitas užregistruotas",     // appointment registered
+  "rezervacija patvirtinta",    // reservation confirmed
+  "užregistravau jus",          // I registered you (informal)
+  "užregistravau jūs",          // I registered you (formal)
+  "jūs užregistruotas",         // you are registered (masc)
+  "jūs užregistruota",          // you are registered (fem)
 ];
 
 const MEDIUM_CONFIDENCE_PATTERNS = [
+  // English
   "booked for",
   "scheduled for",
   "confirmed for",
@@ -51,6 +62,12 @@ const MEDIUM_CONFIDENCE_PATTERNS = [
   "we'll see you",
   "we will see you",
   "look forward to seeing you",
+  // Lithuanian (LT pilot)
+  "patvirtinu vizitą",          // I confirm the appointment
+  "patvirtinu rezervaciją",     // I confirm the reservation
+  "lauksime jūsų",             // we'll be waiting for you
+  "iki susitikimo",            // see you (until we meet)
+  "jūsų vizitas",              // your appointment (+ context)
 ];
 
 // ── Close/cancel patterns (checked against customer message) ────────────────
@@ -71,6 +88,10 @@ const CLOSE_KEYWORDS = [
   "do not text me",
   "don't contact me",
   "do not contact me",
+  // Lithuanian
+  "atšaukti",                   // cancel
+  "nebenoriu",                  // I don't want anymore
+  "nerašykite",                 // don't text me
 ];
 
 // ── Service types ───────────────────────────────────────────────────────────
@@ -125,7 +146,8 @@ const NATURAL_DATE_PATTERNS = [
 // ── Name extraction ─────────────────────────────────────────────────────────
 
 // Match patterns like "confirmed, John" or "Thank you, John" or "See you, John"
-const NAME_AFTER_COMMA = /(?:[Cc]onfirmed|[Tt]hank [Yy]ou|[Tt]hanks|[Ss]ee [Yy]ou),\s+([A-Z][a-z]+)/;
+// Also Lithuanian: "Ačiū, Manta" or "Patvirtinta, Manta"
+const NAME_AFTER_COMMA = /(?:[Cc]onfirmed|[Tt]hank [Yy]ou|[Tt]hanks|[Ss]ee [Yy]ou|[Aa]čiū|[Pp]atvirtint[ao]|[Ss]veiki),\s+([A-ZĄČĘĖĮŠŲŪŽa-ząčęėįšųūž][a-ząčęėįšųūž]+)/;
 // Match "for John" or "for John Smith"
 const NAME_AFTER_FOR =
   /(?:[Aa]ppointment|[Bb]ooking|[Ss]cheduled)\s+(?:is\s+)?(?:confirmed\s+)?for\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/;
@@ -198,7 +220,9 @@ function extractLicensePlate(customerMessage: string, aiResponse: string): strin
     !lower.includes("plate") &&
     !lower.includes("tag") &&
     !lower.includes("license") &&
-    !lower.includes("registration")
+    !lower.includes("registration") &&
+    !lower.includes("numerį") &&         // LT: registracijos numerį (registration number)
+    !lower.includes("registracij")
   ) {
     return null;
   }
