@@ -396,3 +396,83 @@ describe("POST /internal/booking-intent", () => {
     expect(res.json().userWantsClose).toBe(true);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Lithuanian (LT pilot) booking detection tests
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe("detectBookingIntent — Lithuanian patterns", () => {
+  it("detects high-confidence 'vizitas patvirtintas' (appointment confirmed)", () => {
+    const r = detectBookingIntent(
+      "Vizitas patvirtintas! Jūsų Toyota Corolla bus apžiūrėta šiandien 10:00. Lauksime jūsų Proteros Servise!",
+      "Tinka"
+    );
+    expect(r.isBooked).toBe(true);
+    expect(r.confidence).toBe("high");
+    expect(r.matchedPatterns).toContain("vizitas patvirtintas");
+  });
+
+  it("detects high-confidence 'rezervacija patvirtinta' (reservation confirmed)", () => {
+    const r = detectBookingIntent(
+      "Rezervacija patvirtinta rytoj 14:00.",
+      "Gerai"
+    );
+    expect(r.isBooked).toBe(true);
+    expect(r.confidence).toBe("high");
+    expect(r.matchedPatterns).toContain("rezervacija patvirtinta");
+  });
+
+  it("detects medium-confidence 'lauksime jūsų' (we'll be waiting for you)", () => {
+    const r = detectBookingIntent(
+      "Lauksime jūsų rytoj 9:00!",
+      "Ačiū"
+    );
+    expect(r.isBooked).toBe(true);
+    expect(r.confidence).toBe("medium");
+    expect(r.matchedPatterns).toContain("lauksime jūsų");
+  });
+
+  it("does NOT detect booking from 'ačiū' alone (false positive guard)", () => {
+    const r = detectBookingIntent(
+      "Nėra už ką! Jei turėsite daugiau klausimų, drąsiai rašykite.",
+      "Ačiū"
+    );
+    expect(r.isBooked).toBe(false);
+    expect(r.confidence).toBe("none");
+  });
+
+  it("does NOT detect booking from general info response", () => {
+    const r = detectBookingIntent(
+      "Dirbame nuo 8:00 iki 18:00, pirmadienį–penktadienį.",
+      "Kokios darbo valandos?"
+    );
+    expect(r.isBooked).toBe(false);
+    expect(r.confidence).toBe("none");
+  });
+
+  it("extracts car model from Lithuanian conversation", () => {
+    const r = detectBookingIntent(
+      "Vizitas patvirtintas! Jūsų Toyota Corolla bus apžiūrėta šiandien 10:00.",
+      "Sveiki, mano Toyota Corolla nesikuria"
+    );
+    expect(r.isBooked).toBe(true);
+    expect(r.carModel).toContain("Toyota");
+    expect(r.carModel).toContain("Corolla");
+  });
+
+  it("extracts name from Lithuanian 'Ačiū, Manta' pattern", () => {
+    const r = detectBookingIntent(
+      "Ačiū, Manta. Ar galite nurodyti automobilio registracijos numerį?",
+      "Mantas šiandien 10 h ryto"
+    );
+    expect(r.customerName).toBe("Manta");
+  });
+
+  it("detects LT close keyword 'atšaukti'", () => {
+    const r = detectBookingIntent(
+      "Supratau, vizitas atšauktas.",
+      "atšaukti"
+    );
+    expect(r.userWantsClose).toBe(true);
+  });
+});
