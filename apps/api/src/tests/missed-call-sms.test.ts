@@ -178,6 +178,33 @@ describe("sendTwilioSms", () => {
     expect(opts.body).toContain(encodeURIComponent("Hello world"));
     expect(opts.body).toContain("MG_test_sid");
   });
+
+  it("uses From number instead of MessagingServiceSid when fromNumber provided", async () => {
+    const fakeFetch = mockFetchSuccess();
+    await sendTwilioSms(PHONE, "LT test", fakeFetch, "+37012345678");
+
+    const [, opts] = (fakeFetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = opts.body as string;
+    expect(body).toContain("From=" + encodeURIComponent("+37012345678"));
+    expect(body).not.toContain("MessagingServiceSid");
+  });
+
+  it("uses MessagingServiceSid when fromNumber is undefined", async () => {
+    const fakeFetch = mockFetchSuccess();
+    await sendTwilioSms(PHONE, "USA test", fakeFetch, undefined);
+
+    const [, opts] = (fakeFetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = opts.body as string;
+    expect(body).toContain("MessagingServiceSid=");
+    expect(body).not.toMatch(/From=/);
+  });
+
+  it("returns error when no fromNumber and no MessagingServiceSid configured", async () => {
+    delete process.env.TWILIO_MESSAGING_SERVICE_SID;
+    const result = await sendTwilioSms(PHONE, "Test", mockFetchSuccess());
+    expect(result.sid).toBeNull();
+    expect(result.error).toContain("TWILIO_MESSAGING_SERVICE_SID not configured");
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -305,6 +332,53 @@ describe("handleMissedCallSms", () => {
     const result = await handleMissedCallSms(validInput(), mockFetchSuccess());
     expect(result.success).toBe(true);
     expect(result.smsSent).toBe(true);
+  });
+
+  it("uses From number for pilot tenants instead of MessagingServiceSid", async () => {
+    conversationMocks.openConversationWithRetry.mockResolvedValue({
+      blocked: false, existing: false, conversationId: CONVERSATION_ID, isNew: true,
+    });
+    const fakeFetch = mockFetchSuccess();
+    mocks.query
+      .mockResolvedValueOnce([
+        { id: TENANT_ID, shop_name: "Proteros Servisas", billing_status: "trial", is_pilot_tenant: true },
+      ])
+      .mockResolvedValueOnce([]) // missed_calls insert
+      .mockResolvedValueOnce([]) // log inbound
+      .mockResolvedValueOnce([]) // log outbound
+      .mockResolvedValueOnce([]); // touch
+
+    const result = await handleMissedCallSms(validInput(), fakeFetch);
+
+    expect(result.success).toBe(true);
+    expect(result.smsSent).toBe(true);
+
+    const [, opts] = (fakeFetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = opts.body as string;
+    expect(body).toContain("From=" + encodeURIComponent(OUR_PHONE));
+    expect(body).not.toContain("MessagingServiceSid");
+  });
+
+  it("uses MessagingServiceSid for non-pilot tenants", async () => {
+    conversationMocks.openConversationWithRetry.mockResolvedValue({
+      blocked: false, existing: false, conversationId: CONVERSATION_ID, isNew: true,
+    });
+    const fakeFetch = mockFetchSuccess();
+    mocks.query
+      .mockResolvedValueOnce([
+        { id: TENANT_ID, shop_name: "Joe's Auto", billing_status: "active", is_pilot_tenant: false },
+      ])
+      .mockResolvedValueOnce([]) // missed_calls insert
+      .mockResolvedValueOnce([]) // log inbound
+      .mockResolvedValueOnce([]) // log outbound
+      .mockResolvedValueOnce([]); // touch
+
+    await handleMissedCallSms(validInput(), fakeFetch);
+
+    const [, opts] = (fakeFetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = opts.body as string;
+    expect(body).toContain("MessagingServiceSid=");
+    expect(body).not.toMatch(/From=/);
   });
 
   it("includes shop name in SMS text", async () => {

@@ -104,6 +104,22 @@ export async function processSms(
     error: null,
   };
 
+  // ── Early: check pilot status for SMS sender routing ─────────────────────
+  // Pilot tenants (e.g. LT Proteros) use a direct From number instead of
+  // Messaging Service. Fetched early because the turn-limit early-exit path
+  // also needs to send SMS.
+  let isPilot = false;
+  try {
+    const pilotRows = await query<{ is_pilot_tenant: boolean }>(
+      `SELECT is_pilot_tenant FROM tenants WHERE id = $1`,
+      [input.tenantId]
+    );
+    isPilot = pilotRows.length > 0 && pilotRows[0].is_pilot_tenant === true;
+  } catch {
+    // Non-fatal: defaults to Messaging Service path
+  }
+  const pilotFrom = isPilot ? input.ourPhone : undefined;
+
   // ── 0. TCPA opt-in handling ──────────────────────────────────────────────
   // If customer sends START/UNSTOP/YES, clear their opt-out before proceeding.
   if (isOptInKeyword(input.body)) {
@@ -218,7 +234,8 @@ export async function processSms(
       const smsResult = await sendTwilioSms(
         input.customerPhone,
         TURN_LIMIT_RESPONSE,
-        fetchFn
+        fetchFn,
+        pilotFrom
       );
       result.smsSent = !!smsResult.sid;
 
@@ -429,7 +446,7 @@ export async function processSms(
       result.aiResponse = safeBody;
 
       // Send corrected SMS first, then log with real segment count
-      const smsResult = await sendTwilioSms(input.customerPhone, safeBody, fetchFn);
+      const smsResult = await sendTwilioSms(input.customerPhone, safeBody, fetchFn, pilotFrom);
       result.smsSent = !!smsResult.sid;
 
       try {
@@ -597,7 +614,7 @@ export async function processSms(
   if (smsDuplicate) {
     smsResult = { sid: "skipped-duplicate", error: null, numSegments: null };
   } else {
-    smsResult = await sendTwilioSms(input.customerPhone, smsBody, fetchFn);
+    smsResult = await sendTwilioSms(input.customerPhone, smsBody, fetchFn, pilotFrom);
   }
   result.smsSent = !!smsResult.sid;
   result.aiResponse = smsBody;
@@ -672,7 +689,7 @@ export async function processSms(
       }
       // Send TCPA-required confirmation (overwrite the AI response already sent above)
       try {
-        await sendTwilioSms(input.customerPhone, OPT_OUT_CONFIRMATION, fetchFn);
+        await sendTwilioSms(input.customerPhone, OPT_OUT_CONFIRMATION, fetchFn, pilotFrom);
         await query(
           `INSERT INTO messages (tenant_id, conversation_id, direction, body, sms_segments)
            VALUES ($1, $2, 'outbound', $3, 1)`,

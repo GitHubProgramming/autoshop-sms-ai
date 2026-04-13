@@ -63,14 +63,26 @@ export function buildMissedCallSms(
 export async function sendTwilioSms(
   to: string,
   body: string,
-  fetchFn: typeof fetch = fetch
+  fetchFn: typeof fetch = fetch,
+  fromNumber?: string
 ): Promise<{ sid: string | null; error: string | null; numSegments: number | null }> {
   const accountSid = await getConfig("TWILIO_ACCOUNT_SID");
   const authToken = await getConfig("TWILIO_AUTH_TOKEN");
-  const messagingServiceSid = await getConfig("TWILIO_MESSAGING_SERVICE_SID");
 
-  if (!accountSid || !authToken || !messagingServiceSid) {
+  if (!accountSid || !authToken) {
     return { sid: null, error: "Twilio credentials not configured", numSegments: null };
+  }
+
+  // Use direct From number when provided (e.g. LT pilot), otherwise Messaging Service
+  let senderParam: string;
+  if (fromNumber) {
+    senderParam = `From=${encodeURIComponent(fromNumber)}`;
+  } else {
+    const messagingServiceSid = await getConfig("TWILIO_MESSAGING_SERVICE_SID");
+    if (!messagingServiceSid) {
+      return { sid: null, error: "No fromNumber and TWILIO_MESSAGING_SERVICE_SID not configured", numSegments: null };
+    }
+    senderParam = `MessagingServiceSid=${encodeURIComponent(messagingServiceSid)}`;
   }
 
   const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
@@ -83,7 +95,7 @@ export async function sendTwilioSms(
         Authorization: `Basic ${auth}`,
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: `MessagingServiceSid=${encodeURIComponent(messagingServiceSid)}&To=${encodeURIComponent(to)}&Body=${encodeURIComponent(body)}`,
+      body: `${senderParam}&To=${encodeURIComponent(to)}&Body=${encodeURIComponent(body)}`,
       signal: AbortSignal.timeout(15_000),
     });
 
@@ -130,14 +142,16 @@ export async function handleMissedCallSms(
   let shopName: string | null = null;
   let billingStatus: string = "unknown";
   let missedCallTemplate: string | null = null;
+  let isPilot = false;
   try {
     const rows = await query<{
       id: string;
       shop_name: string | null;
       billing_status: string;
       missed_call_sms_template: string | null;
+      is_pilot_tenant: boolean;
     }>(
-      `SELECT id, shop_name, billing_status, missed_call_sms_template FROM tenants WHERE id = $1`,
+      `SELECT id, shop_name, billing_status, missed_call_sms_template, is_pilot_tenant FROM tenants WHERE id = $1`,
       [input.tenantId]
     );
 
@@ -154,6 +168,7 @@ export async function handleMissedCallSms(
     shopName = rows[0].shop_name;
     billingStatus = rows[0].billing_status;
     missedCallTemplate = rows[0].missed_call_sms_template;
+    isPilot = rows[0].is_pilot_tenant === true;
   } catch (err) {
     return {
       success: false,
@@ -315,7 +330,8 @@ export async function handleMissedCallSms(
   const twilioResult = await sendTwilioSms(
     input.customerPhone,
     smsBody,
-    fetchFn
+    fetchFn,
+    isPilot ? input.ourPhone : undefined
   );
 
   // 6. Log the outbound message (with real segment count from Twilio)
