@@ -77,6 +77,10 @@ const OPT_OUT_CONFIRMATION =
   "You have been unsubscribed. You will not receive further messages. " +
   "Reply START to resubscribe.";
 
+const OPT_OUT_CONFIRMATION_LT =
+  "Jūs atsisakėte žinučių. Daugiau pranešimų negausite. " +
+  "Atsakykite START, jei norite vėl gauti.";
+
 const SOFT_LIMIT_RESPONSE =
   "We've reached our monthly messaging limit. " +
   "Please call us directly to schedule your appointment. Thank you!";
@@ -84,6 +88,10 @@ const SOFT_LIMIT_RESPONSE =
 const TURN_LIMIT_RESPONSE =
   "This conversation has reached its message limit. " +
   "Please call us directly to continue. Thank you!";
+
+const TURN_LIMIT_RESPONSE_LT =
+  "Šis pokalbis pasiekė žinučių limitą. " +
+  "Prašome paskambinti tiesiogiai, kad galėtume tęsti. Ačiū!";
 
 // ── Core processing function ─────────────────────────────────────────────────
 
@@ -230,10 +238,11 @@ export async function processSms(
       }
 
       // Send final SMS
-      result.aiResponse = TURN_LIMIT_RESPONSE;
+      const turnLimitMsg = isPilot ? TURN_LIMIT_RESPONSE_LT : TURN_LIMIT_RESPONSE;
+      result.aiResponse = turnLimitMsg;
       const smsResult = await sendTwilioSms(
         input.customerPhone,
-        TURN_LIMIT_RESPONSE,
+        turnLimitMsg,
         fetchFn,
         pilotFrom
       );
@@ -244,7 +253,7 @@ export async function processSms(
         await query(
           `INSERT INTO messages (tenant_id, conversation_id, direction, body, sms_segments)
            VALUES ($1, $2, 'outbound', $3, $4)`,
-          [input.tenantId, result.conversationId, TURN_LIMIT_RESPONSE,
+          [input.tenantId, result.conversationId, turnLimitMsg,
            smsResult.numSegments ?? 1]
         );
       } catch {
@@ -438,10 +447,12 @@ export async function processSms(
       // Required fields missing — do NOT create booking.
       // TRUTHFULNESS: Do NOT send AI's false confirmation to the customer.
       // Replace with a safe message listing what's still needed.
-      const missingLabels = getMissingFieldLabels(missing);
-      const safeBody =
-        `Almost there! I still need: ${missingLabels.join(", ")}. ` +
-        `Please provide so I can finalize your booking.`;
+      const missingLabels = getMissingFieldLabels(missing, isPilot ? "lt" : "en");
+      const safeBody = isPilot
+        ? `Beveik baigta! Dar reikia: ${missingLabels.join(", ")}. ` +
+          `Prašome nurodyti, kad galėčiau patvirtinti vizitą.`
+        : `Almost there! I still need: ${missingLabels.join(", ")}. ` +
+          `Please provide so I can finalize your booking.`;
       result.success = true;
       result.aiResponse = safeBody;
 
@@ -518,13 +529,18 @@ export async function processSms(
       } else {
         // Calendar sync failed — do NOT confirm to customer
         result.bookingState = "PENDING_MANUAL_CONFIRMATION";
-        const shopLabel = shopName ?? "the shop";
+        const shopLabel = shopName ?? (isPilot ? "servisas" : "the shop");
+        const dateLocale = isPilot ? "lt-LT" : "en-US";
         const timeLabel = intent.scheduledAt
-          ? ` for ${new Date(intent.scheduledAt).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
+          ? (isPilot
+              ? ` ${new Date(intent.scheduledAt).toLocaleString(dateLocale, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: tenantTimezone ?? undefined })}`
+              : ` for ${new Date(intent.scheduledAt).toLocaleString(dateLocale, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`)
           : "";
-        smsBody =
-          `Thanks — we've received your booking request${timeLabel}. ` +
-          `${shopLabel} will confirm shortly.`;
+        smsBody = isPilot
+          ? `Ačiū! Gavome jūsų vizito užklausą${timeLabel}. ` +
+            `${shopLabel} netrukus patvirtins.`
+          : `Thanks — we've received your booking request${timeLabel}. ` +
+            `${shopLabel} will confirm shortly.`;
 
         if (calResult.error) {
           result.error = `Calendar sync failed: ${calResult.error}`;
@@ -579,10 +595,12 @@ export async function processSms(
       result.bookingState = "FAILED";
       result.error = `Appointment creation failed: ${apptResult.error}`;
       // Replace confirmation with a safe fallback
-      const shopLabel = shopName ?? "the shop";
-      smsBody =
-        `Thanks for your interest! Something went wrong on our end. ` +
-        `Please call ${shopLabel} directly to confirm your appointment.`;
+      const shopLabel = shopName ?? (isPilot ? "servisas" : "the shop");
+      smsBody = isPilot
+        ? `Ačiū už susidomėjimą! Įvyko sistemos klaida. ` +
+          `Prašome paskambinti ${shopLabel} tiesiogiai vizitui patvirtinti.`
+        : `Thanks for your interest! Something went wrong on our end. ` +
+          `Please call ${shopLabel} directly to confirm your appointment.`;
     }
   }
 
@@ -688,12 +706,13 @@ export async function processSms(
         // Non-fatal: opt-out recording failure should not crash pipeline
       }
       // Send TCPA-required confirmation (overwrite the AI response already sent above)
+      const optOutMsg = isPilot ? OPT_OUT_CONFIRMATION_LT : OPT_OUT_CONFIRMATION;
       try {
-        await sendTwilioSms(input.customerPhone, OPT_OUT_CONFIRMATION, fetchFn, pilotFrom);
+        await sendTwilioSms(input.customerPhone, optOutMsg, fetchFn, pilotFrom);
         await query(
           `INSERT INTO messages (tenant_id, conversation_id, direction, body, sms_segments)
            VALUES ($1, $2, 'outbound', $3, 1)`,
-          [input.tenantId, result.conversationId, OPT_OUT_CONFIRMATION]
+          [input.tenantId, result.conversationId, optOutMsg]
         );
       } catch {
         // Non-fatal

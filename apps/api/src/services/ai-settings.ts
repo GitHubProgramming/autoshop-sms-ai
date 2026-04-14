@@ -123,6 +123,15 @@ const FIELD_LABELS: Record<string, string> = {
   phoneConfirmation: "phone number confirmation",
 };
 
+const FIELD_LABELS_LT: Record<string, string> = {
+  customerName: "vardas",
+  carModel: "automobilio markė ir modelis",
+  issueDescription: "gedimo arba paslaugos aprašymas",
+  preferredTime: "pageidaujamas vizito laikas",
+  licensePlate: "automobilio numeris",
+  phoneConfirmation: "telefono numerio patvirtinimas",
+};
+
 // ── Core functions ───────────────────────────────────────────────────────────
 
 /**
@@ -331,9 +340,11 @@ export function getMissingRequiredFields(
 
 /**
  * Returns human-readable labels for missing fields (for AI prompt injection).
+ * Pass locale="lt" for Lithuanian labels (LT pilot tenants).
  */
-export function getMissingFieldLabels(missingFields: string[]): string[] {
-  return missingFields.map((f) => FIELD_LABELS[f] || f);
+export function getMissingFieldLabels(missingFields: string[], locale: "en" | "lt" = "en"): string[] {
+  const labels = locale === "lt" ? FIELD_LABELS_LT : FIELD_LABELS;
+  return missingFields.map((f) => labels[f] || f);
 }
 
 /**
