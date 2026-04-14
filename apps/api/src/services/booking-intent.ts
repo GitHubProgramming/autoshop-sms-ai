@@ -212,6 +212,17 @@ const PLATE_PATTERNS = [
   /\b([A-Z]{1,3}\d{1,2}[\s-]?[A-Z]{1,3})\b/, // vanity-style
 ];
 
+/**
+ * Lithuanian context check for "numeris" (number) — must be plate context,
+ * not phone context. "telefono numeris" → phone, skip. Bare "numeris ABC123" → plate.
+ */
+function hasPlateContextLt(lower: string): boolean {
+  if (!lower.includes("numeris")) return false;
+  // Exclude phone-number context
+  if (/telefono\s+numeris|tel\.?\s*numeris|tel\s+nr/i.test(lower)) return false;
+  return true;
+}
+
 function extractLicensePlate(customerMessage: string, aiResponse: string): string | null {
   const combined = customerMessage + " " + aiResponse;
   // Only look for plates if contextual keywords are nearby
@@ -222,7 +233,8 @@ function extractLicensePlate(customerMessage: string, aiResponse: string): strin
     !lower.includes("license") &&
     !lower.includes("registration") &&
     !lower.includes("numerį") &&         // LT: registracijos numerį (registration number)
-    !lower.includes("registracij")
+    !lower.includes("registracij") &&
+    !hasPlateContextLt(lower)
   ) {
     return null;
   }

@@ -475,4 +475,20 @@ describe("detectBookingIntent — Lithuanian patterns", () => {
     );
     expect(r.userWantsClose).toBe(true);
   });
+
+  it("extracts license plate when 'numeris' precedes plate (LT context)", () => {
+    const r = detectBookingIntent(
+      "Ačiū, registruoju jūsų vizitą.",
+      "Mano automobilio numeris ABC123, atvyksiu rytoj."
+    );
+    expect(r.licensePlate).toBe("ABC123");
+  });
+
+  it("does NOT extract plate from 'telefono numeris' (phone context, false positive guard)", () => {
+    const r = detectBookingIntent(
+      "Ačiū už informaciją.",
+      "Mano telefono numeris yra +37067577829, skambinkit."
+    );
+    expect(r.licensePlate).toBeNull();
+  });
 });
