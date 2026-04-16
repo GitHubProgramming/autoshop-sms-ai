@@ -160,7 +160,13 @@ export async function signupRoute(app: FastifyInstance) {
 
     // ── Issue JWT ────────────────────────────────────────────────────────────
     const token = app.jwt.sign(
-      { tenantId, email: normalizedEmail },
+      {
+        tenantId,
+        email: normalizedEmail,
+        locale: "en-US",
+        currency: "USD",
+        timezone: "America/Chicago",
+      },
       { expiresIn: "24h" }
     );
 
