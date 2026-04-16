@@ -2359,6 +2359,53 @@ var _I18N_STRINGS = {
   'conv.tone.professional': { 'en-US': 'Professional', 'lt-LT': 'Profesionalus' },
   'conv.tone.friendly':     { 'en-US': 'Friendly',     'lt-LT': 'Draugiškas' },
   'conv.tone.direct':       { 'en-US': 'Direct',       'lt-LT': 'Tiesus' },
+
+  // Booking state labels
+  'booking.confirmed_calendar': { 'en-US': 'Confirmed (Calendar)', 'lt-LT': 'Patvirtinta (kalendorius)' },
+  'booking.confirmed_manual':   { 'en-US': 'Confirmed (Manual)',   'lt-LT': 'Patvirtinta (rankiniu būdu)' },
+  'booking.failed':             { 'en-US': 'Failed',               'lt-LT': 'Nepavyko' },
+  'booking.failed_note':        { 'en-US': 'Booking failed — contact customer to reschedule.', 'lt-LT': 'Rezervacija nepavyko — susisiekite su klientu dėl perkėlimo.' },
+
+  // Empty states
+  'empty.no_appts_today':     { 'en-US': 'No appointments scheduled for today', 'lt-LT': 'Šiandien nėra suplanuotų vizitų' },
+  'empty.no_upcoming':        { 'en-US': 'No upcoming appointments', 'lt-LT': 'Nėra būsimų vizitų' },
+  'empty.no_active_convs':    { 'en-US': 'No active conversations right now', 'lt-LT': 'Šiuo metu nėra aktyvių pokalbių' },
+  'empty.no_active_convs_sub':{ 'en-US': 'Conversations active in the last 10 minutes will appear here.', 'lt-LT': 'Čia bus rodomi pokalbiai, aktyvūs per paskutines 10 minučių.' },
+  'empty.no_bookings_yet':    { 'en-US': 'No completed bookings yet', 'lt-LT': 'Dar nėra užbaigtų vizitų' },
+  'empty.no_ai_bookings':     { 'en-US': 'No AI bookings yet', 'lt-LT': 'Dar nėra AI vizitų' },
+
+  // KPI hints
+  'kpi.hint.after_booking':   { 'en-US': 'Appears after first completed booking', 'lt-LT': 'Atsiras po pirmo užbaigto vizito' },
+  'kpi.hint.after_ai':        { 'en-US': 'Appears after first AI booking', 'lt-LT': 'Atsiras po pirmo AI vizito' },
+  'kpi.hint.after_sms':       { 'en-US': 'Appears after first SMS conversation', 'lt-LT': 'Atsiras po pirmo SMS pokalbio' },
+  'kpi.in_last_30':           { 'en-US': 'in last 30 days', 'lt-LT': 'per paskutines 30 dienų' },
+  'kpi.this_month':           { 'en-US': 'this month', 'lt-LT': 'šį mėnesį' },
+
+  // Conversation status pills
+  'conv.booked':      { 'en-US': 'Booked',        'lt-LT': 'Rezervuota' },
+  'conv.active':      { 'en-US': 'Active',        'lt-LT': 'Aktyvus' },
+  'conv.no_response': { 'en-US': 'No Response',   'lt-LT': 'Be atsakymo' },
+  'conv.lost':        { 'en-US': 'Lost',          'lt-LT': 'Prarastas' },
+  'conv.resolved':    { 'en-US': 'Resolved',      'lt-LT': 'Išspręsta' },
+  'conv.closed':      { 'en-US': 'Closed',        'lt-LT': 'Uždarytas' },
+  'conv.timed_out':   { 'en-US': 'Timed Out',     'lt-LT': 'Pasibaigė laikas' },
+  'conv.quota_blocked':{ 'en-US': 'Quota Blocked', 'lt-LT': 'Kvota pasiekta' },
+  'conv.expired':     { 'en-US': 'Expired',       'lt-LT': 'Pasibaigė' },
+  'conv.ai_handling': { 'en-US': 'AI Handling',   'lt-LT': 'AI apdoroja' },
+  'conv.awaiting':    { 'en-US': 'Awaiting Customer', 'lt-LT': 'Laukiama kliento' },
+
+  // System status
+  'system.active':           { 'en-US': 'System Active',            'lt-LT': 'Sistema aktyvi' },
+  'system.recovering':       { 'en-US': 'Recovering missed calls',  'lt-LT': 'Atkuriami praleisti skambučiai' },
+  'system.suspended':        { 'en-US': 'Account suspended — no conversations being started.', 'lt-LT': 'Paskyra sustabdyta — pokalbiai nepradedami.' },
+  'system.reactivate':       { 'en-US': 'Reactivate account',       'lt-LT': 'Aktyvuoti paskyrą' },
+
+  // Calendar
+  'calendar.connected':      { 'en-US': 'Connected',        'lt-LT': 'Prijungta' },
+  'calendar.not_connected':  { 'en-US': 'Not Connected',    'lt-LT': 'Neprijungta' },
+  'calendar.reconnect':      { 'en-US': 'Reconnect',        'lt-LT': 'Prijungti iš naujo' },
+  'calendar.disconnect':     { 'en-US': 'Disconnect',       'lt-LT': 'Atjungti' },
+  'calendar.connect':        { 'en-US': 'Connect Calendar', 'lt-LT': 'Prijungti kalendorių' },
 };
 
 function _t(key, replacements) {
@@ -2625,23 +2672,33 @@ function getDemoConvData(numDays) {
 // should go through these so a Texas shop owner traveling to California still
 // sees their shop's local "today" rather than the browser's.
 function _tenantTz() { return (tenantState && tenantState.timezone) || 'America/Chicago'; }
+function _tenantLocale() { return (tenantState && tenantState.locale) || 'en-US'; }
 function fmtTenantDate(iso, opts) {
   if (!iso) return '';
   var d = new Date(iso);
   if (isNaN(d.getTime())) return '';
-  return d.toLocaleDateString('en-US', Object.assign({ timeZone: _tenantTz() }, opts || {}));
+  var locale = _tenantLocale();
+  var defaultOpts = locale === 'lt-LT'
+    ? { timeZone: _tenantTz(), year: 'numeric', month: '2-digit', day: '2-digit' }
+    : { timeZone: _tenantTz() };
+  return d.toLocaleDateString(locale, Object.assign(defaultOpts, opts || {}));
 }
 function fmtTenantTime(iso, opts) {
   if (!iso) return '';
   var d = new Date(iso);
   if (isNaN(d.getTime())) return '';
-  return d.toLocaleTimeString('en-US', Object.assign({ timeZone: _tenantTz(), hour: 'numeric', minute: '2-digit' }, opts || {}));
+  var locale = _tenantLocale();
+  var defaultOpts = locale === 'lt-LT'
+    ? { timeZone: _tenantTz(), hour: '2-digit', minute: '2-digit', hour12: false }
+    : { timeZone: _tenantTz(), hour: 'numeric', minute: '2-digit' };
+  return d.toLocaleTimeString(locale, Object.assign(defaultOpts, opts || {}));
 }
 function fmtTenantDateTime(iso, opts) {
   if (!iso) return '';
   var d = new Date(iso);
   if (isNaN(d.getTime())) return '';
-  return d.toLocaleString('en-US', Object.assign({ timeZone: _tenantTz() }, opts || {}));
+  var locale = _tenantLocale();
+  return d.toLocaleString(locale, Object.assign({ timeZone: _tenantTz() }, opts || {}));
 }
 
 // Safely format a price value that may be null, undefined, string, or number.
@@ -2672,17 +2729,23 @@ function fmtPhone(phone) {
 }
 
 // ── Single appointment mapping function — all consumers must use this ──
-var BOOKING_STATE_MAP = {
-  'CONFIRMED_CALENDAR': { status: 'synced', label: 'Confirmed (Calendar)', note: '' },
-  'CONFIRMED_MANUAL': { status: 'synced', label: 'Confirmed (Manual)', note: '' },
-  'PENDING_MANUAL_CONFIRMATION': { status: 'pending', label: 'Needs Manual Confirmation', note: 'Calendar sync failed — confirm this booking manually.' },
-  'FAILED': { status: 'failed', label: 'Failed', note: 'Booking failed — contact customer to reschedule.' },
-  'CANCELLED': { status: 'cancelled', label: 'Cancelled', note: '' },
-  'RESOLVED': { status: 'resolved', label: 'Resolved', note: '' },
-};
+// Returns locale-aware labels via _t()
+function getBookingStateMap() {
+  return {
+    'CONFIRMED_CALENDAR': { status: 'synced', label: _t('booking.confirmed_calendar'), note: '' },
+    'CONFIRMED_MANUAL': { status: 'synced', label: _t('booking.confirmed_manual'), note: '' },
+    'PENDING_MANUAL_CONFIRMATION': { status: 'pending', label: _t('appointment.pending_manual'), note: _t('appointment.calendar_sync_failed') },
+    'FAILED': { status: 'failed', label: _t('booking.failed'), note: _t('booking.failed_note') },
+    'CANCELLED': { status: 'cancelled', label: _t('status.cancelled'), note: '' },
+    'RESOLVED': { status: 'resolved', label: _t('status.resolved'), note: '' },
+  };
+}
+// Legacy compat: static reference for code that reads BOOKING_STATE_MAP directly
+var BOOKING_STATE_MAP = getBookingStateMap();
 
 function mapAppointment(b) {
-  var mapped = BOOKING_STATE_MAP[b.booking_state] || { status: b.calendar_synced ? 'synced' : 'failed', label: b.calendar_synced ? 'Confirmed' : 'Failed', note: '' };
+  var stateMap = getBookingStateMap();
+  var mapped = stateMap[b.booking_state] || { status: b.calendar_synced ? 'synced' : 'failed', label: b.calendar_synced ? _t('booking.confirmed_calendar') : _t('booking.failed'), note: '' };
   return {
     id: b.id,
     conversationId: b.conversation_id || null,
@@ -3026,11 +3089,14 @@ async function loadApptSummary() {
 // REVENUE CHART — interactive Chart.js
 // ════════════════════════════════════════════
 function formatCurrency(v) {
-  return '$' + v.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  var curr = (tenantState && tenantState.currency) || 'USD';
+  var locale = _tenantLocale();
+  return new Intl.NumberFormat(locale, { style: 'currency', currency: curr, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
 }
 function formatCompactCurrency(v) {
-  if (v >= 1000) return '$' + (v / 1000).toFixed(v % 1000 === 0 ? 0 : 1) + 'k';
-  return '$' + v;
+  var sym = (tenantState && tenantState.currency) === 'EUR' ? '€' : '$';
+  if (v >= 1000) return sym + (v / 1000).toFixed(v % 1000 === 0 ? 0 : 1) + 'k';
+  return sym + v;
 }
 function hasSparseRevenueData(days) {
   return days.filter(function(d) { return d.total > 0; }).length <= 3;
@@ -4368,7 +4434,12 @@ function convRow(c, showActions) {
 }
 
 function pillLabel(s) {
-  return {booked:'Booked', active:'Active', 'no-response':'No Response', lost:'Lost', resolved:'Resolved', closed:'Closed', 'timed-out':'Timed Out', blocked:'Quota Blocked', expired:'Expired'}[s] || s;
+  var map = {
+    booked: _t('conv.booked'), active: _t('conv.active'), 'no-response': _t('conv.no_response'),
+    lost: _t('conv.lost'), resolved: _t('conv.resolved'), closed: _t('conv.closed'),
+    'timed-out': _t('conv.timed_out'), blocked: _t('conv.quota_blocked'), expired: _t('conv.expired')
+  };
+  return map[s] || s;
 }
 
 function renderDashConvTable(data) {
@@ -4380,8 +4451,8 @@ function renderDashConvTable(data) {
   if (!data.length) {
     container.innerHTML =
       '<div style="padding:32px 20px;text-align:center;color:var(--text-secondary);">' +
-        '<div style="font-weight:600;margin-bottom:4px;">No active conversations right now</div>' +
-        '<div style="font-size:13px;color:var(--text-tertiary);">Conversations active in the last 10 minutes will appear here.</div>' +
+        '<div style="font-weight:600;margin-bottom:4px;">' + _t('empty.no_active_convs') + '</div>' +
+        '<div style="font-size:13px;color:var(--text-tertiary);">' + _t('empty.no_active_convs_sub') + '</div>' +
       '</div>';
     return;
   }
@@ -5512,8 +5583,8 @@ function renderLiveKPIs() {
   var iconMsg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>';
 
   // Real change metrics — no fake percentages
-  var revChange = recoveredRev > 0 ? ('+$' + recoveredRev.toLocaleString() + ' in last 30 days') : 'No completed bookings yet';
-  var apptChange = aiBooked > 0 ? (aiBooked + ' this month') : 'No AI bookings yet';
+  var revChange = recoveredRev > 0 ? ('+' + formatCurrency(recoveredRev) + ' ' + _t('kpi.in_last_30')) : _t('empty.no_bookings_yet');
+  var apptChange = aiBooked > 0 ? (aiBooked + ' ' + _t('kpi.this_month')) : _t('empty.no_ai_bookings');
   var activeChange = '';
 
   // Determine change arrow direction
@@ -5523,29 +5594,29 @@ function renderLiveKPIs() {
   document.getElementById('kpiGrid').innerHTML =
     '<div class="kpi-card">' +
       '<div class="kpi-icon-box green">' + iconDollar + '</div>' +
-      '<div class="kpi-value">$' + recoveredRev.toLocaleString() + '</div>' +
-      '<div class="kpi-label">Recovered Revenue</div>' +
-      (recoveredRev === 0 ? '<div class="kpi-hint">Appears after first completed booking</div>' : '') +
+      '<div class="kpi-value">' + formatCurrency(recoveredRev) + '</div>' +
+      '<div class="kpi-label">' + _t('dashboard.kpi.recovered_revenue') + '</div>' +
+      (recoveredRev === 0 ? '<div class="kpi-hint">' + _t('kpi.hint.after_booking') + '</div>' : '') +
       '<div class="kpi-change ' + revDir + '">' + (revDir === 'up' ? '&#9650; ' : '') + revChange + '</div>' +
     '</div>' +
     '<div class="kpi-card">' +
       '<div class="kpi-icon-box blue">' + iconCal + '</div>' +
       '<div class="kpi-value">' + aiBooked + '</div>' +
-      '<div class="kpi-label">AI Booked Appointments</div>' +
-      (aiBooked === 0 ? '<div class="kpi-hint">Appears after first AI booking</div>' : '') +
+      '<div class="kpi-label">' + _t('dashboard.kpi.ai_booked') + '</div>' +
+      (aiBooked === 0 ? '<div class="kpi-hint">' + _t('kpi.hint.after_ai') + '</div>' : '') +
       '<div class="kpi-change ' + apptDir + '">' + (apptDir === 'up' ? '&#9650; ' : '') + apptChange + '</div>' +
     '</div>' +
     '<div class="kpi-card">' +
       '<div class="kpi-icon-box amber">' + iconPhone + '</div>' +
       '<div class="kpi-value">' + convsMonth + '</div>' +
-      '<div class="kpi-label">Conversations This Month</div>' +
-      (convsMonth === 0 ? '<div class="kpi-hint">Appears after first SMS conversation</div>' : '') +
+      '<div class="kpi-label">' + _t('dashboard.kpi.conversations_month') + '</div>' +
+      (convsMonth === 0 ? '<div class="kpi-hint">' + _t('kpi.hint.after_sms') + '</div>' : '') +
       '<div class="kpi-change neutral"></div>' +
     '</div>' +
     '<div class="kpi-card">' +
       '<div class="kpi-icon-box purple">' + iconMsg + '</div>' +
       '<div class="kpi-value">' + activeConvs + '</div>' +
-      '<div class="kpi-label">Open Conversations</div>' +
+      '<div class="kpi-label">' + _t('dashboard.kpi.open_conversations') + '</div>' +
       (activeConvs === 0 && convsMonth === 0 ? '<div class="kpi-hint">Active threads appear here</div>' : '') +
       '<div class="kpi-change neutral">' + activeChange + '</div>' +
     '</div>';
@@ -5647,7 +5718,7 @@ function renderLiveTodayActivity() {
   todayEl.innerHTML =
     '<div class="today-card"><div class="today-tag">Conversations Today</div><div class="today-num">' + (s.conversations_today || 0) + '</div></div>' +
     '<div class="today-card"><div class="today-tag">SMS Conversations</div><div class="today-num">' + (s.conversations_today || 0) + '</div></div>' +
-    '<div class="today-card"><div class="today-tag">Open Conversations</div><div class="today-num">' + (s.active_conversations || 0) + '</div></div>' +
+    '<div class="today-card"><div class="today-tag">' + _t('dashboard.kpi.open_conversations') + '</div><div class="today-num">' + (s.active_conversations || 0) + '</div></div>' +
     '<div class="today-card"><div class="today-tag">Appointments Booked</div><div class="today-num green">' + (s.appointments_today || 0) + '</div></div>';
 }
 
@@ -6772,14 +6843,18 @@ function renderAppointmentsPage() {
   var todayContainer = el('apptTodayCards');
   if (todayContainer) {
     if (!todayAppts.length && todayCount === 0) {
-      todayContainer.innerHTML = '<div style="padding:24px 0;text-align:center;font-size:13px;color:var(--text-tertiary);">No appointments scheduled for today</div>';
+      todayContainer.innerHTML = '<div style="padding:24px 0;text-align:center;font-size:13px;color:var(--text-tertiary);">' + _t('empty.no_appts_today') + '</div>';
     } else if (!todayAppts.length && todayCount > 0) {
       todayContainer.innerHTML = '<div style="padding:24px 0;text-align:center;font-size:13px;color:var(--text-tertiary);">' + todayCount + ' appointment(s) today — details syncing</div>';
     } else {
       todayContainer.innerHTML = todayAppts.map(function(b) {
         // Render time in tenant timezone (split into parts for the styled hour/AMPM block)
+        var locale = _tenantLocale();
+        var timeOpts = locale === 'lt-LT'
+          ? { timeZone: _tenantTz(), hour: '2-digit', minute: '2-digit', hour12: false }
+          : { timeZone: _tenantTz(), hour: 'numeric', minute: '2-digit', hour12: true };
         var parts = b.rawScheduledAt
-          ? new Intl.DateTimeFormat('en-US', { timeZone: _tenantTz(), hour: 'numeric', minute: '2-digit', hour12: true }).formatToParts(new Date(b.rawScheduledAt))
+          ? new Intl.DateTimeFormat(locale, timeOpts).formatToParts(new Date(b.rawScheduledAt))
           : [];
         var partMap = {};
         parts.forEach(function(p) { partMap[p.type] = p.value; });
@@ -6818,7 +6893,7 @@ function renderAppointmentsPage() {
   var upcomingContainer = el('apptUpcomingCards');
   if (upcomingContainer) {
     if (!upcomingAppts.length) {
-      upcomingContainer.innerHTML = '<div style="padding:24px 0;text-align:center;font-size:13px;color:var(--text-tertiary);">No upcoming appointments</div>';
+      upcomingContainer.innerHTML = '<div style="padding:24px 0;text-align:center;font-size:13px;color:var(--text-tertiary);">' + _t('empty.no_upcoming') + '</div>';
     } else {
       upcomingContainer.innerHTML = upcomingAppts.map(function(b) {
         // Tenant-local date/time for display
