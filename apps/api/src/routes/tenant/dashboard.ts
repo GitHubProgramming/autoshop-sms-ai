@@ -26,7 +26,8 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
               business_hours, is_test,
               workspace_mode, provisioning_state,
               subscription_amount_cents, overage_cap_pct,
-              pending_conv_limit, cycle_reset_at, cancel_at, timezone
+              pending_conv_limit, cycle_reset_at, cancel_at, timezone,
+              locale, currency
        FROM tenants WHERE id = $1`,
       [tenantId]
     );
@@ -231,6 +232,8 @@ export async function tenantDashboardRoute(app: FastifyInstance) {
         cycle_reset_at: tenant.cycle_reset_at ?? null,
         cancel_at: tenant.cancel_at ?? null,
         timezone: tz,
+        locale: tenant.locale || "en-US",
+        currency: tenant.currency || "USD",
       },
       integrations: {
         google_calendar: {

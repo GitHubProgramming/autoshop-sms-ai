@@ -602,6 +602,34 @@ export async function tenantKpiRoute(app: FastifyInstance) {
   });
 
   /**
+   * PATCH /tenant/appointments/:id/confirm
+   *
+   * Manually confirm a pending appointment (e.g., when calendar sync failed).
+   * Sets booking_state to CONFIRMED_MANUAL.
+   * Only allowed on appointments that are not already completed or cancelled.
+   */
+  app.patch("/appointments/:id/confirm", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { tenantId } = request.user as { tenantId: string; email: string };
+    const { id } = request.params as { id: string };
+
+    const rows = await query<{ id: string; booking_state: string }>(
+      `UPDATE appointments
+       SET booking_state = 'CONFIRMED_MANUAL'
+       WHERE id = $1 AND tenant_id = $2
+         AND completed_at IS NULL
+         AND booking_state NOT IN ('CANCELLED', 'CONFIRMED_MANUAL', 'CONFIRMED_CALENDAR')
+       RETURNING id, booking_state`,
+      [id, tenantId]
+    );
+
+    if (rows.length === 0) {
+      return reply.status(404).send({ error: "Appointment not found or already confirmed/completed/cancelled" });
+    }
+
+    return reply.status(200).send({ id: rows[0].id, status: "confirmed" });
+  });
+
+  /**
    * GET /tenant/appointments-summary
    *
    * Single source of truth for the /app/appointments page KPIs.
