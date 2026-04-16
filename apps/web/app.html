@@ -161,7 +161,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .status-sub{font-size:11px;color:rgba(255,255,255,0.4);margin-top:1px}
 
 /* ── MAIN ── */
-.main{flex:1;padding:28px 36px 60px;overflow-x:hidden;min-width:0;background:var(--bg)}
+.main{flex:1;padding:28px 36px 60px;overflow-x:hidden;overflow-y:auto;min-width:0;background:var(--bg);height:calc(100vh - 56px)}
 .page-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:28px;gap:12px;flex-wrap:wrap}
 .page-title{font-family:var(--display);font-size:28px;font-weight:800;color:var(--navy);letter-spacing:.01em;line-height:1.2;text-transform:uppercase}
 .page-subtitle{font-size:14px;color:var(--text-tertiary);margin-top:4px}
@@ -489,7 +489,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .int-meta span{color:var(--text-secondary)}
 
 /* ── TABLES ── */
-.log-wrap{background:#FFFFFF;border:1px solid #E6E1D9;overflow:hidden;border-radius:var(--radius-lg);box-shadow:0 4px 12px rgba(13,27,42,.06)}
+.log-wrap{background:#FFFFFF;border:1px solid #E6E1D9;overflow:visible;border-radius:var(--radius-lg);box-shadow:0 4px 12px rgba(13,27,42,.06)}
 .log-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px}
 .log-title{font-family:var(--display);font-size:15px;font-weight:700;color:var(--navy);letter-spacing:.02em;text-transform:uppercase}
 .log-filters{display:flex;gap:4px;flex-wrap:wrap}
@@ -899,6 +899,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);line-height:
 .appt-status-badge.failed{background:var(--red-light);color:#DC2626}
 .appt-today-meta{display:flex;align-items:center;gap:14px;margin-top:8px;font-size:12px;color:var(--text-tertiary)}
 .appt-today-meta svg{width:13px;height:13px;vertical-align:middle;margin-right:3px}
+.appt-card-actions{display:flex;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
 .appt-upcoming-card{padding:14px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:border-color .15s;margin-bottom:10px}
 .appt-upcoming-card:last-child{margin-bottom:0}
 .appt-upcoming-card:hover{border-color:var(--rust)}
@@ -2250,6 +2251,8 @@ let tenantState = {
   overageCapPct: 120,
   pendingConvLimit: null,
   timezone: 'America/Chicago',
+  locale: 'en-US',
+  currency: 'USD',
   cancelAt: null,
   availablePlans: [],
   _invoices: [],
@@ -2305,6 +2308,79 @@ let apptLoadError = false;
 // Used to prevent injectDemoData() from ever overwriting real data fetched
 // for a paying customer if the API later fails on a refresh.
 let _hasFetchedRealData = false;
+
+// ════════════════════════════════════════════
+// FRONTEND i18n — locale-aware string helper
+// ════════════════════════════════════════════
+var _I18N_STRINGS = {
+  'action.confirm':      { 'en-US': 'Confirm',   'lt-LT': 'Patvirtinti' },
+  'action.cancel':       { 'en-US': 'Cancel',    'lt-LT': 'Atšaukti' },
+  'action.reschedule':   { 'en-US': 'Reschedule','lt-LT': 'Perkelti' },
+  'action.save_changes': { 'en-US': 'Save Changes', 'lt-LT': 'Išsaugoti pakeitimus' },
+  'action.save_hours':   { 'en-US': 'Save Hours', 'lt-LT': 'Išsaugoti valandas' },
+  'action.save_ai':      { 'en-US': 'Save AI Settings', 'lt-LT': 'Išsaugoti AI nustatymus' },
+  'action.reset':        { 'en-US': 'Reset to Defaults', 'lt-LT': 'Atstatyti į numatytus' },
+  'action.export_csv':   { 'en-US': 'Export CSV', 'lt-LT': 'Eksportuoti CSV' },
+  'appointment.confirmed':  { 'en-US': 'Appointment confirmed',  'lt-LT': 'Vizitas patvirtintas' },
+  'appointment.cancelled':  { 'en-US': 'Appointment cancelled',  'lt-LT': 'Vizitas atšauktas' },
+  'appointment.action_needed': { 'en-US': 'Action Needed', 'lt-LT': 'Reikalingas veiksmas' },
+  'appointment.pending_manual': { 'en-US': 'Needs Manual Confirmation', 'lt-LT': 'Reikalingas rankinis patvirtinimas' },
+  'appointment.calendar_sync_failed': { 'en-US': 'Calendar sync failed — confirm this booking manually.', 'lt-LT': 'Kalendoriaus sinchronizacija nepavyko — patvirtinkite vizitą rankiniu būdu.' },
+  'status.booked':    { 'en-US': 'Booked',    'lt-LT': 'Rezervuota' },
+  'status.resolved':  { 'en-US': 'Resolved',  'lt-LT': 'Išspręsta' },
+  'status.active':    { 'en-US': 'Active',    'lt-LT': 'Aktyvus' },
+  'status.no_reply':  { 'en-US': 'No Reply',  'lt-LT': 'Be atsakymo' },
+  'status.lost':      { 'en-US': 'Lost',      'lt-LT': 'Prarastas' },
+  'status.pending':   { 'en-US': 'Pending',   'lt-LT': 'Laukiama' },
+  'status.completed': { 'en-US': 'Completed', 'lt-LT': 'Užbaigtas' },
+  'status.cancelled': { 'en-US': 'Cancelled', 'lt-LT': 'Atšauktas' },
+  'dashboard.title':  { 'en-US': 'Revenue Intelligence Dashboard', 'lt-LT': 'Pajamų analitikos skydelis' },
+  'dashboard.subtitle': { 'en-US': 'Real-time performance metrics and AI-driven customer engagement', 'lt-LT': 'Realaus laiko rodikliai ir AI valdoma klientų komunikacija' },
+  'dashboard.kpi.recovered_revenue': { 'en-US': 'Recovered Revenue', 'lt-LT': 'Susigrąžintos pajamos' },
+  'dashboard.kpi.ai_booked': { 'en-US': 'AI Booked Appointments', 'lt-LT': 'AI užregistruoti vizitai' },
+  'dashboard.kpi.conversations_month': { 'en-US': 'Conversations This Month', 'lt-LT': 'Pokalbiai šį mėnesį' },
+  'dashboard.kpi.open_conversations': { 'en-US': 'Open Conversations', 'lt-LT': 'Atviri pokalbiai' },
+  'dashboard.empty.no_bookings': { 'en-US': 'No completed bookings yet', 'lt-LT': 'Dar nėra užbaigtų vizitų' },
+  'dashboard.empty.no_conversations': { 'en-US': 'No active conversations right now', 'lt-LT': 'Šiuo metu nėra aktyvių pokalbių' },
+  'trial.free_trial':       { 'en-US': 'FREE TRIAL', 'lt-LT': 'NEMOKAMAS BANDYMAS' },
+  'trial.upgrade_now':      { 'en-US': 'Upgrade Now', 'lt-LT': 'Atnaujinti dabar' },
+  'settings.shop_profile':  { 'en-US': 'Shop Profile', 'lt-LT': 'Serviso profilis' },
+  'settings.business_hours':{ 'en-US': 'Business Hours', 'lt-LT': 'Darbo valandos' },
+  'settings.calendar':      { 'en-US': 'Calendar', 'lt-LT': 'Kalendorius' },
+  'settings.ai_behavior':   { 'en-US': 'AI Behavior', 'lt-LT': 'AI elgsena' },
+  'day.monday':    { 'en-US': 'Monday',    'lt-LT': 'Pirmadienis' },
+  'day.tuesday':   { 'en-US': 'Tuesday',   'lt-LT': 'Antradienis' },
+  'day.wednesday': { 'en-US': 'Wednesday', 'lt-LT': 'Trečiadienis' },
+  'day.thursday':  { 'en-US': 'Thursday',  'lt-LT': 'Ketvirtadienis' },
+  'day.friday':    { 'en-US': 'Friday',    'lt-LT': 'Penktadienis' },
+  'day.saturday':  { 'en-US': 'Saturday',  'lt-LT': 'Šeštadienis' },
+  'day.sunday':    { 'en-US': 'Sunday',    'lt-LT': 'Sekmadienis' },
+  'day.closed':    { 'en-US': 'Closed',    'lt-LT': 'Uždarytas' },
+  'conv.tone.professional': { 'en-US': 'Professional', 'lt-LT': 'Profesionalus' },
+  'conv.tone.friendly':     { 'en-US': 'Friendly',     'lt-LT': 'Draugiškas' },
+  'conv.tone.direct':       { 'en-US': 'Direct',       'lt-LT': 'Tiesus' },
+};
+
+function _t(key, replacements) {
+  var locale = (tenantState && tenantState.locale) || 'en-US';
+  var entry = _I18N_STRINGS[key];
+  var str = (entry && entry[locale]) || (entry && entry['en-US']) || key;
+  if (replacements) {
+    for (var k in replacements) {
+      str = str.replace('{' + k + '}', String(replacements[k]));
+    }
+  }
+  return str;
+}
+
+// Also read locale from session storage on load (before dashboard fetch)
+(function _initLocaleFromSession() {
+  try {
+    var s = JSON.parse(localStorage.getItem('autoshop_session') || '{}');
+    if (s.locale) tenantState.locale = s.locale;
+    if (s.currency) tenantState.currency = s.currency;
+  } catch(e) {}
+})();
 
 // ════════════════════════════════════════════
 // DEMO MODE — sample data for new accounts
@@ -2753,6 +2829,8 @@ async function loadDashboardData() {
     tenantState.billingRenewalDate = t.cycle_reset_at ? new Date(t.cycle_reset_at).toISOString().slice(0,10) : '';
     tenantState.cancelAt = t.cancel_at || null;
     tenantState.timezone = t.timezone || 'America/Chicago';
+    tenantState.locale = t.locale || 'en-US';
+    tenantState.currency = t.currency || 'USD';
     tenantState.availablePlans = data.available_plans || [];
 
     // Integrations
@@ -4471,7 +4549,7 @@ function renderBookings() {
     } else if (b.syncStatus === 'failed') {
       action = `<span style="font-family:var(--mono);font-size:11px;color:var(--red);font-weight:600;">Failed</span>`;
     } else if (b.syncStatus === 'pending') {
-      action = `<span style="font-family:var(--mono);font-size:11px;color:var(--rust);font-weight:600;">Action Needed</span>`;
+      action = `<div class="row-actions"><button class="view-btn" onclick="confirmAppointment('${b.id}')">${_t('action.confirm')}</button><button class="view-btn red" onclick="cancelAppointment('${b.id}')">${_t('action.cancel')}</button></div>`;
     } else if (isStale) {
       action = `<span style="font-family:var(--mono);font-size:11px;color:#9CA3AF;font-weight:600;">Overdue</span>`;
     } else {
@@ -5868,6 +5946,43 @@ async function cancelAppointment(apptId) {
 }
 
 // ════════════════════════════════════════════
+// CONFIRM APPOINTMENT
+// ════════════════════════════════════════════
+async function confirmAppointment(apptId) {
+  if (_isDemoMode) { showUpgradeModal(); return; }
+
+  var token = localStorage.getItem('autoshop_jwt');
+  if (!token) { showToast('Session expired — please log in again.'); return; }
+
+  try {
+    var res = await fetch('/tenant/appointments/' + apptId + '/confirm', {
+      method: 'PATCH',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) {
+      var err = await res.json().catch(function() { return {}; });
+      showToast(err.error || 'Failed to confirm appointment.');
+      return;
+    }
+    // Update local data
+    var b = bookingsData.find(function(x) { return x.id === apptId; });
+    if (b) {
+      b.bookingState = 'CONFIRMED_MANUAL';
+      b.syncStatus = 'synced';
+      b.syncLabel = 'Confirmed (Manual)';
+      b.failNote = '';
+    }
+    renderBookings();
+    await Promise.all([loadApptSummary(), loadConversationsData()]);
+    renderAppointmentsPage();
+    renderFullConvTable(conversationsData);
+    showToast(_t('appointment.confirmed'));
+  } catch (e) {
+    showToast('Network error — please try again.');
+  }
+}
+
+// ════════════════════════════════════════════
 // BUSINESS HOURS — save/load
 // ════════════════════════════════════════════
 function readBusinessHoursForm() {
@@ -6675,6 +6790,13 @@ function renderAppointmentsPage() {
         var source = b.source;
         var sc = statusCls(b.syncStatus);
         var sl = statusLabel(b.syncStatus);
+        var cardActions = '';
+        if (sc === 'pending') {
+          cardActions = '<div class="appt-card-actions">' +
+            '<button class="btn-sm primary" onclick="confirmAppointment(\'' + b.id + '\')">' + _t('action.confirm') + '</button>' +
+            '<button class="btn-sm red-btn" onclick="cancelAppointment(\'' + b.id + '\')">' + _t('action.cancel') + '</button>' +
+          '</div>';
+        }
         return '<div class="appt-today-card">' +
           '<div class="appt-time-block">' + h + '<span class="appt-time-ampm">' + ampm + '</span></div>' +
           '<div class="appt-today-body">' +
@@ -6685,6 +6807,7 @@ function renderAppointmentsPage() {
               '<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' + (b.duration || '—') + '</span>' +
               '<span>' + srcIcon(source) + ' ' + source + '</span>' +
             '</div>' +
+            cardActions +
           '</div>' +
         '</div>';
       }).join('');
@@ -6704,6 +6827,13 @@ function renderAppointmentsPage() {
         var source = b.source;
         var sc = statusCls(b.syncStatus);
         var sl = statusLabel(b.syncStatus);
+        var upActions = '';
+        if (sc === 'pending') {
+          upActions = '<div class="appt-card-actions">' +
+            '<button class="btn-sm primary" onclick="confirmAppointment(\'' + b.id + '\')">' + _t('action.confirm') + '</button>' +
+            '<button class="btn-sm red-btn" onclick="cancelAppointment(\'' + b.id + '\')">' + _t('action.cancel') + '</button>' +
+          '</div>';
+        }
         return '<div class="appt-upcoming-card">' +
           '<div class="appt-upcoming-date">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' +
@@ -6716,6 +6846,7 @@ function renderAppointmentsPage() {
             '<span class="appt-status-badge ' + sc + '">' + sl + '</span>' +
             '<span class="appt-source-inline">' + srcIcon(source) + ' ' + escHtml(source) + '</span>' +
           '</div>' +
+          upActions +
         '</div>';
       }).join('');
     }

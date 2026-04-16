@@ -479,6 +479,9 @@ async function handleLogin(e) {
         email:    email,
         tenantId: data.tenantId,
         shopName: data.shopName,
+        locale:   data.locale || 'en-US',
+        currency: data.currency || 'USD',
+        timezone: data.timezone || 'America/Chicago',
         loginAt:  Date.now()
       }));
       if (data.shopName) localStorage.setItem('tenant_name', data.shopName);
