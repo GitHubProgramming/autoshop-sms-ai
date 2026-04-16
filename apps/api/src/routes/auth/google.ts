@@ -443,8 +443,11 @@ export async function googleAuthRoute(app: FastifyInstance) {
         id: string;
         shop_name: string;
         owner_email: string;
+        locale: string;
+        currency: string;
+        timezone: string;
       }>(
-        `SELECT id, shop_name, owner_email FROM tenants WHERE owner_email = $1 LIMIT 1`,
+        `SELECT id, shop_name, owner_email, locale, currency, timezone FROM tenants WHERE owner_email = $1 LIMIT 1`,
         [normalizedEmail]
       );
 
@@ -491,7 +494,7 @@ export async function googleAuthRoute(app: FastifyInstance) {
             "New tenant created via Google signup — demo mode"
           );
 
-          tenant = { id: tenantId, shop_name: "My Shop", owner_email: normalizedEmail };
+          tenant = { id: tenantId, shop_name: "My Shop", owner_email: normalizedEmail, locale: "en-US", currency: "USD", timezone: "America/Chicago" };
           isNewAccount = true;
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : "unknown";
@@ -513,7 +516,13 @@ export async function googleAuthRoute(app: FastifyInstance) {
 
       // Issue JWT — same format as email/password login
       const jwt = app.jwt.sign(
-        { tenantId: tenant.id, email: tenant.owner_email },
+        {
+          tenantId: tenant.id,
+          email: tenant.owner_email,
+          locale: tenant.locale || "en-US",
+          currency: tenant.currency || "USD",
+          timezone: tenant.timezone || "America/Chicago",
+        },
         { expiresIn: "24h" }
       );
 
