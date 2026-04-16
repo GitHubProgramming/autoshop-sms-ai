@@ -6,8 +6,8 @@ import { query } from "../../db/client";
 // Extend @fastify/jwt types so request.user is typed throughout the app
 declare module "@fastify/jwt" {
   interface FastifyJWT {
-    payload: { tenantId: string; email: string };
-    user: { tenantId: string; email: string };
+    payload: { tenantId: string; email: string; locale: string; currency: string; timezone: string };
+    user: { tenantId: string; email: string; locale: string; currency: string; timezone: string };
   }
 }
 
@@ -58,8 +58,11 @@ export async function loginRoute(app: FastifyInstance) {
       shop_name: string;
       owner_email: string;
       password_hash: string | null;
+      locale: string;
+      currency: string;
+      timezone: string;
     }>(
-      "SELECT id, shop_name, owner_email, password_hash FROM tenants WHERE owner_email = $1 LIMIT 1",
+      "SELECT id, shop_name, owner_email, password_hash, locale, currency, timezone FROM tenants WHERE owner_email = $1 LIMIT 1",
       [normalizedEmail]
     );
     const tenant = rows[0];
@@ -106,7 +109,13 @@ export async function loginRoute(app: FastifyInstance) {
     } catch { /* Redis down — skip */ }
 
     const token = app.jwt.sign(
-      { tenantId: tenant.id, email: tenant.owner_email },
+      {
+        tenantId: tenant.id,
+        email: tenant.owner_email,
+        locale: tenant.locale || "en-US",
+        currency: tenant.currency || "USD",
+        timezone: tenant.timezone || "America/Chicago",
+      },
       { expiresIn: "24h" }
     );
 
@@ -116,6 +125,9 @@ export async function loginRoute(app: FastifyInstance) {
       token,
       tenantId: tenant.id,
       shopName: tenant.shop_name,
+      locale: tenant.locale || "en-US",
+      currency: tenant.currency || "USD",
+      timezone: tenant.timezone || "America/Chicago",
     });
   });
 
