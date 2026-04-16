@@ -14,6 +14,9 @@ export type BillingStatus =
 export type WorkspaceMode = "demo" | "live_empty" | "live_active";
 export type ProvisioningState = "not_started" | "pending_setup" | "provisioning" | "ready" | "error";
 
+export type Locale = "en-US" | "lt-LT";
+export type Currency = "USD" | "EUR";
+
 export interface Tenant {
   id: string;
   shop_name: string;
@@ -32,6 +35,9 @@ export interface Tenant {
   provisioning_state: ProvisioningState;
   provisioning_error_reason: string | null;
   is_pilot_tenant: boolean;
+  locale: Locale;
+  currency: Currency;
+  timezone: string;
 }
 
 /**
