@@ -128,7 +128,7 @@ For architecture rules and constraints, see `PROJECT_TRUTH.md` and `ARCHITECTURE
 ### 3.9 Project Brain / Truth Layer
 
 - **Path:** `project-brain/`
-- **Key files:** `AI_BOOT_SEQUENCE.md`, `PROJECT_TRUTH.md`, `ARCHITECTURE_LOCK.md`, `EXECUTION_POLICY.md`, `SYSTEM_MAP.md`, `PAGE_MAP.md`, `FILE_INDEX.md`, `project_status_v2.json`, `project_status.md`
+- **Key files:** `AI_BOOT_SEQUENCE.md`, `PROJECT_TRUTH.md`, `ARCHITECTURE_LOCK.md`, `EXECUTION_POLICY.md`, `SYSTEM_MAP.md`, `PAGE_MAP.md`, `FILE_INDEX.md`, `LT_PILOT_ARCHITECTURE.md`, `project_status_v2.json`, `project_status.md`
 - **Responsibility:** AI agent knowledge base, project status tracking
 - **Edit safety:** Safe to read. Updates to status files must follow JSON-first rule.
 
