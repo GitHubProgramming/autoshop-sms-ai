@@ -47,6 +47,7 @@ import { devLoopRoute } from "./routes/internal/dev-loop";
 import { devLoopExecuteRoute } from "./routes/internal/dev-loop-execute";
 import { leadsRoute } from "./routes/internal/leads";
 import { zadarmaWebhookRoute } from "./routes/internal/zadarma-webhook";
+import { adminCooldownsRoute } from "./routes/internal/admin-cooldowns";
 import { db } from "./db/client";
 import { redis } from "./queues/redis";
 import { deadLetterQueue } from "./queues/dead-letter";
@@ -172,6 +173,7 @@ async function bootstrap() {
   // Zadarma's Notifications URL cannot send custom auth headers, so this
   // endpoint must be publicly reachable. See zadarma-webhook.ts for details.
   await app.register(zadarmaWebhookRoute, { prefix: "/internal" });
+  await app.register(adminCooldownsRoute, { prefix: "/internal" });
   await app.register(googleAuthRoute, { prefix: "/auth/google" });
   await app.register(loginRoute, { prefix: "/auth" });
   await app.register(signupRoute, { prefix: "/auth" });
