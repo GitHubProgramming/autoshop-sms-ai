@@ -1,30 +1,35 @@
 import { FastifyInstance } from "fastify";
 import { query } from "../../db/client";
-import { fetchWithTimeout } from "../../utils/fetch-with-timeout";
+import { handleMissedCallSms } from "../../services/missed-call-sms";
 
 /**
  * GET + POST /internal/zadarma-webhook
  *
- * Proxy between Zadarma PBX Notifications and our n8n webhook.
+ * Direct handler for Zadarma PBX Notifications. Replaces the previous
+ * n8n-mediated flow (n8n free plan expired 2026-05-09 — workflow
+ * webhook returns 404, breaking missed-call SMS).
  *
- * WHY THIS EXISTS:
- *   Zadarma's Notifications URL configuration does NOT support custom auth
- *   headers — it only sends raw POST payloads and expects the endpoint to
- *   respond to a GET ?zd_echo=<token> URL-verification challenge.
- *   Our n8n webhook requires an x-zadarma-secret header for auth.
- *   This endpoint bridges the two: it accepts unauthenticated calls from
- *   Zadarma, then forwards events to n8n with the correct auth header.
+ * Flow:
+ *   Zadarma → POST /internal/zadarma-webhook
+ *     → audit-log raw event
+ *     → if NOTIFY_END with valid external caller, call handleMissedCallSms()
+ *     → SMS sent via Twilio (LT pilot routes through `From=<ourPhone>`)
  *
- * SECURITY NOTE:
- *   This route is registered WITHOUT the requireInternal middleware even
- *   though it lives under /internal/*. This is intentional — Zadarma
+ * SECURITY:
+ *   This route is registered WITHOUT requireInternal middleware. Zadarma
  *   cannot send our x-internal-key header. The GET handler is idempotent
- *   (just echoes a string), and the POST handler only forwards to a
- *   hardcoded internal URL — no data is exposed or mutated externally.
+ *   (echoes the zd_echo verification token); the POST handler only acts
+ *   on a hardcoded LT pilot tenant ID and is safe to invoke unauth'd.
  */
+const LT_PILOT_TENANT_ID = "7d82ab25-e991-4d13-b4ac-846865f8b85a";
+const LT_PILOT_OUR_PHONE = "+37066806130";
 
-const DEFAULT_N8N_URL =
-  "https://bandomasis.app.n8n.cloud/webhook/lt-zadarma-missed-call";
+function normalizePhone(raw: unknown): string {
+  if (typeof raw !== "string") return "";
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  return trimmed.startsWith("+") ? trimmed : `+${trimmed}`;
+}
 
 export async function zadarmaWebhookRoute(app: FastifyInstance) {
   // ── GET: Zadarma URL verification (zd_echo) + health check ──────────
@@ -41,79 +46,88 @@ export async function zadarmaWebhookRoute(app: FastifyInstance) {
           .send(zd_echo);
       }
 
-      // No zd_echo — treat as health check
       return reply.status(200).send({ ok: true, status: "ready" });
     }
   );
 
-  // ── POST: Forward Zadarma event payload to n8n ──────────────────────
+  // ── POST: Process Zadarma event directly (no n8n) ───────────────────
   app.post(
     "/zadarma-webhook",
     async (request, reply) => {
-      const payload = request.body as Record<string, unknown> | null;
+      const payload = (request.body ?? {}) as Record<string, unknown>;
 
       request.log.info(
         { zadarma_event: payload },
         "Zadarma webhook event received"
       );
 
-      const webhookSecret = process.env.ZADARMA_WEBHOOK_SECRET;
-      if (!webhookSecret) {
-        request.log.warn(
-          "ZADARMA_WEBHOOK_SECRET not set — cannot forward to n8n"
-        );
-        // Still return 200 so Zadarma doesn't retry
-        return reply
-          .status(200)
-          .send({ ok: false, error: "webhook_secret_not_configured" });
-      }
+      const eventType =
+        typeof payload.event === "string" ? payload.event : null;
+      const callerRaw = payload.caller_id;
+      const calledRaw = payload.called_did;
+      const customerPhone = normalizePhone(callerRaw);
+      const calledNumber = normalizePhone(calledRaw);
+      const callStatus =
+        typeof payload.call_status === "string" ? payload.call_status : null;
+      const pbxCallId =
+        typeof payload.pbx_call_id === "string" ? payload.pbx_call_id : null;
 
-      const n8nUrl =
-        process.env.N8N_LT_ZADARMA_WEBHOOK_URL ?? DEFAULT_N8N_URL;
-
-      let n8nStatus: number | null = null;
-      let forwarded = false;
-
-      try {
-        const res = await fetchWithTimeout(
-          n8nUrl,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-zadarma-secret": webhookSecret,
+      // Trigger missed-call SMS only on NOTIFY_END (one event per call
+      // lifecycle — START/INTERNAL would triple-fire). Skip self-calls
+      // and events with no external caller.
+      let processed = false;
+      let processStatus: number | null = null;
+      if (
+        eventType === "NOTIFY_END" &&
+        customerPhone &&
+        customerPhone !== calledNumber
+      ) {
+        try {
+          const result = await handleMissedCallSms({
+            tenantId: LT_PILOT_TENANT_ID,
+            ourPhone: LT_PILOT_OUR_PHONE,
+            customerPhone,
+            callSid: `zadarma-${pbxCallId ?? Date.now()}`,
+            callStatus: "no-answer",
+          });
+          processed = true;
+          processStatus = result.success ? 200 : 500;
+          request.log.info(
+            {
+              tenant_id: LT_PILOT_TENANT_ID,
+              customer_phone: customerPhone,
+              sms_sent: result.smsSent,
+              twilio_sid: result.twilioSid,
+              service_error: result.error,
             },
-            body: JSON.stringify(payload ?? {}),
-          },
-          10_000
-        );
-        n8nStatus = res.status;
-        forwarded = true;
-        request.log.info(
-          { n8n_status: n8nStatus },
-          "Zadarma event forwarded to n8n"
-        );
-      } catch (err) {
-        request.log.error(
-          { err: err instanceof Error ? err.message : String(err) },
-          "Failed to forward Zadarma event to n8n"
-        );
+            "Missed-call SMS processed"
+          );
+        } catch (err) {
+          // Never let a service failure escape — Zadarma retries on non-200.
+          request.log.error(
+            { err: err instanceof Error ? err.message : String(err) },
+            "handleMissedCallSms threw — Zadarma still gets 200"
+          );
+          processStatus = 500;
+        }
       }
 
       // Persist audit row — best-effort, never block the 200 response.
+      // The forwarded_to_n8n / n8n_response_status columns now record
+      // direct-processing outcome (kept for schema stability).
       try {
         await query(
           `INSERT INTO zadarma_events
              (event_type, caller_id, called_did, call_status, raw_payload, forwarded_to_n8n, n8n_response_status)
            VALUES ($1, $2, $3, $4, $5, $6, $7)`,
           [
-            (payload as Record<string, unknown>)?.event ?? null,
-            (payload as Record<string, unknown>)?.caller_id ?? null,
-            (payload as Record<string, unknown>)?.called_did ?? null,
-            (payload as Record<string, unknown>)?.call_status ?? null,
-            JSON.stringify(payload ?? {}),
-            forwarded,
-            n8nStatus,
+            eventType,
+            callerRaw ?? null,
+            calledRaw ?? null,
+            callStatus,
+            JSON.stringify(payload),
+            processed,
+            processStatus,
           ]
         );
       } catch (err) {
@@ -123,12 +137,7 @@ export async function zadarmaWebhookRoute(app: FastifyInstance) {
         );
       }
 
-      // Always return 200 — Zadarma retries aggressively on non-200.
-      return reply.status(200).send({
-        ok: true,
-        forwarded,
-        n8n_status: n8nStatus,
-      });
+      return reply.status(200).send({ ok: true, processed });
     }
   );
 }
