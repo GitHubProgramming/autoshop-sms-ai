@@ -2,12 +2,12 @@
 
 ## Status
 
-- **Current state:** PARTIAL
+- **Current state:** WORKING (synthetic E2E)
   - Inbound SMS → AI conversation → booking: **WORKING** (verified Apr 14 2026 production run).
-  - Missed call → SMS trigger: **BROKEN** — n8n → `/internal/missed-call-sms` returns 400 on real payloads (payload mapping error in n8n workflow, not a backend bug — the backend endpoint returns 200 when called directly with a correct payload).
-- **Last verified:** 2026-04-19
-- **Commit on main at audit time:** `a455a25`
-- **Render deploy commit:** `a455a2523a10826eafe2a85ee1f55b3439d2d703` (from `/health`)
+  - Missed call → SMS trigger: **WORKING via direct backend processing** (PR #516, deployed 2026-05-09 12:50 UTC). n8n decommissioned — free plan expired, workflow webhook returned 404 on every forward; backend now parses Zadarma payloads and calls `handleMissedCallSms()` inline. Synthetic NOTIFY_END POST → Twilio SID `SMd32c12aa26048ddf85b8af71915e1ab4` returned. Real-call verification still pending on user side.
+- **Last verified:** 2026-05-09
+- **Commit on main at audit time:** `9fd71e5`
+- **Render deploy commit:** `9fd71e5a237043ccd2f6e87e0227b8b19ee71d0a` (from `/health`)
 
 ## Quick Reference
 
@@ -23,7 +23,7 @@
 | LT Twilio voice_url | `null` (voice capability disabled) |
 | Zadarma number | `+37045512300` |
 | Zadarma purpose | Voice-only (missed-call detection — Twilio LT has no voice DIDs) |
-| Zadarma webhook proxy | `https://autoshop-api-7ek9.onrender.com/internal/zadarma-webhook` |
+| Zadarma webhook handler | `https://autoshop-api-7ek9.onrender.com/internal/zadarma-webhook` (direct — no n8n) |
 | Tenant UUID | `7d82ab25-e991-4d13-b4ac-846865f8b85a` |
 | Tenant slug | `lt-proteros-servisas` |
 | Tenant email | `mantas.gipiskis+lt@gmail.com` |
@@ -32,7 +32,7 @@
 | Tenant currency | `EUR` |
 | Tenant timezone | `Europe/Vilnius` |
 | Tenant billing_status | `trial` (90-day, 500 conversation limit) |
-| n8n webhook URL | `https://bandomasis.app.n8n.cloud/webhook/lt-zadarma-missed-call` |
+| n8n | **DECOMMISSIONED** — free plan expired 2026-05-09; missed-call SMS is now handled inline by the backend. Workflow JSON kept in `n8n-workflows/` for reference only. |
 | Backend origin | `https://autoshop-api-7ek9.onrender.com` |
 | Render service ID | `srv-d6n7qavgi27c73c9ap10` |
 | Render owner ID | `tea-d6n7ehvtskes73e90otg` |
@@ -40,32 +40,32 @@
 
 ## Architecture Diagram (text)
 
-### Missed Call → SMS Flow (BROKEN at n8n mapping)
+### Missed Call → SMS Flow (direct backend, post PR #516)
 
 ```
 Customer calls +37067577829 (Mantas Telia)
   → Telia GSM conditional forward (**61*+37045512300*10# — 10s no-answer)
   → +37045512300 (Zadarma LT DID)
   → Zadarma PBX Scenario #11 (5s timeout, Extension 101)
-  → No answer → NOTIFY_END event (disposition=cancel, status_code=16)
+  → Voicemail or no answer → NOTIFY_END event
+     (disposition observed in production: "answered" when voicemail picks up,
+      "cancel" when caller hangs up first; status_code=16 for normal clearing)
   → Zadarma Notifications POST → /internal/zadarma-webhook
-  → Backend proxy persists audit row in zadarma_events
-  → Backend proxy forwards payload + x-zadarma-secret header
-  → POST https://bandomasis.app.n8n.cloud/webhook/lt-zadarma-missed-call
-  → n8n workflow "WF-LT-ZADARMA-MISSED-CALL" parses Zadarma event
-  → n8n HTTP Request node → POST /internal/missed-call-sms
-  → ❌ 400 Bad Request (zod validation fails — n8n mapping error)
-  → SMS never sent
+  → Backend persists audit row in zadarma_events
+  → Backend filters: event_type === "NOTIFY_END" AND caller is external
+     (NOTIFY_START / NOTIFY_INTERNAL skipped to avoid triple-fire)
+  → Backend calls handleMissedCallSms() directly (same service used by US flow)
+     - opens or reuses conversation (Redis SETNX + FOR UPDATE dedupe)
+     - records missed_calls audit row
+     - sends Twilio SMS from +37066806130 (LT mobile, isPilot=true path)
+     - logs synthetic inbound + outbound messages
+  → SMS lands on caller's phone
+  → Customer can reply → existing inbound-SMS → AI flow takes over
 ```
 
-**Known failing validation** — `BodySchema` in `apps/api/src/routes/internal/missed-call-sms.ts` requires:
-- `tenantId` (UUID)
-- `customerPhone` (E.164 `^\+\d{7,15}$`)
-- `ourPhone` (E.164)
-- `callSid` (non-empty string ≤200)
-- `callStatus` (non-empty string ≤64)
-
-Real Zadarma NOTIFY_END has `caller_id` with `+` prefix but `called_did` without (`"37045512300"`), `pbx_call_id` instead of `callSid`, and `disposition`/`status_code` instead of `call_status`. n8n mapping must construct the expected shape — currently it does not.
+The proxy never touches n8n. `ZADARMA_WEBHOOK_SECRET` and
+`N8N_LT_ZADARMA_WEBHOOK_URL` are still in Render env config but are no
+longer read by code (cleanup deferred to a follow-up env-var PR).
 
 ### Inbound SMS → AI Conversation Flow (WORKING)
 
@@ -96,11 +96,10 @@ Customer sends SMS to +37066806130 (Twilio LT)
 | Twilio inbound SMS webhook configured | WORKING | `sms_url` set to `/webhooks/twilio/sms` |
 | Twilio outbound SMS send | WORKING | Live probe of `/internal/missed-call-sms` returned `twilioSid` `SMe50555…` |
 | Twilio historical SMS traffic (Apr 13–14) | WORKING | 10+ delivered outbound, 10+ received inbound in 7-day window |
-| Zadarma proxy echo (`zd_echo`) | WORKING | GET `/internal/zadarma-webhook?zd_echo=auditcheck` → `200 auditcheck` |
-| Zadarma → backend forwarding | WORKING | Render logs show NOTIFY_START / NOTIFY_INTERNAL / NOTIFY_END persisted |
-| Backend → n8n forwarding | WORKING | Render logs show `n8n_status: 200` on every real event |
-| n8n webhook reachable | WORKING | Direct POST with shared secret → `{"ok":true}` HTTP 200 |
-| n8n → `/internal/missed-call-sms` payload mapping | **BROKEN** | Render logs show `statusCode: 400` on all 3 real/synthetic call attempts (req-1b2m, req-1b49, req-1b4e) |
+| Zadarma webhook echo (`zd_echo`) | WORKING | GET `/internal/zadarma-webhook?zd_echo=ping` → `200 ping` |
+| Zadarma → backend delivery | WORKING | Render logs show NOTIFY_START / NOTIFY_INTERNAL / NOTIFY_END persisted |
+| Direct backend missed-call processing (no n8n) | WORKING | Synthetic NOTIFY_END POST 2026-05-09 12:51 UTC → Twilio SID `SMd32c12aa26048ddf85b8af71915e1ab4`; deduped second POST returned `sms_sent: false` as expected |
+| n8n forwarding | DECOMMISSIONED | Free plan expired; route no longer touches n8n (PR #516) |
 | `/internal/missed-call-sms` endpoint (backend logic) | WORKING | Direct call with valid body → 200 + Twilio SID |
 | `/internal/process-sms` endpoint | WORKING | Route registered; validation works (400 on empty body with correct error details) |
 | `/internal/lt-recent-conversations` | WORKING | Returns messages for tenant slug |
@@ -119,12 +118,12 @@ Customer sends SMS to +37066806130 (Twilio LT)
 - AI conversation service: `apps/api/src/services/process-sms.ts`
 - Booking detection: `apps/api/src/services/booking-intent.ts`
 - Twilio inbound webhook: `apps/api/src/routes/webhooks/twilio-sms.ts`
-- Zadarma proxy: `apps/api/src/routes/internal/zadarma-webhook.ts`
+- Zadarma webhook handler (direct missed-call processing): `apps/api/src/routes/internal/zadarma-webhook.ts`
 - LT tenant utils (slug → UUID): `apps/api/src/utils/lt-tenant.ts`
 - Backend i18n helpers: `apps/api/src/utils/i18n.ts`
 - Frontend i18n: `apps/web/app.html` (`_I18N_STRINGS` + `_t()`)
-- n8n workflow: `n8n-workflows/WF-LT-ZADARMA-MISSED-CALL.json`
-- n8n workflow notes: `n8n-workflows/WF-LT-ZADARMA-MISSED-CALL.md`
+- n8n workflow (reference only — decommissioned): `n8n-workflows/WF-LT-ZADARMA-MISSED-CALL.json`
+- n8n workflow notes (reference only — decommissioned): `n8n-workflows/WF-LT-ZADARMA-MISSED-CALL.md`
 - System prompt v2: `db/migrations/044_lt_system_prompt_v2.sql`
 - Tenant creation: `db/migrations/040_create_lt_pilot_tenant.sql`
 - Twilio number wiring: `db/migrations/041_lt_twilio_number.sql`
@@ -165,6 +164,8 @@ Customer sends SMS to +37066806130 (Twilio LT)
 | #512 | fix(dashboard): P0 blockers — overflow scroll, appointment confirm, frontend i18n |
 | #513 | feat(dashboard): Lithuanian localization for LT tenants (US unchanged) |
 | #514 | fix(build): add locale/currency/timezone to Google OAuth + signup JWT signs |
+| #515 | docs(lt-pilot): add LT pilot architecture knowledge base |
+| #516 | feat(lt-pilot): process missed calls directly in zadarma webhook — remove n8n dependency |
 
 ## Known Limitations
 
@@ -206,24 +207,25 @@ ZADARMA_API_SECRET
 ZADARMA_WEBHOOK_SECRET
 ```
 
-All required keys for the LT pilot are present (`TWILIO_LT_FROM_NUMBER`, `ZADARMA_*`, `N8N_LT_ZADARMA_WEBHOOK_URL`, `INTERNAL_API_KEY`). Values are [REDACTED] — fetch with Render API if needed (do not paste into docs).
+All required keys for the LT pilot are present (`TWILIO_LT_FROM_NUMBER`, `ZADARMA_*`, `INTERNAL_API_KEY`). `N8N_LT_ZADARMA_WEBHOOK_URL` and `ZADARMA_WEBHOOK_SECRET` are no longer read by code (n8n decommissioned PR #516) — safe to remove in a cleanup PR. Values are [REDACTED] — fetch with Render API if needed (do not paste into docs).
 
 ## Troubleshooting
 
 - **Deploy fails:** confirm `PORT=3000` and `NODE_ENV=production` still present after any `PUT /env-vars` — Render's endpoint replaces the full set (see `feedback_render_env_vars.md`).
 - **Outbound SMS not sending:** confirm `TWILIO_LT_FROM_NUMBER` env var is `+37066806130` and `tenant_phone_numbers` row for the LT tenant is `status='active'`.
 - **Inbound SMS not routing:** confirm `tenant_phone_numbers` has exactly one active row for `+37066806130` pointing at the LT tenant UUID.
-- **n8n not forwarding:** confirm the workflow is Active, `x-zadarma-secret` credential matches backend env, and the HTTP Request node body includes `tenantId`, `customerPhone`, `ourPhone`, `callSid`, `callStatus` (the current blocker).
+- **Missed-call SMS not firing:** check Render logs for `"Missed-call SMS processed"` entries. Filter checks `event === "NOTIFY_END"` and `caller_id !== called_did` and non-empty caller. If `processed: false` in logs, payload didn't match (e.g., NOTIFY_START / NOTIFY_INTERNAL events fire too — only NOTIFY_END triggers SMS). If `service_error` is set in the log, see `handleMissedCallSms` return values (tenant blocked, conversation race, Twilio creds missing, etc.).
 - **Cooldown blocking conversations during debugging:** `DELETE FROM customer_cooldowns WHERE customer_phone='<E.164>' AND tenant_id='<uuid>';`
 - **Zadarma Notifications URL drift:** after any Render env-var rewrite, verify the Zadarma dashboard still points at `/internal/zadarma-webhook` (NEEDS CHROME VERIFICATION — not callable from CLI).
 
 ## What's NOT Done Yet
 
-1. **Fix n8n → `/internal/missed-call-sms` payload mapping** — single-node edit in WF-LT-ZADARMA-MISSED-CALL; emit `tenantId` (resolved from `called_did`), `customerPhone` (`caller_id`), `ourPhone` (`called_did` with `+` prefix ensured), `callSid` (`pbx_call_id`), `callStatus` (derived from `disposition`). Gate on `event == "NOTIFY_END" && duration == "0"` to avoid triple-firing.
-2. **Google Calendar OAuth** for LT tenant (user action: click "Connect Calendar" in dashboard).
-3. **System prompt v3** — tighten slot-invention behavior.
-4. **Dashboard i18n gap closure** — remaining English strings (trial banner, analytics).
-5. **BullMQ retry backoff tuning** — 3 retries are currently too fast for Zadarma transient hiccups.
+1. **Real-call end-to-end verification** — synthetic NOTIFY_END POST is proven (Twilio SID returned); a live call from `+37067577829` to `+37045512300` that goes to voicemail should fire SMS via the same code path. Pending user-side test.
+2. **Cleanup PR for unused n8n env vars** — `ZADARMA_WEBHOOK_SECRET` and `N8N_LT_ZADARMA_WEBHOOK_URL` are still in Render config; safe to remove in a follow-up.
+3. **Google Calendar OAuth** for LT tenant (user action: click "Connect Calendar" in dashboard).
+4. **System prompt v3** — tighten slot-invention behavior.
+5. **Dashboard i18n gap closure** — remaining English strings (trial banner, analytics).
+6. **BullMQ retry backoff tuning** — 3 retries are currently too fast for Zadarma transient hiccups.
 
 ## Verification Commands Used For This Audit
 
@@ -242,11 +244,11 @@ curl -sS -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
 curl -sS -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
   "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_ACCOUNT_SID/AvailablePhoneNumbers/LT/Mobile.json?VoiceEnabled=true&SmsEnabled=true"
 
-# n8n
-curl -sS -X POST "https://bandomasis.app.n8n.cloud/webhook/lt-zadarma-missed-call" \
-  -H "x-zadarma-secret: $ZADARMA_WEBHOOK_SECRET" \
+# Missed-call SMS (direct backend, no n8n)
+curl -sS -X POST "https://autoshop-api-7ek9.onrender.com/internal/zadarma-webhook" \
   -H "Content-Type: application/json" \
-  -d '{"event":"NOTIFY_END","caller_id":"+37060000000","called_did":"+37045512300","call_status":"no answer"}'
+  -d '{"event":"NOTIFY_END","caller_id":"+37060000000","called_did":"37045512300","pbx_call_id":"synthetic_test","disposition":"answered","status_code":"16","duration":"10"}'
+# expected: {"ok":true,"processed":true} — and "Missed-call SMS processed" log entry
 
 # Render
 curl -sS -H "Authorization: Bearer $RENDER_TOKEN" \
