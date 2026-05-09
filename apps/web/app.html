@@ -5454,6 +5454,9 @@ function switchView(view, opts) {
       history.pushState({ view: view }, '', newPath + window.location.search);
     }
   }
+
+  // Start/stop auto-refresh polling for the new view (no-op if already armed)
+  applyPollingForView(view);
 }
 
 // Handle browser back/forward
@@ -5461,6 +5464,122 @@ window.addEventListener('popstate', function(e) {
   var view = (e.state && e.state.view) ? e.state.view : getViewFromPath();
   switchView(view, { skipPush: true });
 });
+
+// ════════════════════════════════════════════
+// AUTO-REFRESH POLLING
+// ════════════════════════════════════════════
+// Re-fetches data on the active view so new SMS messages and KPI
+// changes appear without a page reload. Uses the same authenticated
+// endpoints as the initial loads — pure-frontend addition with zero
+// backend impact and no LT/US tenant divergence.
+//
+// Ticks are gated on document.visibilityState (paused when tab hidden)
+// and on JWT presence (paused when logged out). Intervals stay armed;
+// each tick decides whether to fire.
+var _convPollInterval = null;
+var _dashPollInterval = null;
+var POLL_CONV_MS = 15000;
+var POLL_DASH_MS = 30000;
+
+function _shouldPoll() {
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false;
+  if (!localStorage.getItem('autoshop_jwt')) return false;
+  return true;
+}
+
+async function _refreshOpenThread() {
+  if (!selectedConversationId) return;
+  var id = selectedConversationId;
+  try {
+    var token = localStorage.getItem('autoshop_jwt');
+    var res = await fetch('/tenant/conversations/' + id, {
+      headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+    });
+    if (!res.ok) return;
+    var json = await res.json();
+    if (!json.messages) return;
+    var existing = (convThreads[id] && convThreads[id].thread) || [];
+    if (json.messages.length === existing.length) return;
+
+    var _total = json.messages.length;
+    var _capped = _total > CONV_THREAD_MESSAGE_CAP;
+    var _slice = _capped ? json.messages.slice(-CONV_THREAD_MESSAGE_CAP) : json.messages;
+    var conv = conversationsData.find(function(c) { return c.id === id; });
+    var prev = convThreads[id] || {};
+    convThreads[id] = {
+      title: prev.title || (conv ? (conv.customerName || conv.phone) : 'Conversation'),
+      meta: prev.meta || (conv ? conv.phone : ''),
+      thread: _slice.map(function(m) {
+        return {
+          d: m.direction === 'outbound' ? 'ai' : 'customer',
+          t: m.body,
+          ts: m.sent_at ? fmtDate(m.sent_at) : ''
+        };
+      }),
+      _truncatedTotal: _capped ? _total : 0,
+      result: prev.result || null,
+      info: prev.info || []
+    };
+    var body = document.getElementById('convThreadBody');
+    if (body && selectedConversationId === id) {
+      renderConvThread(body, convThreads[id]);
+      // Keep the latest message visible after auto-refresh
+      body.scrollTop = body.scrollHeight;
+    }
+  } catch (e) { /* swallow — next tick retries */ }
+}
+
+function startConversationPolling() {
+  if (_convPollInterval) return;
+  _convPollInterval = setInterval(async function() {
+    if (!_shouldPoll()) return;
+    try {
+      await loadConversationsData(); // re-renders inbox via renderConvInbox()
+      await _refreshOpenThread();
+    } catch (e) { console.warn('Conversation poll failed:', e); }
+  }, POLL_CONV_MS);
+}
+
+function stopConversationPolling() {
+  if (_convPollInterval) { clearInterval(_convPollInterval); _convPollInterval = null; }
+}
+
+function startDashboardPolling() {
+  if (_dashPollInterval) return;
+  _dashPollInterval = setInterval(async function() {
+    if (!_shouldPoll()) return;
+    try {
+      var ok = await loadDashboardData();
+      if (!ok) return;
+      // Mirror the initial-load render set so new live conversations,
+      // KPIs, revenue, and pipeline rows appear after each tick.
+      renderBanners();
+      renderLiveKPIs();
+      renderDashConvTable(liveConversationsData);
+      renderLiveRevenueBlocks();
+      renderLivePipeline();
+      renderSidebarStatus();
+      renderSystemHero();
+    } catch (e) { console.warn('Dashboard poll failed:', e); }
+  }, POLL_DASH_MS);
+}
+
+function stopDashboardPolling() {
+  if (_dashPollInterval) { clearInterval(_dashPollInterval); _dashPollInterval = null; }
+}
+
+function applyPollingForView(view) {
+  if (view === 'conversations') {
+    stopDashboardPolling();
+    startConversationPolling();
+  } else if (view === 'dashboard') {
+    stopConversationPolling();
+    startDashboardPolling();
+  } else {
+    stopConversationPolling();
+    stopDashboardPolling();
+  }
+}
 
 // ════════════════════════════════════════════
 // SETTINGS TABS
