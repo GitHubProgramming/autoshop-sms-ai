@@ -115,7 +115,7 @@ class ClaudeApiClient(private val context: Context) {
         messages.forEach { messagesArray.put(it) }
 
         val bodyJson = JSONObject()
-            .put("model", "claude-sonnet-4-20250514")
+            .put("model", "claude-sonnet-4-6")
             .put("max_tokens", 256)
             .put("system", systemPrompt)
             .put("messages", messagesArray)
