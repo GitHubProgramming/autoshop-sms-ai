@@ -1,11 +1,9 @@
 package com.proteros.smsai.ui
 
-import android.util.Log
 import androidx.lifecycle.*
 import com.proteros.smsai.data.AppRepository
-import com.proteros.smsai.data.Message
+import com.proteros.smsai.util.AppLog
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 class ConversationViewModel(
@@ -29,30 +27,39 @@ class ConversationViewModel(
     val error: LiveData<String?> = _error
 
     init {
-        Log.i(TAG, "Init for phone: $phone")
+        AppLog.i(TAG, "Init for phone: '$phone' (len=${phone.length}, bytes=${phone.toByteArray().joinToString(",") { it.toString() }})")
         viewModelScope.launch {
             try {
                 val convo = repo.conversationDao.getByPhone(phone)
-                Log.i(TAG, "Conversation found: ${convo != null}, takeover: ${convo?.ownerTakeover}")
+                AppLog.i(TAG, "Conversation found: ${convo != null}, takeover: ${convo?.ownerTakeover}, status: ${convo?.status}")
                 _isTakeover.postValue(convo?.ownerTakeover ?: false)
+
+                if (convo == null) {
+                    val all = repo.conversationDao.getAllOnce()
+                    AppLog.e(TAG, "No conversation for '$phone'. All phones in DB: ${all.map { "'${it.phoneNumber}'" }}")
+                }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to load conversation", e)
+                AppLog.e(TAG, "Failed to load conversation", e)
             }
         }
         viewModelScope.launch {
             try {
                 repo.messageDao.getForConversationFlow(phone)
                     .catch { e ->
-                        Log.e(TAG, "Messages flow error", e)
+                        AppLog.e(TAG, "Messages flow error", e)
                     }
                     .collect { list ->
-                        Log.i(TAG, "Messages loaded: ${list.size} for phone=$phone")
+                        AppLog.i(TAG, "Messages loaded: ${list.size} for phone='$phone'")
+                        if (list.isEmpty()) {
+                            val allMsgs = repo.messageDao.getAllMessages()
+                            AppLog.w(TAG, "0 messages for '$phone'. Total messages in DB: ${allMsgs.size}. Phones: ${allMsgs.map { it.conversationPhone }.distinct()}")
+                        }
                         _messages.postValue(list.map { m ->
                             ChatItem(text = m.body, sender = m.sender, timestamp = m.timestamp)
                         })
                     }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to collect messages", e)
+                AppLog.e(TAG, "Failed to collect messages", e)
             }
         }
     }
@@ -64,7 +71,7 @@ class ConversationViewModel(
                 repo.setTakeover(phone, newState)
                 _isTakeover.postValue(newState)
             } catch (e: Exception) {
-                Log.e(TAG, "toggleTakeover failed", e)
+                AppLog.e(TAG, "toggleTakeover failed", e)
                 _error.postValue(e.message)
             }
         }
@@ -75,7 +82,7 @@ class ConversationViewModel(
             try {
                 repo.sendOwnerMessage(phone, text)
             } catch (e: Exception) {
-                Log.e(TAG, "sendOwnerMessage failed", e)
+                AppLog.e(TAG, "sendOwnerMessage failed", e)
                 _error.postValue(e.message)
             }
         }

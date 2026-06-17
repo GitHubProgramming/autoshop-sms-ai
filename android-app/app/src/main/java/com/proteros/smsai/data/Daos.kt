@@ -28,6 +28,12 @@ interface ConversationDao {
 
     @Query("UPDATE conversations SET calendarEventId = :eventId, status = 'booked', updatedAt = :now WHERE phoneNumber = :phone")
     suspend fun setBooked(phone: String, eventId: String, now: Long = System.currentTimeMillis())
+
+    @Query("SELECT * FROM conversations ORDER BY updatedAt DESC")
+    suspend fun getAllOnce(): List<Conversation>
+
+    @Query("DELETE FROM conversations WHERE phoneNumber = :phone")
+    suspend fun delete(phone: String)
 }
 
 @Dao
@@ -40,4 +46,10 @@ interface MessageDao {
 
     @Insert
     suspend fun insert(message: Message): Long
+
+    @Query("SELECT * FROM messages ORDER BY timestamp DESC LIMIT 50")
+    suspend fun getAllMessages(): List<Message>
+
+    @Query("DELETE FROM messages WHERE conversationPhone = :phone")
+    suspend fun deleteForConversation(phone: String)
 }

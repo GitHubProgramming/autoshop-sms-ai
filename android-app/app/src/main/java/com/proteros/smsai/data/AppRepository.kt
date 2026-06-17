@@ -1,7 +1,7 @@
 package com.proteros.smsai.data
 
 import android.content.Context
-import android.util.Log
+import com.proteros.smsai.util.AppLog
 import com.proteros.smsai.api.ClaudeApiClient
 import com.proteros.smsai.api.GoogleCalendarClient
 import com.proteros.smsai.util.PhoneUtils
@@ -21,11 +21,11 @@ class AppRepository(
 
     suspend fun handleMissedCall(rawPhone: String) {
         val phone = PhoneUtils.normalize(rawPhone)
-        Log.i("AppRepository", "handleMissedCall: $phone")
+        AppLog.i("AppRepo", "handleMissedCall: $phone")
 
         val existing = conversationDao.getByPhone(phone)
         if (existing != null && existing.status == Conversation.STATUS_ACTIVE) {
-            Log.i("AppRepository", "Active conversation already exists for $phone, skipping")
+            AppLog.i("AppRepo", "Active conversation already exists for $phone, skipping")
             return
         }
 
@@ -38,7 +38,7 @@ class AppRepository(
         )
 
         val greeting = claudeClient.generateGreeting(phone)
-        Log.i("AppRepository", "Generated greeting for $phone: $greeting")
+        AppLog.i("AppRepo", "Generated greeting for $phone: $greeting")
 
         messageDao.insert(
             Message(conversationPhone = phone, sender = Message.SENDER_AI, body = greeting)
@@ -50,7 +50,7 @@ class AppRepository(
         val result = smsSender.sendFireAndForget(phone, greeting)
         if (result.isFailure) {
             val error = result.exceptionOrNull()?.message ?: "Nežinoma klaida"
-            Log.e("AppRepository", "SMS send exception for $phone: $error")
+            AppLog.e("AppRepo", "SMS send exception for $phone: $error")
             messageDao.insert(
                 Message(conversationPhone = phone, sender = Message.SENDER_SYSTEM, body = "SMS klaida: $error")
             )
@@ -60,11 +60,11 @@ class AppRepository(
 
     suspend fun handleIncomingSms(rawPhone: String, body: String) {
         val phone = PhoneUtils.normalize(rawPhone)
-        Log.i("AppRepository", "handleIncomingSms from $phone: $body")
+        AppLog.i("AppRepo", "handleIncomingSms from $phone: $body")
 
         var convo = conversationDao.getByPhone(phone)
         if (convo == null) {
-            Log.i("AppRepository", "No conversation for $phone, creating new one")
+            AppLog.i("AppRepo", "No conversation for $phone, creating new one")
             conversationDao.upsert(
                 Conversation(phoneNumber = phone, status = Conversation.STATUS_ACTIVE)
             )
@@ -76,17 +76,17 @@ class AppRepository(
         )
 
         if (convo.ownerTakeover) {
-            Log.i("AppRepository", "Owner takeover active for $phone, skipping AI reply")
+            AppLog.i("AppRepo", "Owner takeover active for $phone, skipping AI reply")
             return
         }
 
         val history = messageDao.getForConversation(phone)
         val historyWithoutLatest = history.dropLast(1)
         val aiResponse = claudeClient.generateReply(phone, historyWithoutLatest, body)
-        Log.i("AppRepository", "AI reply for $phone: ${aiResponse.text}")
+        AppLog.i("AppRepo", "AI reply for $phone: ${aiResponse.text}")
 
         if (aiResponse.bookingDetected) {
-            Log.i("AppRepository", "Booking detected: ${aiResponse.service} at ${aiResponse.dateTime}")
+            AppLog.i("AppRepo", "Booking detected: ${aiResponse.service} at ${aiResponse.dateTime}")
             val eventId = calendarClient.createAppointment(
                 clientPhone = phone,
                 service = aiResponse.service ?: "Nenurodyta",

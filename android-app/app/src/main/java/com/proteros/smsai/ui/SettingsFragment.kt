@@ -1,5 +1,8 @@
 package com.proteros.smsai.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -12,9 +15,17 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.Scope
 import com.google.api.services.calendar.CalendarScopes
+import com.proteros.smsai.AutoShopApp
+import com.proteros.smsai.data.Conversation
+import com.proteros.smsai.data.Message
 import com.proteros.smsai.databinding.FragmentSettingsBinding
 import com.proteros.smsai.service.SmsAgentService
+import com.proteros.smsai.util.AppLog
 import com.proteros.smsai.util.SecurePrefs
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class SettingsFragment : Fragment() {
 
@@ -50,7 +61,7 @@ class SettingsFragment : Fragment() {
                 SecurePrefs.setEnabled(ctx, checked)
                 if (checked) SmsAgentService.start(ctx) else SmsAgentService.stop(ctx)
             } catch (e: Exception) {
-                android.util.Log.e("SettingsFragment", "Service toggle failed", e)
+                AppLog.e("SettingsFragment", "Service toggle failed", e)
                 Toast.makeText(ctx, "Klaida: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
@@ -85,6 +96,82 @@ class SettingsFragment : Fragment() {
         }
 
         binding.versionText.text = "Versija 1.0.0 • Proteros SMS AI"
+
+        binding.btnShowLogs.setOnClickListener {
+            val logScroll = binding.logScroll
+            if (logScroll.visibility == View.GONE) {
+                val logs = AppLog.getAll()
+                binding.logText.text = if (logs.isBlank()) "Logų nėra" else logs
+                logScroll.visibility = View.VISIBLE
+                binding.btnShowLogs.text = "Kopijuoti ir slėpti logus"
+            } else {
+                val clipboard = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("logs", binding.logText.text))
+                Toast.makeText(ctx, "Logai nukopijuoti", Toast.LENGTH_SHORT).show()
+                logScroll.visibility = View.GONE
+                binding.btnShowLogs.text = "Rodyti logus"
+            }
+        }
+
+        binding.btnTestConversation.setOnClickListener {
+            val app = ctx.applicationContext as AutoShopApp
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val testPhone = "+37060000000"
+                    app.repository.conversationDao.upsert(
+                        Conversation(phoneNumber = testPhone, status = Conversation.STATUS_ACTIVE, lastMessage = "Test žinutė")
+                    )
+                    app.repository.messageDao.insert(
+                        Message(conversationPhone = testPhone, sender = Message.SENDER_SYSTEM, body = "Test pokalbis sukurtas")
+                    )
+                    app.repository.messageDao.insert(
+                        Message(conversationPhone = testPhone, sender = Message.SENDER_AI, body = "Sveiki! Kuo galime padėti?")
+                    )
+                    app.repository.messageDao.insert(
+                        Message(conversationPhone = testPhone, sender = Message.SENDER_CLIENT, body = "Noriu užsiregistruoti stabdžių remontui")
+                    )
+                    AppLog.i("Debug", "Test conversation created for $testPhone")
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(ctx, "Test pokalbis sukurtas: $testPhone", Toast.LENGTH_LONG).show()
+                    }
+                } catch (e: Exception) {
+                    AppLog.e("Debug", "Test conversation failed", e)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(ctx, "Klaida: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }
+
+        binding.btnClearData.setOnClickListener {
+            AlertDialog.Builder(ctx)
+                .setTitle("Išvalyti duomenis?")
+                .setMessage("Visi pokalbiai ir žinutės bus ištrintos.")
+                .setPositiveButton("Išvalyti") { _, _ ->
+                    val app = ctx.applicationContext as AutoShopApp
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            val convos = app.repository.conversationDao.getAllOnce()
+                            for (c in convos) {
+                                app.repository.messageDao.deleteForConversation(c.phoneNumber)
+                                app.repository.conversationDao.delete(c.phoneNumber)
+                            }
+                            AppLog.clear()
+                            AppLog.i("Debug", "All data cleared")
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(ctx, "Duomenys išvalyti", Toast.LENGTH_SHORT).show()
+                            }
+                        } catch (e: Exception) {
+                            AppLog.e("Debug", "Clear data failed", e)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(ctx, "Klaida: ${e.message}", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
+                }
+                .setNegativeButton("Atšaukti", null)
+                .show()
+        }
     }
 
     override fun onDestroyView() {
