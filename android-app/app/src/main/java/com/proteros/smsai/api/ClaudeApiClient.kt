@@ -50,6 +50,7 @@ SVARBIOS TAISYKLĖS:
 
 Tavo tikslas: kuo greičiau susitarti dėl vizito laiko.
 Atsakyk trumpai (max 160 simbolių SMS).
+Datą SMS tekste VISADA rašyk lietuvišku formatu: diena.mėnuo, pvz "18.06 10:00", NIEKADA nerašyk mėnesio pirma.
 Kai klientas sutinka su laiku arba nurodo laiką, atsakyk formatu:
 [BOOKING:paslauga|data ir laikas]
 Data formatu: YYYY-MM-DD HH:MM

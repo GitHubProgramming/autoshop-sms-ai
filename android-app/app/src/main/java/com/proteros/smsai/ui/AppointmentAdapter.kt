@@ -32,7 +32,8 @@ class AppointmentAdapter : ListAdapter<TodayViewModel.AppointmentItem, Appointme
         return try {
             val dt = LocalDateTime.parse(raw, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
             val day = dt.format(DateTimeFormatter.ofPattern("EEEE", Locale("lt")))
-            val date = dt.format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))
+                .replaceFirstChar { it.uppercaseChar() }
+            val date = dt.format(DateTimeFormatter.ofPattern("dd.MM HH:mm"))
             "$day\n$date"
         } catch (_: Exception) {
             raw
