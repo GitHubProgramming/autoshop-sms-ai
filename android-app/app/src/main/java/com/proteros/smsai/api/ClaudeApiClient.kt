@@ -33,7 +33,9 @@ class ClaudeApiClient(private val context: Context) {
             return """
 Tu esi Proteros autoserviso SMS asistentas Panevėžyje.
 Adresas: Aukštaičių g. 29-2, Panevėžys.
-Darbo laikas: I-V 8:00-17:00, VI 9:00-14:00.
+Darbo laikas: I-V 8:00-17:00, VI 9:00-14:00. Sekmadieniais ir per Lietuvos šventes NEDIRBAME.
+Lietuvos šventės (nedarbo dienos): Naujieji metai (01-01), Valstybės atkūrimo diena (02-16), Nepriklausomybės diena (03-11), Velykos (sekmadienis+pirmadienis), Darbo diena (05-01), Joninės (06-24), Valstybės diena (07-06), Žolinė (08-15), Visų Šventųjų (11-01), Vėlinės (11-02), Kūčios (12-24), Kalėdos (12-25, 12-26).
+Jei klientas nori registruotis šventinę dieną — paaiškink kad tą dieną nedirbame ir pasiūlyk kitą artimiausią darbo dieną.
 Dabar yra: ${now.format(formatter)}.
 
 Paslaugos: važiuoklės remontas, variklio diagnostika, stabdžių sistema,
@@ -50,7 +52,7 @@ SVARBIOS TAISYKLĖS:
 
 Tavo tikslas: kuo greičiau susitarti dėl vizito laiko.
 Atsakyk trumpai (max 160 simbolių SMS).
-Datą SMS tekste VISADA rašyk lietuvišku formatu: diena.mėnuo, pvz "18.06 10:00", NIEKADA nerašyk mėnesio pirma.
+Datą SMS tekste VISADA rašyk formatu: MM-dd, pvz "06-18 10:00" (mėnuo-diena).
 Kai klientas sutinka su laiku arba nurodo laiką, atsakyk formatu:
 [BOOKING:paslauga|data ir laikas]
 Data formatu: YYYY-MM-DD HH:MM
@@ -60,13 +62,42 @@ Rašyk lietuviškai, mandagiai, profesionaliai.
             """.trim()
         }
 
+    private fun isLithuanianHoliday(date: java.time.LocalDate): Boolean {
+        val year = date.year
+        val fixed = setOf(
+            java.time.MonthDay.of(1, 1),   // Naujieji metai
+            java.time.MonthDay.of(2, 16),  // Valstybės atkūrimo diena
+            java.time.MonthDay.of(3, 11),  // Nepriklausomybės atkūrimo diena
+            java.time.MonthDay.of(5, 1),   // Darbo diena
+            java.time.MonthDay.of(6, 24),  // Joninės / Rasos
+            java.time.MonthDay.of(7, 6),   // Valstybės diena
+            java.time.MonthDay.of(8, 15),  // Žolinė
+            java.time.MonthDay.of(11, 1),  // Visų Šventųjų diena
+            java.time.MonthDay.of(11, 2),  // Vėlinės
+            java.time.MonthDay.of(12, 24), // Kūčios
+            java.time.MonthDay.of(12, 25), // Kalėdos
+            java.time.MonthDay.of(12, 26), // Kalėdos (antra diena)
+        )
+        if (fixed.contains(java.time.MonthDay.from(date))) return true
+        // Velykos (Easter Sunday + Monday) - anonymous Gregorian algorithm
+        val a = year % 19; val b = year / 100; val c = year % 100
+        val d = b / 4; val e = b % 4; val f = (b + 8) / 25
+        val g = (b - f + 1) / 3; val h = (19 * a + b - d - g + 15) % 30
+        val i = c / 4; val k = c % 4; val l = (32 + 2 * e + 2 * i - h - k) % 7
+        val m = (a + 11 * h + 22 * l) / 451
+        val month = (h + l - 7 * m + 114) / 31; val day = (h + l - 7 * m + 114) % 31 + 1
+        val easter = java.time.LocalDate.of(year, month, day)
+        return date == easter || date == easter.plusDays(1)
+    }
+
     private fun findNextSlot(from: java.time.LocalDateTime): java.time.LocalDateTime {
         var slot = from
         while (true) {
             val dow = slot.dayOfWeek
             val hour = slot.hour
             when {
-                dow == java.time.DayOfWeek.SUNDAY -> slot = slot.plusDays(1).withHour(8).withMinute(0)
+                dow == java.time.DayOfWeek.SUNDAY || isLithuanianHoliday(slot.toLocalDate()) ->
+                    slot = slot.plusDays(1).withHour(8).withMinute(0)
                 dow == java.time.DayOfWeek.SATURDAY && hour >= 13 -> slot = slot.plusDays(2).withHour(8).withMinute(0)
                 dow == java.time.DayOfWeek.SATURDAY && hour < 9 -> slot = slot.withHour(9).withMinute(0)
                 hour >= 16 -> slot = slot.plusDays(1).withHour(8).withMinute(0)
