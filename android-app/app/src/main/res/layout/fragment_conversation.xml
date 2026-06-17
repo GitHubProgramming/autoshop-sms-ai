@@ -13,7 +13,8 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingHorizontal="8dp"
-        android:background="@color/primary">
+        android:background="@drawable/bg_header_gradient"
+        android:elevation="4dp">
 
         <ImageButton
             android:id="@+id/btn_back"
@@ -43,7 +44,7 @@
                 android:id="@+id/toolbar_subtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#CCFFFFFF"
+                android:textColor="#B0FFFFFF"
                 android:textSize="12sp"
                 android:visibility="gone" />
 
@@ -57,7 +58,8 @@
             android:textSize="12sp"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             app:strokeColor="@android:color/white"
-            android:textColor="@android:color/white" />
+            android:textColor="@android:color/white"
+            app:cornerRadius="18dp" />
 
     </LinearLayout>
 
@@ -68,7 +70,7 @@
         android:text="⚠ Jūs valdote pokalbį. AI agentas sustabdytas."
         android:background="@color/warning"
         android:textColor="@android:color/black"
-        android:padding="8dp"
+        android:padding="10dp"
         android:gravity="center"
         android:textSize="13sp"
         android:visibility="gone" />
@@ -78,7 +80,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:padding="8dp"
+        android:padding="12dp"
         android:clipToPadding="false" />
 
     <LinearLayout
@@ -87,7 +89,10 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:padding="8dp"
+        android:paddingHorizontal="12dp"
         android:background="@color/surface"
+        android:elevation="4dp"
+        android:gravity="center_vertical"
         android:visibility="gone">
 
         <com.google.android.material.textfield.TextInputEditText
@@ -97,16 +102,18 @@
             android:layout_weight="1"
             android:hint="Rašykite žinutę..."
             android:maxLines="3"
-            android:inputType="textMultiLine" />
+            android:inputType="textMultiLine"
+            android:background="@null"
+            android:padding="12dp" />
 
         <ImageButton
             android:id="@+id/btn_send"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
             android:src="@drawable/ic_send"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Siųsti"
-            app:tint="@color/primary" />
+            app:tint="@color/accent" />
 
     </LinearLayout>
 
