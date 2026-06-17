@@ -9,9 +9,7 @@ import android.os.Build
 import android.telephony.SmsManager
 import android.telephony.SubscriptionManager
 import android.app.Activity
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withTimeout
-import kotlin.coroutines.resume
+import android.util.Log
 
 class SmsSender(private val context: Context) {
 
@@ -26,50 +24,43 @@ class SmsSender(private val context: Context) {
         return context.getSystemService(SmsManager::class.java)
     }
 
-    suspend fun send(phone: String, text: String): Result<Unit> {
+    fun sendFireAndForget(phone: String, text: String): Result<Unit> {
         return try {
-            withTimeout(30_000) {
-                suspendCancellableCoroutine { cont ->
-                    val action = "SMS_SENT_${System.currentTimeMillis()}"
-                    val sentIntent = PendingIntent.getBroadcast(
-                        context, 0, Intent(action),
-                        PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
-                    )
+            val action = "SMS_SENT_${System.currentTimeMillis()}"
+            val sentIntent = PendingIntent.getBroadcast(
+                context, 0, Intent(action),
+                PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+            )
 
-                    val receiver = object : BroadcastReceiver() {
-                        override fun onReceive(ctx: Context, intent: Intent) {
-                            context.unregisterReceiver(this)
-                            when (resultCode) {
-                                Activity.RESULT_OK -> cont.resume(Result.success(Unit))
-                                SmsManager.RESULT_ERROR_NO_SERVICE -> cont.resume(Result.failure(Exception("Nėra tinklo ryšio")))
-                                SmsManager.RESULT_ERROR_RADIO_OFF -> cont.resume(Result.failure(Exception("Radijo modulis išjungtas")))
-                                SmsManager.RESULT_ERROR_NULL_PDU -> cont.resume(Result.failure(Exception("SMS formato klaida")))
-                                else -> cont.resume(Result.failure(Exception("SMS klaida: $resultCode")))
-                            }
-                        }
-                    }
-
-                    val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
-                        Context.RECEIVER_NOT_EXPORTED else 0
-                    context.registerReceiver(receiver, IntentFilter(action), flags)
-
-                    cont.invokeOnCancellation {
-                        try { context.unregisterReceiver(receiver) } catch (_: Exception) {}
-                    }
-
-                    val mgr = getSmsManager()
-                    val parts = mgr.divideMessage(text)
-                    if (parts.size == 1) {
-                        mgr.sendTextMessage(phone, null, text, sentIntent, null)
-                    } else {
-                        mgr.sendMultipartTextMessage(phone, null, parts,
-                            arrayListOf(sentIntent).apply {
-                                repeat(parts.size - 1) { add(null) }
-                            }, null)
+            val receiver = object : BroadcastReceiver() {
+                override fun onReceive(ctx: Context, intent: Intent) {
+                    try { context.unregisterReceiver(this) } catch (_: Exception) {}
+                    when (resultCode) {
+                        Activity.RESULT_OK -> Log.i("SmsSender", "SMS sent OK to $phone")
+                        else -> Log.e("SmsSender", "SMS send failed to $phone, code=$resultCode")
                     }
                 }
             }
+
+            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+                Context.RECEIVER_NOT_EXPORTED else 0
+            context.registerReceiver(receiver, IntentFilter(action), flags)
+
+            val mgr = getSmsManager()
+            val parts = mgr.divideMessage(text)
+            if (parts.size == 1) {
+                mgr.sendTextMessage(phone, null, text, sentIntent, null)
+            } else {
+                mgr.sendMultipartTextMessage(phone, null, parts,
+                    arrayListOf(sentIntent).apply {
+                        repeat(parts.size - 1) { add(null) }
+                    }, null)
+            }
+
+            Log.i("SmsSender", "SMS dispatched to $phone (${text.length} chars, ${parts.size} parts)")
+            Result.success(Unit)
         } catch (e: Exception) {
+            Log.e("SmsSender", "SMS exception for $phone", e)
             Result.failure(e)
         }
     }
