@@ -33,21 +33,35 @@
                     android:orientation="horizontal"
                     android:gravity="center_vertical">
 
-                    <TextView
+                    <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Proteros SMS AI"
-                        android:textSize="20sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/primary" />
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Proteros Servisas"
+                            android:textSize="20sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/primary" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Aukštaičių g. 29-2, Panevėžys"
+                            android:textSize="11sp"
+                            android:textColor="@color/text_secondary" />
+
+                    </LinearLayout>
 
                     <TextView
                         android:id="@+id/status_indicator"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="○ Agentas išjungtas"
-                        android:textSize="13sp" />
+                        android:textSize="12sp" />
                 </LinearLayout>
 
                 <View
@@ -143,7 +157,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Šiandienos vizitai"
+            android:text="Artimiausi vizitai"
             android:textSize="18sp"
             android:textStyle="bold"
             android:layout_marginBottom="8dp" />
@@ -165,7 +179,7 @@
                     android:id="@+id/empty_appointments"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Vizitų šiandien nėra.\nKai klientas užsiregistruos per SMS, vizitas atsiras čia."
+                    android:text="Užregistruotų vizitų nėra.\nKai klientas užsiregistruos per SMS, vizitas atsiras čia."
                     android:textColor="@color/text_secondary"
                     android:gravity="center"
                     android:padding="20dp"

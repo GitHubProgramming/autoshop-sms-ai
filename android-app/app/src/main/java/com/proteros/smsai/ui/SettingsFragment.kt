@@ -57,12 +57,14 @@ class SettingsFragment : Fragment() {
 
         binding.switchService.isChecked = SecurePrefs.isEnabled(ctx)
         binding.switchService.setOnCheckedChangeListener { _, checked ->
+            if (_binding == null) return@setOnCheckedChangeListener
             try {
-                SecurePrefs.setEnabled(ctx, checked)
-                if (checked) SmsAgentService.start(ctx) else SmsAgentService.stop(ctx)
+                val appCtx = ctx.applicationContext
+                SecurePrefs.setEnabled(appCtx, checked)
+                if (checked) SmsAgentService.start(appCtx) else SmsAgentService.stop(appCtx)
             } catch (e: Exception) {
                 AppLog.e("SettingsFragment", "Service toggle failed", e)
-                Toast.makeText(ctx, "Klaida: ${e.message}", Toast.LENGTH_LONG).show()
+                try { Toast.makeText(ctx, "Klaida: ${e.message}", Toast.LENGTH_LONG).show() } catch (_: Exception) {}
             }
         }
 
@@ -95,7 +97,7 @@ class SettingsFragment : Fragment() {
             googleSignInLauncher.launch(client.signInIntent)
         }
 
-        binding.versionText.text = "Versija 1.0.0 • Proteros SMS AI"
+        binding.versionText.text = "Versija 1.1 • Proteros Servisas"
 
         binding.btnShowLogs.setOnClickListener {
             val logScroll = binding.logScroll

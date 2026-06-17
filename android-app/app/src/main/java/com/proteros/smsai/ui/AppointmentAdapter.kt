@@ -6,6 +6,9 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.proteros.smsai.databinding.ItemAppointmentBinding
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 class AppointmentAdapter : ListAdapter<TodayViewModel.AppointmentItem, AppointmentAdapter.VH>(
     object : DiffUtil.ItemCallback<TodayViewModel.AppointmentItem>() {
@@ -20,8 +23,19 @@ class AppointmentAdapter : ListAdapter<TodayViewModel.AppointmentItem, Appointme
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         val item = getItem(position)
-        holder.binding.timeText.text = item.time
-        holder.binding.clientText.text = item.client
         holder.binding.serviceText.text = item.service
+        holder.binding.clientText.text = item.client
+        holder.binding.timeText.text = formatTime(item.time)
+    }
+
+    private fun formatTime(raw: String): String {
+        return try {
+            val dt = LocalDateTime.parse(raw, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+            val day = dt.format(DateTimeFormatter.ofPattern("EEEE", Locale("lt")))
+            val date = dt.format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))
+            "$day\n$date"
+        } catch (_: Exception) {
+            raw
+        }
     }
 }
