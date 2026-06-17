@@ -11,3 +11,9 @@
 - Vizualus savaitės vaizdas su laiko blokais
 - Savininkas mato užimtumą vienu žvilgsniu
 - Kur užimta, kur laisva, ar reikia daugiau klientų
+
+### 3. Klientų istorija ir pakartotiniai vizitai
+- AI mato ankstesnius vizitus ir kreipiasi kontekstualiai
+- "Sveiki, Jonai! Paskutinį kartą buvote dėl stabdžių. Kuo galime padėti?"
+- Savininkas pokalbio lange mato: kiek kartų klientas buvo, kokie darbai atlikti
+- Lojalių klientų atpažinimas
