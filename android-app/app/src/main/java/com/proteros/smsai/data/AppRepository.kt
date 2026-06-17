@@ -136,17 +136,23 @@ class AppRepository(
             AgentNotification.bookingMade(context, phone, aiResponse.service, aiResponse.dateTime)
         }
 
+        val smsText = if (aiResponse.bookingDetected) {
+            aiResponse.text + ClaudeApiClient.ADDRESS_WITH_MAP
+        } else {
+            aiResponse.text
+        }
+
         messageDao.insert(
-            Message(conversationPhone = phone, sender = Message.SENDER_AI, body = aiResponse.text)
+            Message(conversationPhone = phone, sender = Message.SENDER_AI, body = smsText)
         )
 
         if (aiResponse.bookingDetected) {
-            conversationDao.updateConversation(phone, aiResponse.text, Conversation.STATUS_BOOKED)
+            conversationDao.updateConversation(phone, smsText, Conversation.STATUS_BOOKED)
         } else {
-            conversationDao.updateConversation(phone, aiResponse.text, Conversation.STATUS_ACTIVE)
+            conversationDao.updateConversation(phone, smsText, Conversation.STATUS_ACTIVE)
         }
 
-        val sendResult = smsSender.sendFireAndForget(phone, aiResponse.text)
+        val sendResult = smsSender.sendFireAndForget(phone, smsText)
         if (sendResult.isFailure) {
             conversationDao.updateStatus(phone, Conversation.STATUS_ERROR, sendResult.exceptionOrNull()?.message)
         }

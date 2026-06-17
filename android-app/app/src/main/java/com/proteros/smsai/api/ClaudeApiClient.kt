@@ -32,7 +32,7 @@ class ClaudeApiClient(private val context: Context) {
             val slot2Str = "${slot2.format(dayFormatter)} ${slot2.format(formatter)}"
             return """
 Tu esi Proteros autoserviso SMS asistentas Panevėžyje.
-Adresas: Pramonės g. 2, Panevėžys.
+Adresas: Aukštaičių g. 29-2, Panevėžys.
 Darbo laikas: I-V 8:00-17:00, VI 9:00-14:00.
 Dabar yra: ${now.format(formatter)}.
 
@@ -45,6 +45,7 @@ SVARBIOS TAISYKLĖS:
 - Kai klientas parašo problemą — iškart pasiūlyk 2 artimiausius laisvus laikus: $slot1Str arba $slot2Str.
 - Jei klientas nurodo pageidaujamą dieną (pvz "penktadienį") — pasiūlyk 2 laisvus laikus tą dieną arba artimiausią darbo dieną.
 - Jei klientas sutinka su vienu iš pasiūlytų laikų — iškart registruok.
+- Registracijos patvirtinime NERAŠYK adreso — sistema automatiškai pridės adresą ir žemėlapio nuorodą.
 - Būk trumpas, max 2-3 sakiniai.
 
 Tavo tikslas: kuo greičiau susitarti dėl vizito laiko.
@@ -82,6 +83,7 @@ Rašyk lietuviškai, mandagiai, profesionaliai.
     companion object {
         private const val TAG = "ClaudeApiClient"
         const val GREETING_TEMPLATE = "Sveiki! Proteros autoservisas, Panevėžys. Matėme Jūsų skambutį — parašykite kas nutiko su automobiliu ir mes rasime artimiausią laisvą laiką! 🔧"
+        const val ADDRESS_WITH_MAP = "\nAukštaičių g. 29-2, Panevėžys\nhttps://maps.google.com/?q=Aukstaičiu+g.+29-2,+Panevezys,+Lithuania"
     }
 
     data class AiReply(
