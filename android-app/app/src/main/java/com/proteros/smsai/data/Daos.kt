@@ -29,8 +29,11 @@ interface ConversationDao {
     @Query("UPDATE conversations SET status = :status, updatedAt = :now, errorMessage = :error WHERE phoneNumber = :phone")
     suspend fun updateStatus(phone: String, status: String, error: String? = null, now: Long = System.currentTimeMillis())
 
-    @Query("UPDATE conversations SET calendarEventId = :eventId, status = 'booked', updatedAt = :now WHERE phoneNumber = :phone")
-    suspend fun setBooked(phone: String, eventId: String, now: Long = System.currentTimeMillis())
+    @Query("UPDATE conversations SET calendarEventId = :eventId, bookingService = :service, bookingDateTime = :dateTime, status = 'booked', updatedAt = :now WHERE phoneNumber = :phone")
+    suspend fun setBooked(phone: String, eventId: String, service: String? = null, dateTime: String? = null, now: Long = System.currentTimeMillis())
+
+    @Query("SELECT * FROM conversations WHERE status = 'booked' ORDER BY bookingDateTime ASC")
+    fun getBookedFlow(): kotlinx.coroutines.flow.Flow<List<Conversation>>
 
     @Query("SELECT * FROM conversations ORDER BY updatedAt DESC")
     suspend fun getAllOnce(): List<Conversation>

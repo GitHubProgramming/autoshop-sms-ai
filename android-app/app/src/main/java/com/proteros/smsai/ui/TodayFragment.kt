@@ -81,7 +81,9 @@ class TodayFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         viewModel.checkServiceStatus(requireActivity().application)
-        viewModel.refreshAppointments(GoogleCalendarClient(requireContext()))
+        try {
+            viewModel.refreshAppointments(GoogleCalendarClient(requireContext()))
+        } catch (_: Exception) { }
         viewModel.refreshStats()
     }
 

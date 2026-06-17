@@ -15,7 +15,9 @@ data class Conversation(
     val updatedAt: Long = System.currentTimeMillis(),
     val lastMessage: String? = null,
     val calendarEventId: String? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val bookingService: String? = null,
+    val bookingDateTime: String? = null
 ) {
     companion object {
         const val STATUS_ACTIVE = "active"

@@ -85,17 +85,24 @@ class AppRepository(
 
         if (aiResponse.bookingDetected) {
             AppLog.i("AppRepo", "Booking detected: ${aiResponse.service} at ${aiResponse.dateTime}")
-            val eventId = calendarClient.createAppointment(
-                clientPhone = phone,
-                service = aiResponse.service ?: "Nenurodyta",
-                dateTime = aiResponse.dateTime ?: ""
-            )
-            if (eventId != null) {
-                conversationDao.setBooked(phone, eventId)
-                messageDao.insert(
-                    Message(conversationPhone = phone, sender = Message.SENDER_SYSTEM, body = "Vizitas užregistruotas kalendoriuje")
+            var eventId: String? = null
+            try {
+                eventId = calendarClient.createAppointment(
+                    clientPhone = phone,
+                    service = aiResponse.service ?: "Nenurodyta",
+                    dateTime = aiResponse.dateTime ?: ""
                 )
+            } catch (e: Exception) {
+                AppLog.e("AppRepo", "Calendar event creation failed", e)
             }
+            conversationDao.setBooked(phone, eventId ?: "", aiResponse.service, aiResponse.dateTime)
+            messageDao.insert(
+                Message(
+                    conversationPhone = phone,
+                    sender = Message.SENDER_SYSTEM,
+                    body = if (eventId != null) "Vizitas užregistruotas kalendoriuje" else "Vizitas užregistruotas (be kalendoriaus)"
+                )
+            )
         }
 
         messageDao.insert(

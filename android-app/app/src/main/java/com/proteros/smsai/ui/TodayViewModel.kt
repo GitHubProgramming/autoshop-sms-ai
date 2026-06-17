@@ -1,11 +1,11 @@
 package com.proteros.smsai.ui
 
 import android.app.Application
-import android.util.Log
 import androidx.lifecycle.*
 import com.proteros.smsai.api.GoogleCalendarClient
 import com.proteros.smsai.data.AppRepository
 import com.proteros.smsai.data.Conversation
+import com.proteros.smsai.util.AppLog
 import com.proteros.smsai.util.SecurePrefs
 import kotlinx.coroutines.launch
 
@@ -60,7 +60,23 @@ class TodayViewModel(private val repo: AppRepository) : ViewModel() {
                     })
                 }
             } catch (e: Exception) {
-                Log.e("TodayViewModel", "Attention flow error", e)
+                AppLog.e("TodayViewModel", "Attention flow error", e)
+            }
+        }
+
+        viewModelScope.launch {
+            try {
+                repo.conversationDao.getBookedFlow().collect { booked ->
+                    _appointments.postValue(booked.map { c ->
+                        AppointmentItem(
+                            time = c.bookingDateTime ?: "Nenurodyta",
+                            client = c.phoneNumber,
+                            service = c.bookingService ?: "Nenurodyta"
+                        )
+                    })
+                }
+            } catch (e: Exception) {
+                AppLog.e("TodayViewModel", "Booked flow error", e)
             }
         }
     }
@@ -69,11 +85,13 @@ class TodayViewModel(private val repo: AppRepository) : ViewModel() {
         viewModelScope.launch {
             try {
                 val today = calendarClient.getTodayAppointments()
-                _appointments.postValue(today.map { a ->
-                    AppointmentItem(time = a.time, client = a.clientPhone, service = a.service)
-                })
+                if (today.isNotEmpty()) {
+                    _appointments.postValue(today.map { a ->
+                        AppointmentItem(time = a.time, client = a.clientPhone, service = a.service)
+                    })
+                }
             } catch (e: Exception) {
-                Log.e("TodayViewModel", "Failed to load appointments", e)
+                AppLog.e("TodayViewModel", "Failed to load calendar appointments", e)
             }
         }
     }
@@ -99,7 +117,7 @@ class TodayViewModel(private val repo: AppRepository) : ViewModel() {
                     _todaySmsCount.postValue(smsCount)
                 }
             } catch (e: Exception) {
-                Log.e("TodayViewModel", "refreshStats error", e)
+                AppLog.e("TodayViewModel", "refreshStats error", e)
             }
         }
     }

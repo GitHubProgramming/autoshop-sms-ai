@@ -12,6 +12,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class SmsReceiver : BroadcastReceiver() {
+
+    companion object {
+        private val recentSms = LinkedHashMap<String, Long>(16, 0.75f, true)
+        private const val DEDUP_WINDOW_MS = 5000L
+    }
+
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
         if (!SecurePrefs.isEnabled(context)) return
@@ -30,6 +36,23 @@ class SmsReceiver : BroadcastReceiver() {
         for ((sender, parts) in grouped) {
             if (sender == null) continue
             val body = parts.joinToString("") { it.displayMessageBody ?: "" }
+
+            val dedupKey = "$sender|$body"
+            val now = System.currentTimeMillis()
+            synchronized(recentSms) {
+                val lastTime = recentSms[dedupKey]
+                if (lastTime != null && now - lastTime < DEDUP_WINDOW_MS) {
+                    AppLog.i("SmsReceiver", "Duplicate SMS from $sender, skipping")
+                    continue
+                }
+                recentSms[dedupKey] = now
+                if (recentSms.size > 50) {
+                    val iter = recentSms.iterator()
+                    iter.next()
+                    iter.remove()
+                }
+            }
+
             AppLog.i("SmsReceiver", "Processing SMS from $sender: $body")
 
             val pending = goAsync()

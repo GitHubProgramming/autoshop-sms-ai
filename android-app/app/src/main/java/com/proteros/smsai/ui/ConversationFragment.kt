@@ -1,7 +1,7 @@
 package com.proteros.smsai.ui
 
 import android.os.Bundle
-import android.util.Log
+import com.proteros.smsai.util.AppLog
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -33,7 +33,7 @@ class ConversationFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        Log.i("ConversationFragment", "onViewCreated for phone: ${args.phoneNumber}")
+        AppLog.i("ConversationFragment", "onViewCreated for phone: ${args.phoneNumber}")
 
         chatAdapter = ChatAdapter()
 
@@ -58,7 +58,7 @@ class ConversationFragment : Fragment() {
         }
 
         viewModel.messages.observe(viewLifecycleOwner) { list ->
-            Log.i("ConversationFragment", "Messages observer: ${list.size} items")
+            AppLog.i("ConversationFragment", "Messages observer: ${list.size} items")
             chatAdapter.submitList(list.toList()) {
                 if (list.isNotEmpty()) {
                     binding.recyclerMessages.post {
