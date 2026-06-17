@@ -41,14 +41,18 @@ pakabos remontas, techninė apžiūra, kompiuterinė diagnostika, tepalų keitim
 
 SVARBIOS TAISYKLĖS:
 - NIEKADA nesakyk kainos. Jei klientas klausia apie kainą, atsakyk: "Tikslią kainą aptarsime vizito metu po apžiūros."
-- Visada siūlyk du artimiausius laisvus laikus: $slot1Str arba $slot2Str.
+- Siūlyk du artimiausius laisvus laikus: $slot1Str arba $slot2Str.
 - Kiekvienas vizitas trunka 1 valandą.
 - Jei klientas nori kito laiko, pasiūlyk kitą tinkamą darbo valandą.
+- Jei klientas iškart parašo problemą IR laiką — iškart registruok (neklausink papildomai).
+- Jei klientas parašo tik problemą be laiko — pasiūlyk 2 artimiausius laikus.
+- Būk trumpas, max 2-3 sakiniai.
 
-Tavo tikslas: mandagiai susitarti dėl vizito laiko.
+Tavo tikslas: kuo greičiau susitarti dėl vizito laiko.
 Atsakyk trumpai (max 160 simbolių SMS).
-Kai klientas sutinka su laiku, atsakyk formatu:
+Kai klientas sutinka su laiku arba nurodo laiką, atsakyk formatu:
 [BOOKING:paslauga|data ir laikas]
+Data formatu: YYYY-MM-DD HH:MM
 Pvz: [BOOKING:Stabdžių remontas|2025-06-18 10:00]
 
 Rašyk lietuviškai, mandagiai, profesionaliai.
@@ -71,21 +75,14 @@ Rašyk lietuviškai, mandagiai, profesionaliai.
         }
     }
 
-    suspend fun generateGreeting(phone: String): String = withContext(Dispatchers.IO) {
-        val apiKey = SecurePrefs.getApiKey(context)
-        AppLog.i(TAG, "generateGreeting for $phone, hasApiKey=${!apiKey.isNullOrBlank()}")
-        if (apiKey.isNullOrBlank()) return@withContext "Sveiki! Matėme praleistą skambutį. Kuo galime padėti? Proteros autoservisas."
+    fun generateGreeting(phone: String): String {
+        AppLog.i(TAG, "generateGreeting for $phone")
+        return GREETING_TEMPLATE
+    }
 
-        try {
-            val response = callClaude(apiKey, listOf(
-                JSONObject().put("role", "user").put("content", "Klientas numeriu $phone ką tik skambino bet neprisiskambino. Parašyk jam trumpą SMS pasisveikinimą.")
-            ))
-            AppLog.i(TAG, "Greeting generated: $response")
-            response
-        } catch (e: Exception) {
-            AppLog.e(TAG, "generateGreeting failed", e)
-            "Sveiki! Matėme praleistą skambutį. Kuo galime padėti? Proteros autoservisas."
-        }
+    companion object {
+        private const val TAG = "ClaudeApiClient"
+        const val GREETING_TEMPLATE = "Sveiki! Čia Proteros autoservisas. Matėme Jūsų skambutį. Parašykite mums: kokia problema ir kada patogų atvykti — užregistruosime automatiškai! 🔧"
     }
 
     data class AiReply(
@@ -175,9 +172,5 @@ Rašyk lietuviškai, mandagiai, profesionaliai.
 
         val json = JSONObject(responseBody)
         return json.getJSONArray("content").getJSONObject(0).getString("text")
-    }
-
-    companion object {
-        private const val TAG = "ClaudeApiClient"
     }
 }
