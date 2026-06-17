@@ -8,6 +8,7 @@ class AgentViewModel(private val repo: AppRepository) : ViewModel() {
 
     data class ConversationItem(
         val phone: String,
+        val contactName: String?,
         val lastMessage: String,
         val status: String,
         val isOwnerTakeover: Boolean,
@@ -18,6 +19,7 @@ class AgentViewModel(private val repo: AppRepository) : ViewModel() {
         list.map { c ->
             ConversationItem(
                 phone = c.phoneNumber,
+                contactName = c.contactName,
                 lastMessage = c.lastMessage ?: "",
                 status = when (c.status) {
                     Conversation.STATUS_BOOKED -> "Užregistruotas"

@@ -23,6 +23,9 @@ class ConversationViewModel(
     private val _isTakeover = MutableLiveData(false)
     val isTakeover: LiveData<Boolean> = _isTakeover
 
+    private val _contactName = MutableLiveData<String?>(null)
+    val contactName: LiveData<String?> = _contactName
+
     private val _error = MutableLiveData<String?>(null)
     val error: LiveData<String?> = _error
 
@@ -33,6 +36,7 @@ class ConversationViewModel(
                 val convo = repo.conversationDao.getByPhone(phone)
                 AppLog.i(TAG, "Conversation found: ${convo != null}, takeover: ${convo?.ownerTakeover}, status: ${convo?.status}")
                 _isTakeover.postValue(convo?.ownerTakeover ?: false)
+                _contactName.postValue(convo?.contactName)
 
                 if (convo == null) {
                     val all = repo.conversationDao.getAllOnce()

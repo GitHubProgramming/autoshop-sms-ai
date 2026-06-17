@@ -7,6 +7,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.proteros.smsai.R
+import android.view.View
 import com.proteros.smsai.databinding.ItemConversationBinding
 
 class ConversationListAdapter(private val onClick: (String) -> Unit) : ListAdapter<AgentViewModel.ConversationItem, ConversationListAdapter.VH>(
@@ -22,7 +23,17 @@ class ConversationListAdapter(private val onClick: (String) -> Unit) : ListAdapt
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         val item = getItem(position)
-        holder.binding.phoneText.text = item.phone
+        if (!item.contactName.isNullOrBlank()) {
+            holder.binding.contactNameText.text = item.contactName
+            holder.binding.contactNameText.visibility = View.VISIBLE
+            holder.binding.phoneText.text = item.phone
+        } else {
+            holder.binding.contactNameText.visibility = View.GONE
+            holder.binding.phoneText.text = item.phone
+            holder.binding.phoneText.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15f)
+            holder.binding.phoneText.setTypeface(null, android.graphics.Typeface.BOLD)
+            holder.binding.phoneText.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.text_primary))
+        }
         holder.binding.lastMessageText.text = item.lastMessage.ifEmpty { "Pokalbis pradėtas..." }
         holder.binding.statusText.text = item.status
 

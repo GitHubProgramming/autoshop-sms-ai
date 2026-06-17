@@ -38,6 +38,13 @@ class ConversationFragment : Fragment() {
         chatAdapter = ChatAdapter()
 
         binding.toolbarTitle.text = args.phoneNumber
+        viewModel.contactName.observe(viewLifecycleOwner) { name ->
+            if (!name.isNullOrBlank()) {
+                binding.toolbarTitle.text = name
+                binding.toolbarSubtitle.text = args.phoneNumber
+                binding.toolbarSubtitle.visibility = View.VISIBLE
+            }
+        }
         binding.recyclerMessages.layoutManager = LinearLayoutManager(context).apply {
             stackFromEnd = true
         }

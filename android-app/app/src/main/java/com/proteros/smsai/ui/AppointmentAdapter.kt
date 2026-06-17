@@ -1,6 +1,7 @@
 package com.proteros.smsai.ui
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -24,7 +25,14 @@ class AppointmentAdapter : ListAdapter<TodayViewModel.AppointmentItem, Appointme
     override fun onBindViewHolder(holder: VH, position: Int) {
         val item = getItem(position)
         holder.binding.serviceText.text = item.service
-        holder.binding.clientText.text = item.client
+        if (!item.contactName.isNullOrBlank()) {
+            holder.binding.contactNameText.text = item.contactName
+            holder.binding.contactNameText.visibility = View.VISIBLE
+            holder.binding.clientText.text = item.client
+        } else {
+            holder.binding.contactNameText.visibility = View.GONE
+            holder.binding.clientText.text = item.client
+        }
         holder.binding.timeText.text = formatTime(item.time)
     }
 

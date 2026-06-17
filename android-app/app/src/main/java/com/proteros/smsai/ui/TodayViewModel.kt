@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 
 class TodayViewModel(private val repo: AppRepository) : ViewModel() {
 
-    data class AppointmentItem(val time: String, val client: String, val service: String)
+    data class AppointmentItem(val time: String, val client: String, val contactName: String?, val service: String)
     data class AttentionItem(val phone: String, val reason: String)
 
     private val _appointments = MutableLiveData<List<AppointmentItem>>(emptyList())
@@ -35,6 +35,7 @@ class TodayViewModel(private val repo: AppRepository) : ViewModel() {
                 .map { c ->
                     AgentViewModel.ConversationItem(
                         phone = c.phoneNumber,
+                        contactName = c.contactName,
                         lastMessage = c.lastMessage ?: "",
                         status = when (c.status) {
                             Conversation.STATUS_BOOKED -> "Užregistruotas"
@@ -71,6 +72,7 @@ class TodayViewModel(private val repo: AppRepository) : ViewModel() {
                         AppointmentItem(
                             time = c.bookingDateTime ?: "Nenurodyta",
                             client = c.phoneNumber,
+                            contactName = c.contactName,
                             service = c.bookingService ?: "Nenurodyta"
                         )
                     })
@@ -87,7 +89,7 @@ class TodayViewModel(private val repo: AppRepository) : ViewModel() {
                 val today = calendarClient.getTodayAppointments()
                 if (today.isNotEmpty()) {
                     _appointments.postValue(today.map { a ->
-                        AppointmentItem(time = a.time, client = a.clientPhone, service = a.service)
+                        AppointmentItem(time = a.time, client = a.clientPhone, contactName = null, service = a.service)
                     })
                 }
             } catch (e: Exception) {
