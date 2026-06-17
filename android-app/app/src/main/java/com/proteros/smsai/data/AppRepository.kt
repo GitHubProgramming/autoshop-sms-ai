@@ -5,6 +5,7 @@ import com.proteros.smsai.util.AgentNotification
 import com.proteros.smsai.util.AppLog
 import com.proteros.smsai.api.ClaudeApiClient
 import com.proteros.smsai.api.GoogleCalendarClient
+import com.proteros.smsai.util.ContactLookup
 import com.proteros.smsai.util.PhoneUtils
 import com.proteros.smsai.util.SecurePrefs
 import com.proteros.smsai.util.SmsSender
@@ -34,10 +35,13 @@ class AppRepository(
             return
         }
 
+        val contactName = ContactLookup.findName(context, phone)
+        AppLog.i("AppRepo", "Contact name for $phone: ${contactName ?: "unknown"}")
+
         AgentNotification.missedCall(context, phone)
 
         conversationDao.insertIgnore(
-            Conversation(phoneNumber = phone, status = Conversation.STATUS_ACTIVE)
+            Conversation(phoneNumber = phone, status = Conversation.STATUS_ACTIVE, contactName = contactName)
         )
 
         messageDao.insert(
@@ -70,10 +74,18 @@ class AppRepository(
         var convo = conversationDao.getByPhone(phone)
         if (convo == null) {
             AppLog.i("AppRepo", "No conversation for $phone, creating new one")
+            val contactName = ContactLookup.findName(context, phone)
             conversationDao.insertIgnore(
-                Conversation(phoneNumber = phone, status = Conversation.STATUS_ACTIVE)
+                Conversation(phoneNumber = phone, status = Conversation.STATUS_ACTIVE, contactName = contactName)
             )
             convo = conversationDao.getByPhone(phone)!!
+        }
+        if (convo.contactName == null) {
+            val contactName = ContactLookup.findName(context, phone)
+            if (contactName != null) {
+                conversationDao.setContactName(phone, contactName)
+                convo = convo.copy(contactName = contactName)
+            }
         }
 
         messageDao.insert(
@@ -110,7 +122,7 @@ class AppRepository(
         }
 
         val historyWithoutLatest = history.dropLast(1)
-        val aiResponse = claudeClient.generateReply(phone, historyWithoutLatest, body)
+        val aiResponse = claudeClient.generateReply(phone, historyWithoutLatest, body, convo.contactName)
         AppLog.i("AppRepo", "AI reply for $phone: ${aiResponse.text}")
 
         if (aiResponse.bookingDetected) {

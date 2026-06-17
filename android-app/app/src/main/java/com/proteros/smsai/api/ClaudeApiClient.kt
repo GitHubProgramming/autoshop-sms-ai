@@ -93,7 +93,7 @@ Rašyk lietuviškai, mandagiai, profesionaliai.
         val dateTime: String? = null
     )
 
-    suspend fun generateReply(phone: String, history: List<Message>, latestMessage: String): AiReply = withContext(Dispatchers.IO) {
+    suspend fun generateReply(phone: String, history: List<Message>, latestMessage: String, contactName: String? = null): AiReply = withContext(Dispatchers.IO) {
         val apiKey = SecurePrefs.getApiKey(context)
         AppLog.i(TAG, "generateReply for $phone, hasApiKey=${!apiKey.isNullOrBlank()}, historySize=${history.size}")
         if (apiKey.isNullOrBlank()) return@withContext AiReply("Atsiprašome, šiuo metu negalime atsakyti. Paskambinkite 8-600-12345.")
@@ -119,7 +119,8 @@ Rašyk lietuviškai, mandagiai, profesionaliai.
             }
 
             AppLog.i(TAG, "Calling Claude with ${messages.length()} messages")
-            val responseText = callClaude(apiKey, (0 until messages.length()).map { messages.getJSONObject(it) })
+            val nameContext = if (!contactName.isNullOrBlank()) "\nKliento vardas: $contactName. Kreipkis vardu." else "\nKliento vardas nežinomas. Neskreipk vardu."
+            val responseText = callClaude(apiKey, (0 until messages.length()).map { messages.getJSONObject(it) }, nameContext)
             AppLog.i(TAG, "Reply: $responseText")
 
             val bookingRegex = """\[BOOKING:(.+?)\|(.+?)]""".toRegex()
@@ -141,14 +142,14 @@ Rašyk lietuviškai, mandagiai, profesionaliai.
         }
     }
 
-    private fun callClaude(apiKey: String, messages: List<JSONObject>): String {
+    private fun callClaude(apiKey: String, messages: List<JSONObject>, extraContext: String = ""): String {
         val messagesArray = JSONArray()
         messages.forEach { messagesArray.put(it) }
 
         val bodyJson = JSONObject()
             .put("model", "claude-sonnet-4-6")
             .put("max_tokens", 256)
-            .put("system", systemPrompt)
+            .put("system", systemPrompt + extraContext)
             .put("messages", messagesArray)
 
         AppLog.i(TAG, "Request body: $bodyJson")

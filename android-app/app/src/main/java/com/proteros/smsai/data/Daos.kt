@@ -23,6 +23,9 @@ interface ConversationDao {
     @Query("UPDATE conversations SET lastMessage = :lastMessage, status = :status, updatedAt = :now WHERE phoneNumber = :phone")
     suspend fun updateConversation(phone: String, lastMessage: String?, status: String, now: Long = System.currentTimeMillis())
 
+    @Query("UPDATE conversations SET contactName = :name WHERE phoneNumber = :phone")
+    suspend fun setContactName(phone: String, name: String)
+
     @Query("UPDATE conversations SET ownerTakeover = :takeover, updatedAt = :now WHERE phoneNumber = :phone")
     suspend fun setTakeover(phone: String, takeover: Boolean, now: Long = System.currentTimeMillis())
 
