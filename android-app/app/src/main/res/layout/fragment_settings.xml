@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:padding="16dp"
@@ -19,68 +20,156 @@
             android:textStyle="bold"
             android:layout_marginBottom="24dp" />
 
-        <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/switch_service"
+        <!-- Service Toggle Card -->
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="SMS agentas aktyvus"
-            android:textSize="16sp"
-            android:padding="12dp"
-            android:layout_marginBottom="16dp" />
+            android:layout_marginBottom="16dp"
+            app:cardElevation="2dp"
+            app:cardCornerRadius="12dp">
 
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switch_service"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="SMS agentas aktyvus"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Kai įjungta, agentas automatiškai reaguoja į praleistus skambučius ir susirašinėja su klientais."
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginTop="4dp" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- API Key Card -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/api_key_card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="12dp"
             android:clickable="true"
-            android:focusable="true">
+            android:focusable="true"
+            app:cardElevation="2dp"
+            app:cardCornerRadius="12dp">
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:padding="16dp">
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Claude API raktas"
+                    android:text="🧠 Claude API raktas"
                     android:textSize="14sp"
                     android:textColor="@color/text_secondary" />
+
                 <TextView
                     android:id="@+id/api_key_value"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Nenustatytas"
                     android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="4dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Paspauskite, kad įvestumėte arba pakeistumėte raktą."
+                    android:textSize="11sp"
+                    android:textColor="@color/text_secondary"
                     android:layout_marginTop="4dp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Google Account Card -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/google_account_card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="12dp"
             android:clickable="true"
-            android:focusable="true">
+            android:focusable="true"
+            app:cardElevation="2dp"
+            app:cardCornerRadius="12dp">
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:padding="16dp">
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Google paskyra (kalendorius)"
+                    android:text="📅 Google paskyra (kalendorius)"
                     android:textSize="14sp"
                     android:textColor="@color/text_secondary" />
+
                 <TextView
                     android:id="@+id/google_account_value"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Neprisijungta"
                     android:textSize="16sp"
+                    android:textStyle="bold"
                     android:layout_marginTop="4dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Reikalinga vizitų įrašymui į kalendorių. Paspauskite prisijungti."
+                    android:textSize="11sp"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginTop="4dp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Info Section -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            app:cardElevation="0dp"
+            app:cardCornerRadius="12dp"
+            app:cardBackgroundColor="#F5F5F5">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Apie programą"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Ši programa automatiškai atsako į praleistus skambučius SMS žinute, naudodama AI agentą (Claude). Agentas susitaria su klientu dėl vizito laiko ir įrašo jį į Google kalendorių.\n\nJūs bet kada galite perimti pokalbį ir rašyti klientui tiesiogiai."
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
+                    android:lineSpacingMultiplier="1.3" />
+
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -90,7 +179,8 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             android:textColor="@color/text_secondary"
-            android:layout_marginTop="32dp" />
+            android:textSize="12sp"
+            android:layout_marginTop="24dp" />
 
     </LinearLayout>
 </ScrollView>

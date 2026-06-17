@@ -9,6 +9,7 @@ import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.proteros.smsai.AutoShopApp
+import com.proteros.smsai.api.GoogleCalendarClient
 import com.proteros.smsai.databinding.FragmentTodayBinding
 
 class TodayFragment : Fragment() {
@@ -53,7 +54,25 @@ class TodayFragment : Fragment() {
             binding.statusIndicator.setTextColor(
                 resources.getColor(if (active) android.R.color.holo_green_dark else android.R.color.holo_red_dark, null)
             )
+            binding.statusCard.setCardBackgroundColor(
+                resources.getColor(if (active) android.R.color.white else android.R.color.white, null)
+            )
         }
+
+        viewModel.conversationCount.observe(viewLifecycleOwner) { count ->
+            binding.statConversations.text = count.toString()
+        }
+
+        viewModel.todaySmsCount.observe(viewLifecycleOwner) { count ->
+            binding.statSmsSent.text = count.toString()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.checkServiceStatus(requireActivity().application)
+        viewModel.refreshAppointments(GoogleCalendarClient(requireContext()))
+        viewModel.refreshStats()
     }
 
     override fun onDestroyView() {

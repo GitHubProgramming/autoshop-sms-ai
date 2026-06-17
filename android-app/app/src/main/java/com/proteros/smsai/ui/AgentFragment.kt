@@ -36,7 +36,8 @@ class AgentFragment : Fragment() {
 
         viewModel.conversations.observe(viewLifecycleOwner) { list ->
             adapter.submitList(list)
-            binding.emptyText.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+            binding.emptyState.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+            binding.recyclerConversations.visibility = if (list.isEmpty()) View.GONE else View.VISIBLE
         }
     }
 

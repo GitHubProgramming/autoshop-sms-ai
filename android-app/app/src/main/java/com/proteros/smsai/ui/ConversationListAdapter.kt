@@ -2,9 +2,11 @@ package com.proteros.smsai.ui
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.proteros.smsai.R
 import com.proteros.smsai.databinding.ItemConversationBinding
 
 class ConversationListAdapter(private val onClick: (String) -> Unit) : ListAdapter<AgentViewModel.ConversationItem, ConversationListAdapter.VH>(
@@ -21,8 +23,19 @@ class ConversationListAdapter(private val onClick: (String) -> Unit) : ListAdapt
     override fun onBindViewHolder(holder: VH, position: Int) {
         val item = getItem(position)
         holder.binding.phoneText.text = item.phone
-        holder.binding.lastMessageText.text = item.lastMessage
+        holder.binding.lastMessageText.text = item.lastMessage.ifEmpty { "Pokalbis pradėtas..." }
         holder.binding.statusText.text = item.status
+
+        val bgColor = when {
+            item.status == "Užregistruotas" -> android.R.color.holo_green_dark
+            item.status == "Klaida" -> android.R.color.holo_red_dark
+            item.isOwnerTakeover -> android.R.color.holo_orange_dark
+            else -> R.color.primary
+        }
+        holder.binding.statusText.background.setTint(
+            ContextCompat.getColor(holder.itemView.context, bgColor)
+        )
+
         holder.itemView.setOnClickListener { onClick(item.phone) }
     }
 }

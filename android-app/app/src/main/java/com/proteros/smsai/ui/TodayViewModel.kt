@@ -2,10 +2,10 @@ package com.proteros.smsai.ui
 
 import android.app.Application
 import androidx.lifecycle.*
-import com.proteros.smsai.AutoShopApp
 import com.proteros.smsai.api.GoogleCalendarClient
 import com.proteros.smsai.data.AppRepository
 import com.proteros.smsai.data.Conversation
+import com.proteros.smsai.data.Message
 import com.proteros.smsai.util.SecurePrefs
 import kotlinx.coroutines.launch
 
@@ -22,6 +22,12 @@ class TodayViewModel(private val repo: AppRepository) : ViewModel() {
 
     private val _serviceActive = MutableLiveData(false)
     val serviceActive: LiveData<Boolean> = _serviceActive
+
+    private val _conversationCount = MutableLiveData(0)
+    val conversationCount: LiveData<Int> = _conversationCount
+
+    private val _todaySmsCount = MutableLiveData(0)
+    val todaySmsCount: LiveData<Int> = _todaySmsCount
 
     init {
         viewModelScope.launch {
@@ -47,6 +53,25 @@ class TodayViewModel(private val repo: AppRepository) : ViewModel() {
 
     fun checkServiceStatus(app: Application) {
         _serviceActive.value = SecurePrefs.isEnabled(app)
+    }
+
+    fun refreshStats() {
+        viewModelScope.launch {
+            repo.conversationDao.getAllFlow().collect { convos ->
+                _conversationCount.postValue(convos.size)
+                // Count today's AI messages as SMS sent
+                var smsCount = 0
+                for (c in convos) {
+                    val startOfDay = java.util.Calendar.getInstance().apply {
+                        set(java.util.Calendar.HOUR_OF_DAY, 0)
+                        set(java.util.Calendar.MINUTE, 0)
+                        set(java.util.Calendar.SECOND, 0)
+                    }.timeInMillis
+                    if (c.updatedAt >= startOfDay) smsCount++
+                }
+                _todaySmsCount.postValue(smsCount)
+            }
+        }
     }
 
     class Factory(private val repo: AppRepository) : ViewModelProvider.Factory {
