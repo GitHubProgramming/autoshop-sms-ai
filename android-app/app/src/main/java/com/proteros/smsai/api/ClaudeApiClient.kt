@@ -21,22 +21,55 @@ class ClaudeApiClient(private val context: Context) {
         .readTimeout(60, TimeUnit.SECONDS)
         .build()
 
-    private val systemPrompt = """
-        Tu esi Proteros autoserviso SMS asistentas Panevėžyje.
-        Adresas: Pramonės g. 2, Panevėžys.
-        Darbo laikas: I-V 8:00-17:00, VI 9:00-14:00.
+    private val systemPrompt: String
+        get() {
+            val now = java.time.LocalDateTime.now()
+            val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+            val dayFormatter = java.time.format.DateTimeFormatter.ofPattern("EEEE", java.util.Locale("lt"))
+            val slot1 = findNextSlot(now)
+            val slot2 = findNextSlot(slot1.plusHours(1))
+            val slot1Str = "${slot1.format(dayFormatter)} ${slot1.format(formatter)}"
+            val slot2Str = "${slot2.format(dayFormatter)} ${slot2.format(formatter)}"
+            return """
+Tu esi Proteros autoserviso SMS asistentas Panevėžyje.
+Adresas: Pramonės g. 2, Panevėžys.
+Darbo laikas: I-V 8:00-17:00, VI 9:00-14:00.
+Dabar yra: ${now.format(formatter)}.
 
-        Paslaugos: važiuoklės remontas, variklio diagnostika, stabdžių sistema,
-        pakabos remontas, techninė apžiūra, kompiuterinė diagnostika, tepalų keitimas.
+Paslaugos: važiuoklės remontas, variklio diagnostika, stabdžių sistema,
+pakabos remontas, techninė apžiūra, kompiuterinė diagnostika, tepalų keitimas.
 
-        Tavo tikslas: mandagiai susitarti dėl vizito laiko.
-        Atsakyk trumpai (max 160 simbolių SMS).
-        Kai klientas sutinka su laiku, atsakyk formatu:
-        [BOOKING:paslauga|data ir laikas]
-        Pvz: [BOOKING:Stabdžių remontas|2024-03-15 10:00]
+SVARBIOS TAISYKLĖS:
+- NIEKADA nesakyk kainos. Jei klientas klausia apie kainą, atsakyk: "Tikslią kainą aptarsime vizito metu po apžiūros."
+- Visada siūlyk du artimiausius laisvus laikus: $slot1Str arba $slot2Str.
+- Kiekvienas vizitas trunka 1 valandą.
+- Jei klientas nori kito laiko, pasiūlyk kitą tinkamą darbo valandą.
 
-        Rašyk lietuviškai, mandagiai, profesionaliai.
-    """.trimIndent()
+Tavo tikslas: mandagiai susitarti dėl vizito laiko.
+Atsakyk trumpai (max 160 simbolių SMS).
+Kai klientas sutinka su laiku, atsakyk formatu:
+[BOOKING:paslauga|data ir laikas]
+Pvz: [BOOKING:Stabdžių remontas|2025-06-18 10:00]
+
+Rašyk lietuviškai, mandagiai, profesionaliai.
+            """.trim()
+        }
+
+    private fun findNextSlot(from: java.time.LocalDateTime): java.time.LocalDateTime {
+        var slot = from
+        while (true) {
+            val dow = slot.dayOfWeek
+            val hour = slot.hour
+            when {
+                dow == java.time.DayOfWeek.SUNDAY -> slot = slot.plusDays(1).withHour(8).withMinute(0)
+                dow == java.time.DayOfWeek.SATURDAY && hour >= 13 -> slot = slot.plusDays(2).withHour(8).withMinute(0)
+                dow == java.time.DayOfWeek.SATURDAY && hour < 9 -> slot = slot.withHour(9).withMinute(0)
+                hour >= 16 -> slot = slot.plusDays(1).withHour(8).withMinute(0)
+                hour < 8 -> slot = slot.withHour(8).withMinute(0)
+                else -> return slot.withMinute(0).withSecond(0)
+            }
+        }
+    }
 
     suspend fun generateGreeting(phone: String): String = withContext(Dispatchers.IO) {
         val apiKey = SecurePrefs.getApiKey(context)

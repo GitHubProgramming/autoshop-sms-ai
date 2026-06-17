@@ -1,6 +1,7 @@
 package com.proteros.smsai.data
 
 import android.content.Context
+import com.proteros.smsai.util.AgentNotification
 import com.proteros.smsai.util.AppLog
 import com.proteros.smsai.api.ClaudeApiClient
 import com.proteros.smsai.api.GoogleCalendarClient
@@ -19,15 +20,21 @@ class AppRepository(
     private val calendarClient by lazy { GoogleCalendarClient(context) }
     private val smsSender by lazy { SmsSender(context) }
 
+    companion object {
+        private const val MAX_AI_TURNS = 8
+    }
+
     suspend fun handleMissedCall(rawPhone: String) {
         val phone = PhoneUtils.normalize(rawPhone)
         AppLog.i("AppRepo", "handleMissedCall: $phone")
 
         val existing = conversationDao.getByPhone(phone)
-        if (existing != null && existing.status == Conversation.STATUS_ACTIVE) {
-            AppLog.i("AppRepo", "Active conversation already exists for $phone, skipping")
+        if (existing != null && (existing.status == Conversation.STATUS_ACTIVE || existing.status == Conversation.STATUS_BOOKED)) {
+            AppLog.i("AppRepo", "Conversation already exists for $phone (${existing.status}), skipping")
             return
         }
+
+        AgentNotification.missedCall(context, phone)
 
         conversationDao.insertIgnore(
             Conversation(phoneNumber = phone, status = Conversation.STATUS_ACTIVE)
@@ -73,12 +80,35 @@ class AppRepository(
             Message(conversationPhone = phone, sender = Message.SENDER_CLIENT, body = body)
         )
 
+        AgentNotification.incomingSms(context, phone, body)
+
         if (convo.ownerTakeover) {
             AppLog.i("AppRepo", "Owner takeover active for $phone, skipping AI reply")
             return
         }
 
+        if (convo.status == Conversation.STATUS_BOOKED) {
+            AppLog.i("AppRepo", "Conversation already booked for $phone, skipping AI reply")
+            AgentNotification.handoverToOwner(context, phone)
+            conversationDao.setTakeover(phone, true)
+            messageDao.insert(
+                Message(conversationPhone = phone, sender = Message.SENDER_SYSTEM, body = "Klientas rašė po registracijos — perduota savininkui")
+            )
+            return
+        }
+
         val history = messageDao.getForConversation(phone)
+        val aiTurns = history.count { it.sender == Message.SENDER_AI }
+        if (aiTurns >= MAX_AI_TURNS) {
+            AppLog.i("AppRepo", "Max AI turns ($MAX_AI_TURNS) reached for $phone, handing over to owner")
+            conversationDao.setTakeover(phone, true)
+            AgentNotification.handoverToOwner(context, phone)
+            messageDao.insert(
+                Message(conversationPhone = phone, sender = Message.SENDER_SYSTEM, body = "Nepavyko susitarti per $MAX_AI_TURNS žinučių — perduota savininkui")
+            )
+            return
+        }
+
         val historyWithoutLatest = history.dropLast(1)
         val aiResponse = claudeClient.generateReply(phone, historyWithoutLatest, body)
         AppLog.i("AppRepo", "AI reply for $phone: ${aiResponse.text}")
@@ -103,12 +133,18 @@ class AppRepository(
                     body = if (eventId != null) "Vizitas užregistruotas kalendoriuje" else "Vizitas užregistruotas (be kalendoriaus)"
                 )
             )
+            AgentNotification.bookingMade(context, phone, aiResponse.service, aiResponse.dateTime)
         }
 
         messageDao.insert(
             Message(conversationPhone = phone, sender = Message.SENDER_AI, body = aiResponse.text)
         )
-        conversationDao.updateConversation(phone, aiResponse.text, Conversation.STATUS_ACTIVE)
+
+        if (aiResponse.bookingDetected) {
+            conversationDao.updateConversation(phone, aiResponse.text, Conversation.STATUS_BOOKED)
+        } else {
+            conversationDao.updateConversation(phone, aiResponse.text, Conversation.STATUS_ACTIVE)
+        }
 
         val sendResult = smsSender.sendFireAndForget(phone, aiResponse.text)
         if (sendResult.isFailure) {
