@@ -1,11 +1,11 @@
 package com.proteros.smsai.ui
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.*
 import com.proteros.smsai.api.GoogleCalendarClient
 import com.proteros.smsai.data.AppRepository
 import com.proteros.smsai.data.Conversation
-import com.proteros.smsai.data.Message
 import com.proteros.smsai.util.SecurePrefs
 import kotlinx.coroutines.launch
 
@@ -29,15 +29,38 @@ class TodayViewModel(private val repo: AppRepository) : ViewModel() {
     private val _todaySmsCount = MutableLiveData(0)
     val todaySmsCount: LiveData<Int> = _todaySmsCount
 
+    val activeConversations: LiveData<List<AgentViewModel.ConversationItem>> =
+        repo.conversationDao.getAllFlow().asLiveData().map { list ->
+            list.filter { it.status == Conversation.STATUS_ACTIVE || it.status == Conversation.STATUS_ERROR }
+                .map { c ->
+                    AgentViewModel.ConversationItem(
+                        phone = c.phoneNumber,
+                        lastMessage = c.lastMessage ?: "",
+                        status = when (c.status) {
+                            Conversation.STATUS_BOOKED -> "Užregistruotas"
+                            Conversation.STATUS_ERROR -> "Klaida"
+                            Conversation.STATUS_CLOSED -> "Baigtas"
+                            else -> if (c.ownerTakeover) "Savininkas" else "AI agentas"
+                        },
+                        isOwnerTakeover = c.ownerTakeover,
+                        updatedAt = c.updatedAt
+                    )
+                }
+        }
+
     init {
         viewModelScope.launch {
-            repo.conversationDao.getNeedingAttentionFlow().collect { convos ->
-                _attention.postValue(convos.map { c ->
-                    AttentionItem(
-                        phone = c.phoneNumber,
-                        reason = c.errorMessage ?: if (c.status == Conversation.STATUS_ERROR) "SMS klaida" else "Laukia atsakymo"
-                    )
-                })
+            try {
+                repo.conversationDao.getNeedingAttentionFlow().collect { convos ->
+                    _attention.postValue(convos.map { c ->
+                        AttentionItem(
+                            phone = c.phoneNumber,
+                            reason = c.errorMessage ?: if (c.status == Conversation.STATUS_ERROR) "SMS klaida" else "Laukia atsakymo"
+                        )
+                    })
+                }
+            } catch (e: Exception) {
+                Log.e("TodayViewModel", "Attention flow error", e)
             }
         }
     }
@@ -50,7 +73,7 @@ class TodayViewModel(private val repo: AppRepository) : ViewModel() {
                     AppointmentItem(time = a.time, client = a.clientPhone, service = a.service)
                 })
             } catch (e: Exception) {
-                android.util.Log.e("TodayViewModel", "Failed to load appointments", e)
+                Log.e("TodayViewModel", "Failed to load appointments", e)
             }
         }
     }
@@ -61,19 +84,22 @@ class TodayViewModel(private val repo: AppRepository) : ViewModel() {
 
     fun refreshStats() {
         viewModelScope.launch {
-            repo.conversationDao.getAllFlow().collect { convos ->
-                _conversationCount.postValue(convos.size)
-                // Count today's AI messages as SMS sent
-                var smsCount = 0
-                for (c in convos) {
+            try {
+                repo.conversationDao.getAllFlow().collect { convos ->
+                    _conversationCount.postValue(convos.size)
+                    var smsCount = 0
                     val startOfDay = java.util.Calendar.getInstance().apply {
                         set(java.util.Calendar.HOUR_OF_DAY, 0)
                         set(java.util.Calendar.MINUTE, 0)
                         set(java.util.Calendar.SECOND, 0)
                     }.timeInMillis
-                    if (c.updatedAt >= startOfDay) smsCount++
+                    for (c in convos) {
+                        if (c.updatedAt >= startOfDay) smsCount++
+                    }
+                    _todaySmsCount.postValue(smsCount)
                 }
-                _todaySmsCount.postValue(smsCount)
+            } catch (e: Exception) {
+                Log.e("TodayViewModel", "refreshStats error", e)
             }
         }
     }

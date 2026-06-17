@@ -120,6 +120,25 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Active Conversations Section -->
+        <TextView
+            android:id="@+id/section_active_convos"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Aktyvūs pokalbiai"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"
+            android:visibility="gone" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler_active_convos"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:nestedScrollingEnabled="false"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone" />
+
         <!-- Appointments Section -->
         <TextView
             android:layout_width="wrap_content"

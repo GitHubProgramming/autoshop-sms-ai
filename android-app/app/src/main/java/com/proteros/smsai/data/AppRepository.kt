@@ -81,7 +81,8 @@ class AppRepository(
         }
 
         val history = messageDao.getForConversation(phone)
-        val aiResponse = claudeClient.generateReply(phone, history, body)
+        val historyWithoutLatest = history.dropLast(1)
+        val aiResponse = claudeClient.generateReply(phone, historyWithoutLatest, body)
         Log.i("AppRepository", "AI reply for $phone: ${aiResponse.text}")
 
         if (aiResponse.bookingDetected) {

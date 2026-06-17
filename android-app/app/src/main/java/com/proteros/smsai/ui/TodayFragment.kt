@@ -26,6 +26,11 @@ class TodayFragment : Fragment() {
             TodayFragmentDirections.actionTodayToConversation(phone)
         )
     }
+    private val activeConvoAdapter = ConversationListAdapter { phone ->
+        findNavController().navigate(
+            TodayFragmentDirections.actionTodayToConversation(phone)
+        )
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentTodayBinding.inflate(inflater, container, false)
@@ -37,6 +42,14 @@ class TodayFragment : Fragment() {
         binding.recyclerAppointments.adapter = appointmentAdapter
         binding.recyclerAttention.layoutManager = LinearLayoutManager(context)
         binding.recyclerAttention.adapter = attentionAdapter
+        binding.recyclerActiveConvos.layoutManager = LinearLayoutManager(context)
+        binding.recyclerActiveConvos.adapter = activeConvoAdapter
+
+        viewModel.activeConversations.observe(viewLifecycleOwner) { list ->
+            activeConvoAdapter.submitList(list)
+            binding.sectionActiveConvos.visibility = if (list.isEmpty()) View.GONE else View.VISIBLE
+            binding.recyclerActiveConvos.visibility = if (list.isEmpty()) View.GONE else View.VISIBLE
+        }
 
         viewModel.appointments.observe(viewLifecycleOwner) { list ->
             appointmentAdapter.submitList(list)
@@ -53,9 +66,6 @@ class TodayFragment : Fragment() {
             binding.statusIndicator.text = if (active) "● Agentas aktyvus" else "○ Agentas išjungtas"
             binding.statusIndicator.setTextColor(
                 resources.getColor(if (active) android.R.color.holo_green_dark else android.R.color.holo_red_dark, null)
-            )
-            binding.statusCard.setCardBackgroundColor(
-                resources.getColor(if (active) android.R.color.white else android.R.color.white, null)
             )
         }
 

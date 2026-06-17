@@ -14,7 +14,7 @@ import com.proteros.smsai.databinding.ItemMessageSystemBinding
 
 class ChatAdapter : ListAdapter<ConversationViewModel.ChatItem, RecyclerView.ViewHolder>(
     object : DiffUtil.ItemCallback<ConversationViewModel.ChatItem>() {
-        override fun areItemsTheSame(a: ConversationViewModel.ChatItem, b: ConversationViewModel.ChatItem) = a.timestamp == b.timestamp
+        override fun areItemsTheSame(a: ConversationViewModel.ChatItem, b: ConversationViewModel.ChatItem) = a.timestamp == b.timestamp && a.sender == b.sender
         override fun areContentsTheSame(a: ConversationViewModel.ChatItem, b: ConversationViewModel.ChatItem) = a == b
     }
 ) {

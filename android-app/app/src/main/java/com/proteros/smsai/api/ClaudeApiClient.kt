@@ -1,6 +1,7 @@
 package com.proteros.smsai.api
 
 import android.content.Context
+import android.util.Log
 import com.proteros.smsai.data.Message
 import com.proteros.smsai.util.SecurePrefs
 import kotlinx.coroutines.Dispatchers
@@ -24,29 +25,32 @@ class ClaudeApiClient(private val context: Context) {
         Tu esi Proteros autoserviso SMS asistentas Panevėžyje.
         Adresas: Pramonės g. 2, Panevėžys.
         Darbo laikas: I-V 8:00-17:00, VI 9:00-14:00.
-        
-        Paslaugos: važiuoklės remontas, variklio diagnostika, stabdžių sistema, 
+
+        Paslaugos: važiuoklės remontas, variklio diagnostika, stabdžių sistema,
         pakabos remontas, techninė apžiūra, kompiuterinė diagnostika, tepalų keitimas.
-        
+
         Tavo tikslas: mandagiai susitarti dėl vizito laiko.
         Atsakyk trumpai (max 160 simbolių SMS).
         Kai klientas sutinka su laiku, atsakyk formatu:
         [BOOKING:paslauga|data ir laikas]
         Pvz: [BOOKING:Stabdžių remontas|2024-03-15 10:00]
-        
+
         Rašyk lietuviškai, mandagiai, profesionaliai.
     """.trimIndent()
 
     suspend fun generateGreeting(phone: String): String = withContext(Dispatchers.IO) {
         val apiKey = SecurePrefs.getApiKey(context)
+        Log.i(TAG, "generateGreeting for $phone, hasApiKey=${!apiKey.isNullOrBlank()}")
         if (apiKey.isNullOrBlank()) return@withContext "Sveiki! Matėme praleistą skambutį. Kuo galime padėti? Proteros autoservisas."
 
         try {
             val response = callClaude(apiKey, listOf(
                 JSONObject().put("role", "user").put("content", "Klientas numeriu $phone ką tik skambino bet neprisiskambino. Parašyk jam trumpą SMS pasisveikinimą.")
             ))
+            Log.i(TAG, "Greeting generated: $response")
             response
         } catch (e: Exception) {
+            Log.e(TAG, "generateGreeting failed", e)
             "Sveiki! Matėme praleistą skambutį. Kuo galime padėti? Proteros autoservisas."
         }
     }
@@ -60,21 +64,34 @@ class ClaudeApiClient(private val context: Context) {
 
     suspend fun generateReply(phone: String, history: List<Message>, latestMessage: String): AiReply = withContext(Dispatchers.IO) {
         val apiKey = SecurePrefs.getApiKey(context)
+        Log.i(TAG, "generateReply for $phone, hasApiKey=${!apiKey.isNullOrBlank()}, historySize=${history.size}")
         if (apiKey.isNullOrBlank()) return@withContext AiReply("Atsiprašome, šiuo metu negalime atsakyti. Paskambinkite 8-600-12345.")
 
         try {
             val messages = JSONArray()
+            var lastRole = ""
             for (msg in history) {
+                if (msg.sender == Message.SENDER_SYSTEM) continue
                 val role = if (msg.sender == Message.SENDER_CLIENT) "user" else "assistant"
-                if (msg.sender != Message.SENDER_SYSTEM) {
-                    messages.put(JSONObject().put("role", role).put("content", msg.body))
-                }
+                if (role == lastRole) continue
+                messages.put(JSONObject().put("role", role).put("content", msg.body))
+                lastRole = role
             }
-            messages.put(JSONObject().put("role", "user").put("content", latestMessage))
+            if (lastRole == "user") {
+                // Don't add duplicate user message
+            } else {
+                messages.put(JSONObject().put("role", "user").put("content", latestMessage))
+            }
 
+            if (messages.length() == 0) {
+                messages.put(JSONObject().put("role", "user").put("content", latestMessage))
+            }
+
+            Log.i(TAG, "Calling Claude with ${messages.length()} messages")
             val responseText = callClaude(apiKey, (0 until messages.length()).map { messages.getJSONObject(it) })
+            Log.i(TAG, "Reply: $responseText")
 
-            val bookingRegex = """\[BOOKING:(.+?)\|(.+?)]"""  .toRegex()
+            val bookingRegex = """\[BOOKING:(.+?)\|(.+?)]""".toRegex()
             val match = bookingRegex.find(responseText)
 
             if (match != null) {
@@ -88,6 +105,7 @@ class ClaudeApiClient(private val context: Context) {
                 AiReply(text = responseText)
             }
         } catch (e: Exception) {
+            Log.e(TAG, "generateReply failed for $phone", e)
             AiReply("Atsiprašome, įvyko klaida. Pabandykite vėliau arba skambinkite tiesiogiai.")
         }
     }
@@ -96,13 +114,15 @@ class ClaudeApiClient(private val context: Context) {
         val messagesArray = JSONArray()
         messages.forEach { messagesArray.put(it) }
 
-        val body = JSONObject()
+        val bodyJson = JSONObject()
             .put("model", "claude-sonnet-4-20250514")
             .put("max_tokens", 256)
             .put("system", systemPrompt)
             .put("messages", messagesArray)
-            .toString()
-            .toRequestBody("application/json".toMediaType())
+
+        Log.d(TAG, "Request body: $bodyJson")
+
+        val body = bodyJson.toString().toRequestBody("application/json".toMediaType())
 
         val request = Request.Builder()
             .url("https://api.anthropic.com/v1/messages")
@@ -115,9 +135,16 @@ class ClaudeApiClient(private val context: Context) {
         val response = client.newCall(request).execute()
         val responseBody = response.body?.string() ?: throw Exception("Tuščias atsakymas")
 
-        if (!response.isSuccessful) throw Exception("Claude API klaida: ${response.code}")
+        if (!response.isSuccessful) {
+            Log.e(TAG, "Claude API error ${response.code}: $responseBody")
+            throw Exception("Claude API klaida: ${response.code} - $responseBody")
+        }
 
         val json = JSONObject(responseBody)
         return json.getJSONArray("content").getJSONObject(0).getString("text")
+    }
+
+    companion object {
+        private const val TAG = "ClaudeApiClient"
     }
 }

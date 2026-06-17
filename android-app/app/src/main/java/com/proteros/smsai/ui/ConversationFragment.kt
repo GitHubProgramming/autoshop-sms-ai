@@ -1,6 +1,7 @@
 package com.proteros.smsai.ui
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -11,7 +12,6 @@ import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.proteros.smsai.AutoShopApp
-import com.proteros.smsai.R
 import com.proteros.smsai.databinding.FragmentConversationBinding
 
 class ConversationFragment : Fragment() {
@@ -25,7 +25,7 @@ class ConversationFragment : Fragment() {
         )
     }
 
-    private val chatAdapter = ChatAdapter()
+    private lateinit var chatAdapter: ChatAdapter
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentConversationBinding.inflate(inflater, container, false)
@@ -33,6 +33,10 @@ class ConversationFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        Log.i("ConversationFragment", "onViewCreated for phone: ${args.phoneNumber}")
+
+        chatAdapter = ChatAdapter()
+
         binding.toolbarTitle.text = args.phoneNumber
         binding.recyclerMessages.layoutManager = LinearLayoutManager(context).apply {
             stackFromEnd = true
@@ -54,9 +58,13 @@ class ConversationFragment : Fragment() {
         }
 
         viewModel.messages.observe(viewLifecycleOwner) { list ->
-            chatAdapter.submitList(list)
-            if (list.isNotEmpty()) {
-                binding.recyclerMessages.scrollToPosition(list.size - 1)
+            Log.i("ConversationFragment", "Messages observer: ${list.size} items")
+            chatAdapter.submitList(list.toList()) {
+                if (list.isNotEmpty()) {
+                    binding.recyclerMessages.post {
+                        binding.recyclerMessages.scrollToPosition(list.size - 1)
+                    }
+                }
             }
         }
 
