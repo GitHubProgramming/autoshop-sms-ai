@@ -17,8 +17,11 @@ interface ConversationDao {
     @Query("SELECT * FROM conversations WHERE status = 'error' OR (status = 'active' AND lastMessage IS NULL) ORDER BY updatedAt DESC")
     fun getNeedingAttentionFlow(): Flow<List<Conversation>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsert(conversation: Conversation)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIgnore(conversation: Conversation): Long
+
+    @Query("UPDATE conversations SET lastMessage = :lastMessage, status = :status, updatedAt = :now WHERE phoneNumber = :phone")
+    suspend fun updateConversation(phone: String, lastMessage: String?, status: String, now: Long = System.currentTimeMillis())
 
     @Query("UPDATE conversations SET ownerTakeover = :takeover, updatedAt = :now WHERE phoneNumber = :phone")
     suspend fun setTakeover(phone: String, takeover: Boolean, now: Long = System.currentTimeMillis())

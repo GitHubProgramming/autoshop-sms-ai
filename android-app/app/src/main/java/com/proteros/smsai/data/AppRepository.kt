@@ -29,7 +29,7 @@ class AppRepository(
             return
         }
 
-        conversationDao.upsert(
+        conversationDao.insertIgnore(
             Conversation(phoneNumber = phone, status = Conversation.STATUS_ACTIVE)
         )
 
@@ -43,9 +43,7 @@ class AppRepository(
         messageDao.insert(
             Message(conversationPhone = phone, sender = Message.SENDER_AI, body = greeting)
         )
-        conversationDao.upsert(
-            Conversation(phoneNumber = phone, status = Conversation.STATUS_ACTIVE, lastMessage = greeting)
-        )
+        conversationDao.updateConversation(phone, greeting, Conversation.STATUS_ACTIVE)
 
         val result = smsSender.sendFireAndForget(phone, greeting)
         if (result.isFailure) {
@@ -65,7 +63,7 @@ class AppRepository(
         var convo = conversationDao.getByPhone(phone)
         if (convo == null) {
             AppLog.i("AppRepo", "No conversation for $phone, creating new one")
-            conversationDao.upsert(
+            conversationDao.insertIgnore(
                 Conversation(phoneNumber = phone, status = Conversation.STATUS_ACTIVE)
             )
             convo = conversationDao.getByPhone(phone)!!
@@ -103,11 +101,7 @@ class AppRepository(
         messageDao.insert(
             Message(conversationPhone = phone, sender = Message.SENDER_AI, body = aiResponse.text)
         )
-        conversationDao.upsert(convo.copy(
-            lastMessage = aiResponse.text,
-            updatedAt = System.currentTimeMillis(),
-            status = Conversation.STATUS_ACTIVE
-        ))
+        conversationDao.updateConversation(phone, aiResponse.text, Conversation.STATUS_ACTIVE)
 
         val sendResult = smsSender.sendFireAndForget(phone, aiResponse.text)
         if (sendResult.isFailure) {

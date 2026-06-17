@@ -118,9 +118,10 @@ class SettingsFragment : Fragment() {
             CoroutineScope(Dispatchers.IO).launch {
                 try {
                     val testPhone = "+37060000000"
-                    app.repository.conversationDao.upsert(
+                    app.repository.conversationDao.insertIgnore(
                         Conversation(phoneNumber = testPhone, status = Conversation.STATUS_ACTIVE, lastMessage = "Test žinutė")
                     )
+                    app.repository.conversationDao.updateConversation(testPhone, "Test žinutė", Conversation.STATUS_ACTIVE)
                     app.repository.messageDao.insert(
                         Message(conversationPhone = testPhone, sender = Message.SENDER_SYSTEM, body = "Test pokalbis sukurtas")
                     )
