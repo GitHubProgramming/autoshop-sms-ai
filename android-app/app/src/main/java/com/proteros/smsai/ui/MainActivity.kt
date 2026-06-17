@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import android.util.Log
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -27,6 +28,7 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.RequestMultiplePermissions()
     ) { results ->
         val allGranted = results.all { it.value }
+        Log.i("MainActivity", "Permissions result: allGranted=$allGranted, details=$results")
         if (allGranted && SecurePrefs.isEnabled(this)) {
             SmsAgentService.start(this)
         }
@@ -42,6 +44,13 @@ class MainActivity : AppCompatActivity() {
         binding.bottomNav.setupWithNavController(navHost.navController)
 
         requestPermissions()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (SecurePrefs.isEnabled(this)) {
+            SmsAgentService.start(this)
+        }
     }
 
     private fun requestPermissions() {
@@ -60,10 +69,15 @@ class MainActivity : AppCompatActivity() {
         val needed = perms.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
+        Log.i("MainActivity", "Permissions needed: $needed")
         if (needed.isNotEmpty()) {
             permissionLauncher.launch(needed.toTypedArray())
         } else {
+            Log.i("MainActivity", "All permissions already granted")
             checkBatteryOptimization()
+            if (SecurePrefs.isEnabled(this)) {
+                SmsAgentService.start(this)
+            }
         }
     }
 
