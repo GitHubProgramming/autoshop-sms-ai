@@ -24,6 +24,11 @@
     </fragment>
 
     <fragment
+        android:id="@+id/weekFragment"
+        android:name="com.proteros.smsai.ui.WeekFragment"
+        android:label="Savaitė" />
+
+    <fragment
         android:id="@+id/settingsFragment"
         android:name="com.proteros.smsai.ui.SettingsFragment"
         android:label="Nustatymai" />
