@@ -220,7 +220,7 @@
             android:layout_marginTop="8dp"
             app:cardElevation="0dp"
             app:cardCornerRadius="12dp"
-            app:cardBackgroundColor="#E3F2FD">
+            app:cardBackgroundColor="#F5F5F5">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -242,7 +242,7 @@
                     android:layout_height="wrap_content"
                     android:text="1️⃣  Klientas skambina → jūs nepakeliame\n2️⃣  AI agentas išsiunčia SMS automatiškai\n3️⃣  Klientas atsako → AI derasi dėl laiko\n4️⃣  Vizitas įrašomas į Google kalendorių\n\n👉 Agentas skirtuke matysite visus pokalbius.\n👉 Galite bet kada perimti pokalbį paspaudę PERIMTI."
                     android:textSize="13sp"
-                    android:textColor="#1565C0"
+                    android:textColor="#333333"
                     android:lineSpacingMultiplier="1.4" />
 
             </LinearLayout>
