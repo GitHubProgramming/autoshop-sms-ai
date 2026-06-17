@@ -73,7 +73,7 @@ class TodayFragment : Fragment() {
             binding.statConversations.text = count.toString()
         }
 
-        viewModel.todaySmsCount.observe(viewLifecycleOwner) { count ->
+        viewModel.bookedCount.observe(viewLifecycleOwner) { count ->
             binding.statSmsSent.text = count.toString()
         }
     }

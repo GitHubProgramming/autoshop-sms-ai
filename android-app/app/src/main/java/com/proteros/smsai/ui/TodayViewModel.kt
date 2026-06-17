@@ -26,8 +26,8 @@ class TodayViewModel(private val repo: AppRepository) : ViewModel() {
     private val _conversationCount = MutableLiveData(0)
     val conversationCount: LiveData<Int> = _conversationCount
 
-    private val _todaySmsCount = MutableLiveData(0)
-    val todaySmsCount: LiveData<Int> = _todaySmsCount
+    private val _bookedCount = MutableLiveData(0)
+    val bookedCount: LiveData<Int> = _bookedCount
 
     val activeConversations: LiveData<List<AgentViewModel.ConversationItem>> =
         repo.conversationDao.getAllFlow().asLiveData().map { list ->
@@ -105,16 +105,7 @@ class TodayViewModel(private val repo: AppRepository) : ViewModel() {
             try {
                 repo.conversationDao.getAllFlow().collect { convos ->
                     _conversationCount.postValue(convos.size)
-                    var smsCount = 0
-                    val startOfDay = java.util.Calendar.getInstance().apply {
-                        set(java.util.Calendar.HOUR_OF_DAY, 0)
-                        set(java.util.Calendar.MINUTE, 0)
-                        set(java.util.Calendar.SECOND, 0)
-                    }.timeInMillis
-                    for (c in convos) {
-                        if (c.updatedAt >= startOfDay) smsCount++
-                    }
-                    _todaySmsCount.postValue(smsCount)
+                    _bookedCount.postValue(convos.count { it.status == Conversation.STATUS_BOOKED })
                 }
             } catch (e: Exception) {
                 AppLog.e("TodayViewModel", "refreshStats error", e)
