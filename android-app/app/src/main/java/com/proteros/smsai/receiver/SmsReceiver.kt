@@ -16,6 +16,23 @@ class SmsReceiver : BroadcastReceiver() {
     companion object {
         private val recentSms = LinkedHashMap<String, Long>(16, 0.75f, true)
         private const val DEDUP_WINDOW_MS = 5000L
+
+        private fun isDuplicate(key: String): Boolean {
+            val now = System.currentTimeMillis()
+            synchronized(recentSms) {
+                val lastTime = recentSms[key]
+                if (lastTime != null && now - lastTime < DEDUP_WINDOW_MS) {
+                    return true
+                }
+                recentSms[key] = now
+                if (recentSms.size > 50) {
+                    val iter = recentSms.iterator()
+                    iter.next()
+                    iter.remove()
+                }
+                return false
+            }
+        }
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -37,20 +54,9 @@ class SmsReceiver : BroadcastReceiver() {
             if (sender == null) continue
             val body = parts.joinToString("") { it.displayMessageBody ?: "" }
 
-            val dedupKey = "$sender|$body"
-            val now = System.currentTimeMillis()
-            synchronized(recentSms) {
-                val lastTime = recentSms[dedupKey]
-                if (lastTime != null && now - lastTime < DEDUP_WINDOW_MS) {
-                    AppLog.i("SmsReceiver", "Duplicate SMS from $sender, skipping")
-                    continue
-                }
-                recentSms[dedupKey] = now
-                if (recentSms.size > 50) {
-                    val iter = recentSms.iterator()
-                    iter.next()
-                    iter.remove()
-                }
+            if (isDuplicate("$sender|$body")) {
+                AppLog.i("SmsReceiver", "Duplicate SMS from $sender, skipping")
+                continue
             }
 
             AppLog.i("SmsReceiver", "Processing SMS from $sender: $body")

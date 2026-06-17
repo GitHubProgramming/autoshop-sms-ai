@@ -82,7 +82,7 @@ Rašyk lietuviškai, mandagiai, profesionaliai.
 
     companion object {
         private const val TAG = "ClaudeApiClient"
-        const val GREETING_TEMPLATE = "Sveiki! Čia Proteros autoservisas. Matėme Jūsų skambutį. Parašykite mums: kokia problema ir kada patogų atvykti — užregistruosime automatiškai! 🔧"
+        const val GREETING_TEMPLATE = "Sveiki! Proteros autoservisas — matėme Jūsų skambutį. Atsakykite nurodydami problemą ir pageidaujamą laiką, mūsų sistema automatiškai užregistruos Jūsų vizitą. Pvz: \"Stabdžių remontas, rytoj 10:00\" 🔧"
     }
 
     data class AiReply(
