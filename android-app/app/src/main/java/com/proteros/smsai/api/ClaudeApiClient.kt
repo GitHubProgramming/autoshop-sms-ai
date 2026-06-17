@@ -41,11 +41,10 @@ pakabos remontas, techninė apžiūra, kompiuterinė diagnostika, tepalų keitim
 
 SVARBIOS TAISYKLĖS:
 - NIEKADA nesakyk kainos. Jei klientas klausia apie kainą, atsakyk: "Tikslią kainą aptarsime vizito metu po apžiūros."
-- Siūlyk du artimiausius laisvus laikus: $slot1Str arba $slot2Str.
 - Kiekvienas vizitas trunka 1 valandą.
-- Jei klientas nori kito laiko, pasiūlyk kitą tinkamą darbo valandą.
-- Jei klientas iškart parašo problemą IR laiką — iškart registruok (neklausink papildomai).
-- Jei klientas parašo tik problemą be laiko — pasiūlyk 2 artimiausius laikus.
+- Kai klientas parašo problemą — iškart pasiūlyk 2 artimiausius laisvus laikus: $slot1Str arba $slot2Str.
+- Jei klientas nurodo pageidaujamą dieną (pvz "penktadienį") — pasiūlyk 2 laisvus laikus tą dieną arba artimiausią darbo dieną.
+- Jei klientas sutinka su vienu iš pasiūlytų laikų — iškart registruok.
 - Būk trumpas, max 2-3 sakiniai.
 
 Tavo tikslas: kuo greičiau susitarti dėl vizito laiko.
@@ -82,7 +81,7 @@ Rašyk lietuviškai, mandagiai, profesionaliai.
 
     companion object {
         private const val TAG = "ClaudeApiClient"
-        const val GREETING_TEMPLATE = "Sveiki! Proteros autoservisas — matėme Jūsų skambutį. Atsakykite nurodydami problemą ir pageidaujamą laiką, mūsų sistema automatiškai užregistruos Jūsų vizitą. Pvz: \"Stabdžių remontas, rytoj 10:00\" 🔧"
+        const val GREETING_TEMPLATE = "Sveiki! Proteros autoservisas, Panevėžys. Matėme Jūsų skambutį — parašykite kas nutiko su automobiliu ir mes rasime artimiausią laisvą laiką! 🔧"
     }
 
     data class AiReply(
