@@ -8,7 +8,6 @@
     <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
@@ -34,13 +33,11 @@
 
         <service
             android:name=".service.SmsAgentService"
-            android:foregroundServiceType="phoneCall"
             android:exported="false" />
 
         <receiver
             android:name=".receiver.MissedCallReceiver"
-            android:exported="true"
-            android:permission="android.permission.READ_PHONE_STATE">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.PHONE_STATE" />
             </intent-filter>

@@ -48,8 +48,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (SecurePrefs.isEnabled(this)) {
-            SmsAgentService.start(this)
+        try {
+            if (SecurePrefs.isEnabled(this)) {
+                SmsAgentService.start(this)
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "onResume service start failed", e)
         }
     }
 

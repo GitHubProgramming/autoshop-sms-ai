@@ -46,8 +46,13 @@ class SettingsFragment : Fragment() {
 
         binding.switchService.isChecked = SecurePrefs.isEnabled(ctx)
         binding.switchService.setOnCheckedChangeListener { _, checked ->
-            SecurePrefs.setEnabled(ctx, checked)
-            if (checked) SmsAgentService.start(ctx) else SmsAgentService.stop(ctx)
+            try {
+                SecurePrefs.setEnabled(ctx, checked)
+                if (checked) SmsAgentService.start(ctx) else SmsAgentService.stop(ctx)
+            } catch (e: Exception) {
+                android.util.Log.e("SettingsFragment", "Service toggle failed", e)
+                Toast.makeText(ctx, "Klaida: ${e.message}", Toast.LENGTH_LONG).show()
+            }
         }
 
         val apiKey = SecurePrefs.getApiKey(ctx)

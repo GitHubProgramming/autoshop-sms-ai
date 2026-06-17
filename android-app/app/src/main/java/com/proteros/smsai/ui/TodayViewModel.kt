@@ -44,10 +44,14 @@ class TodayViewModel(private val repo: AppRepository) : ViewModel() {
 
     fun refreshAppointments(calendarClient: GoogleCalendarClient) {
         viewModelScope.launch {
-            val today = calendarClient.getTodayAppointments()
-            _appointments.postValue(today.map { a ->
-                AppointmentItem(time = a.time, client = a.clientPhone, service = a.service)
-            })
+            try {
+                val today = calendarClient.getTodayAppointments()
+                _appointments.postValue(today.map { a ->
+                    AppointmentItem(time = a.time, client = a.clientPhone, service = a.service)
+                })
+            } catch (e: Exception) {
+                android.util.Log.e("TodayViewModel", "Failed to load appointments", e)
+            }
         }
     }
 

@@ -6,6 +6,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Build
 import android.os.IBinder
 import android.telephony.TelephonyManager
 import android.util.Log
@@ -24,7 +25,11 @@ class SmsAgentService : Service() {
     override fun onCreate() {
         super.onCreate()
         Log.i(TAG, "SmsAgentService created")
-        startForeground(NOTIFICATION_ID, buildNotification())
+        try {
+            startForeground(NOTIFICATION_ID, buildNotification())
+        } catch (e: Exception) {
+            Log.e(TAG, "startForeground failed", e)
+        }
         registerDynamicReceivers()
     }
 
@@ -44,9 +49,12 @@ class SmsAgentService : Service() {
     private fun registerDynamicReceivers() {
         try {
             callReceiver = MissedCallReceiver()
+            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+                Context.RECEIVER_EXPORTED else 0
             registerReceiver(
                 callReceiver,
-                IntentFilter(TelephonyManager.ACTION_PHONE_STATE_CHANGED)
+                IntentFilter(TelephonyManager.ACTION_PHONE_STATE_CHANGED),
+                flags
             )
             Log.i(TAG, "Dynamic MissedCallReceiver registered")
         } catch (e: Exception) {
@@ -55,9 +63,12 @@ class SmsAgentService : Service() {
 
         try {
             smsReceiver = SmsReceiver()
+            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+                Context.RECEIVER_EXPORTED else 0
             registerReceiver(
                 smsReceiver,
-                IntentFilter("android.provider.Telephony.SMS_RECEIVED")
+                IntentFilter("android.provider.Telephony.SMS_RECEIVED"),
+                flags
             )
             Log.i(TAG, "Dynamic SmsReceiver registered")
         } catch (e: Exception) {
@@ -90,14 +101,22 @@ class SmsAgentService : Service() {
         private const val NOTIFICATION_ID = 1
 
         fun start(context: Context) {
-            Log.i(TAG, "Starting SmsAgentService")
-            val intent = Intent(context, SmsAgentService::class.java)
-            context.startForegroundService(intent)
+            try {
+                Log.i(TAG, "Starting SmsAgentService")
+                val intent = Intent(context, SmsAgentService::class.java)
+                context.startForegroundService(intent)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to start service", e)
+            }
         }
 
         fun stop(context: Context) {
-            Log.i(TAG, "Stopping SmsAgentService")
-            context.stopService(Intent(context, SmsAgentService::class.java))
+            try {
+                Log.i(TAG, "Stopping SmsAgentService")
+                context.stopService(Intent(context, SmsAgentService::class.java))
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to stop service", e)
+            }
         }
     }
 }
