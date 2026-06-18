@@ -115,7 +115,7 @@ NENAUDOK jokio markdown formatavimo (**, *, # ir pan.) — tai SMS žinutė, ra�
 
     companion object {
         private const val TAG = "ClaudeApiClient"
-        const val GREETING_TEMPLATE = "Sveiki! Proteros Servisas, Panevėžys. Matėme Jūsų skambutį — parašykite kas nutiko su automobiliu ir mes rasime artimiausią laisvą laiką! 🔧"
+        const val GREETING_TEMPLATE = "Sveiki! Čia Proteros Servisas. Atsiprašome, kad dabar negalėjome atsiliepti. Aprašykite automobilio problemą ir norimą vizito laiką — ir mes iškart pasiūlysime artimiausią laisvą laiką."
         const val ADDRESS_WITH_MAP = "\nAukštaičių g. 29-2, Panevėžys\nhttps://maps.google.com/?q=Aukstaičiu+g.+29-2,+Panevezys,+Lithuania"
     }
 
