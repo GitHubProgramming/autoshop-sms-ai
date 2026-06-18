@@ -22,8 +22,8 @@ android {
         applicationId 'com.proteros.smsai'
         minSdk 26
         targetSdk 34
-        versionCode 17
-        versionName '1.17'
+        versionCode 18
+        versionName '1.18'
 
         buildConfigField "String", "DEFAULT_API_KEY", "\"${System.getenv('DEFAULT_API_KEY') ?: ''}\""
         buildConfigField "String", "DEFAULT_CALENDAR_ID", "\"${System.getenv('DEFAULT_CALENDAR_ID') ?: ''}\""
