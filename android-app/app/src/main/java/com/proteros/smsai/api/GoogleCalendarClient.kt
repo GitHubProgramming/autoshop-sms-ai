@@ -132,4 +132,24 @@ class GoogleCalendarClient(private val context: Context) {
 
     suspend fun getTodayAppointments(): List<TodayAppointment> =
         getTodayAppointmentsWithStatus().appointments
+
+    suspend fun isSlotAvailable(dateTime: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val calService = getService() ?: return@withContext true
+            val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+            val date = sdf.parse(dateTime) ?: return@withContext true
+            val startTime = DateTime(date, TimeZone.getTimeZone("Europe/Vilnius"))
+            val endTime = DateTime(java.util.Date(date.time + 3600000), TimeZone.getTimeZone("Europe/Vilnius"))
+
+            val events = calService.events().list(calendarId())
+                .setTimeMin(startTime)
+                .setTimeMax(endTime)
+                .setSingleEvents(true)
+                .execute()
+
+            events.items.isNullOrEmpty()
+        } catch (e: Exception) {
+            true
+        }
+    }
 }

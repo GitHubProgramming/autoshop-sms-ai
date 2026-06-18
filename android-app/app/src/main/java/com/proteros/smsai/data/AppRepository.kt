@@ -145,13 +145,28 @@ class AppRepository(
             return
         }
 
-        lastAiCallTime[phone] = System.currentTimeMillis()
         val historyWithoutLatest = history.dropLast(1)
         val aiResponse = claudeClient.generateReply(phone, historyWithoutLatest, body, convo.contactName)
+        lastAiCallTime[phone] = System.currentTimeMillis()
         AppLog.i("AppRepo", "AI reply for $phone: ${aiResponse.text}")
 
         if (aiResponse.bookingDetected) {
             AppLog.i("AppRepo", "Booking detected: ${aiResponse.service} at ${aiResponse.dateTime}")
+
+            val slotFree = try {
+                aiResponse.dateTime?.let { calendarClient.isSlotAvailable(it) } ?: true
+            } catch (_: Exception) { true }
+
+            if (!slotFree) {
+                AppLog.i("AppRepo", "Time slot conflict for $phone at ${aiResponse.dateTime}")
+                AgentNotification.bookingConflict(context, phone, aiResponse.dateTime)
+                conversationDao.setTakeover(phone, true)
+                messageDao.insert(
+                    Message(conversationPhone = phone, sender = Message.SENDER_SYSTEM, body = "Laiko konfliktas: ${aiResponse.dateTime} jau užimtas — perduota savininkui")
+                )
+                return
+            }
+
             var eventId: String? = null
             try {
                 val chatSummary = history

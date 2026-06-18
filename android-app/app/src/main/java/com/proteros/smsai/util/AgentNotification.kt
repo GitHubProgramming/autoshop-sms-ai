@@ -34,6 +34,10 @@ object AgentNotification {
         show(context, "Kalendorius nesusinchronizavo", "$phone — ${service ?: "Vizitas"} neįrašytas. Patikrinkite Google paskyrą.")
     }
 
+    fun bookingConflict(context: Context, phone: String, dateTime: String?) {
+        show(context, "Laiko konfliktas!", "$phone norėjo ${dateTime ?: "?"} — laikas užimtas. Perimkite pokalbį.")
+    }
+
     private fun show(context: Context, title: String, text: String) {
         try {
             val intent = Intent(context, MainActivity::class.java).apply {

@@ -185,7 +185,7 @@ NENAUDOK jokio markdown formatavimo (**, *, # ir pan.) — tai SMS žinutė, ra�
             .put("system", systemPrompt + extraContext)
             .put("messages", messagesArray)
 
-        AppLog.i(TAG, "Request body: $bodyJson")
+        AppLog.i(TAG, "Calling Claude API (${messagesArray.length()} messages)")
 
         val body = bodyJson.toString().toRequestBody("application/json".toMediaType())
 
@@ -206,6 +206,10 @@ NENAUDOK jokio markdown formatavimo (**, *, # ir pan.) — tai SMS žinutė, ra�
         }
 
         val json = JSONObject(responseBody)
-        return json.getJSONArray("content").getJSONObject(0).getString("text")
+        val content = json.optJSONArray("content")
+        if (content == null || content.length() == 0) {
+            throw Exception("Tuščias Claude atsakymas")
+        }
+        return content.getJSONObject(0).getString("text")
     }
 }
