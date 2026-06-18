@@ -120,7 +120,10 @@ class SettingsFragment : Fragment() {
                 .show()
         }
 
-        binding.versionText.text = "Versija 1.2 • Proteros Servisas"
+        val versionName = try {
+            ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName
+        } catch (_: Exception) { "?" }
+        binding.versionText.text = "Versija $versionName • Proteros Servisas"
 
         binding.btnShowLogs.setOnClickListener {
             val logScroll = binding.logScroll
