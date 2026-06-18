@@ -185,21 +185,22 @@ class WeekFragment : Fragment() {
                         }
                     }
 
-                    val serviceLabel = TextView(ctx).apply {
-                        text = appt.service.take(10)
-                        setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
+                    val nameLabel = TextView(ctx).apply {
+                        text = appt.contactName ?: appt.client.takeLast(6)
+                        setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
+                        setTypeface(null, Typeface.BOLD)
                         setTextColor(0xFFFFFFFF.toInt())
                         maxLines = 1
                     }
-                    block.addView(serviceLabel)
+                    block.addView(nameLabel)
 
-                    val nameLabel = TextView(ctx).apply {
-                        text = appt.contactName ?: appt.client.takeLast(6)
+                    val serviceLabel = TextView(ctx).apply {
+                        text = appt.service.split(" ").first()
                         setTextSize(TypedValue.COMPLEX_UNIT_SP, 8f)
                         setTextColor(0xCCFFFFFF.toInt())
                         maxLines = 1
                     }
-                    block.addView(nameLabel)
+                    block.addView(serviceLabel)
 
                     val apptRef = appt
                     val apptDate = date
