@@ -198,10 +198,11 @@ class WeekFragment : Fragment() {
                     block.addView(nameLabel)
 
                     val serviceLabel = TextView(ctx).apply {
-                        text = appt.service.split(" ").first()
-                        setTextSize(TypedValue.COMPLEX_UNIT_SP, 8f)
+                        text = appt.service
+                        setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
                         setTextColor(0xCCFFFFFF.toInt())
                         maxLines = 1
+                        ellipsize = android.text.TextUtils.TruncateAt.END
                     }
                     block.addView(serviceLabel)
 
