@@ -14,24 +14,14 @@ import kotlinx.coroutines.launch
 class SmsReceiver : BroadcastReceiver() {
 
     companion object {
-        private val recentSms = LinkedHashMap<String, Long>(16, 0.75f, true)
+        private val recentSms = java.util.concurrent.ConcurrentHashMap<String, Long>()
         private const val DEDUP_WINDOW_MS = 5000L
 
         private fun isDuplicate(key: String): Boolean {
             val now = System.currentTimeMillis()
-            synchronized(recentSms) {
-                val lastTime = recentSms[key]
-                if (lastTime != null && now - lastTime < DEDUP_WINDOW_MS) {
-                    return true
-                }
-                recentSms[key] = now
-                if (recentSms.size > 50) {
-                    val iter = recentSms.iterator()
-                    iter.next()
-                    iter.remove()
-                }
-                return false
-            }
+            recentSms.entries.removeIf { now - it.value > DEDUP_WINDOW_MS }
+            val lastTime = recentSms.putIfAbsent(key, now)
+            return lastTime != null && now - lastTime < DEDUP_WINDOW_MS
         }
     }
 

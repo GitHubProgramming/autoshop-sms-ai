@@ -10,6 +10,9 @@ import android.telephony.SmsManager
 import android.telephony.SubscriptionManager
 import android.app.Activity
 import android.util.Log
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 
 class SmsSender(private val context: Context) {
 
@@ -25,6 +28,10 @@ class SmsSender(private val context: Context) {
     }
 
     fun sendFireAndForget(phone: String, text: String): Result<Unit> {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
+            Log.e("SmsSender", "SEND_SMS permission not granted")
+            return Result.failure(SecurityException("SEND_SMS permission not granted"))
+        }
         return try {
             val action = "SMS_SENT_${System.currentTimeMillis()}"
             val sentIntent = PendingIntent.getBroadcast(

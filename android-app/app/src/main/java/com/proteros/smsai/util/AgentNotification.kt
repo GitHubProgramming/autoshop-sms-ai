@@ -30,6 +30,10 @@ object AgentNotification {
         show(context, "Reikia dėmesio", "Pokalbis su $phone perduotas savininkui")
     }
 
+    fun calendarSyncFailed(context: Context, phone: String, service: String?) {
+        show(context, "Kalendorius nesusinchronizavo", "$phone — ${service ?: "Vizitas"} neįrašytas. Patikrinkite Google paskyrą.")
+    }
+
     private fun show(context: Context, title: String, text: String) {
         try {
             val intent = Intent(context, MainActivity::class.java).apply {

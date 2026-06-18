@@ -155,6 +155,9 @@ class AppRepository(
                 )
             )
             AgentNotification.bookingMade(context, phone, aiResponse.service, aiResponse.dateTime)
+            if (eventId == null) {
+                AgentNotification.calendarSyncFailed(context, phone, aiResponse.service)
+            }
         }
 
         val smsText = if (aiResponse.bookingDetected) {
