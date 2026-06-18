@@ -29,6 +29,7 @@ class AppRepository(
     }
 
     suspend fun handleMissedCall(rawPhone: String) {
+        archiveOldConversations()
         val phone = PhoneUtils.normalize(rawPhone)
         AppLog.i("AppRepo", "handleMissedCall: $phone")
 
@@ -71,6 +72,7 @@ class AppRepository(
     }
 
     suspend fun handleIncomingSms(rawPhone: String, body: String) {
+        archiveOldConversations()
         val phone = PhoneUtils.normalize(rawPhone)
         AppLog.i("AppRepo", "handleIncomingSms from $phone: $body")
 
@@ -202,6 +204,11 @@ class AppRepository(
         } else {
             throw result.exceptionOrNull() ?: Exception("SMS siuntimas nepavyko")
         }
+    }
+
+    suspend fun archiveOldConversations() {
+        val cutoff = System.currentTimeMillis() - 24 * 60 * 60 * 1000
+        conversationDao.closeOldBooked(cutoff)
     }
 
     suspend fun setTakeover(phone: String, takeover: Boolean) {

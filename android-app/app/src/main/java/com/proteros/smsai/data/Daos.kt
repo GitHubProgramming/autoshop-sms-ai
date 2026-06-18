@@ -43,6 +43,9 @@ interface ConversationDao {
 
     @Query("DELETE FROM conversations WHERE phoneNumber = :phone")
     suspend fun delete(phone: String)
+
+    @Query("UPDATE conversations SET status = 'closed' WHERE status = 'booked' AND updatedAt < :cutoff")
+    suspend fun closeOldBooked(cutoff: Long)
 }
 
 @Dao
