@@ -201,8 +201,7 @@ class WeekFragment : Fragment() {
                         text = appt.service
                         setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
                         setTextColor(0xCCFFFFFF.toInt())
-                        maxLines = 1
-                        ellipsize = android.text.TextUtils.TruncateAt.END
+                        maxLines = 2
                     }
                     block.addView(serviceLabel)
 
