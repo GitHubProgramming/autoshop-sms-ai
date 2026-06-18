@@ -26,6 +26,9 @@ import java.util.Locale
 
 class WeekFragment : Fragment() {
 
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density + 0.5f).toInt()
+
     private var _binding: FragmentWeekBinding? = null
     private val binding get() = _binding!!
     private val viewModel: TodayViewModel by viewModels {
@@ -213,18 +216,58 @@ class WeekFragment : Fragment() {
                         val clientName = apptRef.contactName ?: "Nežinomas"
                         val phone = apptRef.client
 
-                        val details = buildString {
-                            append("📅  $dayName, $dateStr\n")
-                            append("🕐  $timeStr\n\n")
-                            append("🔧  Paslauga: ${apptRef.service}\n")
-                            append("👤  Klientas: $clientName\n")
-                            append("📞  Tel: $phone\n")
+                        val dialogView = LinearLayout(ctx).apply {
+                            orientation = LinearLayout.VERTICAL
+                            setPadding(dp(24), dp(20), dp(24), dp(8))
+
+                            addView(TextView(ctx).apply {
+                                text = apptRef.service
+                                setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
+                                setTypeface(null, Typeface.BOLD)
+                                setTextColor(0xFF1B5E20.toInt())
+                            })
+
+                            addView(android.view.View(ctx).apply {
+                                setBackgroundColor(0xFFE0E0E0.toInt())
+                                layoutParams = LinearLayout.LayoutParams(
+                                    LinearLayout.LayoutParams.MATCH_PARENT, dp(1)
+                                ).apply { setMargins(0, dp(12), 0, dp(16)) }
+                            })
+
+                            fun addRow(icon: String, label: String, value: String) {
+                                addView(LinearLayout(ctx).apply {
+                                    orientation = LinearLayout.HORIZONTAL
+                                    setPadding(0, dp(4), 0, dp(4))
+                                    addView(TextView(ctx).apply {
+                                        text = icon
+                                        setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+                                        layoutParams = LinearLayout.LayoutParams(dp(32), LinearLayout.LayoutParams.WRAP_CONTENT)
+                                    })
+                                    addView(LinearLayout(ctx).apply {
+                                        orientation = LinearLayout.VERTICAL
+                                        addView(TextView(ctx).apply {
+                                            text = label
+                                            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+                                            setTextColor(0xFF999999.toInt())
+                                        })
+                                        addView(TextView(ctx).apply {
+                                            text = value
+                                            setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+                                            setTextColor(0xFF212121.toInt())
+                                        })
+                                    })
+                                })
+                            }
+
+                            addRow("📅", "Data", "$dayName, $dateStr")
+                            addRow("🕐", "Laikas", timeStr)
+                            addRow("👤", "Klientas", clientName)
+                            addRow("📞", "Telefonas", phone)
                         }
 
                         AlertDialog.Builder(ctx)
-                            .setTitle("Vizito informacija")
-                            .setMessage(details)
-                            .setPositiveButton("✕  Uždaryti", null)
+                            .setView(dialogView)
+                            .setPositiveButton("UŽDARYTI", null)
                             .show()
                     }
 
