@@ -159,11 +159,26 @@ class AppRepository(
 
             if (!slotFree) {
                 AppLog.i("AppRepo", "Time slot conflict for $phone at ${aiResponse.dateTime}")
-                AgentNotification.bookingConflict(context, phone, aiResponse.dateTime)
-                conversationDao.setTakeover(phone, true)
-                messageDao.insert(
-                    Message(conversationPhone = phone, sender = Message.SENDER_SYSTEM, body = "Laiko konfliktas: ${aiResponse.dateTime} jau užimtas — perduota savininkui")
-                )
+                val nextFree = try {
+                    calendarClient.findNextFreeSlot(aiResponse.dateTime!!)
+                } catch (_: Exception) { null }
+
+                if (nextFree != null) {
+                    val altMsg = "Atsiprašome, ${aiResponse.dateTime} jau užimtas. Artimiausias laisvas laikas: $nextFree. Ar tinka?"
+                    messageDao.insert(
+                        Message(conversationPhone = phone, sender = Message.SENDER_AI, body = altMsg)
+                    )
+                    messageDao.insert(
+                        Message(conversationPhone = phone, sender = Message.SENDER_SYSTEM, body = "Laiko konfliktas: ${aiResponse.dateTime} užimtas, pasiūlytas $nextFree")
+                    )
+                    smsSender.sendWithRetry(phone, altMsg)
+                } else {
+                    AgentNotification.bookingConflict(context, phone, aiResponse.dateTime)
+                    conversationDao.setTakeover(phone, true)
+                    messageDao.insert(
+                        Message(conversationPhone = phone, sender = Message.SENDER_SYSTEM, body = "Laiko konfliktas: ${aiResponse.dateTime} užimtas, laisvų nėra — perduota savininkui")
+                    )
+                }
                 return
             }
 

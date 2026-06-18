@@ -152,4 +152,68 @@ class GoogleCalendarClient(private val context: Context) {
             true
         }
     }
+
+    suspend fun findNextFreeSlot(fromDateTime: String): String? = withContext(Dispatchers.IO) {
+        try {
+            val calService = getService() ?: return@withContext null
+            val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+            val startDate = sdf.parse(fromDateTime) ?: return@withContext null
+
+            val cal = java.util.Calendar.getInstance(TimeZone.getTimeZone("Europe/Vilnius"))
+            cal.time = startDate
+            cal.add(java.util.Calendar.HOUR_OF_DAY, 1)
+
+            repeat(40) {
+                val dow = cal.get(java.util.Calendar.DAY_OF_WEEK)
+                val hour = cal.get(java.util.Calendar.HOUR_OF_DAY)
+
+                when {
+                    dow == java.util.Calendar.SUNDAY -> {
+                        cal.add(java.util.Calendar.DAY_OF_MONTH, 1)
+                        cal.set(java.util.Calendar.HOUR_OF_DAY, 8)
+                        cal.set(java.util.Calendar.MINUTE, 0)
+                        return@repeat
+                    }
+                    dow == java.util.Calendar.SATURDAY && hour >= 13 -> {
+                        cal.add(java.util.Calendar.DAY_OF_MONTH, 2)
+                        cal.set(java.util.Calendar.HOUR_OF_DAY, 8)
+                        cal.set(java.util.Calendar.MINUTE, 0)
+                        return@repeat
+                    }
+                    hour >= 16 -> {
+                        cal.add(java.util.Calendar.DAY_OF_MONTH, 1)
+                        cal.set(java.util.Calendar.HOUR_OF_DAY, 8)
+                        cal.set(java.util.Calendar.MINUTE, 0)
+                        return@repeat
+                    }
+                    hour < 8 -> {
+                        cal.set(java.util.Calendar.HOUR_OF_DAY, 8)
+                        cal.set(java.util.Calendar.MINUTE, 0)
+                        return@repeat
+                    }
+                }
+
+                cal.set(java.util.Calendar.MINUTE, 0)
+                cal.set(java.util.Calendar.SECOND, 0)
+
+                val slotStart = DateTime(cal.time, TimeZone.getTimeZone("Europe/Vilnius"))
+                val slotEnd = DateTime(java.util.Date(cal.time.time + 3600000), TimeZone.getTimeZone("Europe/Vilnius"))
+
+                val events = calService.events().list(calendarId())
+                    .setTimeMin(slotStart)
+                    .setTimeMax(slotEnd)
+                    .setSingleEvents(true)
+                    .execute()
+
+                if (events.items.isNullOrEmpty()) {
+                    return@withContext sdf.format(cal.time)
+                }
+
+                cal.add(java.util.Calendar.HOUR_OF_DAY, 1)
+            }
+            null
+        } catch (e: Exception) {
+            null
+        }
+    }
 }
