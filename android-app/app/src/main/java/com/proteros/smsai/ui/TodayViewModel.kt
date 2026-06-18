@@ -29,6 +29,9 @@ class TodayViewModel(private val repo: AppRepository) : ViewModel() {
     private val _bookedCount = MutableLiveData(0)
     val bookedCount: LiveData<Int> = _bookedCount
 
+    private val _calendarError = MutableLiveData<String?>(null)
+    val calendarError: LiveData<String?> = _calendarError
+
     val activeConversations: LiveData<List<AgentViewModel.ConversationItem>> =
         repo.conversationDao.getAllFlow().asLiveData().map { list ->
             list.filter { it.status == Conversation.STATUS_ACTIVE || it.status == Conversation.STATUS_ERROR }
@@ -86,14 +89,16 @@ class TodayViewModel(private val repo: AppRepository) : ViewModel() {
     fun refreshAppointments(calendarClient: GoogleCalendarClient) {
         viewModelScope.launch {
             try {
-                val today = calendarClient.getTodayAppointments()
-                if (today.isNotEmpty()) {
-                    _appointments.postValue(today.map { a ->
+                val result = calendarClient.getTodayAppointmentsWithStatus()
+                _calendarError.postValue(result.error)
+                if (result.appointments.isNotEmpty()) {
+                    _appointments.postValue(result.appointments.map { a ->
                         AppointmentItem(time = a.time, client = a.clientPhone, contactName = a.contactName, service = a.service)
                     })
                 }
             } catch (e: Exception) {
                 AppLog.e("TodayViewModel", "Failed to load calendar appointments", e)
+                _calendarError.postValue(e.message)
             }
         }
     }

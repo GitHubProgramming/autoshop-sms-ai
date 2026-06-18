@@ -84,9 +84,14 @@ class GoogleCalendarClient(private val context: Context) {
         val eventId: String
     )
 
-    suspend fun getTodayAppointments(): List<TodayAppointment> = withContext(Dispatchers.IO) {
+    data class CalendarResult(
+        val appointments: List<TodayAppointment>,
+        val error: String? = null
+    )
+
+    suspend fun getTodayAppointmentsWithStatus(): CalendarResult = withContext(Dispatchers.IO) {
         try {
-            val calService = getService() ?: return@withContext emptyList()
+            val calService = getService() ?: return@withContext CalendarResult(emptyList(), "Google paskyra neprisijungta")
             val now = java.util.Calendar.getInstance(TimeZone.getTimeZone("Europe/Vilnius"))
             now.set(java.util.Calendar.HOUR_OF_DAY, 0)
             now.set(java.util.Calendar.MINUTE, 0)
@@ -101,7 +106,7 @@ class GoogleCalendarClient(private val context: Context) {
                 .setSingleEvents(true)
                 .execute()
 
-            events.items?.mapNotNull { event ->
+            val appointments = events.items?.mapNotNull { event ->
                 val desc = event.description ?: return@mapNotNull null
                 val phoneMatch = Regex("Tel: (\\+?\\d+)").find(desc)
                 val serviceMatch = Regex("Paslauga: (.+)").find(desc)
@@ -119,8 +124,12 @@ class GoogleCalendarClient(private val context: Context) {
                     eventId = event.id
                 )
             } ?: emptyList()
+            CalendarResult(appointments)
         } catch (e: Exception) {
-            emptyList()
+            CalendarResult(emptyList(), e.message ?: "Kalendoriaus klaida")
         }
     }
+
+    suspend fun getTodayAppointments(): List<TodayAppointment> =
+        getTodayAppointmentsWithStatus().appointments
 }

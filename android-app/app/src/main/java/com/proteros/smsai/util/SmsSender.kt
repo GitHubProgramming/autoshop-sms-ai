@@ -71,4 +71,12 @@ class SmsSender(private val context: Context) {
             Result.failure(e)
         }
     }
+
+    fun sendWithRetry(phone: String, text: String): Result<Unit> {
+        val first = sendFireAndForget(phone, text)
+        if (first.isSuccess) return first
+        Log.i("SmsSender", "Retrying SMS to $phone in 3s...")
+        Thread.sleep(3000)
+        return sendFireAndForget(phone, text)
+    }
 }

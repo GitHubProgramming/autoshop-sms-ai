@@ -21,6 +21,9 @@ class AppRepository(
     private val calendarClient by lazy { GoogleCalendarClient(context) }
     private val smsSender by lazy { SmsSender(context) }
 
+    private val lastAiCallTime = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    private val AI_COOLDOWN_MS = 10_000L
+
     companion object {
         private const val MAX_AI_TURNS = 8
     }
@@ -56,7 +59,7 @@ class AppRepository(
         )
         conversationDao.updateConversation(phone, greeting, Conversation.STATUS_ACTIVE)
 
-        val result = smsSender.sendFireAndForget(phone, greeting)
+        val result = smsSender.sendWithRetry(phone, greeting)
         if (result.isFailure) {
             val error = result.exceptionOrNull()?.message ?: "Nežinoma klaida"
             AppLog.e("AppRepo", "SMS send exception for $phone: $error")
@@ -109,6 +112,13 @@ class AppRepository(
             return
         }
 
+        val now = System.currentTimeMillis()
+        val lastCall = lastAiCallTime[phone]
+        if (lastCall != null && now - lastCall < AI_COOLDOWN_MS) {
+            AppLog.i("AppRepo", "Rate limit: skipping AI call for $phone (cooldown ${AI_COOLDOWN_MS}ms)")
+            return
+        }
+
         val history = messageDao.getForConversation(phone)
         val aiTurns = history.count { it.sender == Message.SENDER_AI }
         if (aiTurns >= MAX_AI_TURNS) {
@@ -121,6 +131,7 @@ class AppRepository(
             return
         }
 
+        lastAiCallTime[phone] = System.currentTimeMillis()
         val historyWithoutLatest = history.dropLast(1)
         val aiResponse = claudeClient.generateReply(phone, historyWithoutLatest, body, convo.contactName)
         AppLog.i("AppRepo", "AI reply for $phone: ${aiResponse.text}")
@@ -176,14 +187,14 @@ class AppRepository(
             conversationDao.updateConversation(phone, smsText, Conversation.STATUS_ACTIVE)
         }
 
-        val sendResult = smsSender.sendFireAndForget(phone, smsText)
+        val sendResult = smsSender.sendWithRetry(phone, smsText)
         if (sendResult.isFailure) {
             conversationDao.updateStatus(phone, Conversation.STATUS_ERROR, sendResult.exceptionOrNull()?.message)
         }
     }
 
     suspend fun sendOwnerMessage(phone: String, text: String) {
-        val result = smsSender.sendFireAndForget(phone, text)
+        val result = smsSender.sendWithRetry(phone, text)
         if (result.isSuccess) {
             messageDao.insert(
                 Message(conversationPhone = phone, sender = Message.SENDER_OWNER, body = text)
