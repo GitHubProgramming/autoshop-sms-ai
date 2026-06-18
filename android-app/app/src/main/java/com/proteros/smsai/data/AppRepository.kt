@@ -105,11 +105,23 @@ class AppRepository(
         }
 
         if (convo.status == Conversation.STATUS_BOOKED) {
-            AppLog.i("AppRepo", "Conversation already booked for $phone, skipping AI reply")
+            AppLog.i("AppRepo", "Conversation already booked for $phone, sending confirmation")
+            val confirmMsg = buildString {
+                append("Ačiū! Jūsų vizitas patvirtintas")
+                if (!convo.bookingDateTime.isNullOrBlank()) {
+                    append(" — ${convo.bookingDateTime}")
+                }
+                append(". Jei turite klausimų — skambinkite.")
+            }
+            messageDao.insert(
+                Message(conversationPhone = phone, sender = Message.SENDER_AI, body = confirmMsg)
+            )
+            smsSender.sendWithRetry(phone, confirmMsg)
+
             AgentNotification.handoverToOwner(context, phone)
             conversationDao.setTakeover(phone, true)
             messageDao.insert(
-                Message(conversationPhone = phone, sender = Message.SENDER_SYSTEM, body = "Klientas rašė po registracijos — perduota savininkui")
+                Message(conversationPhone = phone, sender = Message.SENDER_SYSTEM, body = "Klientas rašė po registracijos — išsiųstas patvirtinimas ir perduota savininkui")
             )
             return
         }
