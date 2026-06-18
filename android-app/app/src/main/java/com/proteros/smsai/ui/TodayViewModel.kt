@@ -89,7 +89,7 @@ class TodayViewModel(private val repo: AppRepository) : ViewModel() {
                 val today = calendarClient.getTodayAppointments()
                 if (today.isNotEmpty()) {
                     _appointments.postValue(today.map { a ->
-                        AppointmentItem(time = a.time, client = a.clientPhone, contactName = null, service = a.service)
+                        AppointmentItem(time = a.time, client = a.clientPhone, contactName = a.contactName, service = a.service)
                     })
                 }
             } catch (e: Exception) {

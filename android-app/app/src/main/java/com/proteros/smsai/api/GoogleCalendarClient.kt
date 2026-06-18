@@ -32,15 +32,32 @@ class GoogleCalendarClient(private val context: Context) {
         ).setApplicationName("Proteros SMS AI").build()
     }
 
-    suspend fun createAppointment(clientPhone: String, service: String, dateTime: String): String? = withContext(Dispatchers.IO) {
+    suspend fun createAppointment(
+        clientPhone: String,
+        service: String,
+        dateTime: String,
+        contactName: String? = null,
+        conversationSummary: String? = null
+    ): String? = withContext(Dispatchers.IO) {
         try {
             val calService = getService() ?: return@withContext null
             val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
             val date = sdf.parse(dateTime) ?: return@withContext null
 
+            val displayName = contactName ?: clientPhone.takeLast(4)
+            val desc = buildString {
+                append("👤 Klientas: ${contactName ?: "Nežinomas"}\n")
+                append("📞 Tel: $clientPhone\n")
+                append("🔧 Paslauga: $service\n")
+                if (!conversationSummary.isNullOrBlank()) {
+                    append("\n💬 Pokalbis:\n$conversationSummary\n")
+                }
+                append("\n📋 Sukurta: SMS AI agentas")
+            }
+
             val event = Event().apply {
-                summary = "$service - Klientas"
-                description = "Tel: $clientPhone\nPaslauga: $service\nSukurta: SMS AI agentas"
+                summary = "$service • $displayName"
+                description = desc
                 start = EventDateTime().apply {
                     this.dateTime = DateTime(date, TimeZone.getTimeZone("Europe/Vilnius"))
                     this.timeZone = "Europe/Vilnius"
@@ -63,6 +80,7 @@ class GoogleCalendarClient(private val context: Context) {
         val time: String,
         val clientPhone: String,
         val service: String,
+        val contactName: String?,
         val eventId: String
     )
 
@@ -87,14 +105,17 @@ class GoogleCalendarClient(private val context: Context) {
                 val desc = event.description ?: return@mapNotNull null
                 val phoneMatch = Regex("Tel: (\\+?\\d+)").find(desc)
                 val serviceMatch = Regex("Paslauga: (.+)").find(desc)
+                val nameMatch = Regex("Klientas: (.+)").find(desc)
                 val time = event.start?.dateTime?.let {
                     SimpleDateFormat("HH:mm", Locale.getDefault()).format(java.util.Date(it.value))
                 } ?: "--:--"
 
+                val name = nameMatch?.groupValues?.get(1)?.takeIf { it != "Nežinomas" }
                 TodayAppointment(
                     time = time,
                     clientPhone = phoneMatch?.groupValues?.get(1) ?: "Nežinomas",
                     service = serviceMatch?.groupValues?.get(1) ?: event.summary ?: "Vizitas",
+                    contactName = name,
                     eventId = event.id
                 )
             } ?: emptyList()

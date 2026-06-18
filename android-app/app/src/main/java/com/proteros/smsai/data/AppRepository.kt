@@ -129,10 +129,19 @@ class AppRepository(
             AppLog.i("AppRepo", "Booking detected: ${aiResponse.service} at ${aiResponse.dateTime}")
             var eventId: String? = null
             try {
+                val chatSummary = history
+                    .filter { it.sender != Message.SENDER_SYSTEM }
+                    .takeLast(6)
+                    .joinToString("\n") { msg ->
+                        val prefix = if (msg.sender == Message.SENDER_CLIENT) "Klientas" else "AI"
+                        "$prefix: ${msg.body}"
+                    }
                 eventId = calendarClient.createAppointment(
                     clientPhone = phone,
                     service = aiResponse.service ?: "Nenurodyta",
-                    dateTime = aiResponse.dateTime ?: ""
+                    dateTime = aiResponse.dateTime ?: "",
+                    contactName = convo.contactName,
+                    conversationSummary = chatSummary
                 )
             } catch (e: Exception) {
                 AppLog.e("AppRepo", "Calendar event creation failed", e)
