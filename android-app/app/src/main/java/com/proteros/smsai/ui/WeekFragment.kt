@@ -10,6 +10,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -66,8 +67,8 @@ class WeekFragment : Fragment() {
 
         // Day headers
         binding.dayHeaders.removeAllViews()
-        val days = listOf("Pr", "An", "Tr", "Kt", "Pn", "Št")
-        for (i in 0 until 6) {
+        val days = listOf("Pr", "An", "Tr", "Kt", "Pn")
+        for (i in 0 until 5) {
             val date = currentWeekStart.plusDays(i.toLong())
             val isToday = date == today
 
@@ -146,7 +147,7 @@ class WeekFragment : Fragment() {
                 }
             }
 
-            for (dayOffset in 0 until 6) {
+            for (dayOffset in 0 until 5) {
                 val date = currentWeekStart.plusDays(dayOffset.toLong())
                 val cell = FrameLayout(ctx).apply {
                     layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply {
@@ -200,6 +201,32 @@ class WeekFragment : Fragment() {
                     }
                     block.addView(nameLabel)
 
+                    val apptRef = appt
+                    val apptDate = date
+                    val apptHour = hour
+                    block.setOnClickListener {
+                        val timeStr = String.format("%02d:00", apptHour)
+                        val dateStr = apptDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                        val dayName = apptDate.format(DateTimeFormatter.ofPattern("EEEE", Locale("lt")))
+                            .replaceFirstChar { c -> c.uppercaseChar() }
+                        val clientName = apptRef.contactName ?: "Nežinomas"
+                        val phone = apptRef.client
+
+                        val details = buildString {
+                            append("📅  $dayName, $dateStr\n")
+                            append("🕐  $timeStr\n\n")
+                            append("🔧  Paslauga: ${apptRef.service}\n")
+                            append("👤  Klientas: $clientName\n")
+                            append("📞  Tel: $phone\n")
+                        }
+
+                        AlertDialog.Builder(ctx)
+                            .setTitle("Vizito informacija")
+                            .setMessage(details)
+                            .setPositiveButton("✕  Uždaryti", null)
+                            .show()
+                    }
+
                     cell.addView(block)
                 }
 
@@ -216,10 +243,10 @@ class WeekFragment : Fragment() {
             try {
                 val dt = LocalDateTime.parse(a.time, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
                 val d = dt.toLocalDate()
-                !d.isBefore(currentWeekStart) && d.isBefore(currentWeekStart.plusDays(6))
+                !d.isBefore(currentWeekStart) && d.isBefore(currentWeekStart.plusDays(5))
             } catch (_: Exception) { false }
         }
-        val totalSlots = 6 * 9 // 6 days * 9 hours
+        val totalSlots = 5 * 9
         val freeSlots = totalSlots - weekAppts
         val occupancy = if (totalSlots > 0) (weekAppts * 100 / totalSlots) else 0
         binding.summaryStats.text = "$weekAppts vizitų  •  $freeSlots laisvi  •  ${occupancy}% užimta"
