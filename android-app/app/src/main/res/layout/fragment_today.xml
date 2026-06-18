@@ -237,7 +237,7 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="1️⃣  Klientas skambina → jūs nepakeliame\n2️⃣  AI agentas išsiunčia SMS automatiškai\n3️⃣  Klientas atsako → AI derasi dėl laiko\n4️⃣  Vizitas įrašomas į Google kalendorių\n\n👉 Agentas skirtuke matysite visus pokalbius.\n👉 Galite bet kada perimti pokalbį paspaudę PERIMTI."
+                        android:text="1️⃣  Klientas skambina → jūs nepakeliame\n2️⃣  AI agentas išsiunčia SMS automatiškai\n3️⃣  Klientas atsako → AI tariasi dėl laiko\n4️⃣  Vizitas įrašomas į Google kalendorių\n\n👉 Agentas skirtuke matysite visus pokalbius.\n👉 Galite bet kada perimti pokalbį paspaudę PERIMTI."
                         android:textSize="13sp"
                         android:textColor="@color/text_secondary"
                         android:lineSpacingMultiplier="1.4" />
