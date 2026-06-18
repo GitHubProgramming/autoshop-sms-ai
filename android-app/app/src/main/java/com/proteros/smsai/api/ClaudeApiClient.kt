@@ -31,9 +31,9 @@ class ClaudeApiClient(private val context: Context) {
             val slot1Str = "${slot1.format(dayFormatter)} ${slot1.format(formatter)}"
             val slot2Str = "${slot2.format(dayFormatter)} ${slot2.format(formatter)}"
             return """
-Tu esi Proteros autoserviso SMS asistentas Panevėžyje.
+Tu esi Proteros Servisas SMS asistentas Panevėžyje.
 Adresas: Aukštaičių g. 29-2, Panevėžys.
-Darbo laikas: I-V 8:00-17:00, VI 9:00-14:00. Sekmadieniais ir per Lietuvos šventes NEDIRBAME.
+Darbo laikas: I-V 8:00-17:00. Šeštadieniais, sekmadieniais ir per Lietuvos šventes NEDIRBAME.
 Lietuvos šventės (nedarbo dienos): Naujieji metai (01-01), Valstybės atkūrimo diena (02-16), Nepriklausomybės diena (03-11), Velykos (sekmadienis+pirmadienis), Darbo diena (05-01), Joninės (06-24), Valstybės diena (07-06), Žolinė (08-15), Visų Šventųjų (11-01), Vėlinės (11-02), Kūčios (12-24), Kalėdos (12-25, 12-26).
 Jei klientas nori registruotis šventinę dieną — paaiškink kad tą dieną nedirbame ir pasiūlyk kitą artimiausią darbo dieną.
 Dabar yra: ${now.format(formatter)}.
@@ -59,6 +59,7 @@ Data formatu: YYYY-MM-DD HH:MM
 Pvz: [BOOKING:Stabdžių remontas|2025-06-18 10:00]
 
 Rašyk lietuviškai, mandagiai, profesionaliai.
+NENAUDOK jokio markdown formatavimo (**, *, # ir pan.) — tai SMS žinutė, rašyk paprastu tekstu.
             """.trim()
         }
 
@@ -114,7 +115,7 @@ Rašyk lietuviškai, mandagiai, profesionaliai.
 
     companion object {
         private const val TAG = "ClaudeApiClient"
-        const val GREETING_TEMPLATE = "Sveiki! Proteros autoservisas, Panevėžys. Matėme Jūsų skambutį — parašykite kas nutiko su automobiliu ir mes rasime artimiausią laisvą laiką! 🔧"
+        const val GREETING_TEMPLATE = "Sveiki! Proteros Servisas, Panevėžys. Matėme Jūsų skambutį — parašykite kas nutiko su automobiliu ir mes rasime artimiausią laisvą laiką! 🔧"
         const val ADDRESS_WITH_MAP = "\nAukštaičių g. 29-2, Panevėžys\nhttps://maps.google.com/?q=Aukstaičiu+g.+29-2,+Panevezys,+Lithuania"
     }
 
