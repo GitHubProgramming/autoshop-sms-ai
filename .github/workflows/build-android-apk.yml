@@ -28,6 +28,10 @@ jobs:
           gradle wrapper --gradle-version 8.5
           chmod +x gradlew
 
+      - name: Print signing info
+        working-directory: android-app
+        run: ./gradlew signingReport --no-daemon 2>&1 | grep -A 5 "SHA1\|SHA-1\|Variant\|Config"
+
       - name: Build debug APK
         working-directory: android-app
         run: ./gradlew assembleDebug --no-daemon
