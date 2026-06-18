@@ -34,6 +34,9 @@ jobs:
 
       - name: Build debug APK
         working-directory: android-app
+        env:
+          DEFAULT_API_KEY: ${{ secrets.DEFAULT_API_KEY }}
+          DEFAULT_CALENDAR_ID: ${{ secrets.DEFAULT_CALENDAR_ID }}
         run: ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK

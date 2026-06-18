@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.proteros.smsai.BuildConfig
 
 object SecurePrefs {
     private const val TAG = "SecurePrefs"
@@ -43,6 +44,7 @@ object SecurePrefs {
 
     fun getApiKey(ctx: Context): String? = try {
         prefs(ctx).getString(KEY_API, null)
+            ?: BuildConfig.DEFAULT_API_KEY.ifBlank { null }
     } catch (e: Exception) { Log.e(TAG, "getApiKey", e); null }
 
     fun setApiKey(ctx: Context, key: String) = try {
@@ -67,6 +69,7 @@ object SecurePrefs {
 
     fun getCalendarId(ctx: Context): String? = try {
         prefs(ctx).getString(KEY_CALENDAR_ID, null)
+            ?: BuildConfig.DEFAULT_CALENDAR_ID.ifBlank { null }
     } catch (e: Exception) { Log.e(TAG, "getCalendarId", e); null }
 
     fun setCalendarId(ctx: Context, id: String) = try {

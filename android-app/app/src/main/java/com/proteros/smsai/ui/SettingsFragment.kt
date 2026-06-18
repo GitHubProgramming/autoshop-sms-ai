@@ -69,7 +69,7 @@ class SettingsFragment : Fragment() {
         }
 
         val apiKey = SecurePrefs.getApiKey(ctx)
-        binding.apiKeyValue.text = if (apiKey.isNullOrBlank()) "Nenustatytas" else "•••${apiKey.takeLast(4)}"
+        binding.apiKeyValue.text = if (apiKey.isNullOrBlank()) "Nenustatytas" else "•••${apiKey.takeLast(8)}"
         binding.apiKeyCard.setOnClickListener {
             val input = EditText(ctx).apply { hint = "sk-ant-..." }
             AlertDialog.Builder(ctx)
