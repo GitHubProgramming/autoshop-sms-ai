@@ -13,6 +13,7 @@ object SecurePrefs {
     private const val KEY_API = "claude_api_key"
     private const val KEY_GOOGLE = "google_account"
     private const val KEY_ENABLED = "service_enabled"
+    private const val KEY_CALENDAR_ID = "calendar_id"
 
     @Volatile
     private var cached: SharedPreferences? = null
@@ -63,4 +64,12 @@ object SecurePrefs {
     fun setEnabled(ctx: Context, enabled: Boolean) = try {
         prefs(ctx).edit().putBoolean(KEY_ENABLED, enabled).apply()
     } catch (e: Exception) { Log.e(TAG, "setEnabled", e) }
+
+    fun getCalendarId(ctx: Context): String? = try {
+        prefs(ctx).getString(KEY_CALENDAR_ID, null)
+    } catch (e: Exception) { Log.e(TAG, "getCalendarId", e); null }
+
+    fun setCalendarId(ctx: Context, id: String) = try {
+        prefs(ctx).edit().putString(KEY_CALENDAR_ID, id).apply()
+    } catch (e: Exception) { Log.e(TAG, "setCalendarId", e) }
 }

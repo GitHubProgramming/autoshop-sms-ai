@@ -143,6 +143,50 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Calendar ID Card -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/calendar_id_card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:clickable="true"
+            android:focusable="true"
+            app:cardCornerRadius="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Kalendoriaus ID"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
+                    android:letterSpacing="0.05" />
+
+                <TextView
+                    android:id="@+id/calendar_id_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Nenustatytas (naudojamas asmeninis)"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginTop="4dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Įveskite Proteros Servisas kalendoriaus ID, kad vizitai būtų rašomi tik į jį."
+                    android:textSize="11sp"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginTop="4dp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
         <!-- Info Section -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"

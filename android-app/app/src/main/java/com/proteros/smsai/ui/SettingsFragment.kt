@@ -91,13 +91,36 @@ class SettingsFragment : Fragment() {
         binding.googleAccountCard.setOnClickListener {
             val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestEmail()
+                .requestServerAuthCode("295282608240-pkbsq7g099qiiacqrr6hvq9u2vc6of67.apps.googleusercontent.com")
                 .requestScopes(Scope(CalendarScopes.CALENDAR))
                 .build()
             val client = GoogleSignIn.getClient(requireActivity(), gso)
             googleSignInLauncher.launch(client.signInIntent)
         }
 
-        binding.versionText.text = "Versija 1.1 • Proteros Servisas"
+        val calId = SecurePrefs.getCalendarId(ctx)
+        binding.calendarIdValue.text = if (calId.isNullOrBlank()) "Nenustatytas (naudojamas asmeninis)" else calId
+        binding.calendarIdCard.setOnClickListener {
+            val input = EditText(ctx).apply {
+                hint = "abc123@group.calendar.google.com"
+                calId?.let { setText(it) }
+            }
+            AlertDialog.Builder(ctx)
+                .setTitle("Kalendoriaus ID")
+                .setMessage("Įveskite Google Calendar ID iš kalendoriaus nustatymų.")
+                .setView(input)
+                .setPositiveButton("Išsaugoti") { _, _ ->
+                    val id = input.text.toString().trim()
+                    if (id.isNotEmpty()) {
+                        SecurePrefs.setCalendarId(ctx, id)
+                        binding.calendarIdValue.text = id
+                    }
+                }
+                .setNegativeButton("Atšaukti", null)
+                .show()
+        }
+
+        binding.versionText.text = "Versija 1.2 • Proteros Servisas"
 
         binding.btnShowLogs.setOnClickListener {
             val logScroll = binding.logScroll

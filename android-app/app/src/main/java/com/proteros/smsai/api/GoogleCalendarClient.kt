@@ -18,6 +18,9 @@ import java.util.TimeZone
 
 class GoogleCalendarClient(private val context: Context) {
 
+    private fun calendarId(): String =
+        SecurePrefs.getCalendarId(context) ?: "primary"
+
     private fun getService(): Calendar? {
         val accountName = SecurePrefs.getGoogleAccount(context) ?: return null
         val credential = GoogleAccountCredential.usingOAuth2(
@@ -49,7 +52,7 @@ class GoogleCalendarClient(private val context: Context) {
                 }
             }
 
-            val created = calService.events().insert("primary", event).execute()
+            val created = calService.events().insert(calendarId(), event).execute()
             created.id
         } catch (e: Exception) {
             null
@@ -73,7 +76,7 @@ class GoogleCalendarClient(private val context: Context) {
             now.add(java.util.Calendar.DAY_OF_MONTH, 1)
             val endOfDay = DateTime(now.time)
 
-            val events = calService.events().list("primary")
+            val events = calService.events().list(calendarId())
                 .setTimeMin(startOfDay)
                 .setTimeMax(endOfDay)
                 .setOrderBy("startTime")
