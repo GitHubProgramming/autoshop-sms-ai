@@ -120,6 +120,24 @@ class BusinessCalendarTest {
         assertEquals(LocalDateTime.of(2025, 12, 29, 8, 0, 0), slot)
     }
 
+    // --- parseWorkingHours ---
+
+    @Test
+    fun `parseWorkingHours standard format`() {
+        assertEquals(8 to 17, BusinessCalendar.parseWorkingHours("I-V 8:00-17:00"))
+    }
+
+    @Test
+    fun `parseWorkingHours extended hours`() {
+        assertEquals(7 to 20, BusinessCalendar.parseWorkingHours("I-V 7:00-20:00"))
+    }
+
+    @Test
+    fun `parseWorkingHours custom business hours`() {
+        assertTrue(BusinessCalendar.isBusinessHours(LocalDateTime.of(2025, 6, 16, 19, 0), 8, 20))
+        assertFalse(BusinessCalendar.isBusinessHours(LocalDateTime.of(2025, 6, 16, 19, 0), 8, 17))
+    }
+
     @Test
     fun `Friday 4pm returns Monday 8am`() {
         val slot = BusinessCalendar.findNextSlot(LocalDateTime.of(2025, 6, 20, 16, 0))
