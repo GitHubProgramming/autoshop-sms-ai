@@ -108,20 +108,21 @@ class BusinessCalendarTest {
     }
 
     @Test
-    fun `Saturday before 9am returns 9am`() {
+    fun `Saturday before 9am returns Monday 8am`() {
         val slot = BusinessCalendar.findNextSlot(LocalDateTime.of(2025, 6, 21, 7, 0))
-        assertEquals(LocalDateTime.of(2025, 6, 21, 9, 0, 0), slot)
+        assertEquals(LocalDateTime.of(2025, 6, 23, 8, 0, 0), slot)
     }
 
     @Test
-    fun `Holiday skips to next day`() {
+    fun `Holiday skips to next workday`() {
+        // 2025-12-25 is Thursday (holiday), 12-26 is Friday (holiday), next workday is Monday 12-29
         val slot = BusinessCalendar.findNextSlot(LocalDateTime.of(2025, 12, 25, 10, 0))
-        assertEquals(LocalDateTime.of(2025, 12, 27, 9, 0, 0), slot)
+        assertEquals(LocalDateTime.of(2025, 12, 29, 8, 0, 0), slot)
     }
 
     @Test
     fun `Friday 4pm returns Monday 8am`() {
         val slot = BusinessCalendar.findNextSlot(LocalDateTime.of(2025, 6, 20, 16, 0))
-        assertEquals(LocalDateTime.of(2025, 6, 21, 9, 0, 0), slot)
+        assertEquals(LocalDateTime.of(2025, 6, 23, 8, 0, 0), slot)
     }
 }
