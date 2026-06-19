@@ -24,19 +24,14 @@ object SecurePrefs {
         synchronized(this) {
             cached?.let { return it }
             val appCtx = ctx.applicationContext
-            val sp = try {
-                val masterKey = MasterKey.Builder(appCtx)
-                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                    .build()
-                EncryptedSharedPreferences.create(
-                    appCtx, FILE, masterKey,
-                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-                )
-            } catch (e: Exception) {
-                Log.e(TAG, "EncryptedSharedPreferences failed, using fallback", e)
-                appCtx.getSharedPreferences(FALLBACK_FILE, Context.MODE_PRIVATE)
-            }
+            val masterKey = MasterKey.Builder(appCtx)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            val sp = EncryptedSharedPreferences.create(
+                appCtx, FILE, masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
             cached = sp
             return sp
         }

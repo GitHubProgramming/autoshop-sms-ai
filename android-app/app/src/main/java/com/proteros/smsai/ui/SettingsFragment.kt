@@ -1,5 +1,6 @@
 package com.proteros.smsai.ui
 
+import com.proteros.smsai.BuildConfig
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -141,6 +142,7 @@ class SettingsFragment : Fragment() {
             }
         }
 
+        binding.btnTestConversation.visibility = if (BuildConfig.DEBUG) android.view.View.VISIBLE else android.view.View.GONE
         binding.btnTestConversation.setOnClickListener {
             val app = ctx.applicationContext as AutoShopApp
             CoroutineScope(Dispatchers.IO).launch {

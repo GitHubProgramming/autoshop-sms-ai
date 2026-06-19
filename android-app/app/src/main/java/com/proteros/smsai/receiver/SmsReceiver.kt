@@ -49,7 +49,7 @@ class SmsReceiver : BroadcastReceiver() {
                 continue
             }
 
-            AppLog.i("SmsReceiver", "Processing SMS from $sender: $body")
+            AppLog.i("SmsReceiver", "Processing SMS from $sender (${body.length} chars)")
 
             val pending = goAsync()
             CoroutineScope(Dispatchers.IO).launch {

@@ -83,7 +83,10 @@ class AppRepository(
             conversationDao.insertIgnore(
                 Conversation(phoneNumber = phone, status = Conversation.STATUS_ACTIVE, contactName = contactName)
             )
-            convo = conversationDao.getByPhone(phone)!!
+            convo = conversationDao.getByPhone(phone) ?: run {
+                AppLog.e("AppRepo", "Failed to create conversation for $phone")
+                return
+            }
         }
         if (convo.contactName == null) {
             val contactName = ContactLookup.findName(context, phone)

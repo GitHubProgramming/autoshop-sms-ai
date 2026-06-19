@@ -154,7 +154,7 @@ NENAUDOK jokio markdown formatavimo (**, *, # ir pan.) — tai SMS žinutė, ra�
             AppLog.i(TAG, "Calling Claude with ${messages.length()} messages")
             val nameContext = if (!contactName.isNullOrBlank()) "\nKliento vardas: $contactName. Kreipkis vardu." else "\nKliento vardas nežinomas. Neskreipk vardu."
             val responseText = callClaude(apiKey, (0 until messages.length()).map { messages.getJSONObject(it) }, nameContext)
-            AppLog.i(TAG, "Reply: $responseText")
+            AppLog.i(TAG, "Reply for $phone (${responseText.length} chars)")
 
             val bookingRegex = """\[BOOKING:([^|]+)\|(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})]""".toRegex()
             val match = bookingRegex.find(responseText)

@@ -1,14 +1,13 @@
 package com.proteros.smsai.util
 
 import android.util.Log
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.CopyOnWriteArrayList
 
 object AppLog {
     private val logs = CopyOnWriteArrayList<String>()
-    private val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+    private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
     private const val MAX = 200
 
     fun i(tag: String, msg: String) {
@@ -28,7 +27,7 @@ object AppLog {
     }
 
     private fun add(level: String, tag: String, msg: String) {
-        val time = sdf.format(Date())
+        val time = LocalTime.now().format(timeFormatter)
         logs.add("$time [$level] $tag: $msg")
         while (logs.size > MAX) logs.removeAt(0)
     }
