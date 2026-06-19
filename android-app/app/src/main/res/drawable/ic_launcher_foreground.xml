@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Bold "P" letter inspired by ProTERA logo -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M34,30 L34,78 L44,78 L44,62 L56,62 C66,62 74,55 74,46 C74,37 66,30 56,30 Z M44,39 L54,39 C60,39 64,42 64,46 C64,50 60,53 54,53 L44,53 Z" />
+    <!-- Red accent bar like in logo -->
+    <path
+        android:fillColor="#C0392B"
+        android:pathData="M34,72 L74,72 L74,78 L34,78 Z" />
+</vector>

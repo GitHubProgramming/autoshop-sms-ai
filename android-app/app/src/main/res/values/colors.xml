@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#1B2838</color>
+    <color name="primary_dark">#101820</color>
+    <color name="accent">#00BFA5</color>
+    <color name="background">#F0F2F5</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_variant">#E8EDF2</color>
+    <color name="text_primary">#1A1C1E</color>
+    <color name="text_secondary">#6B7280</color>
+    <color name="error">#DC2626</color>
+    <color name="warning">#FFF3E0</color>
+    <color name="success">#059669</color>
+    <color name="launcher_background">#1B2838</color>
+
+    <color name="nav_active">#00BFA5</color>
+    <color name="nav_inactive">#9CA3AF</color>
+    <color name="nav_indicator">#E0F7F4</color>
+
+    <color name="bubble_ai">#1B2838</color>
+    <color name="bubble_owner">#00897B</color>
+    <color name="bubble_client">#E8EDF2</color>
+
+    <color name="card_stroke">#E5E7EB</color>
+    <color name="divider">#E5E7EB</color>
+
+    <color name="stat_booked">#00BFA5</color>
+    <color name="header_gradient_start">#1B2838</color>
+    <color name="header_gradient_end">#2D4A5E</color>
+</resources>

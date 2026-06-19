@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/todayFragment">
+
+    <fragment
+        android:id="@+id/todayFragment"
+        android:name="com.proteros.smsai.ui.TodayFragment"
+        android:label="Šiandien">
+        <action
+            android:id="@+id/action_today_to_conversation"
+            app:destination="@id/conversationFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/agentFragment"
+        android:name="com.proteros.smsai.ui.AgentFragment"
+        android:label="Agentas">
+        <action
+            android:id="@+id/action_agent_to_conversation"
+            app:destination="@id/conversationFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/weekFragment"
+        android:name="com.proteros.smsai.ui.WeekFragment"
+        android:label="Savaitė" />
+
+    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="com.proteros.smsai.ui.SettingsFragment"
+        android:label="Nustatymai" />
+
+    <fragment
+        android:id="@+id/conversationFragment"
+        android:name="com.proteros.smsai.ui.ConversationFragment"
+        android:label="Pokalbis">
+        <argument
+            android:name="phoneNumber"
+            app:argType="string" />
+    </fragment>
+
+</navigation>

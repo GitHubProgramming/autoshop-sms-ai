@@ -1,0 +1,112 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'kotlin-kapt'
+    id 'androidx.navigation.safeargs.kotlin'
+}
+
+android {
+    namespace 'com.proteros.smsai'
+    compileSdk 34
+
+    signingConfigs {
+        debug {
+            storeFile file("${project.rootDir}/debug.keystore")
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
+    defaultConfig {
+        applicationId 'com.proteros.smsai'
+        minSdk 26
+        targetSdk 34
+        versionCode Integer.parseInt(System.getenv('BUILD_NUMBER') ?: '1')
+        versionName "1.${System.getenv('BUILD_NUMBER') ?: '0'}"
+
+        buildConfigField "String", "DEFAULT_API_KEY", "\"${System.getenv('DEFAULT_API_KEY') ?: ''}\""
+        buildConfigField "String", "DEFAULT_CALENDAR_ID", "\"${System.getenv('DEFAULT_CALENDAR_ID') ?: ''}\""
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    buildFeatures {
+        viewBinding true
+        buildConfig true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    kapt {
+        arguments {
+            arg("room.schemaLocation", "$projectDir/schemas")
+        }
+    }
+
+    packaging {
+        resources {
+            excludes += ['META-INF/DEPENDENCIES', 'META-INF/LICENSE', 'META-INF/LICENSE.txt', 'META-INF/license.txt', 'META-INF/NOTICE', 'META-INF/NOTICE.txt', 'META-INF/notice.txt', 'META-INF/ASL2.0', 'META-INF/*.kotlin_module']
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.fragment:fragment-ktx:1.6.2'
+    implementation 'androidx.activity:activity-ktx:1.8.2'
+
+    // Navigation
+    implementation 'androidx.navigation:navigation-fragment-ktx:2.7.7'
+    implementation 'androidx.navigation:navigation-ui-ktx:2.7.7'
+
+    // Room DB
+    implementation 'androidx.room:room-runtime:2.6.1'
+    implementation 'androidx.room:room-ktx:2.6.1'
+    kapt 'androidx.room:room-compiler:2.6.1'
+
+    // Lifecycle
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
+    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.7.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
+
+    // Coroutines
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+
+    // OkHttp + JSON
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'org.json:json:20231013'
+
+    // Google Sign-In + Calendar API
+    implementation 'com.google.android.gms:play-services-auth:20.7.0'
+    implementation 'com.google.api-client:google-api-client-android:2.2.0'
+    implementation 'com.google.apis:google-api-services-calendar:v3-rev20231123-2.0.0'
+    implementation 'com.google.apis:google-api-services-sheets:v4-rev20230815-2.0.0'
+    implementation 'com.google.http-client:google-http-client-gson:1.43.3'
+
+    // Security (encrypted shared prefs)
+    implementation 'androidx.security:security-crypto:1.1.0-alpha06'
+
+    // Testing
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3'
+}

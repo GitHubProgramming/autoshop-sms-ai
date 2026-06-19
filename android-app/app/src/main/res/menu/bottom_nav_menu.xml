@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/todayFragment"
+        android:icon="@drawable/ic_today"
+        android:title="Šiandien" />
+    <item
+        android:id="@+id/weekFragment"
+        android:icon="@drawable/ic_week"
+        android:title="Savaitė" />
+    <item
+        android:id="@+id/agentFragment"
+        android:icon="@drawable/ic_agent"
+        android:title="Agentas" />
+    <item
+        android:id="@+id/settingsFragment"
+        android:icon="@drawable/ic_settings"
+        android:title="Nustatymai" />
+</menu>
