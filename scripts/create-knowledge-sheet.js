@@ -161,6 +161,23 @@ function createProterosKnowledgeBase() {
   garantijos.setColumnWidth(2, 500);
   garantijos.setFrozenRows(1);
 
+  // ========== LAPAS 6: Logai ==========
+  var logai = ss.insertSheet("Logai");
+
+  var logaiHeader = [
+    ["Data", "Telefonas", "Tipas", "Žinutė", "AI atsakymas"]
+  ];
+
+  logai.getRange(1, 1, 1, 5).setValues(logaiHeader);
+
+  logai.getRange("A1:E1").setFontWeight("bold").setFontSize(12).setBackground("#607D8B").setFontColor("white");
+  logai.setColumnWidth(1, 160);
+  logai.setColumnWidth(2, 140);
+  logai.setColumnWidth(3, 120);
+  logai.setColumnWidth(4, 400);
+  logai.setColumnWidth(5, 400);
+  logai.setFrozenRows(1);
+
   servisas.activate();
 
   var id = ss.getId();

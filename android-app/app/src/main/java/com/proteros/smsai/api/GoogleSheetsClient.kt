@@ -46,7 +46,7 @@ class GoogleSheetsClient(private val context: Context) {
     private fun getService(): Sheets? {
         val accountName = SecurePrefs.getGoogleAccount(context) ?: return null
         val credential = GoogleAccountCredential.usingOAuth2(
-            context, listOf(SheetsScopes.SPREADSHEETS_READONLY)
+            context, listOf(SheetsScopes.SPREADSHEETS)
         ).apply { selectedAccountName = accountName }
 
         return Sheets.Builder(
@@ -252,6 +252,70 @@ class GoogleSheetsClient(private val context: Context) {
 
     fun invalidateCache() {
         cached = null
+    }
+
+    suspend fun logEvent(type: String, phone: String, message: String, aiReply: String? = null) {
+        withContext(Dispatchers.IO) {
+            try {
+                val sheetId = SecurePrefs.getSheetId(context)
+                if (sheetId.isNullOrBlank()) return@withContext
+
+                val service = getService() ?: return@withContext
+
+                val now = java.time.LocalDateTime.now()
+                val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+
+                val row = listOf<Any>(
+                    now.format(formatter),
+                    phone,
+                    type,
+                    message.take(500),
+                    (aiReply ?: "").take(500)
+                )
+
+                try {
+                    service.spreadsheets().values()
+                        .append(sheetId, "Logai!A:E",
+                            com.google.api.services.sheets.v4.model.ValueRange()
+                                .setValues(listOf(row)))
+                        .setValueInputOption("RAW")
+                        .setInsertDataOption("INSERT_ROWS")
+                        .execute()
+                } catch (e: com.google.api.client.googleapis.json.GoogleJsonResponseException) {
+                    if (e.statusCode == 400 && e.message?.contains("Unable to parse range") == true) {
+                        createLogSheet(service, sheetId)
+                        service.spreadsheets().values()
+                            .append(sheetId, "Logai!A:E",
+                                com.google.api.services.sheets.v4.model.ValueRange()
+                                    .setValues(listOf(row)))
+                            .setValueInputOption("RAW")
+                            .setInsertDataOption("INSERT_ROWS")
+                            .execute()
+                    } else throw e
+                }
+            } catch (e: Exception) {
+                AppLog.e(TAG, "logEvent failed", e)
+            }
+        }
+    }
+
+    private fun createLogSheet(service: Sheets, sheetId: String) {
+        val addSheet = com.google.api.services.sheets.v4.model.BatchUpdateSpreadsheetRequest()
+            .setRequests(listOf(
+                com.google.api.services.sheets.v4.model.Request()
+                    .setAddSheet(com.google.api.services.sheets.v4.model.AddSheetRequest()
+                        .setProperties(com.google.api.services.sheets.v4.model.SheetProperties()
+                            .setTitle("Logai")))
+            ))
+        service.spreadsheets().batchUpdate(sheetId, addSheet).execute()
+
+        val header = listOf<Any>("Data", "Telefonas", "Tipas", "Žinutė", "AI atsakymas")
+        service.spreadsheets().values()
+            .update(sheetId, "Logai!A1:E1",
+                com.google.api.services.sheets.v4.model.ValueRange()
+                    .setValues(listOf(header)))
+            .setValueInputOption("RAW")
+            .execute()
     }
 
     companion object {
