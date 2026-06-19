@@ -12,6 +12,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import com.proteros.smsai.util.BusinessCalendar
 import java.util.concurrent.TimeUnit
 
 class ClaudeApiClient(private val context: Context) {
@@ -63,50 +64,8 @@ NENAUDOK jokio markdown formatavimo (**, *, # ir pan.) — tai SMS žinutė, ra�
             """.trim()
         }
 
-    private fun isLithuanianHoliday(date: java.time.LocalDate): Boolean {
-        val year = date.year
-        val fixed = setOf(
-            java.time.MonthDay.of(1, 1),   // Naujieji metai
-            java.time.MonthDay.of(2, 16),  // Valstybės atkūrimo diena
-            java.time.MonthDay.of(3, 11),  // Nepriklausomybės atkūrimo diena
-            java.time.MonthDay.of(5, 1),   // Darbo diena
-            java.time.MonthDay.of(6, 24),  // Joninės / Rasos
-            java.time.MonthDay.of(7, 6),   // Valstybės diena
-            java.time.MonthDay.of(8, 15),  // Žolinė
-            java.time.MonthDay.of(11, 1),  // Visų Šventųjų diena
-            java.time.MonthDay.of(11, 2),  // Vėlinės
-            java.time.MonthDay.of(12, 24), // Kūčios
-            java.time.MonthDay.of(12, 25), // Kalėdos
-            java.time.MonthDay.of(12, 26), // Kalėdos (antra diena)
-        )
-        if (fixed.contains(java.time.MonthDay.from(date))) return true
-        // Velykos (Easter Sunday + Monday) - anonymous Gregorian algorithm
-        val a = year % 19; val b = year / 100; val c = year % 100
-        val d = b / 4; val e = b % 4; val f = (b + 8) / 25
-        val g = (b - f + 1) / 3; val h = (19 * a + b - d - g + 15) % 30
-        val i = c / 4; val k = c % 4; val l = (32 + 2 * e + 2 * i - h - k) % 7
-        val m = (a + 11 * h + 22 * l) / 451
-        val month = (h + l - 7 * m + 114) / 31; val day = (h + l - 7 * m + 114) % 31 + 1
-        val easter = java.time.LocalDate.of(year, month, day)
-        return date == easter || date == easter.plusDays(1)
-    }
-
-    private fun findNextSlot(from: java.time.LocalDateTime): java.time.LocalDateTime {
-        var slot = from
-        while (true) {
-            val dow = slot.dayOfWeek
-            val hour = slot.hour
-            when {
-                dow == java.time.DayOfWeek.SUNDAY || isLithuanianHoliday(slot.toLocalDate()) ->
-                    slot = slot.plusDays(1).withHour(8).withMinute(0)
-                dow == java.time.DayOfWeek.SATURDAY && hour >= 13 -> slot = slot.plusDays(2).withHour(8).withMinute(0)
-                dow == java.time.DayOfWeek.SATURDAY && hour < 9 -> slot = slot.withHour(9).withMinute(0)
-                hour >= 16 -> slot = slot.plusDays(1).withHour(8).withMinute(0)
-                hour < 8 -> slot = slot.withHour(8).withMinute(0)
-                else -> return slot.withMinute(0).withSecond(0)
-            }
-        }
-    }
+    private fun findNextSlot(from: java.time.LocalDateTime): java.time.LocalDateTime =
+        BusinessCalendar.findNextSlot(from)
 
     fun generateGreeting(phone: String): String {
         AppLog.i(TAG, "generateGreeting for $phone")

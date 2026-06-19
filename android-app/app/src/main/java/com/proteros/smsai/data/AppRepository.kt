@@ -3,6 +3,7 @@ package com.proteros.smsai.data
 import android.content.Context
 import com.proteros.smsai.util.AgentNotification
 import com.proteros.smsai.util.AppLog
+import com.proteros.smsai.util.BusinessCalendar
 import com.proteros.smsai.api.ClaudeApiClient
 import com.proteros.smsai.api.GoogleCalendarClient
 import com.proteros.smsai.util.ContactLookup
@@ -271,13 +272,8 @@ class AppRepository(
         conversationDao.closeOldBooked(cutoff)
     }
 
-    private fun isBusinessHours(): Boolean {
-        val now = java.time.LocalDateTime.now(java.time.ZoneId.of("Europe/Vilnius"))
-        val dow = now.dayOfWeek
-        val hour = now.hour
-        if (dow == java.time.DayOfWeek.SUNDAY || dow == java.time.DayOfWeek.SATURDAY) return false
-        return hour in 8..16
-    }
+    private fun isBusinessHours(): Boolean =
+        BusinessCalendar.isBusinessHours(java.time.LocalDateTime.now(BusinessCalendar.ZONE))
 
     suspend fun setTakeover(phone: String, takeover: Boolean) {
         conversationDao.setTakeover(phone, takeover)
