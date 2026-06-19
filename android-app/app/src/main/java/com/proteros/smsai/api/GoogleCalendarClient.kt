@@ -9,6 +9,7 @@ import com.google.api.services.calendar.Calendar
 import com.google.api.services.calendar.CalendarScopes
 import com.google.api.services.calendar.model.Event
 import com.google.api.services.calendar.model.EventDateTime
+import com.proteros.smsai.util.AppLog
 import com.proteros.smsai.util.SecurePrefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -72,6 +73,7 @@ class GoogleCalendarClient(private val context: Context) {
             val created = calService.events().insert(calendarId(), event).execute()
             created.id
         } catch (e: Exception) {
+            AppLog.e("CalendarClient", "createAppointment failed", e)
             null
         }
     }
@@ -149,6 +151,7 @@ class GoogleCalendarClient(private val context: Context) {
 
             events.items.isNullOrEmpty()
         } catch (e: Exception) {
+            AppLog.e("CalendarClient", "isSlotAvailable failed", e)
             true
         }
     }
@@ -213,6 +216,7 @@ class GoogleCalendarClient(private val context: Context) {
             }
             null
         } catch (e: Exception) {
+            AppLog.e("CalendarClient", "findNextFreeSlot failed", e)
             null
         }
     }

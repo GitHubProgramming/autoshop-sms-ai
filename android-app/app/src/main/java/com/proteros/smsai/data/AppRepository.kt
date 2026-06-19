@@ -104,6 +104,11 @@ class AppRepository(
             return
         }
 
+        if (!isBusinessHours()) {
+            AppLog.i("AppRepo", "Outside business hours, skipping AI reply for $phone")
+            return
+        }
+
         if (convo.status == Conversation.STATUS_BOOKED) {
             AppLog.i("AppRepo", "Conversation already booked for $phone, sending confirmation")
             val confirmMsg = buildString {
@@ -145,7 +150,7 @@ class AppRepository(
             return
         }
 
-        val historyWithoutLatest = history.dropLast(1)
+        val historyWithoutLatest = history.dropLast(1).takeLast(10)
         val aiResponse = claudeClient.generateReply(phone, historyWithoutLatest, body, convo.contactName)
         lastAiCallTime[phone] = System.currentTimeMillis()
         AppLog.i("AppRepo", "AI reply for $phone: ${aiResponse.text}")
@@ -215,7 +220,7 @@ class AppRepository(
             }
         }
 
-        val smsText = if (aiResponse.bookingDetected) {
+        val smsText = if (aiResponse.bookingDetected && !aiResponse.text.contains("Aukštaičių", ignoreCase = true)) {
             aiResponse.text + ClaudeApiClient.ADDRESS_WITH_MAP
         } else {
             aiResponse.text
@@ -251,6 +256,14 @@ class AppRepository(
     suspend fun archiveOldConversations() {
         val cutoff = System.currentTimeMillis() - 24 * 60 * 60 * 1000
         conversationDao.closeOldBooked(cutoff)
+    }
+
+    private fun isBusinessHours(): Boolean {
+        val now = java.time.LocalDateTime.now(java.time.ZoneId.of("Europe/Vilnius"))
+        val dow = now.dayOfWeek
+        val hour = now.hour
+        if (dow == java.time.DayOfWeek.SUNDAY || dow == java.time.DayOfWeek.SATURDAY) return false
+        return hour in 8..16
     }
 
     suspend fun setTakeover(phone: String, takeover: Boolean) {
