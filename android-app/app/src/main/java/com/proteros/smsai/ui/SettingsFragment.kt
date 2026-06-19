@@ -94,7 +94,7 @@ class SettingsFragment : Fragment() {
             val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestEmail()
                 .requestServerAuthCode(getString(com.proteros.smsai.R.string.google_web_client_id))
-                .requestScopes(Scope(CalendarScopes.CALENDAR), Scope(SheetsScopes.SPREADSHEETS_READONLY))
+                .requestScopes(Scope(CalendarScopes.CALENDAR), Scope(SheetsScopes.SPREADSHEETS))
                 .build()
             val client = GoogleSignIn.getClient(requireActivity(), gso)
             googleSignInLauncher.launch(client.signInIntent)

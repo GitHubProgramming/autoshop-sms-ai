@@ -6,6 +6,7 @@ import com.proteros.smsai.util.AppLog
 import com.proteros.smsai.util.BusinessCalendar
 import com.proteros.smsai.api.ClaudeApiClient
 import com.proteros.smsai.api.GoogleCalendarClient
+import com.proteros.smsai.api.GoogleSheetsClient
 import com.proteros.smsai.util.ContactLookup
 import com.proteros.smsai.util.PhoneUtils
 import com.proteros.smsai.util.SecurePrefs
@@ -20,6 +21,7 @@ class AppRepository(
 
     private val claudeClient by lazy { ClaudeApiClient(context) }
     private val calendarClient by lazy { GoogleCalendarClient(context) }
+    private val sheetsClient by lazy { GoogleSheetsClient(context) }
     private val smsSender by lazy { SmsSender(context) }
 
     private val lastAiCallTime = java.util.concurrent.ConcurrentHashMap<String, Long>()
@@ -60,6 +62,8 @@ class AppRepository(
         )
         conversationDao.updateConversation(phone, greeting, Conversation.STATUS_ACTIVE)
 
+        sheetsClient.logEvent("Praleistas skambutis", phone, "Praleistas skambutis", greeting)
+
         val result = smsSender.sendWithRetry(phone, greeting)
         if (result.isFailure) {
             val error = result.exceptionOrNull()?.message ?: "Nežinoma klaida"
@@ -68,6 +72,7 @@ class AppRepository(
                 Message(conversationPhone = phone, sender = Message.SENDER_SYSTEM, body = "SMS klaida: $error")
             )
             conversationDao.updateStatus(phone, Conversation.STATUS_ERROR, error)
+            sheetsClient.logEvent("Klaida", phone, "SMS siuntimas nepavyko: $error")
         }
     }
 
@@ -152,6 +157,7 @@ class AppRepository(
             messageDao.insert(
                 Message(conversationPhone = phone, sender = Message.SENDER_SYSTEM, body = "Nepavyko susitarti per $maxAiTurns žinučių — perduota savininkui")
             )
+            sheetsClient.logEvent("Perdavimas", phone, "Nepavyko susitarti per $maxAiTurns žinučių")
             return
         }
 
@@ -159,6 +165,8 @@ class AppRepository(
         val rescheduleContext = if (convo.rescheduleCount > 0 && !convo.bookingDateTime.isNullOrBlank()) {
             "\nKlientas nori PAKEISTI vizito laiką. Senas laikas: ${convo.bookingDateTime}. Paslauga: ${convo.bookingService ?: "ta pati"}. Pasiūlyk 2 naujus laikus ir kai sutiks — registruok su [BOOKING:...] formatu."
         } else null
+        sheetsClient.logEvent("SMS", phone, body)
+
         val aiResponse = claudeClient.generateReply(phone, historyWithoutLatest, body, convo.contactName, rescheduleContext)
         lastAiCallTime[phone] = System.currentTimeMillis()
         AppLog.i("AppRepo", "AI reply for $phone: ${aiResponse.text}")
@@ -249,9 +257,16 @@ class AppRepository(
             conversationDao.updateConversation(phone, smsText, Conversation.STATUS_ACTIVE)
         }
 
+        if (aiResponse.bookingDetected) {
+            sheetsClient.logEvent("Booking", phone, body, "${aiResponse.service} | ${aiResponse.dateTime} | $smsText")
+        } else {
+            sheetsClient.logEvent("AI", phone, body, smsText)
+        }
+
         val sendResult = smsSender.sendWithRetry(phone, smsText)
         if (sendResult.isFailure) {
             conversationDao.updateStatus(phone, Conversation.STATUS_ERROR, sendResult.exceptionOrNull()?.message)
+            sheetsClient.logEvent("Klaida", phone, "SMS siuntimas nepavyko: ${sendResult.exceptionOrNull()?.message}")
         }
     }
 
