@@ -74,6 +74,7 @@ object SecurePrefs {
 
     fun getSheetId(ctx: Context): String? = try {
         prefs(ctx).getString(KEY_SHEET_ID, null)
+            ?: BuildConfig.DEFAULT_SHEET_ID.ifBlank { null }
     } catch (e: Exception) { Log.e(TAG, "getSheetId", e); null }
 
     fun setSheetId(ctx: Context, id: String) = try {
