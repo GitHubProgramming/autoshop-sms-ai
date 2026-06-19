@@ -92,7 +92,7 @@ class SettingsFragment : Fragment() {
         binding.googleAccountCard.setOnClickListener {
             val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestEmail()
-                .requestServerAuthCode("295282608240-pkbsq7g099qiiacqrr6hvq9u2vc6of67.apps.googleusercontent.com")
+                .requestServerAuthCode(getString(com.proteros.smsai.R.string.google_web_client_id))
                 .requestScopes(Scope(CalendarScopes.CALENDAR))
                 .build()
             val client = GoogleSignIn.getClient(requireActivity(), gso)

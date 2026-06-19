@@ -81,6 +81,11 @@ class ConversationFragment : Fragment() {
             binding.inputContainer.visibility = if (takeover) View.VISIBLE else View.GONE
         }
 
+        viewModel.status.observe(viewLifecycleOwner) { status ->
+            val isClosed = status == "closed"
+            binding.btnTakeover.visibility = if (isClosed) View.GONE else View.VISIBLE
+        }
+
         viewModel.error.observe(viewLifecycleOwner) { err ->
             if (err != null) Toast.makeText(context, err, Toast.LENGTH_LONG).show()
         }
