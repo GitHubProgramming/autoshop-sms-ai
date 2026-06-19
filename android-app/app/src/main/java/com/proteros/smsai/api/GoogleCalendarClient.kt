@@ -38,7 +38,8 @@ class GoogleCalendarClient(private val context: Context) {
         service: String,
         dateTime: String,
         contactName: String? = null,
-        conversationSummary: String? = null
+        conversationSummary: String? = null,
+        durationMin: Int = 60
     ): String? = withContext(Dispatchers.IO) {
         try {
             val calService = getService() ?: return@withContext null
@@ -64,7 +65,7 @@ class GoogleCalendarClient(private val context: Context) {
                     this.timeZone = "Europe/Vilnius"
                 }
                 end = EventDateTime().apply {
-                    val endTime = java.util.Date(date.time + 3600000)
+                    val endTime = java.util.Date(date.time + durationMin * 60_000L)
                     this.dateTime = DateTime(endTime, TimeZone.getTimeZone("Europe/Vilnius"))
                     this.timeZone = "Europe/Vilnius"
                 }

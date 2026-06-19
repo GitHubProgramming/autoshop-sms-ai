@@ -217,12 +217,17 @@ class AppRepository(
                         val prefix = if (msg.sender == Message.SENDER_CLIENT) "Klientas" else "AI"
                         "$prefix: ${msg.body}"
                     }
+                val kb = sheetsClient.getKnowledge()
+                val serviceDuration = kb.services
+                    .firstOrNull { it.name.equals(aiResponse.service, ignoreCase = true) }
+                    ?.durationMin ?: kb.visitDuration
                 eventId = calendarClient.createAppointment(
                     clientPhone = phone,
                     service = aiResponse.service ?: "Nenurodyta",
                     dateTime = aiResponse.dateTime ?: "",
                     contactName = convo.contactName,
-                    conversationSummary = chatSummary
+                    conversationSummary = chatSummary,
+                    durationMin = serviceDuration
                 )
             } catch (e: Exception) {
                 AppLog.e("AppRepo", "Calendar event creation failed", e)

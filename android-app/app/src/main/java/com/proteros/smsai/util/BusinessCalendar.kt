@@ -43,10 +43,10 @@ object BusinessCalendar {
             val dow = slot.dayOfWeek
             val hour = slot.hour
             when {
-                dow == DayOfWeek.SUNDAY || isLithuanianHoliday(slot.toLocalDate()) ->
-                    slot = slot.plusDays(1).withHour(8).withMinute(0)
-                dow == DayOfWeek.SATURDAY && hour >= 13 -> slot = slot.plusDays(2).withHour(8).withMinute(0)
-                dow == DayOfWeek.SATURDAY && hour < 9 -> slot = slot.withHour(9).withMinute(0)
+                dow == DayOfWeek.SUNDAY || dow == DayOfWeek.SATURDAY || isLithuanianHoliday(slot.toLocalDate()) -> {
+                    val daysToMonday = if (dow == DayOfWeek.SATURDAY) 2L else 1L
+                    slot = slot.plusDays(daysToMonday).withHour(8).withMinute(0)
+                }
                 hour >= 16 -> slot = slot.plusDays(1).withHour(8).withMinute(0)
                 hour < 8 -> slot = slot.withHour(8).withMinute(0)
                 else -> return slot.withMinute(0).withSecond(0)

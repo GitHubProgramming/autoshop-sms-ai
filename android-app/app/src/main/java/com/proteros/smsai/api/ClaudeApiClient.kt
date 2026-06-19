@@ -190,19 +190,20 @@ NENAUDOK jokio markdown formatavimo (**, *, # ir pan.) — tai SMS žinutė, ra�
             .post(body)
             .build()
 
-        val response = client.newCall(request).execute()
-        val responseBody = response.body?.string() ?: throw Exception("Tuščias atsakymas")
+        return client.newCall(request).execute().use { response ->
+            val responseBody = response.body?.string() ?: throw Exception("Tuščias atsakymas")
 
-        if (!response.isSuccessful) {
-            AppLog.e(TAG, "Claude API error ${response.code}: $responseBody")
-            throw Exception("Claude API klaida: ${response.code} - $responseBody")
-        }
+            if (!response.isSuccessful) {
+                AppLog.e(TAG, "Claude API error ${response.code}: $responseBody")
+                throw Exception("Claude API klaida: ${response.code} - $responseBody")
+            }
 
-        val json = JSONObject(responseBody)
-        val content = json.optJSONArray("content")
-        if (content == null || content.length() == 0) {
-            throw Exception("Tuščias Claude atsakymas")
+            val json = JSONObject(responseBody)
+            val content = json.optJSONArray("content")
+            if (content == null || content.length() == 0) {
+                throw Exception("Tuščias Claude atsakymas")
+            }
+            content.getJSONObject(0).getString("text")
         }
-        return content.getJSONObject(0).getString("text")
     }
 }
