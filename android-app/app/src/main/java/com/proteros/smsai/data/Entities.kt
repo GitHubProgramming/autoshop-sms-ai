@@ -17,7 +17,8 @@ data class Conversation(
     val calendarEventId: String? = null,
     val errorMessage: String? = null,
     val bookingService: String? = null,
-    val bookingDateTime: String? = null
+    val bookingDateTime: String? = null,
+    val rescheduleCount: Int = 0
 ) {
     companion object {
         const val STATUS_ACTIVE = "active"

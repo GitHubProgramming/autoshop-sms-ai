@@ -113,25 +113,27 @@ class AppRepository(
         }
 
         if (convo.status == Conversation.STATUS_BOOKED) {
-            AppLog.i("AppRepo", "Conversation already booked for $phone, sending confirmation")
-            val confirmMsg = buildString {
-                append("Ačiū! Jūsų vizitas patvirtintas")
-                if (!convo.bookingDateTime.isNullOrBlank()) {
-                    append(" — ${convo.bookingDateTime}")
-                }
-                append(". Jei turite klausimų — skambinkite.")
+            if (convo.rescheduleCount >= 1) {
+                AppLog.i("AppRepo", "Reschedule limit reached for $phone, sending final confirmation")
+                val confirmMsg = "Jūsų vizitas: ${convo.bookingDateTime ?: "užregistruotas"}. Dėl pakeitimų skambinkite."
+                messageDao.insert(
+                    Message(conversationPhone = phone, sender = Message.SENDER_AI, body = confirmMsg)
+                )
+                smsSender.sendWithRetry(phone, confirmMsg)
+                AgentNotification.handoverToOwner(context, phone)
+                conversationDao.setTakeover(phone, true)
+                messageDao.insert(
+                    Message(conversationPhone = phone, sender = Message.SENDER_SYSTEM, body = "Klientas rašė po perkėlimo — perduota savininkui")
+                )
+                return
             }
-            messageDao.insert(
-                Message(conversationPhone = phone, sender = Message.SENDER_AI, body = confirmMsg)
-            )
-            smsSender.sendWithRetry(phone, confirmMsg)
 
-            AgentNotification.handoverToOwner(context, phone)
-            conversationDao.setTakeover(phone, true)
+            AppLog.i("AppRepo", "Allowing reschedule for $phone (count=${convo.rescheduleCount})")
+            conversationDao.updateStatus(phone, Conversation.STATUS_ACTIVE)
+            conversationDao.incrementReschedule(phone)
             messageDao.insert(
-                Message(conversationPhone = phone, sender = Message.SENDER_SYSTEM, body = "Klientas rašė po registracijos — išsiųstas patvirtinimas ir perduota savininkui")
+                Message(conversationPhone = phone, sender = Message.SENDER_SYSTEM, body = "Klientas nori keisti vizito laiką — pokalbis pratęstas")
             )
-            return
         }
 
         val now = System.currentTimeMillis()
@@ -154,7 +156,10 @@ class AppRepository(
         }
 
         val historyWithoutLatest = history.dropLast(1).takeLast(10)
-        val aiResponse = claudeClient.generateReply(phone, historyWithoutLatest, body, convo.contactName)
+        val rescheduleContext = if (convo.rescheduleCount > 0 && !convo.bookingDateTime.isNullOrBlank()) {
+            "\nKlientas nori PAKEISTI vizito laiką. Senas laikas: ${convo.bookingDateTime}. Paslauga: ${convo.bookingService ?: "ta pati"}. Pasiūlyk 2 naujus laikus ir kai sutiks — registruok su [BOOKING:...] formatu."
+        } else null
+        val aiResponse = claudeClient.generateReply(phone, historyWithoutLatest, body, convo.contactName, rescheduleContext)
         lastAiCallTime[phone] = System.currentTimeMillis()
         AppLog.i("AppRepo", "AI reply for $phone: ${aiResponse.text}")
 
@@ -188,6 +193,11 @@ class AppRepository(
                     )
                 }
                 return
+            }
+
+            if (!convo.calendarEventId.isNullOrBlank()) {
+                val deleted = calendarClient.deleteEvent(convo.calendarEventId!!)
+                AppLog.i("AppRepo", "Deleted old calendar event ${convo.calendarEventId}: $deleted")
             }
 
             var eventId: String? = null

@@ -126,7 +126,7 @@ NENAUDOK jokio markdown formatavimo (**, *, # ir pan.) — tai SMS žinutė, ra�
         val dateTime: String? = null
     )
 
-    suspend fun generateReply(phone: String, history: List<Message>, latestMessage: String, contactName: String? = null): AiReply = withContext(Dispatchers.IO) {
+    suspend fun generateReply(phone: String, history: List<Message>, latestMessage: String, contactName: String? = null, extraInfo: String? = null): AiReply = withContext(Dispatchers.IO) {
         val apiKey = SecurePrefs.getApiKey(context)
         AppLog.i(TAG, "generateReply for $phone, hasApiKey=${!apiKey.isNullOrBlank()}, historySize=${history.size}")
         if (apiKey.isNullOrBlank()) return@withContext AiReply("Atsiprašome, šiuo metu negalime atsakyti. Paskambinkite 8-600-12345.")
@@ -153,7 +153,8 @@ NENAUDOK jokio markdown formatavimo (**, *, # ir pan.) — tai SMS žinutė, ra�
 
             AppLog.i(TAG, "Calling Claude with ${messages.length()} messages")
             val nameContext = if (!contactName.isNullOrBlank()) "\nKliento vardas: $contactName. Kreipkis vardu." else "\nKliento vardas nežinomas. Neskreipk vardu."
-            val responseText = callClaude(apiKey, (0 until messages.length()).map { messages.getJSONObject(it) }, nameContext)
+            val fullContext = nameContext + (extraInfo ?: "")
+            val responseText = callClaude(apiKey, (0 until messages.length()).map { messages.getJSONObject(it) }, fullContext)
             AppLog.i(TAG, "Reply for $phone (${responseText.length} chars)")
 
             val bookingRegex = """\[BOOKING:([^|]+)\|(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})]""".toRegex()

@@ -46,6 +46,9 @@ interface ConversationDao {
 
     @Query("UPDATE conversations SET status = 'closed' WHERE status = 'booked' AND updatedAt < :cutoff")
     suspend fun closeOldBooked(cutoff: Long)
+
+    @Query("UPDATE conversations SET rescheduleCount = rescheduleCount + 1 WHERE phoneNumber = :phone")
+    suspend fun incrementReschedule(phone: String)
 }
 
 @Dao

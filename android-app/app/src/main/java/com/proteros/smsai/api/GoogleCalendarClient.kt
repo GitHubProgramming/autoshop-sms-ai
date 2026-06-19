@@ -135,6 +135,17 @@ class GoogleCalendarClient(private val context: Context) {
     suspend fun getTodayAppointments(): List<TodayAppointment> =
         getTodayAppointmentsWithStatus().appointments
 
+    suspend fun deleteEvent(eventId: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val calService = getService() ?: return@withContext false
+            calService.events().delete(calendarId(), eventId).execute()
+            true
+        } catch (e: Exception) {
+            AppLog.e("CalendarClient", "deleteEvent failed", e)
+            false
+        }
+    }
+
     suspend fun isSlotAvailable(dateTime: String): Boolean = withContext(Dispatchers.IO) {
         try {
             val calService = getService() ?: return@withContext true
