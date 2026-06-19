@@ -28,6 +28,7 @@ android {
 
         buildConfigField "String", "DEFAULT_API_KEY", "\"${System.getenv('DEFAULT_API_KEY') ?: ''}\""
         buildConfigField "String", "DEFAULT_CALENDAR_ID", "\"${System.getenv('DEFAULT_CALENDAR_ID') ?: ''}\""
+        buildConfigField "String", "DEFAULT_SHEET_ID", "\"${System.getenv('DEFAULT_SHEET_ID') ?: '1qTKgiBcDr1F-B1y6CkVJwRodhY08cUSal8HtbWfkdS8'}\""
     }
 
     buildTypes {
