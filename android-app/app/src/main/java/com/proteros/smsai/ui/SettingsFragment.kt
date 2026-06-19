@@ -16,6 +16,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.Scope
 import com.google.api.services.calendar.CalendarScopes
+import com.google.api.services.sheets.v4.SheetsScopes
 import com.proteros.smsai.AutoShopApp
 import com.proteros.smsai.data.Conversation
 import com.proteros.smsai.data.Message
@@ -93,7 +94,7 @@ class SettingsFragment : Fragment() {
             val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestEmail()
                 .requestServerAuthCode(getString(com.proteros.smsai.R.string.google_web_client_id))
-                .requestScopes(Scope(CalendarScopes.CALENDAR))
+                .requestScopes(Scope(CalendarScopes.CALENDAR), Scope(SheetsScopes.SPREADSHEETS_READONLY))
                 .build()
             val client = GoogleSignIn.getClient(requireActivity(), gso)
             googleSignInLauncher.launch(client.signInIntent)
@@ -115,6 +116,28 @@ class SettingsFragment : Fragment() {
                     if (id.isNotEmpty()) {
                         SecurePrefs.setCalendarId(ctx, id)
                         binding.calendarIdValue.text = id
+                    }
+                }
+                .setNegativeButton("Atšaukti", null)
+                .show()
+        }
+
+        val sheetId = SecurePrefs.getSheetId(ctx)
+        binding.sheetIdValue.text = if (sheetId.isNullOrBlank()) "Nenustatytas (naudojamos numatytosios žinios)" else sheetId
+        binding.sheetIdCard.setOnClickListener {
+            val input = EditText(ctx).apply {
+                hint = "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms"
+                sheetId?.let { setText(it) }
+            }
+            AlertDialog.Builder(ctx)
+                .setTitle("Žinių bazės Sheet ID")
+                .setMessage("Įveskite Google Sheet ID. Jį rasite Sheet nuorodoje tarp /d/ ir /edit.\n\nPvz: docs.google.com/spreadsheets/d/SHEET_ID/edit")
+                .setView(input)
+                .setPositiveButton("Išsaugoti") { _, _ ->
+                    val id = input.text.toString().trim()
+                    if (id.isNotEmpty()) {
+                        SecurePrefs.setSheetId(ctx, id)
+                        binding.sheetIdValue.text = id
                     }
                 }
                 .setNegativeButton("Atšaukti", null)

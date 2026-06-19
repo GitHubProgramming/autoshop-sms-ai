@@ -25,9 +25,7 @@ class AppRepository(
     private val lastAiCallTime = java.util.concurrent.ConcurrentHashMap<String, Long>()
     private val AI_COOLDOWN_MS = 10_000L
 
-    companion object {
-        private const val MAX_AI_TURNS = 8
-    }
+    private val maxAiTurns: Int get() = claudeClient.getMaxAiTurns()
 
     suspend fun handleMissedCall(rawPhone: String) {
         archiveOldConversations()
@@ -53,6 +51,7 @@ class AppRepository(
             Message(conversationPhone = phone, sender = Message.SENDER_SYSTEM, body = "Praleistas skambutis aptiktas")
         )
 
+        claudeClient.refreshKnowledge()
         val greeting = claudeClient.generateGreeting(phone)
         AppLog.i("AppRepo", "Generated greeting for $phone: $greeting")
 
@@ -146,12 +145,12 @@ class AppRepository(
 
         val history = messageDao.getForConversation(phone)
         val aiTurns = history.count { it.sender == Message.SENDER_AI }
-        if (aiTurns >= MAX_AI_TURNS) {
-            AppLog.i("AppRepo", "Max AI turns ($MAX_AI_TURNS) reached for $phone, handing over to owner")
+        if (aiTurns >= maxAiTurns) {
+            AppLog.i("AppRepo", "Max AI turns ($maxAiTurns) reached for $phone, handing over to owner")
             conversationDao.setTakeover(phone, true)
             AgentNotification.handoverToOwner(context, phone)
             messageDao.insert(
-                Message(conversationPhone = phone, sender = Message.SENDER_SYSTEM, body = "Nepavyko susitarti per $MAX_AI_TURNS žinučių — perduota savininkui")
+                Message(conversationPhone = phone, sender = Message.SENDER_SYSTEM, body = "Nepavyko susitarti per $maxAiTurns žinučių — perduota savininkui")
             )
             return
         }
@@ -234,8 +233,8 @@ class AppRepository(
             }
         }
 
-        val smsText = if (aiResponse.bookingDetected && !aiResponse.text.contains("Aukštaičių", ignoreCase = true)) {
-            aiResponse.text + ClaudeApiClient.ADDRESS_WITH_MAP
+        val smsText = if (aiResponse.bookingDetected && !aiResponse.text.contains(claudeClient.getAddress(), ignoreCase = true)) {
+            aiResponse.text + claudeClient.getAddressWithMap()
         } else {
             aiResponse.text
         }

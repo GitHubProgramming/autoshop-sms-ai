@@ -3,6 +3,7 @@ package com.proteros.smsai.api
 import android.content.Context
 import com.proteros.smsai.data.Message
 import com.proteros.smsai.util.AppLog
+import com.proteros.smsai.util.BusinessCalendar
 import com.proteros.smsai.util.SecurePrefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -12,7 +13,6 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import com.proteros.smsai.util.BusinessCalendar
 import java.util.concurrent.TimeUnit
 
 class ClaudeApiClient(private val context: Context) {
@@ -22,37 +22,60 @@ class ClaudeApiClient(private val context: Context) {
         .readTimeout(60, TimeUnit.SECONDS)
         .build()
 
-    private val systemPrompt: String
-        get() {
-            val now = java.time.LocalDateTime.now()
-            val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-            val dayFormatter = java.time.format.DateTimeFormatter.ofPattern("EEEE", java.util.Locale("lt"))
-            val slot1 = findNextSlot(now)
-            val slot2 = findNextSlot(slot1.plusHours(1))
-            val slot1Str = "${slot1.format(dayFormatter)} ${slot1.format(formatter)}"
-            val slot2Str = "${slot2.format(dayFormatter)} ${slot2.format(formatter)}"
-            return """
-Tu esi Proteros Servisas SMS asistentas Panevėžyje.
-Adresas: Aukštaičių g. 29-2, Panevėžys.
-Darbo laikas: I-V 8:00-17:00. Šeštadieniais, sekmadieniais ir per Lietuvos šventes NEDIRBAME.
+    private val sheetsClient by lazy { GoogleSheetsClient(context) }
+    private var knowledgeBase: GoogleSheetsClient.KnowledgeBase = GoogleSheetsClient.defaultKnowledgeBase()
+
+    private fun buildSystemPrompt(): String {
+        val kb = knowledgeBase
+        val now = java.time.LocalDateTime.now()
+        val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+        val dayFormatter = java.time.format.DateTimeFormatter.ofPattern("EEEE", java.util.Locale("lt"))
+        val slot1 = BusinessCalendar.findNextSlot(now)
+        val slot2 = BusinessCalendar.findNextSlot(slot1.plusHours(1))
+        val slot1Str = "${slot1.format(dayFormatter)} ${slot1.format(formatter)}"
+        val slot2Str = "${slot2.format(dayFormatter)} ${slot2.format(formatter)}"
+
+        val servicesList = kb.services.joinToString("\n") { s ->
+            val priceInfo = if (s.price.isNotBlank() && s.price != "Pagal apžiūrą") " (${s.price})" else ""
+            val descInfo = if (s.description.isNotBlank()) " — ${s.description}" else ""
+            "- ${s.name}$descInfo$priceInfo"
+        }
+
+        val faqBlock = if (kb.faq.isNotEmpty()) {
+            "\nDUK (dažnai užduodami klausimai):\n" + kb.faq.joinToString("\n") {
+                "- Jei klausia: \"${it.first}\" → Atsakyk: \"${it.second}\""
+            }
+        } else ""
+
+        val rulesBlock = kb.rules.joinToString("\n") { "- $it" }
+
+        val warrantyBlock = if (kb.warranties.isNotEmpty()) {
+            "\nGarantijos ir sąlygos:\n" + kb.warranties.joinToString("\n") { "- ${it.first}: ${it.second}" }
+        } else ""
+
+        val customBlock = if (kb.customPrompt.isNotBlank()) "\n${kb.customPrompt}" else ""
+
+        return """
+Tu esi ${kb.businessName} SMS asistentas.
+Adresas: ${kb.address}.
+Darbo laikas: ${kb.workingHours}. Šeštadieniais, sekmadieniais ir per Lietuvos šventes NEDIRBAME.
 Lietuvos šventės (nedarbo dienos): Naujieji metai (01-01), Valstybės atkūrimo diena (02-16), Nepriklausomybės diena (03-11), Velykos (sekmadienis+pirmadienis), Darbo diena (05-01), Joninės (06-24), Valstybės diena (07-06), Žolinė (08-15), Visų Šventųjų (11-01), Vėlinės (11-02), Kūčios (12-24), Kalėdos (12-25, 12-26).
-Jei klientas nori registruotis šventinę dieną — paaiškink kad tą dieną nedirbame ir pasiūlyk kitą artimiausią darbo dieną.
+Jei klientas nori registruotis šventinę dieną — paaiškink kad tą dieną nedirbame ir pasiūlyk kitą artimiausią darbo dieną.${if (kb.phone.isNotBlank()) "\nTelefonas: ${kb.phone}." else ""}
 Dabar yra: ${now.format(formatter)}.
 
-Paslaugos: važiuoklės remontas, variklio diagnostika, stabdžių sistema,
-pakabos remontas, techninė apžiūra, kompiuterinė diagnostika, tepalų keitimas.
+Paslaugos:
+$servicesList
+$faqBlock$warrantyBlock
 
 SVARBIOS TAISYKLĖS:
-- NIEKADA nesakyk kainos. Jei klientas klausia apie kainą, atsakyk: "Tikslią kainą aptarsime vizito metu po apžiūros."
-- Kiekvienas vizitas trunka 1 valandą.
+$rulesBlock
+- Kiekvienas vizitas trunka ${kb.visitDuration} min.
 - Kai klientas parašo problemą — iškart pasiūlyk 2 artimiausius laisvus laikus: $slot1Str arba $slot2Str.
 - Jei klientas nurodo pageidaujamą dieną (pvz "penktadienį") — pasiūlyk 2 laisvus laikus tą dieną arba artimiausią darbo dieną.
 - Jei klientas sutinka su vienu iš pasiūlytų laikų — iškart registruok.
 - Registracijos patvirtinime NERAŠYK adreso — sistema automatiškai pridės adresą ir žemėlapio nuorodą.
-- Būk trumpas, max 2-3 sakiniai.
 
-Tavo tikslas: kuo greičiau susitarti dėl vizito laiko.
-Atsakyk LABAI trumpai (max 100 simbolių). Adresą sistema pridės automatiškai.
+Tavo tikslas: ${kb.agentGoal}.
 Datą SMS tekste VISADA rašyk formatu: MM-dd, pvz "06-18 10:00" (mėnuo-diena).
 Kai klientas sutinka su laiku arba nurodo laiką, atsakyk formatu:
 [BOOKING:paslauga|data ir laikas]
@@ -60,22 +83,31 @@ Data formatu: YYYY-MM-DD HH:MM
 Pvz: [BOOKING:Stabdžių remontas|2025-06-18 10:00]
 
 Rašyk lietuviškai, mandagiai, profesionaliai.
-NENAUDOK jokio markdown formatavimo (**, *, # ir pan.) — tai SMS žinutė, rašyk paprastu tekstu.
-            """.trim()
-        }
+NENAUDOK jokio markdown formatavimo (**, *, # ir pan.) — tai SMS žinutė, rašyk paprastu tekstu.$customBlock
+        """.trim()
+    }
 
-    private fun findNextSlot(from: java.time.LocalDateTime): java.time.LocalDateTime =
-        BusinessCalendar.findNextSlot(from)
+    suspend fun refreshKnowledge() {
+        knowledgeBase = sheetsClient.getKnowledge()
+    }
+
+    fun getGreeting(): String = knowledgeBase.greeting
+
+    fun getMaxAiTurns(): Int = knowledgeBase.maxAiTurns
+
+    fun getAddress(): String = knowledgeBase.address
+
+    fun getAddressWithMap(): String =
+        "\n${knowledgeBase.address}\n$DEFAULT_MAP_URL"
 
     fun generateGreeting(phone: String): String {
         AppLog.i(TAG, "generateGreeting for $phone")
-        return GREETING_TEMPLATE
+        return knowledgeBase.greeting
     }
 
     companion object {
         private const val TAG = "ClaudeApiClient"
-        const val GREETING_TEMPLATE = "Sveiki! Čia Proteros Servisas. Atsiprašome, kad dabar negalėjome atsiliepti. Aprašykite automobilio problemą ir norimą vizito laiką — ir mes iškart pasiūlysime artimiausią laisvą laiką."
-        const val ADDRESS_WITH_MAP = "\nAukštaičių g. 29-2, Panevėžys\nhttps://maps.google.com/?q=Aukstaičiu+g.+29-2,+Panevezys,+Lithuania"
+        const val DEFAULT_MAP_URL = "https://maps.google.com/?q=Aukstaičiu+g.+29-2,+Panevezys,+Lithuania"
     }
 
     data class AiReply(
@@ -86,9 +118,10 @@ NENAUDOK jokio markdown formatavimo (**, *, # ir pan.) — tai SMS žinutė, ra�
     )
 
     suspend fun generateReply(phone: String, history: List<Message>, latestMessage: String, contactName: String? = null, extraInfo: String? = null): AiReply = withContext(Dispatchers.IO) {
+        refreshKnowledge()
         val apiKey = SecurePrefs.getApiKey(context)
         AppLog.i(TAG, "generateReply for $phone, hasApiKey=${!apiKey.isNullOrBlank()}, historySize=${history.size}")
-        if (apiKey.isNullOrBlank()) return@withContext AiReply("Atsiprašome, šiuo metu negalime atsakyti. Paskambinkite 8-600-12345.")
+        if (apiKey.isNullOrBlank()) return@withContext AiReply("Atsiprašome, šiuo metu negalime atsakyti.${if (knowledgeBase.phone.isNotBlank()) " Paskambinkite ${knowledgeBase.phone}." else ""}")
 
         try {
             val messages = JSONArray()
@@ -142,7 +175,7 @@ NENAUDOK jokio markdown formatavimo (**, *, # ir pan.) — tai SMS žinutė, ra�
         val bodyJson = JSONObject()
             .put("model", "claude-sonnet-4-6")
             .put("max_tokens", 256)
-            .put("system", systemPrompt + extraContext)
+            .put("system", buildSystemPrompt() + extraContext)
             .put("messages", messagesArray)
 
         AppLog.i(TAG, "Calling Claude API (${messagesArray.length()} messages)")
