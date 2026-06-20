@@ -112,11 +112,6 @@ class AppRepository(
             return
         }
 
-        if (!isBusinessHours()) {
-            AppLog.i("AppRepo", "Outside business hours, skipping AI reply for $phone")
-            return
-        }
-
         if (convo.status == Conversation.STATUS_BOOKED) {
             if (convo.rescheduleCount >= 1) {
                 AppLog.i("AppRepo", "Reschedule limit reached for $phone, sending final confirmation")
