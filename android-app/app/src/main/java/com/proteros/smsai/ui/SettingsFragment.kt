@@ -123,7 +123,7 @@ class SettingsFragment : Fragment() {
         }
 
         val sheetId = SecurePrefs.getSheetId(ctx)
-        binding.sheetIdValue.text = if (sheetId.isNullOrBlank()) "Nenustatytas (naudojamos numatytosios žinios)" else sheetId
+        binding.sheetIdValue.text = if (sheetId.isNullOrBlank()) "Nenustatytas (naudojamos numatytosios žinios)" else "✓ Prijungta"
         binding.sheetIdCard.setOnClickListener {
             val input = EditText(ctx).apply {
                 hint = "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms"
