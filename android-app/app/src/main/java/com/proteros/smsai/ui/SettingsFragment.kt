@@ -23,6 +23,7 @@ import com.proteros.smsai.data.Message
 import com.proteros.smsai.databinding.FragmentSettingsBinding
 import com.proteros.smsai.service.SmsAgentService
 import com.proteros.smsai.util.AppLog
+import com.proteros.smsai.util.AppUpdateChecker
 import com.proteros.smsai.util.SecurePrefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -148,6 +149,25 @@ class SettingsFragment : Fragment() {
             ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName
         } catch (_: Exception) { "?" }
         binding.versionText.text = "Versija $versionName • Proteros Servisas"
+
+        CoroutineScope(Dispatchers.IO).launch {
+            val update = AppUpdateChecker.checkForUpdate(ctx)
+            if (update != null && _binding != null) {
+                withContext(Dispatchers.Main) {
+                    if (_binding == null) return@withContext
+                    binding.versionText.text = "Versija $versionName → ${update.versionName} galima!"
+                    AlertDialog.Builder(ctx)
+                        .setTitle("Atnaujinimas")
+                        .setMessage("Yra nauja versija ${update.versionName}. Atnaujinti?")
+                        .setPositiveButton("Atnaujinti") { _, _ ->
+                            AppUpdateChecker.downloadAndInstall(ctx, update)
+                            Toast.makeText(ctx, "Parsisiunčiama...", Toast.LENGTH_SHORT).show()
+                        }
+                        .setNegativeButton("Vėliau", null)
+                        .show()
+                }
+            }
+        }
 
         binding.btnShowLogs.setOnClickListener {
             val logScroll = binding.logScroll
