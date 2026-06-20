@@ -50,20 +50,3 @@ jobs:
           name: ProterosServisas-debug-apk
           path: android-app/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
-
-      - name: Rename APK for release
-        if: github.ref == 'refs/heads/main'
-        run: |
-          VERSION="0.$(printf '%02d' ${{ github.run_number }})"
-          cp android-app/app/build/outputs/apk/debug/app-debug.apk "ProterosServisas-v${VERSION}.apk"
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "APK_NAME=ProterosServisas-v${VERSION}.apk" >> $GITHUB_ENV
-
-      - name: Create GitHub Release
-        if: github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ env.VERSION }}
-          name: Proteros Servisas v${{ env.VERSION }}
-          files: ${{ env.APK_NAME }}
-          generate_release_notes: true

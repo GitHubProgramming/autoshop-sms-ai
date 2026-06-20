@@ -8,17 +8,18 @@ import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
-import androidx.core.content.FileProvider
+import com.google.api.services.sheets.v4.SheetsScopes
+import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
+import com.google.api.client.http.javanet.NetHttpTransport
+import com.google.api.client.json.gson.GsonFactory
+import com.google.api.services.sheets.v4.Sheets
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import org.json.JSONObject
 
 object AppUpdateChecker {
 
     private const val TAG = "AppUpdateChecker"
-    private const val RELEASES_URL = "https://api.github.com/repos/GitHubProgramming/autoshop-sms-ai/releases/latest"
+    private const val STATUS_SHEET = "Statusas"
 
     data class UpdateInfo(val versionName: String, val downloadUrl: String)
 
@@ -27,41 +28,36 @@ object AppUpdateChecker {
             val currentVersion = context.packageManager
                 .getPackageInfo(context.packageName, 0).versionName ?: return@withContext null
 
-            val client = OkHttpClient()
-            val request = Request.Builder()
-                .url(RELEASES_URL)
-                .header("Accept", "application/vnd.github+json")
-                .build()
+            val accountName = SecurePrefs.getGoogleAccount(context) ?: return@withContext null
+            val sheetId = SecurePrefs.getSheetId(context) ?: return@withContext null
 
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    AppLog.e(TAG, "GitHub API error: ${response.code}")
-                    return@withContext null
-                }
+            val credential = GoogleAccountCredential.usingOAuth2(
+                context, listOf(SheetsScopes.SPREADSHEETS_READONLY)
+            ).apply { selectedAccountName = accountName }
 
-                val json = JSONObject(response.body?.string() ?: return@withContext null)
-                val tagName = json.optString("tag_name", "").removePrefix("v")
+            val service = Sheets.Builder(
+                NetHttpTransport(), GsonFactory.getDefaultInstance(), credential
+            ).setApplicationName("Proteros SMS AI").build()
 
-                if (tagName.isBlank()) return@withContext null
+            val result = service.spreadsheets().values()
+                .get(sheetId, "$STATUS_SHEET!A2:B2")
+                .execute()
 
-                if (isNewer(tagName, currentVersion)) {
-                    val assets = json.optJSONArray("assets")
-                    if (assets != null && assets.length() > 0) {
-                        val apkAsset = (0 until assets.length())
-                            .map { assets.getJSONObject(it) }
-                            .firstOrNull { it.getString("name").endsWith(".apk") }
+            val row = result.getValues()?.firstOrNull() ?: return@withContext null
+            if (row.size < 2) return@withContext null
 
-                        if (apkAsset != null) {
-                            val downloadUrl = apkAsset.getString("browser_download_url")
-                            AppLog.i(TAG, "Update available: $currentVersion -> $tagName")
-                            return@withContext UpdateInfo(tagName, downloadUrl)
-                        }
-                    }
-                }
+            val remoteVersion = row[0].toString().trim()
+            val downloadUrl = row[1].toString().trim()
 
-                AppLog.i(TAG, "No update available (current=$currentVersion, latest=$tagName)")
-                null
+            if (remoteVersion.isBlank() || downloadUrl.isBlank()) return@withContext null
+
+            if (isNewer(remoteVersion, currentVersion)) {
+                AppLog.i(TAG, "Update available: $currentVersion -> $remoteVersion")
+                return@withContext UpdateInfo(remoteVersion, downloadUrl)
             }
+
+            AppLog.i(TAG, "No update available (current=$currentVersion, latest=$remoteVersion)")
+            null
         } catch (e: Exception) {
             AppLog.e(TAG, "Update check failed: ${e.message}")
             null
