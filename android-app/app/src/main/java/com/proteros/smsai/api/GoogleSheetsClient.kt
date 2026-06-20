@@ -41,7 +41,7 @@ class GoogleSheetsClient(private val context: Context) {
 
     @Volatile
     private var cached: KnowledgeBase? = null
-    private val CACHE_TTL = 60 * 60 * 1000L
+    private val CACHE_TTL = 5 * 60 * 1000L
 
     private fun getService(): Sheets? {
         val accountName = SecurePrefs.getGoogleAccount(context) ?: return null
