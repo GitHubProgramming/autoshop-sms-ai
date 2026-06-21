@@ -64,7 +64,7 @@ class TodayFragment : Fragment() {
         }
 
         viewModel.serviceActive.observe(viewLifecycleOwner) { active ->
-            binding.statusIndicator.text = if (active) "● Aktyvus" else "○ Išjungtas"
+            binding.statusIndicator.text = if (active) "● Įjungta" else "○ Išjungta"
             binding.statusIndicator.setBackgroundResource(
                 if (active) R.drawable.bg_status_active else R.drawable.bg_status_inactive
             )
