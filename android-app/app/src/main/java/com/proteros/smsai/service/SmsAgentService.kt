@@ -19,22 +19,25 @@ import com.proteros.smsai.ui.MainActivity
 
 class SmsAgentService : Service() {
 
-    private val heartbeatHandler = Handler(Looper.getMainLooper())
-    private val heartbeatInterval = 15 * 60 * 1000L
+    private val refreshHandler = Handler(Looper.getMainLooper())
+    private val refreshCheckInterval = 5 * 60 * 1000L
 
-    private val heartbeatRunnable = object : Runnable {
+    private val refreshCheckRunnable = object : Runnable {
         override fun run() {
             Thread {
                 try {
                     val sheetsClient = GoogleSheetsClient(applicationContext)
                     kotlinx.coroutines.runBlocking {
-                        sheetsClient.reportDeviceStatus(applicationContext)
+                        if (sheetsClient.checkRefreshRequested(applicationContext)) {
+                            AppLog.i(TAG, "Refresh requested from Sheet, reporting status")
+                            sheetsClient.reportDeviceStatus(applicationContext)
+                        }
                     }
                 } catch (e: Exception) {
-                    AppLog.e(TAG, "Heartbeat failed", e)
+                    AppLog.e(TAG, "Refresh check failed", e)
                 }
             }.start()
-            heartbeatHandler.postDelayed(this, heartbeatInterval)
+            refreshHandler.postDelayed(this, refreshCheckInterval)
         }
     }
 
@@ -50,7 +53,13 @@ class SmsAgentService : Service() {
         } catch (e: Exception) {
             AppLog.e(TAG, "startForeground failed", e)
         }
-        heartbeatHandler.post(heartbeatRunnable)
+        Thread {
+            try {
+                val sheetsClient = GoogleSheetsClient(applicationContext)
+                kotlinx.coroutines.runBlocking { sheetsClient.reportDeviceStatus(applicationContext) }
+            } catch (e: Exception) { AppLog.e(TAG, "Initial status report failed", e) }
+        }.start()
+        refreshHandler.postDelayed(refreshCheckRunnable, refreshCheckInterval)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -59,7 +68,7 @@ class SmsAgentService : Service() {
     }
 
     override fun onDestroy() {
-        heartbeatHandler.removeCallbacks(heartbeatRunnable)
+        refreshHandler.removeCallbacks(refreshCheckRunnable)
         super.onDestroy()
         AppLog.i(TAG, "SmsAgentService destroyed")
     }

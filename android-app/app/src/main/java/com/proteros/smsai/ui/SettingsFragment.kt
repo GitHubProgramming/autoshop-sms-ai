@@ -19,6 +19,7 @@ import com.proteros.smsai.AutoShopApp
 import com.proteros.smsai.data.Conversation
 import com.proteros.smsai.data.Message
 import com.proteros.smsai.databinding.FragmentSettingsBinding
+import com.proteros.smsai.api.GoogleSheetsClient
 import com.proteros.smsai.service.SmsAgentService
 import com.proteros.smsai.util.AppLog
 import com.proteros.smsai.util.AppUpdateChecker
@@ -42,6 +43,7 @@ class SettingsFragment : Fragment() {
             account.email?.let {
                 SecurePrefs.setGoogleAccount(requireContext(), it)
                 binding.googleAccountValue.text = it
+                reportStatusInBackground(requireContext())
             }
         } catch (e: Exception) {
             Toast.makeText(context, "Prisijungimas nepavyko: ${e.message}", Toast.LENGTH_LONG).show()
@@ -63,32 +65,11 @@ class SettingsFragment : Fragment() {
                 val appCtx = ctx.applicationContext
                 SecurePrefs.setEnabled(appCtx, checked)
                 if (checked) SmsAgentService.start(appCtx) else SmsAgentService.stop(appCtx)
+                reportStatusInBackground(appCtx)
             } catch (e: Exception) {
                 AppLog.e("SettingsFragment", "Service toggle failed", e)
                 try { Toast.makeText(ctx, "Klaida: ${e.message}", Toast.LENGTH_LONG).show() } catch (_: Exception) {}
             }
-        }
-
-        val deviceName = SecurePrefs.getDeviceName(ctx)
-        binding.deviceNameValue.text = if (deviceName.isNullOrBlank()) "Nenustatytas" else deviceName
-        binding.deviceNameCard.setOnClickListener {
-            val input = EditText(ctx).apply {
-                hint = "Pvz. Mantas, Vaidas"
-                deviceName?.let { setText(it) }
-            }
-            AlertDialog.Builder(ctx)
-                .setTitle("Įrenginio vardas")
-                .setMessage("Šis vardas bus rodomas Google Sheet statuso lentelėje.")
-                .setView(input)
-                .setPositiveButton("Išsaugoti") { _, _ ->
-                    val name = input.text.toString().trim()
-                    if (name.isNotEmpty()) {
-                        SecurePrefs.setDeviceName(ctx, name)
-                        binding.deviceNameValue.text = name
-                    }
-                }
-                .setNegativeButton("Atšaukti", null)
-                .show()
         }
 
         val apiKey = SecurePrefs.getApiKey(ctx)
@@ -103,6 +84,7 @@ class SettingsFragment : Fragment() {
                     if (key.isNotEmpty()) {
                         SecurePrefs.setApiKey(ctx, key)
                         binding.apiKeyValue.text = "•••${key.takeLast(4)}"
+                        reportStatusInBackground(ctx)
                     }
                 }
                 .setNegativeButton("Atšaukti", null)
@@ -137,6 +119,7 @@ class SettingsFragment : Fragment() {
                     if (id.isNotEmpty()) {
                         SecurePrefs.setCalendarId(ctx, id)
                         binding.calendarIdValue.text = id
+                        reportStatusInBackground(ctx)
                     }
                 }
                 .setNegativeButton("Atšaukti", null)
@@ -159,6 +142,7 @@ class SettingsFragment : Fragment() {
                     if (id.isNotEmpty()) {
                         SecurePrefs.setSheetId(ctx, id)
                         binding.sheetIdValue.text = id
+                        reportStatusInBackground(ctx)
                     }
                 }
                 .setNegativeButton("Atšaukti", null)
@@ -244,6 +228,14 @@ class SettingsFragment : Fragment() {
                 }
                 .setNegativeButton("Atšaukti", null)
                 .show()
+        }
+    }
+
+    private fun reportStatusInBackground(ctx: Context) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                GoogleSheetsClient(ctx).reportDeviceStatus(ctx)
+            } catch (_: Exception) {}
         }
     }
 
