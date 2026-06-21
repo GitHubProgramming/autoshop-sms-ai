@@ -1,13 +1,9 @@
 package com.proteros.smsai.util
 
-import android.app.DownloadManager
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.net.Uri
-import android.os.Build
-import android.os.Environment
+import androidx.core.content.FileProvider
 import com.google.api.services.sheets.v4.SheetsScopes
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
 import com.google.api.client.http.javanet.NetHttpTransport
@@ -15,6 +11,10 @@ import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.sheets.v4.Sheets
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.File
+import java.util.concurrent.TimeUnit
 
 object AppUpdateChecker {
 
@@ -66,56 +66,63 @@ object AppUpdateChecker {
 
     fun downloadAndInstall(context: Context, update: UpdateInfo) {
         val fileName = "ProterosServisas-v${update.versionName}.apk"
+        val apkFile = File(context.getExternalFilesDir(null), fileName)
 
-        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        val request = DownloadManager.Request(Uri.parse(update.downloadUrl))
-            .setTitle("Proteros Servisas v${update.versionName}")
-            .setDescription("Atnaujinimas parsisiunčiamas...")
-            .setDestinationInExternalFilesDir(context, Environment.DIRECTORY_DOWNLOADS, fileName)
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+        val client = OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(120, TimeUnit.SECONDS)
+            .followRedirects(true)
+            .build()
 
-        val downloadId = downloadManager.enqueue(request)
-        AppLog.i(TAG, "Download started: $downloadId")
-
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(ctx: Context, intent: Intent) {
-                val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
-                if (id == downloadId) {
-                    ctx.unregisterReceiver(this)
-                    installApk(ctx, downloadId)
+        Thread {
+            try {
+                var url = update.downloadUrl
+                // Google Drive: add confirm=t to bypass virus scan warning
+                if (url.contains("drive.google.com")) {
+                    url = url + (if (url.contains("?")) "&" else "?") + "confirm=t"
                 }
-            }
-        }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(
-                receiver,
-                IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
-                Context.RECEIVER_NOT_EXPORTED
-            )
-        } else {
-            context.registerReceiver(
-                receiver,
-                IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
-            )
-        }
+                AppLog.i(TAG, "Downloading APK from: $url")
+                val request = Request.Builder().url(url).build()
+                val response = client.newCall(request).execute()
+
+                if (!response.isSuccessful) {
+                    AppLog.e(TAG, "Download failed: ${response.code}")
+                    return@Thread
+                }
+
+                response.body?.byteStream()?.use { input ->
+                    apkFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+
+                AppLog.i(TAG, "APK downloaded: ${apkFile.length()} bytes")
+
+                if (apkFile.length() < 100_000) {
+                    AppLog.e(TAG, "APK too small, likely HTML error page")
+                    apkFile.delete()
+                    return@Thread
+                }
+
+                installApk(context, apkFile)
+            } catch (e: Exception) {
+                AppLog.e(TAG, "Download failed: ${e.message}")
+            }
+        }.start()
     }
 
-    private fun installApk(context: Context, downloadId: Long) {
+    private fun installApk(context: Context, apkFile: File) {
         try {
-            val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-            val uri = downloadManager.getUriForDownloadedFile(downloadId)
-            if (uri == null) {
-                AppLog.e(TAG, "Download URI is null")
-                return
-            }
-
+            val uri = FileProvider.getUriForFile(
+                context, "${context.packageName}.fileprovider", apkFile
+            )
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "application/vnd.android.package-archive")
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
             }
             context.startActivity(intent)
-            AppLog.i(TAG, "Install intent launched")
+            AppLog.i(TAG, "Install intent launched for ${apkFile.name}")
         } catch (e: Exception) {
             AppLog.e(TAG, "Install failed: ${e.message}")
         }
