@@ -91,11 +91,9 @@ class TodayViewModel(private val repo: AppRepository) : ViewModel() {
             try {
                 val result = calendarClient.getTodayAppointmentsWithStatus()
                 _calendarError.postValue(result.error)
-                if (result.appointments.isNotEmpty()) {
-                    _appointments.postValue(result.appointments.map { a ->
-                        AppointmentItem(time = a.time, client = a.clientPhone, contactName = a.contactName, service = a.service)
-                    })
-                }
+                _appointments.postValue(result.appointments.map { a ->
+                    AppointmentItem(time = a.time, client = a.clientPhone, contactName = a.contactName, service = a.service)
+                })
             } catch (e: Exception) {
                 AppLog.e("TodayViewModel", "Failed to load calendar appointments", e)
                 _calendarError.postValue(e.message)

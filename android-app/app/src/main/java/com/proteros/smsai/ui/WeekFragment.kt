@@ -296,6 +296,13 @@ class WeekFragment : Fragment() {
         binding.summaryStats.text = "$weekAppts vizitų  •  $freeSlots laisvi  •  ${occupancy}% užimta"
     }
 
+    override fun onResume() {
+        super.onResume()
+        try {
+            viewModel.refreshAppointments(com.proteros.smsai.api.GoogleCalendarClient(requireContext()))
+        } catch (_: Exception) { }
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
