@@ -3,6 +3,11 @@ package com.proteros.smsai.util
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.provider.Settings
+import android.widget.Toast
 import androidx.core.content.FileProvider
 import com.google.api.services.sheets.v4.SheetsScopes
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
@@ -67,6 +72,23 @@ object AppUpdateChecker {
     fun downloadAndInstall(context: Context, update: UpdateInfo) {
         val fileName = "ProterosServisas-v${update.versionName}.apk"
         val apkFile = File(context.getExternalFilesDir(null), fileName)
+        val mainHandler = Handler(Looper.getMainLooper())
+
+        // Check "install unknown apps" permission first
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (!context.packageManager.canRequestPackageInstalls()) {
+                AppLog.i(TAG, "Unknown sources not enabled, opening settings")
+                mainHandler.post {
+                    Toast.makeText(context, "Leiskite diegti programas iš šio šaltinio", Toast.LENGTH_LONG).show()
+                    val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                        data = Uri.parse("package:${context.packageName}")
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                    context.startActivity(intent)
+                }
+                return
+            }
+        }
 
         val client = OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
@@ -76,8 +98,12 @@ object AppUpdateChecker {
 
         Thread {
             try {
+                // Delete old APK files
+                context.getExternalFilesDir(null)?.listFiles()?.forEach {
+                    if (it.name.endsWith(".apk")) it.delete()
+                }
+
                 var url = update.downloadUrl
-                // Google Drive: add confirm=t to bypass virus scan warning
                 if (url.contains("drive.google.com")) {
                     url = url + (if (url.contains("?")) "&" else "?") + "confirm=t"
                 }
@@ -88,6 +114,9 @@ object AppUpdateChecker {
 
                 if (!response.isSuccessful) {
                     AppLog.e(TAG, "Download failed: ${response.code}")
+                    mainHandler.post {
+                        Toast.makeText(context, "Parsisiuntimas nepavyko (${response.code})", Toast.LENGTH_LONG).show()
+                    }
                     return@Thread
                 }
 
@@ -100,14 +129,22 @@ object AppUpdateChecker {
                 AppLog.i(TAG, "APK downloaded: ${apkFile.length()} bytes")
 
                 if (apkFile.length() < 100_000) {
-                    AppLog.e(TAG, "APK too small, likely HTML error page")
+                    AppLog.e(TAG, "APK too small (${apkFile.length()} bytes), likely HTML error page")
                     apkFile.delete()
+                    mainHandler.post {
+                        Toast.makeText(context, "Parsisiuntimo klaida — failas per mažas", Toast.LENGTH_LONG).show()
+                    }
                     return@Thread
                 }
 
-                installApk(context, apkFile)
+                mainHandler.post {
+                    installApk(context, apkFile)
+                }
             } catch (e: Exception) {
                 AppLog.e(TAG, "Download failed: ${e.message}")
+                mainHandler.post {
+                    Toast.makeText(context, "Klaida: ${e.message}", Toast.LENGTH_LONG).show()
+                }
             }
         }.start()
     }
@@ -117,6 +154,7 @@ object AppUpdateChecker {
             val uri = FileProvider.getUriForFile(
                 context, "${context.packageName}.fileprovider", apkFile
             )
+            AppLog.i(TAG, "Installing APK: ${apkFile.name}, size=${apkFile.length()}, uri=$uri")
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "application/vnd.android.package-archive")
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
@@ -124,7 +162,8 @@ object AppUpdateChecker {
             context.startActivity(intent)
             AppLog.i(TAG, "Install intent launched for ${apkFile.name}")
         } catch (e: Exception) {
-            AppLog.e(TAG, "Install failed: ${e.message}")
+            AppLog.e(TAG, "Install failed: ${e.message}", e)
+            Toast.makeText(context, "Diegimo klaida: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
