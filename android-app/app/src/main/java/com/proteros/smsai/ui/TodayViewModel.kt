@@ -101,6 +101,21 @@ class TodayViewModel(private val repo: AppRepository) : ViewModel() {
         }
     }
 
+    fun refreshWeekAppointments(calendarClient: GoogleCalendarClient, start: java.time.LocalDate, end: java.time.LocalDate) {
+        viewModelScope.launch {
+            try {
+                val result = calendarClient.getWeekAppointments(start, end)
+                _calendarError.postValue(result.error)
+                _appointments.postValue(result.appointments.map { a ->
+                    AppointmentItem(time = a.time, client = a.clientPhone, contactName = a.contactName, service = a.service)
+                })
+            } catch (e: Exception) {
+                AppLog.e("TodayViewModel", "Failed to load week appointments", e)
+                _calendarError.postValue(e.message)
+            }
+        }
+    }
+
     fun checkServiceStatus(app: Application) {
         _serviceActive.value = SecurePrefs.isEnabled(app)
     }

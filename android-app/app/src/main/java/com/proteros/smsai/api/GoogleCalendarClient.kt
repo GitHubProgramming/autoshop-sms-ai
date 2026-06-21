@@ -110,12 +110,12 @@ class GoogleCalendarClient(private val context: Context) {
                 .execute()
 
             val appointments = events.items?.mapNotNull { event ->
-                val desc = event.description ?: return@mapNotNull null
+                val desc = event.description ?: ""
                 val phoneMatch = Regex("Tel: (\\+?\\d+)").find(desc)
                 val serviceMatch = Regex("Paslauga: (.+)").find(desc)
                 val nameMatch = Regex("Klientas: (.+)").find(desc)
                 val time = event.start?.dateTime?.let {
-                    SimpleDateFormat("HH:mm", Locale.getDefault()).format(java.util.Date(it.value))
+                    SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(java.util.Date(it.value))
                 } ?: "--:--"
 
                 val name = nameMatch?.groupValues?.get(1)?.takeIf { it != "Nežinomas" }
@@ -135,6 +135,50 @@ class GoogleCalendarClient(private val context: Context) {
 
     suspend fun getTodayAppointments(): List<TodayAppointment> =
         getTodayAppointmentsWithStatus().appointments
+
+    suspend fun getWeekAppointments(startDate: java.time.LocalDate, endDate: java.time.LocalDate): CalendarResult = withContext(Dispatchers.IO) {
+        try {
+            val calService = getService() ?: return@withContext CalendarResult(emptyList(), "Google paskyra neprisijungta")
+            val tz = TimeZone.getTimeZone("Europe/Vilnius")
+            val startCal = java.util.Calendar.getInstance(tz).apply {
+                set(startDate.year, startDate.monthValue - 1, startDate.dayOfMonth, 0, 0, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }
+            val endCal = java.util.Calendar.getInstance(tz).apply {
+                set(endDate.year, endDate.monthValue - 1, endDate.dayOfMonth, 0, 0, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }
+
+            val events = calService.events().list(calendarId())
+                .setTimeMin(DateTime(startCal.time))
+                .setTimeMax(DateTime(endCal.time))
+                .setOrderBy("startTime")
+                .setSingleEvents(true)
+                .execute()
+
+            val appointments = events.items?.mapNotNull { event ->
+                val desc = event.description ?: ""
+                val phoneMatch = Regex("Tel: (\\+?\\d+)").find(desc)
+                val serviceMatch = Regex("Paslauga: (.+)").find(desc)
+                val nameMatch = Regex("Klientas: (.+)").find(desc)
+                val time = event.start?.dateTime?.let {
+                    SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(java.util.Date(it.value))
+                } ?: "--:--"
+
+                val name = nameMatch?.groupValues?.get(1)?.takeIf { it != "Nežinomas" }
+                TodayAppointment(
+                    time = time,
+                    clientPhone = phoneMatch?.groupValues?.get(1) ?: "Nežinomas",
+                    service = serviceMatch?.groupValues?.get(1) ?: event.summary ?: "Vizitas",
+                    contactName = name,
+                    eventId = event.id
+                )
+            } ?: emptyList()
+            CalendarResult(appointments)
+        } catch (e: Exception) {
+            CalendarResult(emptyList(), e.message ?: "Kalendoriaus klaida")
+        }
+    }
 
     suspend fun deleteEvent(eventId: String): Boolean = withContext(Dispatchers.IO) {
         try {
