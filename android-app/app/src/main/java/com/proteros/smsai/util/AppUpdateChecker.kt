@@ -59,7 +59,7 @@ object AppUpdateChecker {
             val row = result.getValues()?.firstOrNull() ?: return@withContext null
             if (row.size < 2) return@withContext null
 
-            val remoteVersion = row[0].toString().trim()
+            val remoteVersion = row[0].toString().trim().replace(',', '.')
             val downloadUrl = row[1].toString().trim()
 
             if (remoteVersion.isBlank() || downloadUrl.isBlank()) return@withContext null
@@ -205,8 +205,8 @@ object AppUpdateChecker {
 
     private fun isNewer(remote: String, local: String): Boolean {
         try {
-            val remoteParts = remote.split(".").map { it.toIntOrNull() ?: 0 }
-            val localParts = local.split(".").map { it.toIntOrNull() ?: 0 }
+            val remoteParts = remote.replace(',', '.').split(".").map { it.toIntOrNull() ?: 0 }
+            val localParts = local.replace(',', '.').split(".").map { it.toIntOrNull() ?: 0 }
             for (i in 0 until maxOf(remoteParts.size, localParts.size)) {
                 val r = remoteParts.getOrElse(i) { 0 }
                 val l = localParts.getOrElse(i) { 0 }
