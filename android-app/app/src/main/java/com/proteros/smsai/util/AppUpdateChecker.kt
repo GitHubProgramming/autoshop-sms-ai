@@ -105,7 +105,10 @@ object AppUpdateChecker {
 
                 var url = update.downloadUrl
                 if (url.contains("drive.google.com")) {
-                    url = url + (if (url.contains("?")) "&" else "?") + "confirm=t"
+                    val fileId = Regex("/d/([a-zA-Z0-9_-]+)").find(url)?.groupValues?.get(1)
+                    if (fileId != null) {
+                        url = "https://drive.google.com/uc?export=download&id=$fileId&confirm=t"
+                    }
                 }
 
                 AppLog.i(TAG, "Downloading APK from: $url")
