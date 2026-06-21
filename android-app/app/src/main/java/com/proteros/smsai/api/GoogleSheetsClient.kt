@@ -275,7 +275,7 @@ class GoogleSheetsClient(private val context: Context) {
 
                 try {
                     service.spreadsheets().values()
-                        .append(sheetId, "Logai!A:E",
+                        .append(sheetId, "$SMS_SHEET!A:E",
                             com.google.api.services.sheets.v4.model.ValueRange()
                                 .setValues(listOf(row)))
                         .setValueInputOption("RAW")
@@ -283,9 +283,9 @@ class GoogleSheetsClient(private val context: Context) {
                         .execute()
                 } catch (e: com.google.api.client.googleapis.json.GoogleJsonResponseException) {
                     if (e.statusCode == 400 && e.message?.contains("Unable to parse range") == true) {
-                        createLogSheet(service, sheetId)
+                        createSmsSheet(service, sheetId)
                         service.spreadsheets().values()
-                            .append(sheetId, "Logai!A:E",
+                            .append(sheetId, "$SMS_SHEET!A:E",
                                 com.google.api.services.sheets.v4.model.ValueRange()
                                     .setValues(listOf(row)))
                             .setValueInputOption("RAW")
@@ -299,19 +299,19 @@ class GoogleSheetsClient(private val context: Context) {
         }
     }
 
-    private fun createLogSheet(service: Sheets, sheetId: String) {
+    private fun createSmsSheet(service: Sheets, sheetId: String) {
         val addSheet = com.google.api.services.sheets.v4.model.BatchUpdateSpreadsheetRequest()
             .setRequests(listOf(
                 com.google.api.services.sheets.v4.model.Request()
                     .setAddSheet(com.google.api.services.sheets.v4.model.AddSheetRequest()
                         .setProperties(com.google.api.services.sheets.v4.model.SheetProperties()
-                            .setTitle("Logai")))
+                            .setTitle(SMS_SHEET)))
             ))
         service.spreadsheets().batchUpdate(sheetId, addSheet).execute()
 
         val header = listOf<Any>("Data", "Telefonas", "Tipas", "Žinutė", "AI atsakymas")
         service.spreadsheets().values()
-            .update(sheetId, "Logai!A1:E1",
+            .update(sheetId, "$SMS_SHEET!A1:E1",
                 com.google.api.services.sheets.v4.model.ValueRange()
                     .setValues(listOf(header)))
             .setValueInputOption("RAW")
@@ -319,6 +319,7 @@ class GoogleSheetsClient(private val context: Context) {
     }
 
     companion object {
+        private const val SMS_SHEET = "SMS"
         private const val TAG = "SheetsClient"
         private const val CACHE_PREFS = "sheets_cache"
         private const val CACHE_KEY = "knowledge_base"
