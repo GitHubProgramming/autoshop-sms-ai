@@ -9,17 +9,16 @@ import android.os.Looper
 import android.provider.Settings
 import android.widget.Toast
 import androidx.core.content.FileProvider
-import com.google.api.services.sheets.v4.SheetsScopes
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
+import com.google.api.services.drive.Drive
+import com.google.api.services.drive.DriveScopes
 import com.google.api.services.sheets.v4.Sheets
+import com.google.api.services.sheets.v4.SheetsScopes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import java.io.File
-import java.util.concurrent.TimeUnit
 
 object AppUpdateChecker {
 
@@ -27,6 +26,11 @@ object AppUpdateChecker {
     private const val STATUS_SHEET = "Statusas"
 
     data class UpdateInfo(val versionName: String, val downloadUrl: String)
+
+    private fun extractFileId(url: String): String? {
+        return Regex("/d/([a-zA-Z0-9_-]+)").find(url)?.groupValues?.get(1)
+            ?: Regex("[?&]id=([a-zA-Z0-9_-]+)").find(url)?.groupValues?.get(1)
+    }
 
     suspend fun checkForUpdate(context: Context): UpdateInfo? = withContext(Dispatchers.IO) {
         try {
@@ -74,7 +78,6 @@ object AppUpdateChecker {
         val apkFile = File(context.getExternalFilesDir(null), fileName)
         val mainHandler = Handler(Looper.getMainLooper())
 
-        // Check "install unknown apps" permission first
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (!context.packageManager.canRequestPackageInstalls()) {
                 AppLog.i(TAG, "Unknown sources not enabled, opening settings")
@@ -90,49 +93,47 @@ object AppUpdateChecker {
             }
         }
 
-        val client = OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(120, TimeUnit.SECONDS)
-            .followRedirects(true)
-            .build()
-
         Thread {
             try {
-                // Delete old APK files
                 context.getExternalFilesDir(null)?.listFiles()?.forEach {
                     if (it.name.endsWith(".apk")) it.delete()
                 }
 
-                var url = update.downloadUrl
-                if (url.contains("drive.google.com")) {
-                    val fileId = Regex("/d/([a-zA-Z0-9_-]+)").find(url)?.groupValues?.get(1)
-                    if (fileId != null) {
-                        url = "https://drive.google.com/uc?export=download&id=$fileId&confirm=t"
-                    }
-                }
-
-                AppLog.i(TAG, "Downloading APK from: $url")
-                val request = Request.Builder().url(url).build()
-                val response = client.newCall(request).execute()
-
-                if (!response.isSuccessful) {
-                    AppLog.e(TAG, "Download failed: ${response.code}")
+                val fileId = extractFileId(update.downloadUrl)
+                if (fileId == null) {
+                    AppLog.e(TAG, "Cannot extract file ID from: ${update.downloadUrl}")
                     mainHandler.post {
-                        Toast.makeText(context, "Parsisiuntimas nepavyko (${response.code})", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "Neteisingas atsisiuntimo adresas", Toast.LENGTH_LONG).show()
                     }
                     return@Thread
                 }
 
-                response.body?.byteStream()?.use { input ->
-                    apkFile.outputStream().use { output ->
-                        input.copyTo(output)
+                val accountName = SecurePrefs.getGoogleAccount(context)
+                if (accountName == null) {
+                    AppLog.e(TAG, "No Google account for Drive download")
+                    mainHandler.post {
+                        Toast.makeText(context, "Neprisijungta Google paskyra", Toast.LENGTH_LONG).show()
                     }
+                    return@Thread
                 }
+
+                AppLog.i(TAG, "Downloading APK via Drive API, fileId=$fileId")
+
+                val credential = GoogleAccountCredential.usingOAuth2(
+                    context, listOf(DriveScopes.DRIVE_READONLY)
+                ).apply { selectedAccountName = accountName }
+
+                val driveService = Drive.Builder(
+                    NetHttpTransport(), GsonFactory.getDefaultInstance(), credential
+                ).setApplicationName("Proteros SMS AI").build()
+
+                driveService.files().get(fileId)
+                    .executeMediaAndDownloadTo(apkFile.outputStream())
 
                 AppLog.i(TAG, "APK downloaded: ${apkFile.length()} bytes")
 
                 if (apkFile.length() < 100_000) {
-                    AppLog.e(TAG, "APK too small (${apkFile.length()} bytes), likely HTML error page")
+                    AppLog.e(TAG, "APK too small (${apkFile.length()} bytes)")
                     apkFile.delete()
                     mainHandler.post {
                         Toast.makeText(context, "Parsisiuntimo klaida — failas per mažas", Toast.LENGTH_LONG).show()
@@ -146,7 +147,7 @@ object AppUpdateChecker {
             } catch (e: Exception) {
                 AppLog.e(TAG, "Download failed: ${e.message}")
                 mainHandler.post {
-                    Toast.makeText(context, "Klaida: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Atsisiuntimo klaida: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
         }.start()
