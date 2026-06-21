@@ -44,9 +44,14 @@ jobs:
           BUILD_NUMBER: ${{ github.run_number }}
         run: ./gradlew assembleDebug --no-daemon
 
+      - name: Rename APK
+        run: |
+          VERSION="0.${{ github.run_number }}"
+          cp android-app/app/build/outputs/apk/debug/app-debug.apk "android-app/app/build/outputs/apk/debug/ProterosServisas-v${VERSION}.apk"
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: ProterosServisas-debug-apk
-          path: android-app/app/build/outputs/apk/debug/app-debug.apk
+          name: ProterosServisas-v0.${{ github.run_number }}
+          path: android-app/app/build/outputs/apk/debug/ProterosServisas-v0.${{ github.run_number }}.apk
           retention-days: 30
