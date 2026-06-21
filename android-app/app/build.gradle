@@ -22,9 +22,9 @@ android {
         applicationId 'com.proteros.smsai'
         minSdk 26
         targetSdk 34
+        versionCode Integer.parseInt(System.getenv('BUILD_NUMBER') ?: '1')
         def buildNum = Integer.parseInt(System.getenv('BUILD_NUMBER') ?: '1')
-        versionCode buildNum
-        versionName "0.${buildNum}"
+        versionName "${buildNum / 100}.${buildNum % 100}"
 
         buildConfigField "String", "DEFAULT_API_KEY", "\"${System.getenv('DEFAULT_API_KEY') ?: ''}\""
         buildConfigField "String", "DEFAULT_CALENDAR_ID", "\"${System.getenv('DEFAULT_CALENDAR_ID') ?: ''}\""

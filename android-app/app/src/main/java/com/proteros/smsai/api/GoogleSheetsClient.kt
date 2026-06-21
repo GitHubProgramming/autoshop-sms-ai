@@ -416,6 +416,7 @@ class GoogleSheetsClient(private val context: Context) {
         return sb.toString()
     }
 
+
     companion object {
         private const val STATUS_SHEET = "Statusas"
         private const val SMS_SHEET = "SMS"

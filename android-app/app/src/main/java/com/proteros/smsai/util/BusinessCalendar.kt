@@ -54,10 +54,23 @@ object BusinessCalendar {
         }
     }
 
-    fun isBusinessHours(now: LocalDateTime): Boolean {
+    fun isBusinessHours(now: LocalDateTime, startHour: Int = 8, endHour: Int = 17): Boolean {
         val dow = now.dayOfWeek
         if (dow == DayOfWeek.SUNDAY || dow == DayOfWeek.SATURDAY) return false
         if (isLithuanianHoliday(now.toLocalDate())) return false
-        return now.hour in 8..16
+        return now.hour in startHour until endHour
+    }
+
+    fun parseWorkingHours(hoursStr: String): Pair<Int, Int> {
+        try {
+            val timePart = hoursStr.substringAfter(" ").trim()
+            val parts = timePart.split("-")
+            if (parts.size == 2) {
+                val start = parts[0].trim().substringBefore(":").toIntOrNull() ?: 8
+                val end = parts[1].trim().substringBefore(":").toIntOrNull() ?: 17
+                return start to end
+            }
+        } catch (_: Exception) {}
+        return 8 to 17
     }
 }

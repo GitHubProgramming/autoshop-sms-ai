@@ -279,8 +279,11 @@ class AppRepository(
         conversationDao.closeOldBooked(cutoff)
     }
 
-    private fun isBusinessHours(): Boolean =
-        BusinessCalendar.isBusinessHours(java.time.LocalDateTime.now(BusinessCalendar.ZONE))
+    private suspend fun isBusinessHours(): Boolean {
+        val kb = sheetsClient.getKnowledge()
+        val (start, end) = BusinessCalendar.parseWorkingHours(kb.workingHours)
+        return BusinessCalendar.isBusinessHours(java.time.LocalDateTime.now(BusinessCalendar.ZONE), start, end)
+    }
 
     suspend fun setTakeover(phone: String, takeover: Boolean) {
         conversationDao.setTakeover(phone, takeover)
