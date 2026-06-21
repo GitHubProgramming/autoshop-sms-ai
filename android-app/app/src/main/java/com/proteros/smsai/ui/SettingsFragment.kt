@@ -212,38 +212,6 @@ class SettingsFragment : Fragment() {
             }
         }
 
-        binding.btnTestConversation.visibility = if (BuildConfig.DEBUG) android.view.View.VISIBLE else android.view.View.GONE
-        binding.btnTestConversation.setOnClickListener {
-            val app = ctx.applicationContext as AutoShopApp
-            CoroutineScope(Dispatchers.IO).launch {
-                try {
-                    val testPhone = "+37060000000"
-                    app.repository.conversationDao.insertIgnore(
-                        Conversation(phoneNumber = testPhone, status = Conversation.STATUS_ACTIVE, lastMessage = "Test žinutė")
-                    )
-                    app.repository.conversationDao.updateConversation(testPhone, "Test žinutė", Conversation.STATUS_ACTIVE)
-                    app.repository.messageDao.insert(
-                        Message(conversationPhone = testPhone, sender = Message.SENDER_SYSTEM, body = "Test pokalbis sukurtas")
-                    )
-                    app.repository.messageDao.insert(
-                        Message(conversationPhone = testPhone, sender = Message.SENDER_AI, body = "Sveiki! Kuo galime padėti?")
-                    )
-                    app.repository.messageDao.insert(
-                        Message(conversationPhone = testPhone, sender = Message.SENDER_CLIENT, body = "Noriu užsiregistruoti stabdžių remontui")
-                    )
-                    AppLog.i("Debug", "Test conversation created for $testPhone")
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(ctx, "Test pokalbis sukurtas: $testPhone", Toast.LENGTH_LONG).show()
-                    }
-                } catch (e: Exception) {
-                    AppLog.e("Debug", "Test conversation failed", e)
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(ctx, "Klaida: ${e.message}", Toast.LENGTH_LONG).show()
-                    }
-                }
-            }
-        }
-
         binding.btnClearData.setOnClickListener {
             AlertDialog.Builder(ctx)
                 .setTitle("Išvalyti duomenis?")

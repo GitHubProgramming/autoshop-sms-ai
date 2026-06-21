@@ -298,15 +298,7 @@
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                     app:cornerRadius="12dp" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_test_conversation"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Test pokalbį"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    app:cornerRadius="12dp" />
-
-                <com.google.android.material.button.MaterialButton
+<com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_clear_data"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
