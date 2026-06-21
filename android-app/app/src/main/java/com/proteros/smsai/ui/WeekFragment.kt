@@ -45,10 +45,12 @@ class WeekFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         binding.btnPrevWeek.setOnClickListener {
             currentWeekStart = currentWeekStart.minusWeeks(1)
+            refreshWeekCalendar()
             updateWeek()
         }
         binding.btnNextWeek.setOnClickListener {
             currentWeekStart = currentWeekStart.plusWeeks(1)
+            refreshWeekCalendar()
             updateWeek()
         }
 
@@ -294,6 +296,18 @@ class WeekFragment : Fragment() {
         val freeSlots = totalSlots - weekAppts
         val occupancy = if (totalSlots > 0) (weekAppts * 100 / totalSlots) else 0
         binding.summaryStats.text = "$weekAppts vizitų  •  $freeSlots laisvi  •  ${occupancy}% užimta"
+    }
+
+    private fun refreshWeekCalendar() {
+        try {
+            val client = com.proteros.smsai.api.GoogleCalendarClient(requireContext())
+            viewModel.refreshWeekAppointments(client, currentWeekStart, currentWeekStart.plusDays(6))
+        } catch (_: Exception) { }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refreshWeekCalendar()
     }
 
     override fun onDestroyView() {

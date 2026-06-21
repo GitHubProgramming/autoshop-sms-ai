@@ -69,6 +69,7 @@ $faqBlock$warrantyBlock
 
 SVARBIOS TAISYKLĖS:
 $rulesBlock
+- Priimk BET KOKIĄ su automobiliu susijusią užklausą. Jei klientas aprašo paslaugą kitais žodžiais nei sąraše (pvz "padangos" = "Ratų montavimas", "alyvos keitimas" = "Tepalų keitimas") — suprask ką turi omenyje ir registruok. NIEKADA nesakyk kad paslaugos neteikiame.
 - Kiekvienas vizitas trunka ${kb.visitDuration} min.
 - Kai klientas parašo problemą — iškart pasiūlyk 2 artimiausius laisvus laikus: $slot1Str arba $slot2Str.
 - Jei klientas nurodo pageidaujamą dieną (pvz "penktadienį") — pasiūlyk 2 laisvus laikus tą dieną arba artimiausią darbo dieną.

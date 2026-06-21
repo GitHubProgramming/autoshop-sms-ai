@@ -41,7 +41,7 @@ class GoogleSheetsClient(private val context: Context) {
 
     @Volatile
     private var cached: KnowledgeBase? = null
-    private val CACHE_TTL = 60 * 60 * 1000L
+    private val CACHE_TTL = 5 * 60 * 1000L
 
     private fun getService(): Sheets? {
         val accountName = SecurePrefs.getGoogleAccount(context) ?: return null
@@ -275,7 +275,7 @@ class GoogleSheetsClient(private val context: Context) {
 
                 try {
                     service.spreadsheets().values()
-                        .append(sheetId, "Logai!A:E",
+                        .append(sheetId, "$SMS_SHEET!A:E",
                             com.google.api.services.sheets.v4.model.ValueRange()
                                 .setValues(listOf(row)))
                         .setValueInputOption("RAW")
@@ -283,9 +283,9 @@ class GoogleSheetsClient(private val context: Context) {
                         .execute()
                 } catch (e: com.google.api.client.googleapis.json.GoogleJsonResponseException) {
                     if (e.statusCode == 400 && e.message?.contains("Unable to parse range") == true) {
-                        createLogSheet(service, sheetId)
+                        createSmsSheet(service, sheetId)
                         service.spreadsheets().values()
-                            .append(sheetId, "Logai!A:E",
+                            .append(sheetId, "$SMS_SHEET!A:E",
                                 com.google.api.services.sheets.v4.model.ValueRange()
                                     .setValues(listOf(row)))
                             .setValueInputOption("RAW")
@@ -299,26 +299,127 @@ class GoogleSheetsClient(private val context: Context) {
         }
     }
 
-    private fun createLogSheet(service: Sheets, sheetId: String) {
+    private fun createSmsSheet(service: Sheets, sheetId: String) {
         val addSheet = com.google.api.services.sheets.v4.model.BatchUpdateSpreadsheetRequest()
             .setRequests(listOf(
                 com.google.api.services.sheets.v4.model.Request()
                     .setAddSheet(com.google.api.services.sheets.v4.model.AddSheetRequest()
                         .setProperties(com.google.api.services.sheets.v4.model.SheetProperties()
-                            .setTitle("Logai")))
+                            .setTitle(SMS_SHEET)))
             ))
         service.spreadsheets().batchUpdate(sheetId, addSheet).execute()
 
         val header = listOf<Any>("Data", "Telefonas", "Tipas", "Žinutė", "AI atsakymas")
         service.spreadsheets().values()
-            .update(sheetId, "Logai!A1:E1",
+            .update(sheetId, "$SMS_SHEET!A1:E1",
                 com.google.api.services.sheets.v4.model.ValueRange()
                     .setValues(listOf(header)))
             .setValueInputOption("RAW")
             .execute()
     }
 
+    suspend fun reportDeviceStatus(context: Context) = withContext(Dispatchers.IO) {
+        try {
+            val sheetId = SecurePrefs.getSheetId(context) ?: return@withContext
+            val email = SecurePrefs.getGoogleAccount(context) ?: return@withContext
+
+            val service = getService() ?: return@withContext
+
+            val colIndex = findDeviceColumn(service, sheetId, email)
+
+            val versionName = try {
+                context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "?"
+            } catch (_: Exception) { "?" }
+
+            val labels = listOf(
+                email, "",
+                "Versija", versionName,
+                "Telefonas", "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}",
+                "Android", "API ${android.os.Build.VERSION.SDK_INT}",
+                "Agentas", if (SecurePrefs.isEnabled(context)) "✓ Įjungta" else "✗ Išjungta",
+                "API key", if (!SecurePrefs.getApiKey(context).isNullOrBlank()) "✓ Yra" else "✗ Nėra",
+                "Google acc", "✓ $email",
+                "Calendar ID", if (!SecurePrefs.getCalendarId(context).isNullOrBlank()) "✓ Yra" else "✗ Nėra",
+                "Sheet ID", "✓ Yra",
+                "Atnaujinta", java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+            )
+
+            val rows = labels.chunked(2).map { it as List<Any> }
+            val colLetter = colLetters(colIndex)
+            val colLetter2 = colLetters(colIndex + 1)
+            val range = "$STATUS_SHEET!${colLetter}4:${colLetter2}13"
+
+            service.spreadsheets().values()
+                .update(sheetId, range,
+                    com.google.api.services.sheets.v4.model.ValueRange().setValues(rows))
+                .setValueInputOption("RAW")
+                .execute()
+
+            AppLog.i(TAG, "Device status reported for $email")
+        } catch (e: Exception) {
+            AppLog.e(TAG, "reportDeviceStatus failed", e)
+        }
+    }
+
+    suspend fun checkRefreshRequested(context: Context): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val sheetId = SecurePrefs.getSheetId(context) ?: return@withContext false
+            val service = getService() ?: return@withContext false
+
+            val result = service.spreadsheets().values()
+                .get(sheetId, "$STATUS_SHEET!C4")
+                .execute()
+            val value = result.getValues()?.firstOrNull()?.firstOrNull()?.toString()?.trim() ?: ""
+
+            if (value.equals("REFRESH", ignoreCase = true)) {
+                service.spreadsheets().values()
+                    .update(sheetId, "$STATUS_SHEET!C4",
+                        com.google.api.services.sheets.v4.model.ValueRange().setValues(listOf(listOf(""))))
+                    .setValueInputOption("RAW")
+                    .execute()
+                return@withContext true
+            }
+            false
+        } catch (e: Exception) {
+            AppLog.e(TAG, "checkRefreshRequested failed", e)
+            false
+        }
+    }
+
+    private fun findDeviceColumn(service: Sheets, sheetId: String, email: String): Int {
+        try {
+            val result = service.spreadsheets().values()
+                .get(sheetId, "$STATUS_SHEET!D4:Z4")
+                .execute()
+            val row = result.getValues()?.firstOrNull() ?: return 3
+            for (i in row.indices) {
+                if (row[i]?.toString()?.trim().equals(email, ignoreCase = true)) {
+                    return 3 + i
+                }
+            }
+            for (i in row.indices step 2) {
+                if (row.getOrNull(i)?.toString().isNullOrBlank()) return 3 + i
+            }
+            return 3 + row.size + (if (row.size % 2 == 0) 0 else 1)
+        } catch (_: Exception) {
+            return 3
+        }
+    }
+
+    private fun colLetters(index: Int): String {
+        var i = index
+        val sb = StringBuilder()
+        while (i >= 0) {
+            sb.insert(0, ('A' + i % 26))
+            i = i / 26 - 1
+        }
+        return sb.toString()
+    }
+
+
     companion object {
+        private const val STATUS_SHEET = "Statusas"
+        private const val SMS_SHEET = "SMS"
         private const val TAG = "SheetsClient"
         private const val CACHE_PREFS = "sheets_cache"
         private const val CACHE_KEY = "knowledge_base"

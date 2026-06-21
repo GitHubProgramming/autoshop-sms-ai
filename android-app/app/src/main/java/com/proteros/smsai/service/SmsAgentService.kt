@@ -7,7 +7,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
+import com.proteros.smsai.api.GoogleSheetsClient
 import com.proteros.smsai.util.AppLog
 import androidx.core.app.NotificationCompat
 import com.proteros.smsai.AutoShopApp
@@ -15,6 +18,28 @@ import com.proteros.smsai.R
 import com.proteros.smsai.ui.MainActivity
 
 class SmsAgentService : Service() {
+
+    private val refreshHandler = Handler(Looper.getMainLooper())
+    private val refreshCheckInterval = 5 * 60 * 1000L
+
+    private val refreshCheckRunnable = object : Runnable {
+        override fun run() {
+            Thread {
+                try {
+                    val sheetsClient = GoogleSheetsClient(applicationContext)
+                    kotlinx.coroutines.runBlocking {
+                        if (sheetsClient.checkRefreshRequested(applicationContext)) {
+                            AppLog.i(TAG, "Refresh requested from Sheet, reporting status")
+                            sheetsClient.reportDeviceStatus(applicationContext)
+                        }
+                    }
+                } catch (e: Exception) {
+                    AppLog.e(TAG, "Refresh check failed", e)
+                }
+            }.start()
+            refreshHandler.postDelayed(this, refreshCheckInterval)
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -28,6 +53,13 @@ class SmsAgentService : Service() {
         } catch (e: Exception) {
             AppLog.e(TAG, "startForeground failed", e)
         }
+        Thread {
+            try {
+                val sheetsClient = GoogleSheetsClient(applicationContext)
+                kotlinx.coroutines.runBlocking { sheetsClient.reportDeviceStatus(applicationContext) }
+            } catch (e: Exception) { AppLog.e(TAG, "Initial status report failed", e) }
+        }.start()
+        refreshHandler.postDelayed(refreshCheckRunnable, refreshCheckInterval)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -36,6 +68,7 @@ class SmsAgentService : Service() {
     }
 
     override fun onDestroy() {
+        refreshHandler.removeCallbacks(refreshCheckRunnable)
         super.onDestroy()
         AppLog.i(TAG, "SmsAgentService destroyed")
     }

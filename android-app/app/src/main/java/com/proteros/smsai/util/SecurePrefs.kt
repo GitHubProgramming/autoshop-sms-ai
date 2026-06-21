@@ -80,4 +80,5 @@ object SecurePrefs {
     fun setSheetId(ctx: Context, id: String) = try {
         prefs(ctx).edit().putString(KEY_SHEET_ID, id).apply()
     } catch (e: Exception) { Log.e(TAG, "setSheetId", e) }
+
 }

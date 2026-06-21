@@ -266,45 +266,17 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Debug Section -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            app:cardCornerRadius="16dp"
-            app:strokeColor="@color/error"
-            app:strokeWidth="1dp">
+            app:cardCornerRadius="16dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:padding="16dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Debug / Logai"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/error"
-                    android:layout_marginBottom="8dp" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_show_logs"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Rodyti logus"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    app:cornerRadius="12dp" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_test_conversation"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Test pokalbį"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    app:cornerRadius="12dp" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_clear_data"
@@ -314,24 +286,6 @@
                     android:textColor="@color/error"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                     app:cornerRadius="12dp" />
-
-                <ScrollView
-                    android:id="@+id/log_scroll"
-                    android:layout_width="match_parent"
-                    android:layout_height="300dp"
-                    android:visibility="gone"
-                    android:layout_marginTop="8dp"
-                    android:background="#08000000"
-                    android:padding="8dp">
-
-                    <TextView
-                        android:id="@+id/log_text"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="monospace"
-                        android:textSize="10sp"
-                        android:textIsSelectable="true" />
-                </ScrollView>
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
@@ -344,6 +298,17 @@
             android:textColor="@color/text_secondary"
             android:textSize="12sp"
             android:layout_marginTop="24dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_check_update"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:text="Tikrinti atnaujinimus"
+            android:textSize="12sp"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            app:cornerRadius="12dp"
+            android:layout_marginTop="4dp" />
 
     </LinearLayout>
 </ScrollView>
