@@ -41,6 +41,7 @@ jobs:
         env:
           DEFAULT_API_KEY: ${{ secrets.DEFAULT_API_KEY }}
           DEFAULT_CALENDAR_ID: ${{ secrets.DEFAULT_CALENDAR_ID }}
+          GITHUB_PAT: ${{ secrets.GH_PAT }}
           BUILD_NUMBER: ${{ github.run_number }}
         run: ./gradlew assembleDebug --no-daemon
 
@@ -55,3 +56,14 @@ jobs:
           name: ProterosServisas-v0.${{ github.run_number }}
           path: android-app/app/build/outputs/apk/debug/ProterosServisas-v0.${{ github.run_number }}.apk
           retention-days: 30
+
+      - name: Create GitHub Release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.${{ github.run_number }}
+          name: v0.${{ github.run_number }}
+          files: android-app/app/build/outputs/apk/debug/ProterosServisas-v0.${{ github.run_number }}.apk
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

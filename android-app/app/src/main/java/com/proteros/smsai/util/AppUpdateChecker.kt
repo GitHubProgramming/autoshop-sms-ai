@@ -9,67 +9,85 @@ import android.os.Looper
 import android.provider.Settings
 import android.widget.Toast
 import androidx.core.content.FileProvider
-import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
-import com.google.api.client.http.javanet.NetHttpTransport
-import com.google.api.client.json.gson.GsonFactory
-import com.google.api.services.sheets.v4.Sheets
-import com.google.api.services.sheets.v4.SheetsScopes
+import com.proteros.smsai.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.TimeUnit
 
 object AppUpdateChecker {
 
     private const val TAG = "AppUpdateChecker"
-    private const val STATUS_SHEET = "Statusas"
+    private const val GITHUB_API = "https://api.github.com/repos/GitHubProgramming/autoshop-sms-ai/releases/latest"
 
     data class UpdateInfo(val versionName: String, val downloadUrl: String)
 
     var pendingUpdate: UpdateInfo? = null
         private set
 
-    private fun extractFileId(url: String): String? {
-        return Regex("/d/([a-zA-Z0-9_-]+)").find(url)?.groupValues?.get(1)
-            ?: Regex("[?&]id=([a-zA-Z0-9_-]+)").find(url)?.groupValues?.get(1)
+    private fun getToken(): String? {
+        val pat = BuildConfig.GITHUB_PAT
+        return if (pat.isNotBlank()) pat else null
     }
+
+    private fun buildClient(): OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(120, TimeUnit.SECONDS)
+        .followRedirects(true)
+        .build()
 
     suspend fun checkForUpdate(context: Context): UpdateInfo? = withContext(Dispatchers.IO) {
         try {
             val currentVersion = context.packageManager
                 .getPackageInfo(context.packageName, 0).versionName ?: return@withContext null
 
-            val accountName = SecurePrefs.getGoogleAccount(context) ?: return@withContext null
-            val sheetId = SecurePrefs.getSheetId(context) ?: return@withContext null
-
-            val credential = GoogleAccountCredential.usingOAuth2(
-                context, listOf(SheetsScopes.SPREADSHEETS_READONLY)
-            ).apply { selectedAccountName = accountName }
-
-            val service = Sheets.Builder(
-                NetHttpTransport(), GsonFactory.getDefaultInstance(), credential
-            ).setApplicationName("Proteros SMS AI").build()
-
-            val result = service.spreadsheets().values()
-                .get(sheetId, "$STATUS_SHEET!A2:B2")
-                .execute()
-
-            val row = result.getValues()?.firstOrNull() ?: return@withContext null
-            if (row.size < 2) return@withContext null
-
-            val remoteVersion = row[0].toString().trim().replace(',', '.')
-            val downloadUrl = row[1].toString().trim()
-
-            if (remoteVersion.isBlank() || downloadUrl.isBlank()) return@withContext null
-
-            if (isNewer(remoteVersion, currentVersion)) {
-                AppLog.i(TAG, "Update available: $currentVersion -> $remoteVersion")
-                return@withContext UpdateInfo(remoteVersion, downloadUrl)
+            val token = getToken()
+            if (token == null) {
+                AppLog.e(TAG, "No GitHub PAT configured")
+                return@withContext null
             }
 
-            AppLog.i(TAG, "No update available (current=$currentVersion, latest=$remoteVersion)")
+            val request = Request.Builder()
+                .url(GITHUB_API)
+                .header("Authorization", "Bearer $token")
+                .header("Accept", "application/vnd.github+json")
+                .build()
+
+            val response = buildClient().newCall(request).execute()
+            if (!response.isSuccessful) {
+                AppLog.e(TAG, "GitHub API failed: ${response.code}")
+                return@withContext null
+            }
+
+            val json = JSONObject(response.body?.string() ?: return@withContext null)
+            val tagName = json.optString("tag_name", "").removePrefix("v")
+            val assets = json.optJSONArray("assets")
+            if (tagName.isBlank() || assets == null || assets.length() == 0) {
+                AppLog.i(TAG, "No release assets found")
+                return@withContext null
+            }
+
+            val apkAsset = (0 until assets.length())
+                .map { assets.getJSONObject(it) }
+                .firstOrNull { it.optString("name", "").endsWith(".apk") }
+
+            if (apkAsset == null) {
+                AppLog.i(TAG, "No APK asset in latest release")
+                return@withContext null
+            }
+
+            val downloadUrl = apkAsset.optString("url", "")
+            if (downloadUrl.isBlank()) return@withContext null
+
+            if (isNewer(tagName, currentVersion)) {
+                AppLog.i(TAG, "Update available: $currentVersion -> $tagName")
+                return@withContext UpdateInfo(tagName, downloadUrl)
+            }
+
+            AppLog.i(TAG, "No update available (current=$currentVersion, latest=$tagName)")
             null
         } catch (e: Exception) {
             AppLog.e(TAG, "Update check failed: ${e.message}")
@@ -116,12 +134,6 @@ object AppUpdateChecker {
         val apkFile = File(context.getExternalFilesDir(null), fileName)
         val mainHandler = Handler(Looper.getMainLooper())
 
-        val client = OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(120, TimeUnit.SECONDS)
-            .followRedirects(true)
-            .build()
-
         mainHandler.post {
             Toast.makeText(context, "Atsisiunčiama v${update.versionName}...", Toast.LENGTH_LONG).show()
         }
@@ -132,20 +144,21 @@ object AppUpdateChecker {
                     if (it.name.endsWith(".apk")) it.delete()
                 }
 
-                val fileId = extractFileId(update.downloadUrl)
-                if (fileId == null) {
-                    AppLog.e(TAG, "Cannot extract file ID from: ${update.downloadUrl}")
-                    mainHandler.post {
-                        Toast.makeText(context, "Neteisingas atsisiuntimo adresas", Toast.LENGTH_LONG).show()
-                    }
+                val token = getToken()
+                if (token == null) {
+                    AppLog.e(TAG, "No GitHub PAT for download")
                     return@Thread
                 }
 
-                val url = "https://drive.usercontent.google.com/download?id=$fileId&export=download&confirm=t"
-                AppLog.i(TAG, "Downloading APK from: $url")
+                AppLog.i(TAG, "Downloading APK from GitHub Release")
 
-                val request = Request.Builder().url(url).build()
-                val response = client.newCall(request).execute()
+                val request = Request.Builder()
+                    .url(update.downloadUrl)
+                    .header("Authorization", "Bearer $token")
+                    .header("Accept", "application/octet-stream")
+                    .build()
+
+                val response = buildClient().newCall(request).execute()
 
                 if (!response.isSuccessful) {
                     AppLog.e(TAG, "Download failed: ${response.code}")
@@ -164,7 +177,7 @@ object AppUpdateChecker {
                 AppLog.i(TAG, "APK downloaded: ${apkFile.length()} bytes")
 
                 if (apkFile.length() < 100_000) {
-                    AppLog.e(TAG, "APK too small (${apkFile.length()} bytes), likely HTML error page")
+                    AppLog.e(TAG, "APK too small (${apkFile.length()} bytes), likely error page")
                     apkFile.delete()
                     mainHandler.post {
                         Toast.makeText(context, "Parsisiuntimo klaida — failas per mažas", Toast.LENGTH_LONG).show()
