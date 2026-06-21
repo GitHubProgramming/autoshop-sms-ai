@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.os.Build
 import com.proteros.smsai.data.AppDatabase
 import com.proteros.smsai.data.AppRepository
+import com.proteros.smsai.util.AppLog
 
 class AutoShopApp : Application() {
 
@@ -14,6 +15,7 @@ class AutoShopApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        AppLog.init(this)
         createNotificationChannels()
     }
 

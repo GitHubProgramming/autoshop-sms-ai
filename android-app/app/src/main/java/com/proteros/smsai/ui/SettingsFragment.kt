@@ -1,8 +1,6 @@
 package com.proteros.smsai.ui
 
 import com.proteros.smsai.BuildConfig
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -193,22 +191,6 @@ class SettingsFragment : Fragment() {
                         Toast.makeText(ctx, "Naujausia versija ($versionName)", Toast.LENGTH_SHORT).show()
                     }
                 }
-            }
-        }
-
-        binding.btnShowLogs.setOnClickListener {
-            val logScroll = binding.logScroll
-            if (logScroll.visibility == View.GONE) {
-                val logs = AppLog.getAll()
-                binding.logText.text = if (logs.isBlank()) "Logų nėra" else logs
-                logScroll.visibility = View.VISIBLE
-                binding.btnShowLogs.text = "Kopijuoti ir slėpti logus"
-            } else {
-                val clipboard = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(ClipData.newPlainText("logs", binding.logText.text))
-                Toast.makeText(ctx, "Logai nukopijuoti", Toast.LENGTH_SHORT).show()
-                logScroll.visibility = View.GONE
-                binding.btnShowLogs.text = "Rodyti logus"
             }
         }
 
