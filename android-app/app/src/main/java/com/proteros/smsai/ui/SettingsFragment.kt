@@ -169,6 +169,33 @@ class SettingsFragment : Fragment() {
             }
         }
 
+        binding.btnCheckUpdate.setOnClickListener {
+            binding.btnCheckUpdate.isEnabled = false
+            binding.btnCheckUpdate.text = "Tikrinama..."
+            CoroutineScope(Dispatchers.IO).launch {
+                val update = AppUpdateChecker.checkForUpdate(ctx)
+                withContext(Dispatchers.Main) {
+                    if (_binding == null) return@withContext
+                    binding.btnCheckUpdate.isEnabled = true
+                    binding.btnCheckUpdate.text = "Tikrinti atnaujinimus"
+                    if (update != null) {
+                        binding.versionText.text = "Versija $versionName → ${update.versionName} galima!"
+                        AlertDialog.Builder(ctx)
+                            .setTitle("Atnaujinimas")
+                            .setMessage("Yra nauja versija ${update.versionName}. Atnaujinti?")
+                            .setPositiveButton("Atnaujinti") { _, _ ->
+                                AppUpdateChecker.downloadAndInstall(ctx, update)
+                                Toast.makeText(ctx, "Parsisiunčiama...", Toast.LENGTH_SHORT).show()
+                            }
+                            .setNegativeButton("Vėliau", null)
+                            .show()
+                    } else {
+                        Toast.makeText(ctx, "Naujausia versija ($versionName)", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+
         binding.btnShowLogs.setOnClickListener {
             val logScroll = binding.logScroll
             if (logScroll.visibility == View.GONE) {
