@@ -13,25 +13,13 @@ object AgentNotification {
 
     private var nextId = 1000
 
-    fun missedCall(context: Context, phone: String) {
-        show(context, "Praleistas skambutis", "Agentas rašo SMS klientui $phone")
-    }
-
-    fun incomingSms(context: Context, phone: String, preview: String) {
-        val short = if (preview.length > 40) preview.take(40) + "..." else preview
-        show(context, "Klientas atsakė: $phone", short)
-    }
-
-    fun bookingMade(context: Context, phone: String, service: String?, dateTime: String?) {
-        show(context, "Vizitas užregistruotas!", "$phone — ${service ?: "Paslauga"} ${dateTime ?: ""}")
+    fun bookingMade(context: Context, phone: String, service: String?, dateTime: String?, calendarOk: Boolean = true) {
+        val calendarStatus = if (calendarOk) "✓ Kalendorius" else "⚠ Kalendorius nesync"
+        show(context, "Vizitas užregistruotas!", "$phone — ${service ?: "Paslauga"} ${dateTime ?: ""}\n$calendarStatus")
     }
 
     fun handoverToOwner(context: Context, phone: String) {
         show(context, "Reikia dėmesio", "Pokalbis su $phone perduotas savininkui")
-    }
-
-    fun calendarSyncFailed(context: Context, phone: String, service: String?) {
-        show(context, "Kalendorius nesusinchronizavo", "$phone — ${service ?: "Vizitas"} neįrašytas. Patikrinkite Google paskyrą.")
     }
 
     fun bookingConflict(context: Context, phone: String, dateTime: String?) {
@@ -49,6 +37,7 @@ object AgentNotification {
                 .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(title)
                 .setContentText(text)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(text))
                 .setContentIntent(pending)
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)

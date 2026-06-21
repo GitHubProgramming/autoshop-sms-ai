@@ -43,8 +43,6 @@ class AppRepository(
         val contactName = ContactLookup.findName(context, phone)
         AppLog.i("AppRepo", "Contact name for $phone: ${contactName ?: "unknown"}")
 
-        AgentNotification.missedCall(context, phone)
-
         conversationDao.insertIgnore(
             Conversation(phoneNumber = phone, status = Conversation.STATUS_ACTIVE, contactName = contactName)
         )
@@ -104,8 +102,6 @@ class AppRepository(
         messageDao.insert(
             Message(conversationPhone = phone, sender = Message.SENDER_CLIENT, body = body)
         )
-
-        AgentNotification.incomingSms(context, phone, body)
 
         if (convo.ownerTakeover) {
             AppLog.i("AppRepo", "Owner takeover active for $phone, skipping AI reply")
@@ -235,10 +231,7 @@ class AppRepository(
                     body = if (eventId != null) "Vizitas užregistruotas kalendoriuje" else "Vizitas užregistruotas (be kalendoriaus)"
                 )
             )
-            AgentNotification.bookingMade(context, phone, aiResponse.service, aiResponse.dateTime)
-            if (eventId == null) {
-                AgentNotification.calendarSyncFailed(context, phone, aiResponse.service)
-            }
+            AgentNotification.bookingMade(context, phone, aiResponse.service, aiResponse.dateTime, calendarOk = eventId != null)
         }
 
         val smsText = if (aiResponse.bookingDetected && !aiResponse.text.contains(claudeClient.getAddress(), ignoreCase = true)) {
