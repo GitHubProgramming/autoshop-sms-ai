@@ -243,6 +243,11 @@ class SettingsFragment : Fragment() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        AppUpdateChecker.retryPendingIfReady(requireContext())
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null

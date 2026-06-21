@@ -28,6 +28,9 @@ object AppUpdateChecker {
 
     data class UpdateInfo(val versionName: String, val downloadUrl: String)
 
+    var pendingUpdate: UpdateInfo? = null
+        private set
+
     private fun extractFileId(url: String): String? {
         return Regex("/d/([a-zA-Z0-9_-]+)").find(url)?.groupValues?.get(1)
             ?: Regex("[?&]id=([a-zA-Z0-9_-]+)").find(url)?.groupValues?.get(1)
@@ -75,15 +78,14 @@ object AppUpdateChecker {
     }
 
     fun downloadAndInstall(context: Context, update: UpdateInfo) {
-        val fileName = "ProterosServisas-v${update.versionName}.apk"
-        val apkFile = File(context.getExternalFilesDir(null), fileName)
         val mainHandler = Handler(Looper.getMainLooper())
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (!context.packageManager.canRequestPackageInstalls()) {
-                AppLog.i(TAG, "Unknown sources not enabled, opening settings")
+                pendingUpdate = update
+                AppLog.i(TAG, "Unknown sources not enabled, saving pending update and opening settings")
                 mainHandler.post {
-                    Toast.makeText(context, "Leiskite diegti programas iš šio šaltinio", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Leiskite diegti programas iš šio šaltinio, tada atnaujinimas prasidės automatiškai", Toast.LENGTH_LONG).show()
                     val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
                         data = Uri.parse("package:${context.packageName}")
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -94,11 +96,35 @@ object AppUpdateChecker {
             }
         }
 
+        pendingUpdate = null
+        startDownload(context, update)
+    }
+
+    fun retryPendingIfReady(context: Context) {
+        val update = pendingUpdate ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
+            AppLog.i(TAG, "Permission still not granted, keeping pending update")
+            return
+        }
+        AppLog.i(TAG, "Permission granted, auto-retrying update to ${update.versionName}")
+        pendingUpdate = null
+        startDownload(context, update)
+    }
+
+    private fun startDownload(context: Context, update: UpdateInfo) {
+        val fileName = "ProterosServisas-v${update.versionName}.apk"
+        val apkFile = File(context.getExternalFilesDir(null), fileName)
+        val mainHandler = Handler(Looper.getMainLooper())
+
         val client = OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(120, TimeUnit.SECONDS)
             .followRedirects(true)
             .build()
+
+        mainHandler.post {
+            Toast.makeText(context, "Atsisiunčiama v${update.versionName}...", Toast.LENGTH_LONG).show()
+        }
 
         Thread {
             try {
@@ -147,6 +173,7 @@ object AppUpdateChecker {
                 }
 
                 mainHandler.post {
+                    Toast.makeText(context, "Diegiama v${update.versionName}...", Toast.LENGTH_SHORT).show()
                     installApk(context, apkFile)
                 }
             } catch (e: Exception) {
