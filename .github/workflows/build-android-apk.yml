@@ -47,23 +47,25 @@ jobs:
 
       - name: Rename APK
         run: |
-          VERSION="0.${{ github.run_number }}"
+          RUN=${{ github.run_number }}
+          VERSION="$(( RUN / 100 )).$(printf '%02d' $(( RUN % 100 )))"
+          echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
           cp android-app/app/build/outputs/apk/debug/app-debug.apk "android-app/app/build/outputs/apk/debug/ProterosServisas-v${VERSION}.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: ProterosServisas-v0.${{ github.run_number }}
-          path: android-app/app/build/outputs/apk/debug/ProterosServisas-v0.${{ github.run_number }}.apk
+          name: ProterosServisas-v${{ env.APP_VERSION }}
+          path: android-app/app/build/outputs/apk/debug/ProterosServisas-v${{ env.APP_VERSION }}.apk
           retention-days: 30
 
       - name: Create GitHub Release
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.${{ github.run_number }}
-          name: v0.${{ github.run_number }}
-          files: android-app/app/build/outputs/apk/debug/ProterosServisas-v0.${{ github.run_number }}.apk
+          tag_name: v${{ env.APP_VERSION }}
+          name: v${{ env.APP_VERSION }}
+          files: android-app/app/build/outputs/apk/debug/ProterosServisas-v${{ env.APP_VERSION }}.apk
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
