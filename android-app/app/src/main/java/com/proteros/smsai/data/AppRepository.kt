@@ -234,11 +234,11 @@ class AppRepository(
             AgentNotification.bookingMade(context, phone, aiResponse.service, aiResponse.dateTime, calendarOk = eventId != null)
         }
 
-        val smsText = if (aiResponse.bookingDetected && !aiResponse.text.contains(claudeClient.getAddress(), ignoreCase = true)) {
+        val smsText = (if (aiResponse.bookingDetected && !aiResponse.text.contains(claudeClient.getAddress(), ignoreCase = true)) {
             aiResponse.text + claudeClient.getAddressWithMap()
         } else {
             aiResponse.text
-        }
+        }).replace(Regex("\\n{3,}"), "\n\n").trim()
 
         messageDao.insert(
             Message(conversationPhone = phone, sender = Message.SENDER_AI, body = smsText)
