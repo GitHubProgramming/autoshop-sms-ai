@@ -98,8 +98,10 @@ NENAUDOK jokio markdown formatavimo (**, *, # ir pan.) — tai SMS žinutė, ra�
 
     fun getAddress(): String = knowledgeBase.address
 
-    fun getAddressWithMap(): String =
-        "\n${knowledgeBase.address}\n$DEFAULT_MAP_URL"
+    fun getAddressWithMap(): String {
+        val encoded = java.net.URLEncoder.encode(knowledgeBase.address, "UTF-8")
+        return "\n${knowledgeBase.address}\nhttps://maps.google.com/?q=$encoded"
+    }
 
     fun generateGreeting(phone: String): String {
         AppLog.i(TAG, "generateGreeting for $phone")
@@ -108,7 +110,6 @@ NENAUDOK jokio markdown formatavimo (**, *, # ir pan.) — tai SMS žinutė, ra�
 
     companion object {
         private const val TAG = "ClaudeApiClient"
-        const val DEFAULT_MAP_URL = "https://maps.google.com/?q=Aukstaičiu+g.+29-2,+Panevezys,+Lithuania"
     }
 
     data class AiReply(
