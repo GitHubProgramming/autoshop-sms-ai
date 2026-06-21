@@ -55,6 +55,50 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Device Name Card -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/device_name_card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:clickable="true"
+            android:focusable="true"
+            app:cardCornerRadius="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Įrenginio vardas"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
+                    android:letterSpacing="0.05" />
+
+                <TextView
+                    android:id="@+id/device_name_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Nenustatytas"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginTop="4dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Vardas rodomas Google Sheet statuso lentelėje (pvz. Mantas, Vaidas)."
+                    android:textSize="11sp"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginTop="4dp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
         <!-- API Key Card -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/api_key_card"

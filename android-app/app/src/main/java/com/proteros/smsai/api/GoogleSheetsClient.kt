@@ -318,7 +318,83 @@ class GoogleSheetsClient(private val context: Context) {
             .execute()
     }
 
+    suspend fun reportDeviceStatus(context: Context) = withContext(Dispatchers.IO) {
+        try {
+            val sheetId = SecurePrefs.getSheetId(context) ?: return@withContext
+            val deviceName = SecurePrefs.getDeviceName(context)
+            if (deviceName.isNullOrBlank()) return@withContext
+
+            val service = getService() ?: return@withContext
+
+            val colIndex = findDeviceColumn(service, sheetId, deviceName)
+
+            val versionName = try {
+                context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "?"
+            } catch (_: Exception) { "?" }
+
+            val labels = listOf(
+                deviceName, "",
+                "Versija", versionName,
+                "Telefonas", "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}",
+                "Android", "API ${android.os.Build.VERSION.SDK_INT}",
+                "Agentas", if (SecurePrefs.isEnabled(context)) "✓ Įjungta" else "✗ Išjungta",
+                "API key", if (!SecurePrefs.getApiKey(context).isNullOrBlank()) "✓ Yra" else "✗ Nėra",
+                "Google acc", SecurePrefs.getGoogleAccount(context)?.let { "✓ $it" } ?: "✗ Nėra",
+                "Calendar ID", if (!SecurePrefs.getCalendarId(context).isNullOrBlank()) "✓ Yra" else "✗ Nėra",
+                "Sheet ID", if (!SecurePrefs.getSheetId(context).isNullOrBlank()) "✓ Yra" else "✗ Nėra",
+                "Atnaujinta", java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+            )
+
+            val rows = labels.chunked(2).map { it as List<Any> }
+            val colLetter = colLetters(colIndex)
+            val colLetter2 = colLetters(colIndex + 1)
+            val range = "$STATUS_SHEET!${colLetter}4:${colLetter2}13"
+
+            service.spreadsheets().values()
+                .update(sheetId, range,
+                    com.google.api.services.sheets.v4.model.ValueRange().setValues(rows))
+                .setValueInputOption("RAW")
+                .execute()
+
+            AppLog.i(TAG, "Device status reported for $deviceName")
+        } catch (e: Exception) {
+            AppLog.e(TAG, "reportDeviceStatus failed", e)
+        }
+    }
+
+    private fun findDeviceColumn(service: Sheets, sheetId: String, deviceName: String): Int {
+        try {
+            val result = service.spreadsheets().values()
+                .get(sheetId, "$STATUS_SHEET!D4:Z4")
+                .execute()
+            val row = result.getValues()?.firstOrNull() ?: return 3
+            for (i in row.indices) {
+                if (row[i]?.toString()?.trim().equals(deviceName, ignoreCase = true)) {
+                    return 3 + i
+                }
+            }
+            // Find first empty pair
+            for (i in row.indices step 2) {
+                if (row.getOrNull(i)?.toString().isNullOrBlank()) return 3 + i
+            }
+            return 3 + row.size + (if (row.size % 2 == 0) 0 else 1)
+        } catch (_: Exception) {
+            return 3
+        }
+    }
+
+    private fun colLetters(index: Int): String {
+        var i = index
+        val sb = StringBuilder()
+        while (i >= 0) {
+            sb.insert(0, ('A' + i % 26))
+            i = i / 26 - 1
+        }
+        return sb.toString()
+    }
+
     companion object {
+        private const val STATUS_SHEET = "Statusas"
         private const val SMS_SHEET = "SMS"
         private const val TAG = "SheetsClient"
         private const val CACHE_PREFS = "sheets_cache"

@@ -16,6 +16,7 @@ object SecurePrefs {
     private const val KEY_ENABLED = "service_enabled"
     private const val KEY_CALENDAR_ID = "calendar_id"
     private const val KEY_SHEET_ID = "sheet_id"
+    private const val KEY_DEVICE_NAME = "device_name"
 
     @Volatile
     private var cached: SharedPreferences? = null
@@ -80,4 +81,12 @@ object SecurePrefs {
     fun setSheetId(ctx: Context, id: String) = try {
         prefs(ctx).edit().putString(KEY_SHEET_ID, id).apply()
     } catch (e: Exception) { Log.e(TAG, "setSheetId", e) }
+
+    fun getDeviceName(ctx: Context): String? = try {
+        prefs(ctx).getString(KEY_DEVICE_NAME, null)
+    } catch (e: Exception) { Log.e(TAG, "getDeviceName", e); null }
+
+    fun setDeviceName(ctx: Context, name: String) = try {
+        prefs(ctx).edit().putString(KEY_DEVICE_NAME, name).apply()
+    } catch (e: Exception) { Log.e(TAG, "setDeviceName", e) }
 }

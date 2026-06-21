@@ -7,7 +7,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
+import com.proteros.smsai.api.GoogleSheetsClient
 import com.proteros.smsai.util.AppLog
 import androidx.core.app.NotificationCompat
 import com.proteros.smsai.AutoShopApp
@@ -15,6 +18,25 @@ import com.proteros.smsai.R
 import com.proteros.smsai.ui.MainActivity
 
 class SmsAgentService : Service() {
+
+    private val heartbeatHandler = Handler(Looper.getMainLooper())
+    private val heartbeatInterval = 15 * 60 * 1000L
+
+    private val heartbeatRunnable = object : Runnable {
+        override fun run() {
+            Thread {
+                try {
+                    val sheetsClient = GoogleSheetsClient(applicationContext)
+                    kotlinx.coroutines.runBlocking {
+                        sheetsClient.reportDeviceStatus(applicationContext)
+                    }
+                } catch (e: Exception) {
+                    AppLog.e(TAG, "Heartbeat failed", e)
+                }
+            }.start()
+            heartbeatHandler.postDelayed(this, heartbeatInterval)
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -28,6 +50,7 @@ class SmsAgentService : Service() {
         } catch (e: Exception) {
             AppLog.e(TAG, "startForeground failed", e)
         }
+        heartbeatHandler.post(heartbeatRunnable)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -36,6 +59,7 @@ class SmsAgentService : Service() {
     }
 
     override fun onDestroy() {
+        heartbeatHandler.removeCallbacks(heartbeatRunnable)
         super.onDestroy()
         AppLog.i(TAG, "SmsAgentService destroyed")
     }

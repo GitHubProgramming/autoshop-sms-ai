@@ -69,6 +69,28 @@ class SettingsFragment : Fragment() {
             }
         }
 
+        val deviceName = SecurePrefs.getDeviceName(ctx)
+        binding.deviceNameValue.text = if (deviceName.isNullOrBlank()) "Nenustatytas" else deviceName
+        binding.deviceNameCard.setOnClickListener {
+            val input = EditText(ctx).apply {
+                hint = "Pvz. Mantas, Vaidas"
+                deviceName?.let { setText(it) }
+            }
+            AlertDialog.Builder(ctx)
+                .setTitle("Įrenginio vardas")
+                .setMessage("Šis vardas bus rodomas Google Sheet statuso lentelėje.")
+                .setView(input)
+                .setPositiveButton("Išsaugoti") { _, _ ->
+                    val name = input.text.toString().trim()
+                    if (name.isNotEmpty()) {
+                        SecurePrefs.setDeviceName(ctx, name)
+                        binding.deviceNameValue.text = name
+                    }
+                }
+                .setNegativeButton("Atšaukti", null)
+                .show()
+        }
+
         val apiKey = SecurePrefs.getApiKey(ctx)
         binding.apiKeyValue.text = if (apiKey.isNullOrBlank()) "Nenustatytas" else "•••${apiKey.takeLast(8)}"
         binding.apiKeyCard.setOnClickListener {
