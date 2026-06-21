@@ -12,13 +12,14 @@ import androidx.core.content.FileProvider
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
-import com.google.api.services.drive.Drive
-import com.google.api.services.drive.DriveScopes
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.SheetsScopes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.io.File
+import java.util.concurrent.TimeUnit
 
 object AppUpdateChecker {
 
@@ -93,6 +94,12 @@ object AppUpdateChecker {
             }
         }
 
+        val client = OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(120, TimeUnit.SECONDS)
+            .followRedirects(true)
+            .build()
+
         Thread {
             try {
                 context.getExternalFilesDir(null)?.listFiles()?.forEach {
@@ -108,32 +115,30 @@ object AppUpdateChecker {
                     return@Thread
                 }
 
-                val accountName = SecurePrefs.getGoogleAccount(context)
-                if (accountName == null) {
-                    AppLog.e(TAG, "No Google account for Drive download")
+                val url = "https://drive.usercontent.google.com/download?id=$fileId&export=download&confirm=t"
+                AppLog.i(TAG, "Downloading APK from: $url")
+
+                val request = Request.Builder().url(url).build()
+                val response = client.newCall(request).execute()
+
+                if (!response.isSuccessful) {
+                    AppLog.e(TAG, "Download failed: ${response.code}")
                     mainHandler.post {
-                        Toast.makeText(context, "Neprisijungta Google paskyra", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "Parsisiuntimas nepavyko (${response.code})", Toast.LENGTH_LONG).show()
                     }
                     return@Thread
                 }
 
-                AppLog.i(TAG, "Downloading APK via Drive API, fileId=$fileId")
-
-                val credential = GoogleAccountCredential.usingOAuth2(
-                    context, listOf(DriveScopes.DRIVE_READONLY)
-                ).apply { selectedAccountName = accountName }
-
-                val driveService = Drive.Builder(
-                    NetHttpTransport(), GsonFactory.getDefaultInstance(), credential
-                ).setApplicationName("Proteros SMS AI").build()
-
-                driveService.files().get(fileId)
-                    .executeMediaAndDownloadTo(apkFile.outputStream())
+                response.body?.byteStream()?.use { input ->
+                    apkFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
 
                 AppLog.i(TAG, "APK downloaded: ${apkFile.length()} bytes")
 
                 if (apkFile.length() < 100_000) {
-                    AppLog.e(TAG, "APK too small (${apkFile.length()} bytes)")
+                    AppLog.e(TAG, "APK too small (${apkFile.length()} bytes), likely HTML error page")
                     apkFile.delete()
                     mainHandler.post {
                         Toast.makeText(context, "Parsisiuntimo klaida — failas per mažas", Toast.LENGTH_LONG).show()
@@ -145,7 +150,7 @@ object AppUpdateChecker {
                     installApk(context, apkFile)
                 }
             } catch (e: Exception) {
-                AppLog.e(TAG, "Download failed: ${e.message}")
+                AppLog.e(TAG, "Download failed: ${e.message}", e)
                 mainHandler.post {
                     Toast.makeText(context, "Atsisiuntimo klaida: ${e.message}", Toast.LENGTH_LONG).show()
                 }
