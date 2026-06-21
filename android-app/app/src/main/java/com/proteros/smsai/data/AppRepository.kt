@@ -172,7 +172,7 @@ class AppRepository(
             if (!slotFree) {
                 AppLog.i("AppRepo", "Time slot conflict for $phone at ${aiResponse.dateTime}")
                 val nextFree = try {
-                    calendarClient.findNextFreeSlot(aiResponse.dateTime!!)
+                    aiResponse.dateTime?.let { calendarClient.findNextFreeSlot(it) }
                 } catch (_: Exception) { null }
 
                 if (nextFree != null) {
@@ -195,7 +195,7 @@ class AppRepository(
             }
 
             if (!convo.calendarEventId.isNullOrBlank()) {
-                val deleted = calendarClient.deleteEvent(convo.calendarEventId!!)
+                val deleted = convo.calendarEventId?.let { calendarClient.deleteEvent(it) } ?: false
                 AppLog.i("AppRepo", "Deleted old calendar event ${convo.calendarEventId}: $deleted")
             }
 
