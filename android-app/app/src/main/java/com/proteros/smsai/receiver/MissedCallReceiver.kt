@@ -6,6 +6,7 @@ import android.content.Intent
 import android.telephony.TelephonyManager
 import com.proteros.smsai.AutoShopApp
 import com.proteros.smsai.util.AppLog
+import com.proteros.smsai.util.maskPhone
 import com.proteros.smsai.util.SecurePrefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,7 +36,7 @@ class MissedCallReceiver : BroadcastReceiver() {
             TelephonyManager.EXTRA_STATE_RINGING -> {
                 @Suppress("DEPRECATION")
                 val number = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)
-                AppLog.i(TAG, "RINGING from: $number")
+                AppLog.i(TAG, "RINGING from: ${number?.let { maskPhone(it) }}")
                 prefs.edit()
                     .putString("last_state", "RINGING")
                     .putString("incoming_number", number)
@@ -45,20 +46,20 @@ class MissedCallReceiver : BroadcastReceiver() {
             TelephonyManager.EXTRA_STATE_IDLE -> {
                 val lastState = prefs.getString("last_state", null)
                 val number = prefs.getString("incoming_number", null)
-                AppLog.i(TAG, "IDLE - lastState=$lastState, number=$number")
+                AppLog.i(TAG, "IDLE - lastState=$lastState")
 
                 prefs.edit().putString("last_state", "IDLE").apply()
 
                 if (lastState == "RINGING" && !number.isNullOrBlank()) {
-                    AppLog.i(TAG, "MISSED CALL DETECTED from $number")
+                    AppLog.i(TAG, "MISSED CALL DETECTED from ${maskPhone(number)}")
                     val app = context.applicationContext as AutoShopApp
                     val pending = goAsync()
                     CoroutineScope(Dispatchers.IO).launch {
                         try {
                             app.repository.handleMissedCall(number)
-                            AppLog.i(TAG, "handleMissedCall completed for $number")
+                            AppLog.i(TAG, "handleMissedCall completed for ${maskPhone(number)}")
                         } catch (e: Exception) {
-                            AppLog.e(TAG, "handleMissedCall failed for $number", e)
+                            AppLog.e(TAG, "handleMissedCall failed for ${maskPhone(number)}", e)
                         } finally {
                             pending.finish()
                         }

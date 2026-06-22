@@ -3,6 +3,7 @@ package com.proteros.smsai.data
 import android.content.Context
 import com.proteros.smsai.util.AgentNotification
 import com.proteros.smsai.util.AppLog
+import com.proteros.smsai.util.maskPhone
 import com.proteros.smsai.util.BusinessCalendar
 import com.proteros.smsai.api.ClaudeApiClient
 import com.proteros.smsai.api.GoogleCalendarClient
@@ -32,16 +33,16 @@ class AppRepository(
     suspend fun handleMissedCall(rawPhone: String) {
         archiveOldConversations()
         val phone = PhoneUtils.normalize(rawPhone)
-        AppLog.i("AppRepo", "handleMissedCall: $phone")
+        AppLog.i("AppRepo", "handleMissedCall: ${maskPhone(phone)}")
 
         val existing = conversationDao.getByPhone(phone)
         if (existing != null && (existing.status == Conversation.STATUS_ACTIVE || existing.status == Conversation.STATUS_BOOKED)) {
-            AppLog.i("AppRepo", "Conversation already exists for $phone (${existing.status}), skipping")
+            AppLog.i("AppRepo", "Conversation already exists for ${maskPhone(phone)} (${existing.status}), skipping")
             return
         }
 
         val contactName = ContactLookup.findName(context, phone)
-        AppLog.i("AppRepo", "Contact name for $phone: ${contactName ?: "unknown"}")
+        AppLog.i("AppRepo", "Contact lookup for ${maskPhone(phone)}")
 
         conversationDao.insertIgnore(
             Conversation(phoneNumber = phone, status = Conversation.STATUS_ACTIVE, contactName = contactName)
@@ -53,7 +54,7 @@ class AppRepository(
 
         claudeClient.refreshKnowledge()
         val greeting = claudeClient.generateGreeting(phone)
-        AppLog.i("AppRepo", "Generated greeting for $phone: $greeting")
+        AppLog.i("AppRepo", "Greeting generated for ${maskPhone(phone)}")
 
         messageDao.insert(
             Message(conversationPhone = phone, sender = Message.SENDER_AI, body = greeting)
@@ -65,7 +66,7 @@ class AppRepository(
         val result = smsSender.sendWithRetry(phone, greeting)
         if (result.isFailure) {
             val error = result.exceptionOrNull()?.message ?: "Nežinoma klaida"
-            AppLog.e("AppRepo", "SMS send exception for $phone: $error")
+            AppLog.e("AppRepo", "SMS send exception for ${maskPhone(phone)}: $error")
             messageDao.insert(
                 Message(conversationPhone = phone, sender = Message.SENDER_SYSTEM, body = "SMS klaida: $error")
             )
@@ -77,11 +78,11 @@ class AppRepository(
     suspend fun handleIncomingSms(rawPhone: String, body: String) {
         archiveOldConversations()
         val phone = PhoneUtils.normalize(rawPhone)
-        AppLog.i("AppRepo", "handleIncomingSms from $phone: $body")
+        AppLog.i("AppRepo", "handleIncomingSms from ${maskPhone(phone)} (${body.length} chars)")
 
         var convo = conversationDao.getByPhone(phone)
         if (convo == null) {
-            AppLog.i("AppRepo", "No app-initiated conversation for $phone, ignoring private SMS")
+            AppLog.i("AppRepo", "No app-initiated conversation for ${maskPhone(phone)}, ignoring private SMS")
             return
         }
         if (convo.contactName == null) {
@@ -97,13 +98,13 @@ class AppRepository(
         )
 
         if (convo.ownerTakeover) {
-            AppLog.i("AppRepo", "Owner takeover active for $phone, skipping AI reply")
+            AppLog.i("AppRepo", "Owner takeover active for ${maskPhone(phone)}, skipping AI reply")
             return
         }
 
         if (convo.status == Conversation.STATUS_BOOKED) {
             if (convo.rescheduleCount >= 1) {
-                AppLog.i("AppRepo", "Reschedule limit reached for $phone, sending final confirmation")
+                AppLog.i("AppRepo", "Reschedule limit reached for ${maskPhone(phone)}")
                 val confirmMsg = "Jūsų vizitas: ${convo.bookingDateTime ?: "užregistruotas"}. Dėl pakeitimų skambinkite."
                 messageDao.insert(
                     Message(conversationPhone = phone, sender = Message.SENDER_AI, body = confirmMsg)
@@ -117,7 +118,7 @@ class AppRepository(
                 return
             }
 
-            AppLog.i("AppRepo", "Allowing reschedule for $phone (count=${convo.rescheduleCount})")
+            AppLog.i("AppRepo", "Allowing reschedule for ${maskPhone(phone)} (count=${convo.rescheduleCount})")
             conversationDao.updateStatus(phone, Conversation.STATUS_ACTIVE)
             conversationDao.incrementReschedule(phone)
             messageDao.insert(
@@ -128,14 +129,14 @@ class AppRepository(
         val now = System.currentTimeMillis()
         val lastCall = lastAiCallTime[phone]
         if (lastCall != null && now - lastCall < AI_COOLDOWN_MS) {
-            AppLog.i("AppRepo", "Rate limit: skipping AI call for $phone (cooldown ${AI_COOLDOWN_MS}ms)")
+            AppLog.i("AppRepo", "Rate limit: skipping AI call for ${maskPhone(phone)}")
             return
         }
 
         val history = messageDao.getForConversation(phone)
         val aiTurns = history.count { it.sender == Message.SENDER_AI }
         if (aiTurns >= maxAiTurns) {
-            AppLog.i("AppRepo", "Max AI turns ($maxAiTurns) reached for $phone, handing over to owner")
+            AppLog.i("AppRepo", "Max AI turns ($maxAiTurns) reached for ${maskPhone(phone)}, handing over")
             conversationDao.setTakeover(phone, true)
             AgentNotification.handoverToOwner(context, phone)
             messageDao.insert(
@@ -170,7 +171,7 @@ class AppRepository(
 
         val aiResponse = claudeClient.generateReply(phone, historyWithoutLatest, body, convo.contactName, extraInfo)
         lastAiCallTime[phone] = System.currentTimeMillis()
-        AppLog.i("AppRepo", "AI reply for $phone: ${aiResponse.text}")
+        AppLog.i("AppRepo", "AI reply for ${maskPhone(phone)} (${aiResponse.text.length} chars)")
 
         if (aiResponse.bookingDetected) {
             AppLog.i("AppRepo", "Booking detected: ${aiResponse.service} at ${aiResponse.dateTime}")
@@ -180,7 +181,7 @@ class AppRepository(
             } catch (_: Exception) { true }
 
             if (!slotFree) {
-                AppLog.i("AppRepo", "Time slot conflict for $phone at ${aiResponse.dateTime}")
+                AppLog.i("AppRepo", "Time slot conflict for ${maskPhone(phone)}")
                 val nextFree = try {
                     aiResponse.dateTime?.let { calendarClient.findNextFreeSlot(it) }
                 } catch (_: Exception) { null }

@@ -43,8 +43,8 @@ class SmsSender(private val context: Context) {
                 override fun onReceive(ctx: Context, intent: Intent) {
                     try { context.unregisterReceiver(this) } catch (_: Exception) {}
                     when (resultCode) {
-                        Activity.RESULT_OK -> Log.i("SmsSender", "SMS sent OK to $phone")
-                        else -> Log.e("SmsSender", "SMS send failed to $phone, code=$resultCode")
+                        Activity.RESULT_OK -> Log.i("SmsSender", "SMS sent OK to ${maskPhone(phone)}")
+                        else -> Log.e("SmsSender", "SMS send failed to ${maskPhone(phone)}, code=$resultCode")
                     }
                 }
             }
@@ -64,10 +64,10 @@ class SmsSender(private val context: Context) {
                     }, null)
             }
 
-            Log.i("SmsSender", "SMS dispatched to $phone (${text.length} chars, ${parts.size} parts)")
+            Log.i("SmsSender", "SMS dispatched to ${maskPhone(phone)} (${text.length} chars, ${parts.size} parts)")
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e("SmsSender", "SMS exception for $phone", e)
+            Log.e("SmsSender", "SMS exception for ${maskPhone(phone)}", e)
             Result.failure(e)
         }
     }
@@ -75,7 +75,7 @@ class SmsSender(private val context: Context) {
     suspend fun sendWithRetry(phone: String, text: String): Result<Unit> {
         val first = sendFireAndForget(phone, text)
         if (first.isSuccess) return first
-        Log.i("SmsSender", "Retrying SMS to $phone in 3s...")
+        Log.i("SmsSender", "Retrying SMS to ${maskPhone(phone)} in 3s...")
         kotlinx.coroutines.delay(3000)
         return sendFireAndForget(phone, text)
     }

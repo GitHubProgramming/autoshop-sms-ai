@@ -3,6 +3,7 @@ package com.proteros.smsai.ui
 import androidx.lifecycle.*
 import com.proteros.smsai.data.AppRepository
 import com.proteros.smsai.util.AppLog
+import com.proteros.smsai.util.maskPhone
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 
@@ -33,7 +34,7 @@ class ConversationViewModel(
     val error: LiveData<String?> = _error
 
     init {
-        AppLog.i(TAG, "Init for phone: '$phone' (len=${phone.length}, bytes=${phone.toByteArray().joinToString(",") { it.toString() }})")
+        AppLog.i(TAG, "Init for phone: ${maskPhone(phone)}")
         viewModelScope.launch {
             try {
                 val convo = repo.conversationDao.getByPhone(phone)
@@ -43,8 +44,7 @@ class ConversationViewModel(
                 _status.postValue(convo?.status)
 
                 if (convo == null) {
-                    val all = repo.conversationDao.getAllOnce()
-                    AppLog.e(TAG, "No conversation for '$phone'. All phones in DB: ${all.map { "'${it.phoneNumber}'" }}")
+                    AppLog.e(TAG, "No conversation found for ${maskPhone(phone)}")
                 }
             } catch (e: Exception) {
                 AppLog.e(TAG, "Failed to load conversation", e)
@@ -57,11 +57,7 @@ class ConversationViewModel(
                         AppLog.e(TAG, "Messages flow error", e)
                     }
                     .collect { list ->
-                        AppLog.i(TAG, "Messages loaded: ${list.size} for phone='$phone'")
-                        if (list.isEmpty()) {
-                            val allMsgs = repo.messageDao.getAllMessages()
-                            AppLog.w(TAG, "0 messages for '$phone'. Total messages in DB: ${allMsgs.size}. Phones: ${allMsgs.map { it.conversationPhone }.distinct()}")
-                        }
+                        AppLog.i(TAG, "Messages loaded: ${list.size} for ${maskPhone(phone)}")
                         _messages.postValue(list.map { m ->
                             ChatItem(text = m.body, sender = m.sender, timestamp = m.timestamp)
                         })
