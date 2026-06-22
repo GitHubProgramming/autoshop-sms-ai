@@ -177,8 +177,8 @@ class AppRepository(
             AppLog.i("AppRepo", "Booking detected: ${aiResponse.service} at ${aiResponse.dateTime}")
 
             val slotFree = try {
-                aiResponse.dateTime?.let { calendarClient.isSlotAvailable(it) } ?: true
-            } catch (_: Exception) { true }
+                aiResponse.dateTime?.let { calendarClient.isSlotAvailable(it) } ?: false
+            } catch (_: Exception) { false }
 
             if (!slotFree) {
                 AppLog.i("AppRepo", "Time slot conflict for ${maskPhone(phone)}")
