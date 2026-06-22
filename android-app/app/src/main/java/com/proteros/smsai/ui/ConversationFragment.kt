@@ -2,6 +2,7 @@ package com.proteros.smsai.ui
 
 import android.os.Bundle
 import com.proteros.smsai.util.AppLog
+import com.proteros.smsai.util.maskPhone
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -33,7 +34,7 @@ class ConversationFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        AppLog.i("ConversationFragment", "onViewCreated for phone: ${args.phoneNumber}")
+        AppLog.i("ConversationFragment", "onViewCreated for phone: ${maskPhone(args.phoneNumber)}")
 
         chatAdapter = ChatAdapter()
 
