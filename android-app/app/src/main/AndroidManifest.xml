@@ -25,7 +25,7 @@
         android:theme="@style/Theme.AutoShopSmsAI">
 
         <activity
-            android:name=".ui.MainActivity"
+            android:name=".ui.SplashActivity"
             android:exported="true"
             android:theme="@style/Theme.AutoShopSmsAI.Splash">
             <intent-filter>
@@ -33,6 +33,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="false" />
 
         <service
             android:name=".service.SmsAgentService"
