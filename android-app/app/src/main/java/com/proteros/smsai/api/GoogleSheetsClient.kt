@@ -261,6 +261,7 @@ class GoogleSheetsClient(private val context: Context) {
                 if (sheetId.isNullOrBlank()) return@withContext
 
                 val service = getService() ?: return@withContext
+                migrateSmsSheetIfNeeded(service, sheetId)
 
                 val now = java.time.LocalDateTime.now()
                 val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
@@ -417,6 +418,44 @@ class GoogleSheetsClient(private val context: Context) {
         return sb.toString()
     }
 
+
+    private var smsSheetMigrated = false
+
+    private fun migrateSmsSheetIfNeeded(service: Sheets, sheetId: String) {
+        if (smsSheetMigrated) return
+        smsSheetMigrated = true
+        try {
+            val header = service.spreadsheets().values()
+                .get(sheetId, "$SMS_SHEET!A1:F1")
+                .execute()
+            val row = header.getValues()?.firstOrNull()
+            if (row != null && (row.size < 6 || row.getOrNull(1)?.toString() != "Vardas")) {
+                val spreadsheet = service.spreadsheets().get(sheetId).execute()
+                val smsTab = spreadsheet.sheets?.find { it.properties?.title == SMS_SHEET }
+                if (smsTab != null) {
+                    val tabId = smsTab.properties.sheetId
+                    service.spreadsheets().batchUpdate(sheetId,
+                        com.google.api.services.sheets.v4.model.BatchUpdateSpreadsheetRequest()
+                            .setRequests(listOf(
+                                com.google.api.services.sheets.v4.model.Request()
+                                    .setDeleteSheet(com.google.api.services.sheets.v4.model.DeleteSheetRequest()
+                                        .setSheetId(tabId))
+                            ))
+                    ).execute()
+                    AppLog.i(TAG, "Deleted old SMS sheet for migration")
+                }
+                createSmsSheet(service, sheetId)
+                AppLog.i(TAG, "Created new SMS sheet with 6-column format")
+            }
+        } catch (e: com.google.api.client.googleapis.json.GoogleJsonResponseException) {
+            if (e.statusCode == 400 && e.message?.contains("Unable to parse range") == true) {
+                createSmsSheet(service, sheetId)
+                AppLog.i(TAG, "SMS sheet not found, created new one")
+            }
+        } catch (e: Exception) {
+            AppLog.e(TAG, "SMS sheet migration check failed", e)
+        }
+    }
 
     companion object {
         private const val STATUS_SHEET = "Statusas"
