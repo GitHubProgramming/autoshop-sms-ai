@@ -156,9 +156,27 @@ class AppRepository(
         val rescheduleContext = if (convo.rescheduleCount > 0 && !convo.bookingDateTime.isNullOrBlank()) {
             "\nKlientas nori PAKEISTI vizito laiką. Senas laikas: ${convo.bookingDateTime}. Paslauga: ${convo.bookingService ?: "ta pati"}. Pasiūlyk 2 naujus laikus ir kai sutiks — registruok su [BOOKING:...] formatu."
         } else null
+
+        val availableSlots = try {
+            val now = java.time.LocalDateTime.now()
+            val fmt = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+            val start = BusinessCalendar.findNextSlot(now).format(fmt)
+            val slot1 = calendarClient.findNextFreeSlot(start)
+            val slot2 = slot1?.let { calendarClient.findNextFreeSlot(it) }
+            val slot3 = slot2?.let { calendarClient.findNextFreeSlot(it) }
+            listOfNotNull(slot1, slot2, slot3)
+        } catch (e: Exception) {
+            AppLog.e("AppRepo", "Failed to fetch calendar slots", e)
+            emptyList()
+        }
+        val slotsContext = if (availableSlots.isNotEmpty()) {
+            "\nArtimiausi LAISVI laikai kalendoriuje: ${availableSlots.joinToString(", ")}. Siūlyk TIK šiuos laikus."
+        } else null
+
+        val extraInfo = listOfNotNull(rescheduleContext, slotsContext).joinToString("").ifEmpty { null }
         sheetsClient.logEvent("SMS", phone, body)
 
-        val aiResponse = claudeClient.generateReply(phone, historyWithoutLatest, body, convo.contactName, rescheduleContext)
+        val aiResponse = claudeClient.generateReply(phone, historyWithoutLatest, body, convo.contactName, extraInfo)
         lastAiCallTime[phone] = System.currentTimeMillis()
         AppLog.i("AppRepo", "AI reply for $phone: ${aiResponse.text}")
 

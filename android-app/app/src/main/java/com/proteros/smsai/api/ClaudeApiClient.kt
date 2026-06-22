@@ -3,7 +3,6 @@ package com.proteros.smsai.api
 import android.content.Context
 import com.proteros.smsai.data.Message
 import com.proteros.smsai.util.AppLog
-import com.proteros.smsai.util.BusinessCalendar
 import com.proteros.smsai.util.SecurePrefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -29,12 +28,6 @@ class ClaudeApiClient(private val context: Context) {
         val kb = knowledgeBase
         val now = java.time.LocalDateTime.now()
         val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-        val dayFormatter = java.time.format.DateTimeFormatter.ofPattern("EEEE", java.util.Locale("lt"))
-        val slot1 = BusinessCalendar.findNextSlot(now)
-        val slot2 = BusinessCalendar.findNextSlot(slot1.plusHours(1))
-        val slot1Str = "${slot1.format(dayFormatter)} ${slot1.format(formatter)}"
-        val slot2Str = "${slot2.format(dayFormatter)} ${slot2.format(formatter)}"
-
         val servicesList = kb.services.joinToString("\n") { s ->
             val priceInfo = if (s.price.isNotBlank() && s.price != "Pagal apžiūrą") " (${s.price})" else ""
             val descInfo = if (s.description.isNotBlank()) " — ${s.description}" else ""
@@ -71,7 +64,7 @@ SVARBIOS TAISYKLĖS:
 $rulesBlock
 - Priimk BET KOKIĄ su automobiliu susijusią užklausą. Jei klientas aprašo paslaugą kitais žodžiais nei sąraše (pvz "padangos" = "Ratų montavimas", "alyvos keitimas" = "Tepalų keitimas") — suprask ką turi omenyje ir registruok. NIEKADA nesakyk kad paslaugos neteikiame.
 - Kiekvienas vizitas trunka ${kb.visitDuration} min.
-- Kai klientas parašo problemą — iškart pasiūlyk 2 artimiausius laisvus laikus: $slot1Str arba $slot2Str.
+- Kai klientas parašo problemą — iškart pasiūlyk 2 artimiausius laisvus laikus iš pateiktų laisvų laikų sąrašo.
 - Jei klientas nurodo pageidaujamą dieną (pvz "penktadienį") — pasiūlyk 2 laisvus laikus tą dieną arba artimiausią darbo dieną.
 - Jei klientas sutinka su vienu iš pasiūlytų laikų — iškart registruok.
 - Registracijos patvirtinime NERAŠYK adreso — sistema automatiškai pridės adresą ir žemėlapio nuorodą.
