@@ -81,15 +81,8 @@ class AppRepository(
 
         var convo = conversationDao.getByPhone(phone)
         if (convo == null) {
-            AppLog.i("AppRepo", "No conversation for $phone, creating new one")
-            val contactName = ContactLookup.findName(context, phone)
-            conversationDao.insertIgnore(
-                Conversation(phoneNumber = phone, status = Conversation.STATUS_ACTIVE, contactName = contactName)
-            )
-            convo = conversationDao.getByPhone(phone) ?: run {
-                AppLog.e("AppRepo", "Failed to create conversation for $phone")
-                return
-            }
+            AppLog.i("AppRepo", "No app-initiated conversation for $phone, ignoring private SMS")
+            return
         }
         if (convo.contactName == null) {
             val contactName = ContactLookup.findName(context, phone)
