@@ -296,6 +296,65 @@ class AppRepository(
         return BusinessCalendar.isBusinessHours(java.time.LocalDateTime.now(BusinessCalendar.ZONE), start, end)
     }
 
+    suspend fun closeConversation(phone: String) {
+        conversationDao.updateStatus(phone, Conversation.STATUS_CLOSED)
+        messageDao.insert(
+            Message(conversationPhone = phone, sender = Message.SENDER_SYSTEM, body = "Savininkas uždarė pokalbį")
+        )
+        val convo = conversationDao.getByPhone(phone)
+        sheetsClient.logEvent("Uždarytas", phone, "Savininkas uždarė pokalbį", contactName = convo?.contactName)
+    }
+
+    suspend fun createManualBooking(phone: String, service: String, dateTime: String): Result<String?> {
+        return try {
+            val convo = conversationDao.getByPhone(phone)
+            val history = messageDao.getForConversation(phone)
+            val chatSummary = history
+                .filter { it.sender != Message.SENDER_SYSTEM }
+                .takeLast(6)
+                .joinToString("\n") { msg ->
+                    val prefix = when (msg.sender) {
+                        Message.SENDER_CLIENT -> "Klientas"
+                        Message.SENDER_OWNER -> "Savininkas"
+                        else -> "AI"
+                    }
+                    "$prefix: ${msg.body}"
+                }
+            val kb = sheetsClient.getKnowledge()
+            val serviceDuration = kb.services
+                .firstOrNull { it.name.equals(service, ignoreCase = true) }
+                ?.durationMin ?: kb.visitDuration
+
+            val eventId = calendarClient.createAppointment(
+                clientPhone = phone,
+                service = service,
+                dateTime = dateTime,
+                contactName = convo?.contactName,
+                conversationSummary = chatSummary,
+                durationMin = serviceDuration
+            )
+            conversationDao.setBooked(phone, eventId ?: "", service, dateTime)
+            messageDao.insert(
+                Message(conversationPhone = phone, sender = Message.SENDER_SYSTEM,
+                    body = if (eventId != null) "Savininkas užregistravo: $service $dateTime" else "Savininkas užregistravo: $service $dateTime (be kalendoriaus)")
+            )
+            sheetsClient.logEvent("Savininko booking", phone, "$service | $dateTime", contactName = convo?.contactName)
+            Result.success(eventId)
+        } catch (e: Exception) {
+            AppLog.e("AppRepo", "Manual booking failed", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getServiceNames(): List<String> {
+        return try {
+            sheetsClient.getKnowledge().services.map { it.name }
+        } catch (e: Exception) {
+            AppLog.e("AppRepo", "Failed to load services", e)
+            emptyList()
+        }
+    }
+
     suspend fun setTakeover(phone: String, takeover: Boolean) {
         conversationDao.setTakeover(phone, takeover)
         val label = if (takeover) "Savininkas perėmė pokalbį" else "AI agentas vėl aktyvus"

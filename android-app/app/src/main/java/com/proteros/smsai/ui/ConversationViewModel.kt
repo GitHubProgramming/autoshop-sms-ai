@@ -2,6 +2,7 @@ package com.proteros.smsai.ui
 
 import androidx.lifecycle.*
 import com.proteros.smsai.data.AppRepository
+import com.proteros.smsai.data.Conversation
 import com.proteros.smsai.util.AppLog
 import com.proteros.smsai.util.maskPhone
 import kotlinx.coroutines.flow.catch
@@ -32,6 +33,12 @@ class ConversationViewModel(
 
     private val _error = MutableLiveData<String?>(null)
     val error: LiveData<String?> = _error
+
+    private val _services = MutableLiveData<List<String>>(emptyList())
+    val services: LiveData<List<String>> = _services
+
+    private val _bookingDone = MutableLiveData(false)
+    val bookingDone: LiveData<Boolean> = _bookingDone
 
     init {
         AppLog.i(TAG, "Init for phone: ${maskPhone(phone)}")
@@ -76,6 +83,45 @@ class ConversationViewModel(
                 _isTakeover.postValue(newState)
             } catch (e: Exception) {
                 AppLog.e(TAG, "toggleTakeover failed", e)
+                _error.postValue(e.message)
+            }
+        }
+    }
+
+    fun loadServices() {
+        viewModelScope.launch {
+            try {
+                _services.postValue(repo.getServiceNames())
+            } catch (e: Exception) {
+                AppLog.e(TAG, "loadServices failed", e)
+            }
+        }
+    }
+
+    fun closeConversation() {
+        viewModelScope.launch {
+            try {
+                repo.closeConversation(phone)
+                _status.postValue(Conversation.STATUS_CLOSED)
+            } catch (e: Exception) {
+                AppLog.e(TAG, "closeConversation failed", e)
+                _error.postValue(e.message)
+            }
+        }
+    }
+
+    fun createManualBooking(service: String, dateTime: String) {
+        viewModelScope.launch {
+            try {
+                val result = repo.createManualBooking(phone, service, dateTime)
+                if (result.isSuccess) {
+                    _status.postValue(Conversation.STATUS_BOOKED)
+                    _bookingDone.postValue(true)
+                } else {
+                    _error.postValue(result.exceptionOrNull()?.message ?: "Registracija nepavyko")
+                }
+            } catch (e: Exception) {
+                AppLog.e(TAG, "createManualBooking failed", e)
                 _error.postValue(e.message)
             }
         }
