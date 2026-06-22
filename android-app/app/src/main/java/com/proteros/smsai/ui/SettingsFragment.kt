@@ -59,12 +59,14 @@ class SettingsFragment : Fragment() {
         val ctx = requireContext()
 
         binding.switchService.isChecked = SecurePrefs.isEnabled(ctx)
+        updateAgentStatus(SecurePrefs.isEnabled(ctx))
         binding.switchService.setOnCheckedChangeListener { _, checked ->
             if (_binding == null) return@setOnCheckedChangeListener
             try {
                 val appCtx = ctx.applicationContext
                 SecurePrefs.setEnabled(appCtx, checked)
                 if (checked) SmsAgentService.start(appCtx) else SmsAgentService.stop(appCtx)
+                updateAgentStatus(checked)
                 reportStatusInBackground(appCtx)
             } catch (e: Exception) {
                 AppLog.e("SettingsFragment", "Service toggle failed", e)
@@ -73,7 +75,8 @@ class SettingsFragment : Fragment() {
         }
 
         val apiKey = SecurePrefs.getApiKey(ctx)
-        binding.apiKeyValue.text = if (apiKey.isNullOrBlank()) "Nenustatytas" else "•••${apiKey.takeLast(8)}"
+        binding.apiKeyValue.text = if (apiKey.isNullOrBlank()) "Nenustatytas" else "••••${apiKey.takeLast(4)}"
+        setStatusColor(binding.apiKeyValue, !apiKey.isNullOrBlank())
         binding.apiKeyCard.setOnClickListener {
             val input = EditText(ctx).apply { hint = "sk-ant-..." }
             AlertDialog.Builder(ctx)
@@ -83,7 +86,8 @@ class SettingsFragment : Fragment() {
                     val key = input.text.toString().trim()
                     if (key.isNotEmpty()) {
                         SecurePrefs.setApiKey(ctx, key)
-                        binding.apiKeyValue.text = "•••${key.takeLast(4)}"
+                        binding.apiKeyValue.text = "••••${key.takeLast(4)}"
+                        setStatusColor(binding.apiKeyValue, true)
                         reportStatusInBackground(ctx)
                     }
                 }
@@ -93,6 +97,7 @@ class SettingsFragment : Fragment() {
 
         val googleAcc = SecurePrefs.getGoogleAccount(ctx)
         binding.googleAccountValue.text = googleAcc ?: "Neprisijungta"
+        setStatusColor(binding.googleAccountValue, googleAcc != null)
         binding.googleAccountCard.setOnClickListener {
             val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestEmail()
@@ -104,7 +109,8 @@ class SettingsFragment : Fragment() {
         }
 
         val calId = SecurePrefs.getCalendarId(ctx)
-        binding.calendarIdValue.text = if (calId.isNullOrBlank()) "Nenustatytas (naudojamas asmeninis)" else calId
+        binding.calendarIdValue.text = if (calId.isNullOrBlank()) "Asmeninis kalendorius" else "Prijungtas"
+        setStatusColor(binding.calendarIdValue, !calId.isNullOrBlank())
         binding.calendarIdCard.setOnClickListener {
             val input = EditText(ctx).apply {
                 hint = "abc123@group.calendar.google.com"
@@ -118,7 +124,8 @@ class SettingsFragment : Fragment() {
                     val id = input.text.toString().trim()
                     if (id.isNotEmpty()) {
                         SecurePrefs.setCalendarId(ctx, id)
-                        binding.calendarIdValue.text = id
+                        binding.calendarIdValue.text = "Prijungtas"
+                        setStatusColor(binding.calendarIdValue, true)
                         reportStatusInBackground(ctx)
                     }
                 }
@@ -127,7 +134,8 @@ class SettingsFragment : Fragment() {
         }
 
         val sheetId = SecurePrefs.getSheetId(ctx)
-        binding.sheetIdValue.text = if (sheetId.isNullOrBlank()) "Nenustatytas (naudojamos numatytosios žinios)" else "✓ Prijungta"
+        binding.sheetIdValue.text = if (sheetId.isNullOrBlank()) "Neprijungta" else "Prijungta"
+        setStatusColor(binding.sheetIdValue, !sheetId.isNullOrBlank())
         binding.sheetIdCard.setOnClickListener {
             val input = EditText(ctx).apply {
                 hint = "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms"
@@ -141,7 +149,8 @@ class SettingsFragment : Fragment() {
                     val id = input.text.toString().trim()
                     if (id.isNotEmpty()) {
                         SecurePrefs.setSheetId(ctx, id)
-                        binding.sheetIdValue.text = id
+                        binding.sheetIdValue.text = "Prijungta"
+                        setStatusColor(binding.sheetIdValue, true)
                         reportStatusInBackground(ctx)
                     }
                 }
@@ -152,14 +161,14 @@ class SettingsFragment : Fragment() {
         val versionName = try {
             ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName
         } catch (_: Exception) { "?" }
-        binding.versionText.text = "Versija $versionName • Proteros Servisas"
+        binding.versionText.text = "Proteros Servisas v$versionName"
 
         CoroutineScope(Dispatchers.IO).launch {
             val update = AppUpdateChecker.checkForUpdate(ctx)
             if (update != null && _binding != null) {
                 withContext(Dispatchers.Main) {
                     if (_binding == null) return@withContext
-                    binding.versionText.text = "Versija $versionName → ${update.versionName} galima!"
+                    binding.versionText.text = "v$versionName → v${update.versionName} galima!"
                     AlertDialog.Builder(ctx)
                         .setTitle("Atnaujinimas")
                         .setMessage("Yra nauja versija ${update.versionName}. Atnaujinti?")
@@ -183,7 +192,7 @@ class SettingsFragment : Fragment() {
                     binding.btnCheckUpdate.isEnabled = true
                     binding.btnCheckUpdate.text = "Tikrinti atnaujinimus"
                     if (update != null) {
-                        binding.versionText.text = "Versija $versionName → ${update.versionName} galima!"
+                        binding.versionText.text = "v$versionName → v${update.versionName} galima!"
                         AlertDialog.Builder(ctx)
                             .setTitle("Atnaujinimas")
                             .setMessage("Yra nauja versija ${update.versionName}. Atnaujinti?")
@@ -229,6 +238,20 @@ class SettingsFragment : Fragment() {
                 .setNegativeButton("Atšaukti", null)
                 .show()
         }
+    }
+
+    private fun updateAgentStatus(active: Boolean) {
+        if (_binding == null) return
+        binding.agentStatusText.text = if (active) "Aktyvus" else "Išjungta"
+        binding.agentStatusText.setTextColor(
+            resources.getColor(if (active) com.proteros.smsai.R.color.success else com.proteros.smsai.R.color.text_secondary, null)
+        )
+    }
+
+    private fun setStatusColor(view: android.widget.TextView, connected: Boolean) {
+        view.setTextColor(
+            resources.getColor(if (connected) com.proteros.smsai.R.color.success else com.proteros.smsai.R.color.text_secondary, null)
+        )
     }
 
     private fun reportStatusInBackground(ctx: Context) {
