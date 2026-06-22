@@ -46,6 +46,8 @@
                 android:layout_height="wrap_content"
                 android:textColor="#B0FFFFFF"
                 android:textSize="12sp"
+                android:drawableStart="@android:drawable/ic_menu_call"
+                android:drawablePadding="4dp"
                 android:visibility="gone" />
 
         </LinearLayout>
@@ -82,6 +84,44 @@
         android:layout_weight="1"
         android:padding="12dp"
         android:clipToPadding="false" />
+
+    <LinearLayout
+        android:id="@+id/action_buttons_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:background="@color/surface"
+        android:elevation="4dp"
+        android:gravity="center"
+        android:visibility="gone">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_failed"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:text="❌ Nepavyko"
+            android:textSize="14sp"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            app:strokeColor="@android:color/holo_red_dark"
+            android:textColor="@android:color/holo_red_dark"
+            app:cornerRadius="8dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_booked"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text="✅ Sutarta"
+            android:textSize="14sp"
+            app:backgroundTint="@android:color/holo_green_dark"
+            android:textColor="@android:color/white"
+            app:cornerRadius="8dp" />
+
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/input_container"
