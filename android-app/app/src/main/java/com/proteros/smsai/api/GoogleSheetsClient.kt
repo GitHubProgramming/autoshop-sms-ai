@@ -254,7 +254,7 @@ class GoogleSheetsClient(private val context: Context) {
         cached = null
     }
 
-    suspend fun logEvent(type: String, phone: String, message: String, aiReply: String? = null) {
+    suspend fun logEvent(type: String, phone: String, message: String, aiReply: String? = null, contactName: String? = null) {
         withContext(Dispatchers.IO) {
             try {
                 val sheetId = SecurePrefs.getSheetId(context)
@@ -267,6 +267,7 @@ class GoogleSheetsClient(private val context: Context) {
 
                 val row = listOf<Any>(
                     now.format(formatter),
+                    contactName ?: "",
                     phone,
                     type,
                     message.take(500),
@@ -275,7 +276,7 @@ class GoogleSheetsClient(private val context: Context) {
 
                 try {
                     service.spreadsheets().values()
-                        .append(sheetId, "$SMS_SHEET!A:E",
+                        .append(sheetId, "$SMS_SHEET!A:F",
                             com.google.api.services.sheets.v4.model.ValueRange()
                                 .setValues(listOf(row)))
                         .setValueInputOption("RAW")
@@ -285,7 +286,7 @@ class GoogleSheetsClient(private val context: Context) {
                     if (e.statusCode == 400 && e.message?.contains("Unable to parse range") == true) {
                         createSmsSheet(service, sheetId)
                         service.spreadsheets().values()
-                            .append(sheetId, "$SMS_SHEET!A:E",
+                            .append(sheetId, "$SMS_SHEET!A:F",
                                 com.google.api.services.sheets.v4.model.ValueRange()
                                     .setValues(listOf(row)))
                             .setValueInputOption("RAW")
@@ -309,9 +310,9 @@ class GoogleSheetsClient(private val context: Context) {
             ))
         service.spreadsheets().batchUpdate(sheetId, addSheet).execute()
 
-        val header = listOf<Any>("Data", "Telefonas", "Tipas", "Žinutė", "AI atsakymas")
+        val header = listOf<Any>("Data", "Vardas", "Telefonas", "Tipas", "Kliento žinutė", "AI atsakymas")
         service.spreadsheets().values()
-            .update(sheetId, "$SMS_SHEET!A1:E1",
+            .update(sheetId, "$SMS_SHEET!A1:F1",
                 com.google.api.services.sheets.v4.model.ValueRange()
                     .setValues(listOf(header)))
             .setValueInputOption("RAW")

@@ -60,7 +60,7 @@ class AppRepository(
         )
         conversationDao.updateConversation(phone, greeting, Conversation.STATUS_ACTIVE)
 
-        sheetsClient.logEvent("Praleistas skambutis", phone, "Praleistas skambutis", greeting)
+        sheetsClient.logEvent("Praleistas skambutis", phone, "Praleistas skambutis", greeting, contactName)
 
         val result = smsSender.sendWithRetry(phone, greeting)
         if (result.isFailure) {
@@ -141,7 +141,7 @@ class AppRepository(
             messageDao.insert(
                 Message(conversationPhone = phone, sender = Message.SENDER_SYSTEM, body = "Nepavyko susitarti per $maxAiTurns žinučių — perduota savininkui")
             )
-            sheetsClient.logEvent("Perdavimas", phone, "Nepavyko susitarti per $maxAiTurns žinučių")
+            sheetsClient.logEvent("Perdavimas", phone, "Nepavyko susitarti per $maxAiTurns žinučių", contactName = convo.contactName)
             return
         }
 
@@ -167,7 +167,6 @@ class AppRepository(
         } else null
 
         val extraInfo = listOfNotNull(rescheduleContext, slotsContext).joinToString("").ifEmpty { null }
-        sheetsClient.logEvent("SMS", phone, body)
 
         val aiResponse = claudeClient.generateReply(phone, historyWithoutLatest, body, convo.contactName, extraInfo)
         lastAiCallTime[phone] = System.currentTimeMillis()
@@ -262,9 +261,9 @@ class AppRepository(
         }
 
         if (aiResponse.bookingDetected) {
-            sheetsClient.logEvent("Booking", phone, body, "${aiResponse.service} | ${aiResponse.dateTime} | $smsText")
+            sheetsClient.logEvent("Booking", phone, body, "${aiResponse.service} | ${aiResponse.dateTime} | $smsText", convo.contactName)
         } else {
-            sheetsClient.logEvent("AI", phone, body, smsText)
+            sheetsClient.logEvent("Pokalbis", phone, body, smsText, convo.contactName)
         }
 
         val sendResult = smsSender.sendWithRetry(phone, smsText)
