@@ -22,7 +22,7 @@ object ContactLookup {
                 } else null
             }
         } catch (e: Exception) {
-            AppLog.e("ContactLookup", "Failed to lookup $phone", e)
+            AppLog.e("ContactLookup", "Failed to lookup ${maskPhone(phone)}", e)
             null
         }
     }

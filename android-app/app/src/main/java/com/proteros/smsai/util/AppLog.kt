@@ -18,6 +18,8 @@ import java.time.format.DateTimeFormatter
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 
+fun maskPhone(phone: String): String = "***${phone.takeLast(4)}"
+
 object AppLog {
     private val logs = CopyOnWriteArrayList<String>()
     private val pendingSheetLogs = CopyOnWriteArrayList<List<Any>>()

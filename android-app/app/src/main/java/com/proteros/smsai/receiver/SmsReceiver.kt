@@ -6,6 +6,7 @@ import android.content.Intent
 import android.provider.Telephony
 import com.proteros.smsai.AutoShopApp
 import com.proteros.smsai.util.AppLog
+import com.proteros.smsai.util.maskPhone
 import com.proteros.smsai.util.SecurePrefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,7 +37,7 @@ class SmsReceiver : BroadcastReceiver() {
             return
         }
         val grouped = messages.groupBy { it.displayOriginatingAddress }
-        AppLog.i("SmsReceiver", "Received SMS from ${grouped.keys}")
+        AppLog.i("SmsReceiver", "Received SMS from ${grouped.keys.map { it?.let { maskPhone(it) } }}")
 
         val app = context.applicationContext as AutoShopApp
 
@@ -45,18 +46,18 @@ class SmsReceiver : BroadcastReceiver() {
             val body = parts.joinToString("") { it.displayMessageBody ?: "" }
 
             if (isDuplicate("$sender|$body")) {
-                AppLog.i("SmsReceiver", "Duplicate SMS from $sender, skipping")
+                AppLog.i("SmsReceiver", "Duplicate SMS from ${maskPhone(sender)}, skipping")
                 continue
             }
 
-            AppLog.i("SmsReceiver", "Processing SMS from $sender (${body.length} chars)")
+            AppLog.i("SmsReceiver", "Processing SMS from ${maskPhone(sender)} (${body.length} chars)")
 
             val pending = goAsync()
             CoroutineScope(Dispatchers.IO).launch {
                 try {
                     app.repository.handleIncomingSms(sender, body)
                 } catch (e: Exception) {
-                    AppLog.e("SmsReceiver", "Error handling SMS from $sender", e)
+                    AppLog.e("SmsReceiver", "Error handling SMS from ${maskPhone(sender)}", e)
                 } finally {
                     pending.finish()
                 }

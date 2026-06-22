@@ -3,6 +3,7 @@ package com.proteros.smsai.api
 import android.content.Context
 import com.proteros.smsai.data.Message
 import com.proteros.smsai.util.AppLog
+import com.proteros.smsai.util.maskPhone
 import com.proteros.smsai.util.SecurePrefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -97,7 +98,7 @@ NENAUDOK jokio markdown formatavimo (**, *, # ir pan.) — tai SMS žinutė, ra�
     }
 
     fun generateGreeting(phone: String): String {
-        AppLog.i(TAG, "generateGreeting for $phone")
+        AppLog.i(TAG, "generateGreeting for ${maskPhone(phone)}")
         return knowledgeBase.greeting
     }
 
@@ -115,7 +116,7 @@ NENAUDOK jokio markdown formatavimo (**, *, # ir pan.) — tai SMS žinutė, ra�
     suspend fun generateReply(phone: String, history: List<Message>, latestMessage: String, contactName: String? = null, extraInfo: String? = null): AiReply = withContext(Dispatchers.IO) {
         refreshKnowledge()
         val apiKey = SecurePrefs.getApiKey(context)
-        AppLog.i(TAG, "generateReply for $phone, hasApiKey=${!apiKey.isNullOrBlank()}, historySize=${history.size}")
+        AppLog.i(TAG, "generateReply for ${maskPhone(phone)}, hasApiKey=${!apiKey.isNullOrBlank()}, historySize=${history.size}")
         if (apiKey.isNullOrBlank()) return@withContext AiReply("Atsiprašome, šiuo metu negalime atsakyti.${if (knowledgeBase.phone.isNotBlank()) " Paskambinkite ${knowledgeBase.phone}." else ""}")
 
         try {
@@ -142,7 +143,7 @@ NENAUDOK jokio markdown formatavimo (**, *, # ir pan.) — tai SMS žinutė, ra�
             val nameContext = if (!contactName.isNullOrBlank()) "\nKliento vardas: $contactName. Kreipkis vardu." else "\nKliento vardas nežinomas. Neskreipk vardu."
             val fullContext = nameContext + (extraInfo ?: "")
             val responseText = callClaude(apiKey, (0 until messages.length()).map { messages.getJSONObject(it) }, fullContext)
-            AppLog.i(TAG, "Reply for $phone (${responseText.length} chars)")
+            AppLog.i(TAG, "Reply for ${maskPhone(phone)} (${responseText.length} chars)")
 
             val bookingRegex = """\[BOOKING:([^|]+)\|(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})]""".toRegex()
             val match = bookingRegex.find(responseText)
@@ -158,7 +159,7 @@ NENAUDOK jokio markdown formatavimo (**, *, # ir pan.) — tai SMS žinutė, ra�
                 AiReply(text = responseText)
             }
         } catch (e: Exception) {
-            AppLog.e(TAG, "generateReply failed for $phone", e)
+            AppLog.e(TAG, "generateReply failed for ${maskPhone(phone)}", e)
             AiReply("Atsiprašome, įvyko klaida. Pabandykite vėliau arba skambinkite tiesiogiai.")
         }
     }
