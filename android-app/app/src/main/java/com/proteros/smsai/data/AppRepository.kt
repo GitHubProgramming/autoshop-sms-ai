@@ -82,6 +82,11 @@ class AppRepository(
 
         var convo = conversationDao.getByPhone(phone)
         if (convo == null) {
+            AppLog.i("AppRepo", "No conversation yet for ${maskPhone(phone)}, waiting for missed call handler...")
+            kotlinx.coroutines.delay(2000)
+            convo = conversationDao.getByPhone(phone)
+        }
+        if (convo == null) {
             AppLog.i("AppRepo", "No app-initiated conversation for ${maskPhone(phone)}, ignoring private SMS")
             return
         }
