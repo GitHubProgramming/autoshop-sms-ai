@@ -50,8 +50,11 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         try {
-            if (SecurePrefs.isEnabled(this)) {
+            val smsGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED
+            if (smsGranted && SecurePrefs.isEnabled(this)) {
                 SmsAgentService.start(this)
+            } else if (!smsGranted) {
+                requestPermissions()
             }
         } catch (e: Exception) {
             Log.e("MainActivity", "onResume service start failed", e)
@@ -65,7 +68,8 @@ class MainActivity : AppCompatActivity() {
             Manifest.permission.SEND_SMS,
             Manifest.permission.RECEIVE_SMS,
             Manifest.permission.READ_SMS,
-            Manifest.permission.READ_CONTACTS
+            Manifest.permission.READ_CONTACTS,
+            Manifest.permission.READ_PHONE_NUMBERS
         )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             perms.add(Manifest.permission.POST_NOTIFICATIONS)
