@@ -23,7 +23,7 @@ class SplashActivity : AppCompatActivity() {
             binding.splashVersion.text = "v$version"
         } catch (_: Exception) {}
 
-        binding.splashLogo.startAnimation(AlphaAnimation(0f, 1f).apply { duration = 600 })
+        binding.iconContainer.startAnimation(AlphaAnimation(0f, 1f).apply { duration = 600 })
         binding.splashSubtitle.startAnimation(AlphaAnimation(0f, 1f).apply {
             duration = 600
             startOffset = 300
