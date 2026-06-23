@@ -6,6 +6,7 @@ import android.content.Intent
 import android.provider.Telephony
 import com.proteros.smsai.AutoShopApp
 import com.proteros.smsai.util.AppLog
+import com.proteros.smsai.util.PhoneUtils
 import com.proteros.smsai.util.maskPhone
 import com.proteros.smsai.util.SecurePrefs
 import kotlinx.coroutines.CoroutineScope
@@ -16,7 +17,7 @@ class SmsReceiver : BroadcastReceiver() {
 
     companion object {
         private val recentSms = java.util.concurrent.ConcurrentHashMap<String, Long>()
-        private const val DEDUP_WINDOW_MS = 5000L
+        private const val DEDUP_WINDOW_MS = 15_000L
 
         private fun isDuplicate(key: String): Boolean {
             val now = System.currentTimeMillis()
@@ -45,17 +46,19 @@ class SmsReceiver : BroadcastReceiver() {
             if (sender == null) continue
             val body = parts.joinToString("") { it.displayMessageBody ?: "" }
 
-            if (isDuplicate("$sender|$body")) {
-                AppLog.i("SmsReceiver", "Duplicate SMS from ${maskPhone(sender)}, skipping")
+            val normalized = PhoneUtils.normalize(sender)
+
+            if (isDuplicate("$normalized|$body")) {
+                AppLog.i("SmsReceiver", "Duplicate SMS from ${maskPhone(normalized)}, skipping")
                 continue
             }
 
-            AppLog.i("SmsReceiver", "Processing SMS from ${maskPhone(sender)} (${body.length} chars)")
+            AppLog.i("SmsReceiver", "Processing SMS from ${maskPhone(normalized)} (${body.length} chars)")
 
             val pending = goAsync()
             CoroutineScope(Dispatchers.IO).launch {
                 try {
-                    app.repository.handleIncomingSms(sender, body)
+                    app.repository.handleIncomingSms(normalized, body)
                 } catch (e: Exception) {
                     AppLog.e("SmsReceiver", "Error handling SMS from ${maskPhone(sender)}", e)
                 } finally {
