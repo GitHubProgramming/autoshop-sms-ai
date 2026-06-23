@@ -22,7 +22,9 @@ class MissedCallReceiver : BroadcastReceiver() {
         AppLog.i(TAG, "onReceive: action=${intent.action}")
 
         if (intent.action != TelephonyManager.ACTION_PHONE_STATE_CHANGED) return
-        if (!SecurePrefs.isEnabled(context)) {
+        val enabled = SecurePrefs.isEnabled(context)
+        AppLog.i(TAG, "Service enabled=$enabled")
+        if (!enabled) {
             AppLog.i(TAG, "Service disabled, ignoring")
             return
         }

@@ -29,7 +29,11 @@ class SmsReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
-        if (!SecurePrefs.isEnabled(context)) return
+
+        val enabled = SecurePrefs.isEnabled(context)
+        AppLog.i("SmsReceiver", "onReceive triggered, enabled=$enabled")
+
+        if (!enabled) return
 
         val messages = try {
             Telephony.Sms.Intents.getMessagesFromIntent(intent)
