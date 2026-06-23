@@ -183,13 +183,13 @@ class AppRepository(
 
             val slotFree = try {
                 aiResponse.dateTime?.let { calendarClient.isSlotAvailable(it) } ?: false
-            } catch (_: Exception) { false }
+            } catch (e: Exception) { AppLog.e("AppRepo", "isSlotAvailable failed", e); false }
 
             if (!slotFree) {
                 AppLog.i("AppRepo", "Time slot conflict for ${maskPhone(phone)}")
                 val nextFree = try {
                     aiResponse.dateTime?.let { calendarClient.findNextFreeSlot(it) }
-                } catch (_: Exception) { null }
+                } catch (e: Exception) { AppLog.e("AppRepo", "findNextFreeSlot failed", e); null }
 
                 if (nextFree != null) {
                     val altMsg = "Atsiprašome, ${aiResponse.dateTime} jau užimtas. Artimiausias laisvas laikas: $nextFree. Ar tinka?"

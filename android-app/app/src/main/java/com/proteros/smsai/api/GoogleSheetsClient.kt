@@ -403,7 +403,8 @@ class GoogleSheetsClient(private val context: Context) {
                 if (row.getOrNull(i)?.toString().isNullOrBlank()) return 3 + i
             }
             return 3 + row.size + (if (row.size % 2 == 0) 0 else 1)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            AppLog.e(TAG, "findDeviceColumn failed", e)
             return 3
         }
     }

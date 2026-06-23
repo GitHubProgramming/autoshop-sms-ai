@@ -16,27 +16,29 @@ import androidx.core.app.NotificationCompat
 import com.proteros.smsai.AutoShopApp
 import com.proteros.smsai.R
 import com.proteros.smsai.ui.MainActivity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class SmsAgentService : Service() {
 
     private val refreshHandler = Handler(Looper.getMainLooper())
     private val refreshCheckInterval = 5 * 60 * 1000L
+    private val serviceScope = CoroutineScope(Dispatchers.IO)
 
     private val refreshCheckRunnable = object : Runnable {
         override fun run() {
-            Thread {
+            serviceScope.launch {
                 try {
                     val sheetsClient = GoogleSheetsClient(applicationContext)
-                    kotlinx.coroutines.runBlocking {
-                        if (sheetsClient.checkRefreshRequested(applicationContext)) {
-                            AppLog.i(TAG, "Refresh requested from Sheet, reporting status")
-                            sheetsClient.reportDeviceStatus(applicationContext)
-                        }
+                    if (sheetsClient.checkRefreshRequested(applicationContext)) {
+                        AppLog.i(TAG, "Refresh requested from Sheet, reporting status")
+                        sheetsClient.reportDeviceStatus(applicationContext)
                     }
                 } catch (e: Exception) {
                     AppLog.e(TAG, "Refresh check failed", e)
                 }
-            }.start()
+            }
             refreshHandler.postDelayed(this, refreshCheckInterval)
         }
     }
@@ -53,12 +55,12 @@ class SmsAgentService : Service() {
         } catch (e: Exception) {
             AppLog.e(TAG, "startForeground failed", e)
         }
-        Thread {
+        serviceScope.launch {
             try {
                 val sheetsClient = GoogleSheetsClient(applicationContext)
-                kotlinx.coroutines.runBlocking { sheetsClient.reportDeviceStatus(applicationContext) }
+                sheetsClient.reportDeviceStatus(applicationContext)
             } catch (e: Exception) { AppLog.e(TAG, "Initial status report failed", e) }
-        }.start()
+        }
         refreshHandler.postDelayed(refreshCheckRunnable, refreshCheckInterval)
     }
 
