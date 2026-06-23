@@ -103,7 +103,6 @@ class MainActivity : AppCompatActivity() {
         }
         AppLog.i("MainActivity", "Permissions needed: $needed")
         if (needed.isNotEmpty()) {
-            val canAsk = needed.any { shouldShowRequestPermissionRationale(it) } || needed.isNotEmpty()
             if (needed.all { !shouldShowRequestPermissionRationale(it) } && isPermissionPreviouslyDenied()) {
                 showPermissionRequiredDialog()
             } else {
