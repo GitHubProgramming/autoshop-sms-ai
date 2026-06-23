@@ -18,6 +18,7 @@ import androidx.navigation.ui.setupWithNavController
 import com.proteros.smsai.R
 import com.proteros.smsai.databinding.ActivityMainBinding
 import com.proteros.smsai.service.SmsAgentService
+import com.proteros.smsai.util.AppLog
 import com.proteros.smsai.util.SecurePrefs
 
 class MainActivity : AppCompatActivity() {
@@ -29,6 +30,20 @@ class MainActivity : AppCompatActivity() {
     ) { results ->
         val allGranted = results.all { it.value }
         Log.i("MainActivity", "Permissions result: allGranted=$allGranted, details=$results")
+
+        val denied = results.filter { !it.value }.keys
+        if (denied.isNotEmpty()) {
+            AppLog.e("MainActivity", "Permissions DENIED: $denied")
+            val critical = denied.any {
+                it == Manifest.permission.RECEIVE_SMS ||
+                it == Manifest.permission.SEND_SMS ||
+                it == Manifest.permission.READ_PHONE_STATE
+            }
+            if (critical) {
+                showPermissionRequiredDialog()
+            }
+        }
+
         if (allGranted && SecurePrefs.isEnabled(this)) {
             SmsAgentService.start(this)
         }
@@ -50,11 +65,19 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         try {
-            val smsGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED
-            if (smsGranted && SecurePrefs.isEnabled(this)) {
-                SmsAgentService.start(this)
-            } else if (!smsGranted) {
+            val receiveGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
+            val sendGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED
+            val phoneGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
+
+            AppLog.i("MainActivity", "Permissions check: RECEIVE_SMS=$receiveGranted, SEND_SMS=$sendGranted, READ_PHONE_STATE=$phoneGranted")
+
+            if (!receiveGranted || !sendGranted || !phoneGranted) {
                 requestPermissions()
+                return
+            }
+
+            if (SecurePrefs.isEnabled(this)) {
+                SmsAgentService.start(this)
             }
         } catch (e: Exception) {
             Log.e("MainActivity", "onResume service start failed", e)
@@ -78,16 +101,45 @@ class MainActivity : AppCompatActivity() {
         val needed = perms.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
-        Log.i("MainActivity", "Permissions needed: $needed")
+        AppLog.i("MainActivity", "Permissions needed: $needed")
         if (needed.isNotEmpty()) {
-            permissionLauncher.launch(needed.toTypedArray())
+            val canAsk = needed.any { shouldShowRequestPermissionRationale(it) } || needed.isNotEmpty()
+            if (needed.all { !shouldShowRequestPermissionRationale(it) } && isPermissionPreviouslyDenied()) {
+                showPermissionRequiredDialog()
+            } else {
+                permissionLauncher.launch(needed.toTypedArray())
+            }
         } else {
-            Log.i("MainActivity", "All permissions already granted")
+            AppLog.i("MainActivity", "All permissions already granted")
             checkBatteryOptimization()
             if (SecurePrefs.isEnabled(this)) {
                 SmsAgentService.start(this)
             }
         }
+    }
+
+    private fun isPermissionPreviouslyDenied(): Boolean {
+        val prefs = getSharedPreferences("permission_state", MODE_PRIVATE)
+        val asked = prefs.getBoolean("permissions_asked", false)
+        if (!asked) {
+            prefs.edit().putBoolean("permissions_asked", true).apply()
+            return false
+        }
+        return true
+    }
+
+    private fun showPermissionRequiredDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Reikalingi leidimai")
+            .setMessage("SMS agentas negali veikti be SMS ir skambučių leidimų. Prašome įjungti leidimus nustatymuose.")
+            .setPositiveButton("Atidaryti nustatymus") { _, _ ->
+                startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.parse("package:$packageName")
+                })
+            }
+            .setNegativeButton("Vėliau", null)
+            .setCancelable(false)
+            .show()
     }
 
     private fun checkBatteryOptimization() {
