@@ -6,24 +6,35 @@
     android:layout_height="match_parent"
     android:background="@drawable/splash_background">
 
+    <!-- Outer glow ring -->
     <FrameLayout
-        android:id="@+id/icon_container"
-        android:layout_width="120dp"
-        android:layout_height="120dp"
-        android:background="@drawable/splash_icon_bg"
+        android:id="@+id/icon_ring"
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:background="@drawable/splash_ring"
         app:layout_constraintBottom_toTopOf="@id/splash_title"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_chainStyle="packed"
-        app:layout_constraintVertical_bias="0.38">
+        app:layout_constraintVertical_bias="0.40">
 
-        <ImageView
+        <!-- Inner icon container -->
+        <FrameLayout
+            android:id="@+id/icon_container"
             android:layout_width="80dp"
             android:layout_height="80dp"
             android:layout_gravity="center"
-            android:src="@drawable/ic_launcher_foreground"
-            android:contentDescription="ProTERA" />
+            android:background="@drawable/splash_icon_bg">
+
+            <ImageView
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_launcher_foreground"
+                android:contentDescription="ProTERA" />
+
+        </FrameLayout>
 
     </FrameLayout>
 
@@ -31,40 +42,66 @@
         android:id="@+id/splash_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:text="ProTERA Servisas"
+        android:layout_marginTop="28dp"
+        android:text="PROTERA"
         android:textColor="@android:color/white"
-        android:textSize="22sp"
+        android:textSize="24sp"
         android:textStyle="bold"
-        android:letterSpacing="0.05"
+        android:letterSpacing="0.25"
+        android:fontFamily="sans-serif-medium"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/icon_container" />
+        app:layout_constraintTop_toBottomOf="@id/icon_ring" />
 
-    <com.google.android.material.progressindicator.CircularProgressIndicator
-        android:id="@+id/splash_spinner"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="48dp"
-        android:indeterminate="true"
-        app:indicatorColor="@color/accent"
-        app:trackColor="#20FFFFFF"
-        app:indicatorSize="36dp"
-        app:trackThickness="3dp"
+    <View
+        android:id="@+id/splash_divider"
+        android:layout_width="40dp"
+        android:layout_height="2dp"
+        android:layout_marginTop="12dp"
+        android:background="@color/accent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/splash_title" />
 
     <TextView
+        android:id="@+id/splash_tagline"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="SERVISAS"
+        android:textColor="#99FFFFFF"
+        android:textSize="12sp"
+        android:letterSpacing="0.30"
+        android:fontFamily="sans-serif-light"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/splash_divider" />
+
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        android:id="@+id/splash_spinner"
+        android:layout_width="120dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="48dp"
+        android:indeterminate="true"
+        app:indicatorColor="@color/accent"
+        app:trackColor="#15FFFFFF"
+        app:trackThickness="2dp"
+        app:trackCornerRadius="1dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/splash_tagline" />
+
+    <TextView
         android:id="@+id/splash_subtitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="48dp"
-        android:text="SMS AI Agentas"
-        android:textColor="#80FFFFFF"
-        android:textSize="13sp"
-        android:letterSpacing="0.1"
-        app:layout_constraintBottom_toBottomOf="parent"
+        android:layout_marginBottom="40dp"
+        android:text="SMS AI AGENTAS"
+        android:textColor="#50FFFFFF"
+        android:textSize="10sp"
+        android:letterSpacing="0.20"
+        android:fontFamily="sans-serif"
+        app:layout_constraintBottom_toTopOf="@id/splash_version"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
@@ -72,11 +109,12 @@
         android:id="@+id/splash_version"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:textColor="#40FFFFFF"
-        android:textSize="11sp"
+        android:layout_marginBottom="24dp"
+        android:textColor="#30FFFFFF"
+        android:textSize="10sp"
+        android:letterSpacing="0.10"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/splash_subtitle" />
+        app:layout_constraintStart_toStartOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
