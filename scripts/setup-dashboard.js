@@ -81,6 +81,13 @@ function setupDashboard() {
   }
 
   try {
+    createChatView_(ss);
+    Logger.log("Pokalbiai — OK");
+  } catch (e) {
+    Logger.log("Pokalbiai KLAIDA: " + e.message);
+  }
+
+  try {
     createDashboardSheet_(ss);
     Logger.log("Dashboard — OK");
   } catch (e) {
@@ -98,9 +105,11 @@ function setupDashboard() {
   SpreadsheetApp.getUi().alert(
     "Viskas paruošta!\n\n" +
     "• Dashboard — pagrindinė informacija\n" +
+    "• Pokalbiai — pokalbių peržiūra (chat stilius)\n" +
     "• Pataisymai — AI atsakymų taisymas\n" +
-    "• SMS — vertikalus pokalbių formatas\n\n" +
-    "Dashboard formulės atsinaujina automatiškai."
+    "• SMS — raw duomenys (app čia rašo)\n\n" +
+    "Dashboard formulės atsinaujina automatiškai.\n" +
+    "Pokalbiai atsinaujina kiekvieną kartą paleidus setupDashboard."
   );
 }
 
@@ -841,5 +850,280 @@ function formatSmsSheet_(ss) {
   sms.getRange(2, 6, lastRow - 1, 1).setWrap(true);
 
   Logger.log("SMS formatavimas baigtas, pokalbių: " + colorIndex + ", eilučių: " + (lastRow - 1));
+}
+
+// ==================== POKALBIAI (CHAT BUBBLES) ====================
+
+function createChatView_(ss) {
+  var existing = ss.getSheetByName("Pokalbiai");
+  if (existing) ss.deleteSheet(existing);
+
+  var sms = ss.getSheetByName("SMS");
+  if (!sms) return;
+
+  var lastRow = sms.getLastRow();
+  if (lastRow <= 1) {
+    Logger.log("SMS tuščias — Pokalbiai nereikalingas");
+    return;
+  }
+
+  var data = sms.getRange(2, 1, lastRow - 1, 6).getValues();
+
+  // Sugrupuoti pagal telefono numerį, išlaikant chronologinę tvarką
+  var conversations = [];
+  var phoneOrder = [];
+  var phoneMap = {};
+
+  for (var i = 0; i < data.length; i++) {
+    var phone = data[i][2] ? data[i][2].toString() : "";
+    if (!phone) phone = data[i][1] ? data[i][1].toString() : "Nežinomas";
+
+    if (!phoneMap[phone]) {
+      phoneMap[phone] = { phone: phone, name: "", messages: [], firstTime: "", lastTime: "", hasBooking: false, hasError: false };
+      phoneOrder.push(phone);
+    }
+    var convo = phoneMap[phone];
+
+    var timestamp = data[i][0] ? data[i][0].toString() : "";
+    var name = data[i][1] ? data[i][1].toString() : "";
+    var type = data[i][3] ? data[i][3].toString() : "";
+    var sender = data[i][4] ? data[i][4].toString() : "";
+    var message = data[i][5] ? data[i][5].toString() : "";
+
+    if (name && !name.match(/^\+?\d{8,}$/)) convo.name = name;
+    if (!convo.firstTime) convo.firstTime = timestamp;
+    convo.lastTime = timestamp;
+    if (type === "Booking" || type === "Savininko booking") convo.hasBooking = true;
+    if (type === "Klaida") convo.hasError = true;
+
+    convo.messages.push({ timestamp: timestamp, type: type, sender: sender, message: message });
+  }
+
+  // Naujausias pokalbis viršuje
+  phoneOrder.reverse();
+
+  var sheet = ss.insertSheet("Pokalbiai");
+
+  // Stulpelių pločiai
+  sheet.setColumnWidth(1, 40);   // ikona
+  sheet.setColumnWidth(2, 550);  // žinutė
+  sheet.setColumnWidth(3, 120);  // laikas
+
+  var bgLight = "#F5F5F7";
+  var white = "#FFFFFF";
+  var headerBg = "#1D1D1F";
+  var headerText = "#FFFFFF";
+  var bookingBg = "#E8F5E9";
+  var bookingColor = "#2E7D32";
+  var errorBg = "#FFEBEE";
+  var errorColor = "#C62828";
+  var agentBg = "#E3F2FD";
+  var agentColor = "#1565C0";
+  var systemColor = "#9E9E9E";
+  var clientColor = "#1D1D1F";
+  var waitingBg = "#FFF8E1";
+
+  sheet.getRange("A:C").setBackground(bgLight).setFontFamily("Helvetica Neue");
+
+  var row = 1;
+
+  // Viršutinis header
+  sheet.getRange("A1:C1").merge().setValue("Pokalbiai · Proteros Servisas")
+    .setFontSize(16).setFontWeight("bold").setFontColor("#1D1D1F")
+    .setBackground(bgLight).setVerticalAlignment("middle");
+  sheet.setRowHeight(1, 45);
+  row = 2;
+
+  sheet.getRange("A2:C2").merge()
+    .setValue("Naujausias viršuje · Atnaujinta: " + Utilities.formatDate(new Date(), "Europe/Vilnius", "yyyy-MM-dd HH:mm"))
+    .setFontSize(9).setFontColor("#86868B").setBackground(bgLight);
+  sheet.setRowHeight(2, 20);
+  row = 3;
+
+  // Tarpas
+  sheet.setRowHeight(row, 8);
+  row++;
+
+  for (var p = 0; p < phoneOrder.length; p++) {
+    var convo = phoneMap[phoneOrder[p]];
+
+    // ===== POKALBIO HEADER =====
+    var statusIcon = "⏳";
+    var statusText = "Laukia atsakymo";
+    var statusBgColor = waitingBg;
+    if (convo.hasBooking) {
+      statusIcon = "✅";
+      statusText = "Užregistruotas";
+      statusBgColor = bookingBg;
+    } else if (convo.hasError) {
+      statusIcon = "❌";
+      statusText = "Klaida";
+      statusBgColor = errorBg;
+    }
+
+    var displayName = convo.name || "(nežinomas)";
+    var headerLabel = "📞  " + displayName + "  ·  " + convo.phone;
+
+    sheet.setRowHeight(row, 32);
+    sheet.getRange("A" + row + ":B" + row).merge()
+      .setValue(headerLabel)
+      .setFontSize(12).setFontWeight("bold").setFontColor(headerText)
+      .setBackground(headerBg).setVerticalAlignment("middle");
+
+    var timeStr = convo.firstTime;
+    if (timeStr.length > 16) timeStr = timeStr.substring(5, 16);
+    sheet.getRange("C" + row)
+      .setValue(statusIcon + " " + statusText)
+      .setFontSize(10).setFontWeight("bold")
+      .setFontColor(convo.hasBooking ? bookingColor : (convo.hasError ? errorColor : "#F57F17"))
+      .setBackground(statusBgColor).setHorizontalAlignment("center").setVerticalAlignment("middle");
+
+    sheet.getRange("A" + row + ":C" + row)
+      .setBorder(true, true, false, true, false, false, "#BDBDBD", SpreadsheetApp.BorderStyle.SOLID);
+    row++;
+
+    // Data eilutė
+    sheet.setRowHeight(row, 18);
+    sheet.getRange("A" + row + ":C" + row).merge()
+      .setValue("    " + convo.firstTime + (convo.firstTime !== convo.lastTime ? "  →  " + convo.lastTime : ""))
+      .setFontSize(9).setFontColor("#9E9E9E").setBackground(white);
+    row++;
+
+    // ===== ŽINUTĖS =====
+    for (var m = 0; m < convo.messages.length; m++) {
+      var msg = convo.messages[m];
+
+      var icon = "";
+      var msgText = "";
+      var msgBg = white;
+      var msgColor = clientColor;
+      var msgWeight = "normal";
+      var rowHeight = 28;
+
+      if (msg.type === "Praleistas skambutis" && msg.sender === "Sistema") {
+        icon = "🔴";
+        msgText = "Praleistas skambutis";
+        msgBg = "#FFF3F0";
+        msgColor = "#E65100";
+        rowHeight = 24;
+      } else if (msg.type === "Klaida") {
+        icon = "⚠️";
+        msgText = msg.message;
+        msgBg = errorBg;
+        msgColor = errorColor;
+        rowHeight = 26;
+      } else if ((msg.type === "Booking" || msg.type === "Savininko booking") && msg.sender === "Agentas") {
+        icon = "✅";
+        var bookingInfo = msg.message;
+        if (bookingInfo.indexOf("|") > -1) {
+          var parts = bookingInfo.split("|");
+          msgText = parts[0].trim() + "  ·  " + parts[1].trim();
+          if (parts[2]) msgText += "\n" + parts[2].trim();
+        } else {
+          msgText = bookingInfo;
+        }
+        msgBg = bookingBg;
+        msgColor = bookingColor;
+        msgWeight = "bold";
+        rowHeight = 42;
+      } else if ((msg.type === "Booking" || msg.type === "Savininko booking") && msg.sender !== "Agentas") {
+        icon = "👤";
+        msgText = msg.message;
+        msgBg = bookingBg;
+        msgColor = bookingColor;
+      } else if (msg.sender === "Agentas") {
+        icon = "🤖";
+        msgText = msg.message;
+        msgBg = agentBg;
+        msgColor = agentColor;
+        if (msg.message.length > 100) rowHeight = 52;
+        if (msg.message.length > 200) rowHeight = 72;
+      } else if (msg.sender === "Klientas") {
+        icon = "👤";
+        msgText = msg.message;
+        msgBg = white;
+        msgColor = clientColor;
+        if (msg.message.length > 100) rowHeight = 42;
+      } else {
+        icon = "ℹ️";
+        msgText = msg.message;
+        msgBg = "#F5F5F5";
+        msgColor = systemColor;
+      }
+
+      // Praleidžiam dubliuotus greeting po "Praleistas skambutis"
+      if (msg.sender === "Agentas" && msg.type === "Praleistas skambutis" && m > 0
+          && convo.messages[m-1].type === "Praleistas skambutis" && convo.messages[m-1].sender === "Sistema") {
+        // Trumpinam greeting
+        var greeting = msg.message;
+        if (greeting.length > 80) {
+          greeting = greeting.substring(0, 77) + "...";
+        }
+        icon = "🤖";
+        msgText = greeting;
+        msgBg = agentBg;
+        msgColor = agentColor;
+        rowHeight = 28;
+      }
+
+      sheet.setRowHeight(row, rowHeight);
+      sheet.getRange("A" + row).setValue(icon)
+        .setFontSize(14).setHorizontalAlignment("center").setVerticalAlignment("top")
+        .setBackground(msgBg);
+      sheet.getRange("B" + row).setValue(msgText)
+        .setFontSize(10).setFontColor(msgColor).setFontWeight(msgWeight)
+        .setBackground(msgBg).setWrap(true).setVerticalAlignment("top");
+
+      // Laikas tik pirmai ir paskutinei žinutei, arba jei keičiasi minutė
+      var showTime = (m === 0 || m === convo.messages.length - 1);
+      if (m > 0 && msg.timestamp !== convo.messages[m-1].timestamp) showTime = true;
+      if (showTime) {
+        var t = msg.timestamp;
+        if (t.length > 16) t = t.substring(11, 16);
+        sheet.getRange("C" + row).setValue(t)
+          .setFontSize(9).setFontColor("#BDBDBD").setHorizontalAlignment("right").setVerticalAlignment("top")
+          .setBackground(msgBg);
+      } else {
+        sheet.getRange("C" + row).setBackground(msgBg);
+      }
+
+      // Šoniniai border
+      sheet.getRange("A" + row + ":C" + row)
+        .setBorder(false, true, false, true, false, false, "#BDBDBD", SpreadsheetApp.BorderStyle.SOLID);
+      row++;
+    }
+
+    // ===== POKALBIO APAČIA =====
+    sheet.setRowHeight(row, 4);
+    sheet.getRange("A" + row + ":C" + row)
+      .setBorder(false, true, true, true, false, false, "#BDBDBD", SpreadsheetApp.BorderStyle.SOLID)
+      .setBackground(white);
+    row++;
+
+    // Tarpas tarp pokalbių
+    sheet.setRowHeight(row, 12);
+    sheet.getRange("A" + row + ":C" + row).setBackground(bgLight);
+    row++;
+  }
+
+  // Statistika apačioje
+  sheet.setRowHeight(row, 8);
+  row++;
+  var totalConversations = phoneOrder.length;
+  var totalBookings = 0;
+  var totalErrors = 0;
+  for (var k = 0; k < phoneOrder.length; k++) {
+    if (phoneMap[phoneOrder[k]].hasBooking) totalBookings++;
+    if (phoneMap[phoneOrder[k]].hasError) totalErrors++;
+  }
+  sheet.getRange("A" + row + ":C" + row).merge()
+    .setValue("Viso pokalbių: " + totalConversations + "  ·  Užregistruota: " + totalBookings + "  ·  Klaidos: " + totalErrors + "  ·  Laukia: " + (totalConversations - totalBookings - totalErrors))
+    .setFontSize(10).setFontColor("#86868B").setBackground(bgLight).setHorizontalAlignment("center");
+  sheet.setRowHeight(row, 28);
+
+  sheet.setHiddenGridlines(true);
+  sheet.protect().setDescription("Pokalbiai — generuojamas automatiškai").setWarningOnly(true);
+
+  Logger.log("Pokalbiai sukurtas: " + totalConversations + " pokalbių, " + (row) + " eilučių");
 }
 
