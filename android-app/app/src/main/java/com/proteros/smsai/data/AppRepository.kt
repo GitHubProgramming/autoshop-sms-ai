@@ -101,6 +101,7 @@ class AppRepository(
         messageDao.insert(
             Message(conversationPhone = phone, sender = Message.SENDER_CLIENT, body = body)
         )
+        conversationDao.resetInactivityNotified(phone)
 
         if (convo.ownerTakeover) {
             AppLog.i("AppRepo", "Owner takeover active for ${maskPhone(phone)}, skipping AI reply")
@@ -293,6 +294,16 @@ class AppRepository(
     suspend fun archiveOldConversations() {
         val cutoff = System.currentTimeMillis() - 24 * 60 * 60 * 1000
         conversationDao.closeOldBooked(cutoff)
+    }
+
+    suspend fun checkInactiveConversations() {
+        val cutoff = System.currentTimeMillis() - 30 * 60 * 1000
+        val stale = conversationDao.getStaleActive(cutoff)
+        for (convo in stale) {
+            AppLog.i("AppRepo", "Inactivity alert for ${maskPhone(convo.phoneNumber)}")
+            AgentNotification.inactivityAlert(context, convo.phoneNumber)
+            conversationDao.markInactivityNotified(convo.phoneNumber)
+        }
     }
 
     private suspend fun isBusinessHours(): Boolean {

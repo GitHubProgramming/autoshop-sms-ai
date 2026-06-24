@@ -49,6 +49,15 @@ interface ConversationDao {
 
     @Query("UPDATE conversations SET rescheduleCount = rescheduleCount + 1 WHERE phoneNumber = :phone")
     suspend fun incrementReschedule(phone: String)
+
+    @Query("SELECT * FROM conversations WHERE status = 'active' AND updatedAt < :cutoff AND ownerTakeover = 0 AND inactivityNotified = 0")
+    suspend fun getStaleActive(cutoff: Long): List<Conversation>
+
+    @Query("UPDATE conversations SET inactivityNotified = 1 WHERE phoneNumber = :phone")
+    suspend fun markInactivityNotified(phone: String)
+
+    @Query("UPDATE conversations SET inactivityNotified = 0 WHERE phoneNumber = :phone")
+    suspend fun resetInactivityNotified(phone: String)
 }
 
 @Dao

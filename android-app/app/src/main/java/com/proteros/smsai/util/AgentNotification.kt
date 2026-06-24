@@ -22,6 +22,10 @@ object AgentNotification {
         show(context, "Reikia dėmesio", "Pokalbis su $phone perduotas savininkui")
     }
 
+    fun inactivityAlert(context: Context, phone: String) {
+        show(context, "Klientas neatsako", "Pokalbis su $phone — jau 30 min. be atsakymo. Paskambink klientui.")
+    }
+
     fun bookingConflict(context: Context, phone: String, dateTime: String?) {
         show(context, "Laiko konfliktas!", "$phone norėjo ${dateTime ?: "?"} — laikas užimtas. Perimkite pokalbį.")
     }
