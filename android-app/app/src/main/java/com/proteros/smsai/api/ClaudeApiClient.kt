@@ -49,6 +49,13 @@ class ClaudeApiClient(private val context: Context) {
 
         val customBlock = if (kb.customPrompt.isNotBlank()) "\n${kb.customPrompt}" else ""
 
+        val correctionsBlock = if (kb.corrections.isNotEmpty()) {
+            "\n\nATSAKYMŲ PATAISYMAI (mokykis iš šių pavyzdžių — niekada nekartok blogų atsakymų):\n" +
+            kb.corrections.joinToString("\n") { c ->
+                "- Kai klientas rašo: \"${c.clientMessage}\" → NEATSAKYK: \"${c.badReply}\" → ATSAKYK: \"${c.goodReply}\""
+            }
+        } else ""
+
         return """
 Tu esi ${kb.businessName} SMS asistentas.
 Adresas: ${kb.address}.
@@ -78,7 +85,7 @@ Data formatu: YYYY-MM-DD HH:MM
 Pvz: [BOOKING:Stabdžių remontas|2025-06-18 10:00]
 
 Rašyk lietuviškai, mandagiai, profesionaliai.
-NENAUDOK jokio markdown formatavimo (**, *, # ir pan.) — tai SMS žinutė, rašyk paprastu tekstu.$customBlock
+NENAUDOK jokio markdown formatavimo (**, *, # ir pan.) — tai SMS žinutė, rašyk paprastu tekstu.$customBlock$correctionsBlock
         """.trim()
     }
 
