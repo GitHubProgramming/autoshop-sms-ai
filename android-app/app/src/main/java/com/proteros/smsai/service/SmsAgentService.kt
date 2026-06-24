@@ -59,6 +59,7 @@ class SmsAgentService : Service() {
             try {
                 val sheetsClient = GoogleSheetsClient(applicationContext)
                 sheetsClient.reportDeviceStatus(applicationContext)
+                sheetsClient.initializeSheets()
             } catch (e: Exception) { AppLog.e(TAG, "Initial status report failed", e) }
         }
         refreshHandler.postDelayed(refreshCheckRunnable, refreshCheckInterval)

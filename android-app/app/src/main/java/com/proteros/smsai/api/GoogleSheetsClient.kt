@@ -286,6 +286,21 @@ class GoogleSheetsClient(private val context: Context) {
         cached = null
     }
 
+    suspend fun initializeSheets() {
+        withContext(Dispatchers.IO) {
+            try {
+                val sheetId = SecurePrefs.getSheetId(context)
+                if (sheetId.isNullOrBlank()) return@withContext
+                val service = getService() ?: return@withContext
+                migrateSmsSheetIfNeeded(service, sheetId)
+                ensureCorrectionsSheet(service, sheetId)
+                AppLog.i(TAG, "Sheets initialized (SMS migrated, Pataisymai ready)")
+            } catch (e: Exception) {
+                AppLog.e(TAG, "initializeSheets failed", e)
+            }
+        }
+    }
+
     suspend fun logEvent(type: String, phone: String, message: String, aiReply: String? = null, contactName: String? = null) {
         withContext(Dispatchers.IO) {
             try {
