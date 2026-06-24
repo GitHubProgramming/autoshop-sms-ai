@@ -285,36 +285,60 @@ function createDashboardSheet_(ss) {
 
   // ===== ĮRENGINIŲ STATUSAS (iš Statusas lapo) =====
   var statusSheet = ss.getSheetByName("Statusas");
-  if (statusSheet) {
+  if (statusSheet && statusSheet.getLastRow() >= 1) {
     sheet.setRowHeight(33, 15);
     sheet.setRowHeight(34, 28);
     sheet.getRange("B34:I34").merge().setValue("Įrenginių statusas")
       .setFontSize(14).setFontWeight("bold").setFontColor(headerText).setBackground(bg);
 
-    var statusData = statusSheet.getDataRange().getValues();
+    var lastStatusRow = statusSheet.getLastRow();
+    var lastStatusCol = statusSheet.getLastColumn();
+    var allStatus = statusSheet.getRange(1, 1, lastStatusRow, lastStatusCol).getValues();
 
-    // Device 1 (col D-E) and Device 2 (col F-G) from Statusas
-    var devices = [];
-    if (statusData.length > 0) {
-      var dev1 = { name: "", rows: [] };
-      var dev2 = { name: "", rows: [] };
-      if (statusData[0] && statusData[0][3]) dev1.name = statusData[0][3].toString();
-      if (statusData[0] && statusData[0][5]) dev2.name = statusData[0][5].toString();
+    Logger.log("Statusas: " + lastStatusRow + " eilučių, " + lastStatusCol + " stulpelių");
+    Logger.log("Statusas row0: " + JSON.stringify(allStatus[0]));
 
-      for (var i = 1; i < statusData.length; i++) {
-        var label1 = statusData[i][3] ? statusData[i][3].toString() : "";
-        var value1 = statusData[i][4] ? statusData[i][4].toString() : "";
-        var label2 = statusData[i][5] ? statusData[i][5].toString() : "";
-        var value2 = statusData[i][6] ? statusData[i][6].toString() : "";
-        if (label1) dev1.rows.push([label1, value1]);
-        if (label2) dev2.rows.push([label2, value2]);
+    // Rasti D ir F stulpelių indeksus (device headers)
+    // Statusas struktūra: tuščios A-C celės, D1=email1, F1=email2
+    // D=3, E=4, F=5, G=6 (0-indexed)
+    var d1col = -1, d2col = -1;
+    for (var c = 0; c < allStatus[0].length; c++) {
+      var val = allStatus[0][c] ? allStatus[0][c].toString() : "";
+      if (val && val.indexOf("@") > -1) {
+        if (d1col === -1) { d1col = c; }
+        else if (d2col === -1) { d2col = c; }
       }
-      if (dev1.name) devices.push(dev1);
-      if (dev2.name) devices.push(dev2);
     }
+
+    Logger.log("Device columns: d1=" + d1col + ", d2=" + d2col);
+
+    var devices = [];
+
+    if (d1col >= 0) {
+      var dev = { name: allStatus[0][d1col].toString(), rows: [] };
+      for (var r = 1; r < allStatus.length; r++) {
+        var label = allStatus[r][d1col] ? allStatus[r][d1col].toString() : "";
+        var value = (d1col + 1 < allStatus[r].length && allStatus[r][d1col + 1]) ? allStatus[r][d1col + 1].toString() : "";
+        if (label) dev.rows.push([label, value]);
+      }
+      devices.push(dev);
+    }
+
+    if (d2col >= 0) {
+      var dev2 = { name: allStatus[0][d2col].toString(), rows: [] };
+      for (var r = 1; r < allStatus.length; r++) {
+        var label = allStatus[r][d2col] ? allStatus[r][d2col].toString() : "";
+        var value = (d2col + 1 < allStatus[r].length && allStatus[r][d2col + 1]) ? allStatus[r][d2col + 1].toString() : "";
+        if (label) dev2.rows.push([label, value]);
+      }
+      devices.push(dev2);
+    }
+
+    Logger.log("Devices found: " + devices.length);
 
     if (devices.length > 0) {
       sheet.setRowHeight(35, 22);
+      var maxRows = 0;
 
       for (var di = 0; di < devices.length && di < 2; di++) {
         var dev = devices[di];
@@ -331,21 +355,22 @@ function createDashboardSheet_(ss) {
           var row = 36 + ri;
           sheet.setRowHeight(row, 24);
           var rowBg = ri % 2 === 0 ? cardBg : "#F7F7F7";
-          var label = dev.rows[ri][0];
-          var value = dev.rows[ri][1];
 
-          sheet.getRange(colLabel + row).setValue(label)
+          sheet.getRange(colLabel + row).setValue(dev.rows[ri][0])
             .setFontColor(subText).setFontSize(10).setBackground(rowBg);
 
-          var valueColor = headerText;
-          if (value.indexOf("✓") > -1) valueColor = successColor;
-          if (value.indexOf("✗") > -1) valueColor = dangerColor;
+          var valText = dev.rows[ri][1];
+          var valColor = headerText;
+          if (valText.indexOf("✓") > -1 || valText.indexOf("Įjungta") > -1) valColor = successColor;
+          if (valText.indexOf("✗") > -1 || valText.indexOf("Išjungta") > -1) valColor = dangerColor;
 
           sheet.getRange(colValue + row + ":" + colMergeEnd + row).merge()
-            .setValue(value)
-            .setFontColor(valueColor).setFontSize(10).setFontWeight("bold")
+            .setValue(valText)
+            .setFontColor(valColor).setFontSize(10).setFontWeight("bold")
             .setBackground(rowBg).setHorizontalAlignment("center");
         }
+
+        if (dev.rows.length > maxRows) maxRows = dev.rows.length;
 
         var lastDevRow = 36 + dev.rows.length - 1;
         sheet.getRange(colLabel + "35:" + colMergeEnd + lastDevRow)
