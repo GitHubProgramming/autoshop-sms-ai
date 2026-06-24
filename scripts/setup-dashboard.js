@@ -13,7 +13,7 @@
 function setupDashboard() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  migrateSmsToVertical_(ss);
+  findOrMigrateSmsSheet_(ss);
   createCorrectionsSheet_(ss);
   createDashboardSheet_(ss);
 
@@ -327,14 +327,103 @@ function createCorrectionsSheet_(ss) {
 
 // ==================== SMS MIGRACIJA ====================
 
-function migrateSmsToVertical_(ss) {
+function findOrMigrateSmsSheet_(ss) {
   var smsSheet = ss.getSheetByName("SMS");
-  if (!smsSheet) return;
+  var logaiSheet = ss.getSheetByName("Logai");
 
-  var header = smsSheet.getRange("A1:F1").getValues()[0];
-  if (header[4] === "Siuntėjas") return;
-  if (header[4] !== "Kliento žinutė") return;
+  // 1. Jei "SMS" jau yra su teisingu formatu — nieko nedaryti
+  if (smsSheet) {
+    var header = smsSheet.getRange("A1:F1").getValues()[0];
+    if (header[4] === "Siuntėjas") return; // jau vertikalus
 
+    // "SMS" su senu 6-stulpeliu horizontaliu formatu
+    if (header[4] === "Kliento žinutė") {
+      migrateHorizontal6ToVertical_(smsSheet);
+      return;
+    }
+  }
+
+  // 2. Jei "Logai" egzistuoja — migruoti į "SMS"
+  if (logaiSheet) {
+    migrateLogaiToSms_(logaiSheet);
+    return;
+  }
+
+  // 3. Nieko nerasta — sukurti tuščią "SMS" lapą
+  if (!smsSheet) {
+    var sheet = ss.insertSheet("SMS");
+    sheet.getRange("A1:F1").setValues([["Data", "Vardas", "Telefonas", "Tipas", "Siuntėjas", "Žinutė"]]);
+    sheet.getRange("A1:F1").setFontWeight("bold").setFontSize(11)
+      .setBackground("#F5F5F7").setFontColor("#1D1D1F");
+    sheet.setColumnWidth(1, 140);
+    sheet.setColumnWidth(2, 120);
+    sheet.setColumnWidth(3, 120);
+    sheet.setColumnWidth(4, 130);
+    sheet.setColumnWidth(5, 90);
+    sheet.setColumnWidth(6, 400);
+    sheet.setFrozenRows(1);
+  }
+}
+
+// "Logai" lapas (5 stulpeliai): Data | Telefonas | Tipas | Žinutė | AI atsakymas
+// → "SMS" lapas (6 stulpeliai): Data | Vardas | Telefonas | Tipas | Siuntėjas | Žinutė
+function migrateLogaiToSms_(logaiSheet) {
+  var lastRow = logaiSheet.getLastRow();
+  var newRows = [];
+
+  if (lastRow > 1) {
+    var data = logaiSheet.getRange(2, 1, lastRow - 1, 5).getValues();
+
+    for (var i = 0; i < data.length; i++) {
+      var timestamp = data[i][0];
+      var phone = data[i][1] ? data[i][1].toString() : "";
+      var type = data[i][2] ? data[i][2].toString() : "";
+      var message = data[i][3] ? data[i][3].toString() : "";
+      var aiReply = data[i][4] ? data[i][4].toString() : "";
+
+      var sender = "Klientas";
+      if (type === "Praleistas skambutis" || type === "Perdavimas" ||
+          type === "Uždarytas" || type === "Klaida") {
+        sender = "Sistema";
+      }
+
+      if (message) {
+        newRows.push([timestamp, "", phone, type, sender, message]);
+      }
+      if (aiReply) {
+        newRows.push([timestamp, "", phone, type, "Agentas", aiReply]);
+      }
+    }
+  }
+
+  // Pervadinti "Logai" → "SMS"
+  logaiSheet.setName("SMS");
+
+  // Išvalyti senus duomenis
+  if (lastRow > 0) {
+    logaiSheet.clear();
+  }
+
+  // Naujas header (6 stulpeliai)
+  logaiSheet.getRange("A1:F1").setValues([["Data", "Vardas", "Telefonas", "Tipas", "Siuntėjas", "Žinutė"]]);
+  logaiSheet.getRange("A1:F1").setFontWeight("bold").setFontSize(11)
+    .setBackground("#F5F5F7").setFontColor("#1D1D1F");
+  logaiSheet.setColumnWidth(1, 140);
+  logaiSheet.setColumnWidth(2, 120);
+  logaiSheet.setColumnWidth(3, 120);
+  logaiSheet.setColumnWidth(4, 130);
+  logaiSheet.setColumnWidth(5, 90);
+  logaiSheet.setColumnWidth(6, 400);
+  logaiSheet.setFrozenRows(1);
+
+  if (newRows.length > 0) {
+    logaiSheet.getRange(2, 1, newRows.length, 6).setValues(newRows);
+  }
+}
+
+// "SMS" su senu horizontaliu formatu (6 stulpeliai):
+// Data | Vardas | Telefonas | Tipas | Kliento žinutė | AI atsakymas
+function migrateHorizontal6ToVertical_(smsSheet) {
   var lastRow = smsSheet.getLastRow();
   if (lastRow <= 1) {
     smsSheet.getRange("E1").setValue("Siuntėjas");
@@ -347,9 +436,9 @@ function migrateSmsToVertical_(ss) {
 
   for (var i = 0; i < data.length; i++) {
     var timestamp = data[i][0];
-    var name = data[i][1];
-    var phone = data[i][2];
-    var type = data[i][3];
+    var name = data[i][1] ? data[i][1].toString() : "";
+    var phone = data[i][2] ? data[i][2].toString() : "";
+    var type = data[i][3] ? data[i][3].toString() : "";
     var clientMsg = data[i][4] ? data[i][4].toString() : "";
     var aiReply = data[i][5] ? data[i][5].toString() : "";
 
@@ -367,8 +456,7 @@ function migrateSmsToVertical_(ss) {
     }
   }
 
-  smsSheet.getRange(1, 1, lastRow, 6).clearContent();
-
+  smsSheet.clear();
   smsSheet.getRange("A1:F1").setValues([["Data", "Vardas", "Telefonas", "Tipas", "Siuntėjas", "Žinutė"]]);
   smsSheet.getRange("A1:F1").setFontWeight("bold").setFontSize(11)
     .setBackground("#F5F5F7").setFontColor("#1D1D1F");
