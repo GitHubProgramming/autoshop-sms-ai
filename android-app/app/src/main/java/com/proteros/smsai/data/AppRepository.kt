@@ -366,5 +366,17 @@ class AppRepository(
         messageDao.insert(
             Message(conversationPhone = phone, sender = Message.SENDER_SYSTEM, body = label)
         )
+        if (takeover) {
+            try {
+                val messages = messageDao.getForConversation(phone)
+                val lastAi = messages.lastOrNull { it.sender == Message.SENDER_AI }
+                val lastClient = messages.lastOrNull { it.sender == Message.SENDER_CLIENT }
+                if (lastAi != null && lastClient != null) {
+                    sheetsClient.logCorrection(phone, lastClient.body, lastAi.body, "Savininkas perėmė pokalbį")
+                }
+            } catch (e: Exception) {
+                AppLog.e("AppRepo", "Auto-detect correction failed", e)
+            }
+        }
     }
 }

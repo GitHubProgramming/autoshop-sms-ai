@@ -22,6 +22,13 @@ class GoogleSheetsClient(private val context: Context) {
         val durationMin: Int
     )
 
+    data class Correction(
+        val clientMessage: String,
+        val badReply: String,
+        val goodReply: String,
+        val note: String = ""
+    )
+
     data class KnowledgeBase(
         val businessName: String = "Proteros Servisas",
         val address: String = "Aukštaičių g. 29-2, Panevėžys",
@@ -36,6 +43,7 @@ class GoogleSheetsClient(private val context: Context) {
         val faq: List<Pair<String, String>> = emptyList(),
         val rules: List<String> = DEFAULT_RULES,
         val warranties: List<Pair<String, String>> = emptyList(),
+        val corrections: List<Correction> = emptyList(),
         val fetchedAt: Long = 0
     )
 
@@ -95,7 +103,8 @@ class GoogleSheetsClient(private val context: Context) {
                 "Paslaugos!A2:D50",
                 "DUK!A2:B50",
                 "Taisyklės!A2:A50",
-                "Garantijos ir sąlygos!A2:B50"
+                "Garantijos ir sąlygos!A2:B50",
+                "Pataisymai!A2:E50"
             )
 
             val response = service.spreadsheets().values()
@@ -110,6 +119,7 @@ class GoogleSheetsClient(private val context: Context) {
             val faqRows = valueRanges.getOrNull(2)?.getValues() ?: emptyList()
             val ruleRows = valueRanges.getOrNull(3)?.getValues() ?: emptyList()
             val warrantyRows = valueRanges.getOrNull(4)?.getValues() ?: emptyList()
+            val correctionRows = valueRanges.getOrNull(5)?.getValues() ?: emptyList()
 
             val info = mutableMapOf<String, String>()
             for (row in infoRows) {
@@ -150,6 +160,16 @@ class GoogleSheetsClient(private val context: Context) {
                 t to v
             }
 
+            val corrections = correctionRows.mapNotNull { row ->
+                val clientMsg = row.getOrNull(0)?.toString()?.trim() ?: return@mapNotNull null
+                val badReply = row.getOrNull(1)?.toString()?.trim() ?: return@mapNotNull null
+                val goodReply = row.getOrNull(2)?.toString()?.trim() ?: return@mapNotNull null
+                if (clientMsg.isBlank() || goodReply.isBlank()) return@mapNotNull null
+                val status = row.getOrNull(4)?.toString()?.trim() ?: ""
+                if (status.equals("Laukia pataisymo", ignoreCase = true)) return@mapNotNull null
+                Correction(clientMsg, badReply, goodReply, row.getOrNull(3)?.toString()?.trim() ?: "")
+            }
+
             KnowledgeBase(
                 businessName = info["Įmonės pavadinimas"] ?: "Proteros Servisas",
                 address = info["Adresas"] ?: "Aukštaičių g. 29-2, Panevėžys",
@@ -166,6 +186,7 @@ class GoogleSheetsClient(private val context: Context) {
                 faq = faq,
                 rules = if (rules.isNotEmpty()) rules else DEFAULT_RULES,
                 warranties = warranties,
+                corrections = corrections,
                 fetchedAt = System.currentTimeMillis()
             )
         } catch (e: Exception) {
@@ -199,6 +220,12 @@ class GoogleSheetsClient(private val context: Context) {
                 put("warranties", JSONArray().apply {
                     kb.warranties.forEach { put(JSONObject().put("t", it.first).put("v", it.second)) }
                 })
+                put("corrections", JSONArray().apply {
+                    kb.corrections.forEach { c ->
+                        put(JSONObject().put("cm", c.clientMessage).put("br", c.badReply)
+                            .put("gr", c.goodReply).put("n", c.note))
+                    }
+                })
                 put("fetchedAt", kb.fetchedAt)
             }
             context.getSharedPreferences(CACHE_PREFS, Context.MODE_PRIVATE)
@@ -217,6 +244,7 @@ class GoogleSheetsClient(private val context: Context) {
             val faqArr = j.optJSONArray("faq") ?: JSONArray()
             val rulesArr = j.optJSONArray("rules") ?: JSONArray()
             val warArr = j.optJSONArray("warranties") ?: JSONArray()
+            val corArr = j.optJSONArray("corrections") ?: JSONArray()
 
             return KnowledgeBase(
                 businessName = j.optString("businessName", "Proteros Servisas"),
@@ -242,6 +270,10 @@ class GoogleSheetsClient(private val context: Context) {
                     val w = warArr.getJSONObject(i)
                     w.getString("t") to w.getString("v")
                 },
+                corrections = (0 until corArr.length()).map { i ->
+                    val c = corArr.getJSONObject(i)
+                    Correction(c.getString("cm"), c.getString("br"), c.getString("gr"), c.optString("n", ""))
+                },
                 fetchedAt = j.optLong("fetchedAt", 0)
             )
         } catch (e: Exception) {
@@ -265,38 +297,92 @@ class GoogleSheetsClient(private val context: Context) {
 
                 val now = java.time.LocalDateTime.now()
                 val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                val timestamp = now.format(formatter)
 
-                val row = listOf<Any>(
-                    now.format(formatter),
-                    contactName ?: "",
-                    phone,
-                    type,
-                    message.take(500),
-                    (aiReply ?: "").take(500)
-                )
+                val rows = mutableListOf<List<Any>>()
+                val sender = when (type) {
+                    "Pokalbis", "Booking" -> "Klientas"
+                    "Praleistas skambutis", "Perdavimas", "Uždarytas", "Klaida" -> "Sistema"
+                    else -> "Klientas"
+                }
+                rows.add(listOf(timestamp, contactName ?: "", phone, type, sender, message.take(500)))
+
+                if (!aiReply.isNullOrBlank()) {
+                    rows.add(listOf(timestamp, contactName ?: "", phone, type, "Agentas", aiReply.take(500)))
+                }
 
                 try {
-                    service.spreadsheets().values()
-                        .append(sheetId, "$SMS_SHEET!A:F",
-                            com.google.api.services.sheets.v4.model.ValueRange()
-                                .setValues(listOf(row)))
-                        .setValueInputOption("RAW")
-                        .setInsertDataOption("INSERT_ROWS")
-                        .execute()
+                    appendRows(service, sheetId, rows)
                 } catch (e: com.google.api.client.googleapis.json.GoogleJsonResponseException) {
                     if (e.statusCode == 400 && e.message?.contains("Unable to parse range") == true) {
                         createSmsSheet(service, sheetId)
-                        service.spreadsheets().values()
-                            .append(sheetId, "$SMS_SHEET!A:F",
-                                com.google.api.services.sheets.v4.model.ValueRange()
-                                    .setValues(listOf(row)))
-                            .setValueInputOption("RAW")
-                            .setInsertDataOption("INSERT_ROWS")
-                            .execute()
+                        appendRows(service, sheetId, rows)
                     } else throw e
                 }
             } catch (e: Exception) {
                 AppLog.e(TAG, "logEvent failed", e)
+            }
+        }
+    }
+
+    private fun appendRows(service: Sheets, sheetId: String, rows: List<List<Any>>) {
+        service.spreadsheets().values()
+            .append(sheetId, "$SMS_SHEET!A:F",
+                com.google.api.services.sheets.v4.model.ValueRange()
+                    .setValues(rows))
+            .setValueInputOption("RAW")
+            .setInsertDataOption("INSERT_ROWS")
+            .execute()
+    }
+
+    suspend fun logCorrection(phone: String, clientMessage: String, badAiReply: String, note: String) {
+        withContext(Dispatchers.IO) {
+            try {
+                val sheetId = SecurePrefs.getSheetId(context)
+                if (sheetId.isNullOrBlank()) return@withContext
+                val service = getService() ?: return@withContext
+
+                ensureCorrectionsSheet(service, sheetId)
+
+                val row = listOf<Any>(clientMessage.take(500), badAiReply.take(500), "", note, "Laukia pataisymo")
+                service.spreadsheets().values()
+                    .append(sheetId, "$CORRECTIONS_SHEET!A:E",
+                        com.google.api.services.sheets.v4.model.ValueRange()
+                            .setValues(listOf(row)))
+                    .setValueInputOption("RAW")
+                    .setInsertDataOption("INSERT_ROWS")
+                    .execute()
+                AppLog.i(TAG, "Logged correction candidate for review")
+            } catch (e: Exception) {
+                AppLog.e(TAG, "logCorrection failed", e)
+            }
+        }
+    }
+
+    private fun ensureCorrectionsSheet(service: Sheets, sheetId: String) {
+        try {
+            service.spreadsheets().values()
+                .get(sheetId, "$CORRECTIONS_SHEET!A1")
+                .execute()
+        } catch (e: com.google.api.client.googleapis.json.GoogleJsonResponseException) {
+            if (e.statusCode == 400) {
+                val addSheet = com.google.api.services.sheets.v4.model.BatchUpdateSpreadsheetRequest()
+                    .setRequests(listOf(
+                        com.google.api.services.sheets.v4.model.Request()
+                            .setAddSheet(com.google.api.services.sheets.v4.model.AddSheetRequest()
+                                .setProperties(com.google.api.services.sheets.v4.model.SheetProperties()
+                                    .setTitle(CORRECTIONS_SHEET)))
+                    ))
+                service.spreadsheets().batchUpdate(sheetId, addSheet).execute()
+
+                val header = listOf<Any>("Kliento žinutė", "Blogas atsakymas", "Teisingas atsakymas", "Pastaba", "Statusas")
+                service.spreadsheets().values()
+                    .update(sheetId, "$CORRECTIONS_SHEET!A1:E1",
+                        com.google.api.services.sheets.v4.model.ValueRange()
+                            .setValues(listOf(header)))
+                    .setValueInputOption("RAW")
+                    .execute()
+                AppLog.i(TAG, "Created Pataisymai sheet")
             }
         }
     }
@@ -311,7 +397,7 @@ class GoogleSheetsClient(private val context: Context) {
             ))
         service.spreadsheets().batchUpdate(sheetId, addSheet).execute()
 
-        val header = listOf<Any>("Data", "Vardas", "Telefonas", "Tipas", "Kliento žinutė", "AI atsakymas")
+        val header = listOf<Any>("Data", "Vardas", "Telefonas", "Tipas", "Siuntėjas", "Žinutė")
         service.spreadsheets().values()
             .update(sheetId, "$SMS_SHEET!A1:F1",
                 com.google.api.services.sheets.v4.model.ValueRange()
@@ -430,24 +516,33 @@ class GoogleSheetsClient(private val context: Context) {
                 .get(sheetId, "$SMS_SHEET!A1:F1")
                 .execute()
             val row = header.getValues()?.firstOrNull()
-            if (row != null && (row.size < 6 || row.getOrNull(1)?.toString() != "Vardas")) {
-                val spreadsheet = service.spreadsheets().get(sheetId).execute()
-                val smsTab = spreadsheet.sheets?.find { it.properties?.title == SMS_SHEET }
-                if (smsTab != null) {
-                    val tabId = smsTab.properties.sheetId
-                    service.spreadsheets().batchUpdate(sheetId,
-                        com.google.api.services.sheets.v4.model.BatchUpdateSpreadsheetRequest()
-                            .setRequests(listOf(
-                                com.google.api.services.sheets.v4.model.Request()
-                                    .setDeleteSheet(com.google.api.services.sheets.v4.model.DeleteSheetRequest()
-                                        .setSheetId(tabId))
-                            ))
-                    ).execute()
-                    AppLog.i(TAG, "Deleted old SMS sheet for migration")
-                }
+            if (row == null) {
                 createSmsSheet(service, sheetId)
-                AppLog.i(TAG, "Created new SMS sheet with 6-column format")
+                return
             }
+            val col5 = row.getOrNull(4)?.toString() ?: ""
+            if (col5 == "Siuntėjas") return
+
+            if (col5 == "Kliento žinutė") {
+                migrateHorizontalToVertical(service, sheetId)
+                return
+            }
+
+            val spreadsheet = service.spreadsheets().get(sheetId).execute()
+            val smsTab = spreadsheet.sheets?.find { it.properties?.title == SMS_SHEET }
+            if (smsTab != null) {
+                val tabId = smsTab.properties.sheetId
+                service.spreadsheets().batchUpdate(sheetId,
+                    com.google.api.services.sheets.v4.model.BatchUpdateSpreadsheetRequest()
+                        .setRequests(listOf(
+                            com.google.api.services.sheets.v4.model.Request()
+                                .setDeleteSheet(com.google.api.services.sheets.v4.model.DeleteSheetRequest()
+                                    .setSheetId(tabId))
+                        ))
+                ).execute()
+            }
+            createSmsSheet(service, sheetId)
+            AppLog.i(TAG, "Created new SMS sheet with vertical format")
         } catch (e: com.google.api.client.googleapis.json.GoogleJsonResponseException) {
             if (e.statusCode == 400 && e.message?.contains("Unable to parse range") == true) {
                 createSmsSheet(service, sheetId)
@@ -458,9 +553,68 @@ class GoogleSheetsClient(private val context: Context) {
         }
     }
 
+    private fun migrateHorizontalToVertical(service: Sheets, sheetId: String) {
+        try {
+            val allData = service.spreadsheets().values()
+                .get(sheetId, "$SMS_SHEET!A2:F1000")
+                .execute()
+            val oldRows = allData.getValues() ?: emptyList()
+
+            val newRows = mutableListOf<List<Any>>()
+            for (oldRow in oldRows) {
+                val timestamp = oldRow.getOrNull(0)?.toString() ?: ""
+                val name = oldRow.getOrNull(1)?.toString() ?: ""
+                val phone = oldRow.getOrNull(2)?.toString() ?: ""
+                val type = oldRow.getOrNull(3)?.toString() ?: ""
+                val clientMsg = oldRow.getOrNull(4)?.toString() ?: ""
+                val aiReply = oldRow.getOrNull(5)?.toString() ?: ""
+
+                val sender = when (type) {
+                    "Praleistas skambutis", "Perdavimas", "Uždarytas", "Klaida" -> "Sistema"
+                    else -> "Klientas"
+                }
+                if (clientMsg.isNotBlank()) {
+                    newRows.add(listOf(timestamp, name, phone, type, sender, clientMsg))
+                }
+                if (aiReply.isNotBlank()) {
+                    newRows.add(listOf(timestamp, name, phone, type, "Agentas", aiReply))
+                }
+            }
+
+            val spreadsheet = service.spreadsheets().get(sheetId).execute()
+            val smsTab = spreadsheet.sheets?.find { it.properties?.title == SMS_SHEET }
+            if (smsTab != null) {
+                val tabId = smsTab.properties.sheetId
+                service.spreadsheets().batchUpdate(sheetId,
+                    com.google.api.services.sheets.v4.model.BatchUpdateSpreadsheetRequest()
+                        .setRequests(listOf(
+                            com.google.api.services.sheets.v4.model.Request()
+                                .setDeleteSheet(com.google.api.services.sheets.v4.model.DeleteSheetRequest()
+                                    .setSheetId(tabId))
+                        ))
+                ).execute()
+            }
+            createSmsSheet(service, sheetId)
+
+            if (newRows.isNotEmpty()) {
+                service.spreadsheets().values()
+                    .append(sheetId, "$SMS_SHEET!A:F",
+                        com.google.api.services.sheets.v4.model.ValueRange()
+                            .setValues(newRows))
+                    .setValueInputOption("RAW")
+                    .setInsertDataOption("INSERT_ROWS")
+                    .execute()
+            }
+            AppLog.i(TAG, "Migrated ${oldRows.size} rows to ${newRows.size} vertical rows")
+        } catch (e: Exception) {
+            AppLog.e(TAG, "migrateHorizontalToVertical failed", e)
+        }
+    }
+
     companion object {
         private const val STATUS_SHEET = "Statusas"
         private const val SMS_SHEET = "SMS"
+        private const val CORRECTIONS_SHEET = "Pataisymai"
         private const val TAG = "SheetsClient"
         private const val CACHE_PREFS = "sheets_cache"
         private const val CACHE_KEY = "knowledge_base"

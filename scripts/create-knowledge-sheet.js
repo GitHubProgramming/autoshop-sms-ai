@@ -178,6 +178,29 @@ function createProterosKnowledgeBase() {
   logai.setColumnWidth(5, 400);
   logai.setFrozenRows(1);
 
+  // ========== LAPAS 7: Pataisymai ==========
+  var pataisymai = ss.insertSheet("Pataisymai");
+
+  var pataisymaiHeader = [
+    ["Kliento žinutė", "Blogas atsakymas", "Teisingas atsakymas", "Pastaba", "Statusas"]
+  ];
+
+  pataisymai.getRange(1, 1, 1, 5).setValues(pataisymaiHeader);
+
+  pataisymai.getRange("A1:E1").setFontWeight("bold").setFontSize(12).setBackground("#E65100").setFontColor("white");
+  pataisymai.setColumnWidth(1, 300);
+  pataisymai.setColumnWidth(2, 300);
+  pataisymai.setColumnWidth(3, 300);
+  pataisymai.setColumnWidth(4, 200);
+  pataisymai.setColumnWidth(5, 130);
+  pataisymai.setFrozenRows(1);
+
+  var pataisymaiHelp = [
+    ["Pvz: Ar galima atvežti BMW?", "Taip, priimame visus automobilius.", "Taip, BMW aptarnaujame. Kokia problema? Galiu pasiūlyti laiką vizitui.", "", "Pataisyta"]
+  ];
+  pataisymai.getRange(2, 1, 1, 5).setValues(pataisymaiHelp);
+  pataisymai.getRange("A2:E2").setFontColor("#999999").setFontStyle("italic");
+
   servisas.activate();
 
   var id = ss.getId();
