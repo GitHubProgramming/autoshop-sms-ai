@@ -1,5 +1,5 @@
 /**
- * PROTEROS SERVISAS — Dashboard + Pataisymai + SMS migracija
+ * PROTEROS SERVISAS — Dashboard
  *
  * INSTRUKCIJA:
  * 1. Atidaryk savo Proteros žinių bazės Sheet'ą
@@ -9,17 +9,13 @@
  * 5. Paspausk ▶ Run
  * 6. Leisk prieigą kai paprašys
  *
- * DIAGNOSTIKA (jei neveikia):
- * 1. Pasirink funkciją: diagnoseSheet
- * 2. Paspausk ▶ Run
- * 3. Žiūrėk View → Logs — ten bus visa informacija
- *
  * PASTABA: Automatiškai aptinka Google Sheets locale (lt_LT, en_US ir kt.)
  * ir pritaiko formulių skyriklį (, arba ;)
+ *
+ * SVARBU: Šis skriptas keičia TIK Dashboard lapą.
+ * Kiti lapai (SMS, Pataisymai, Servisas ir kt.) neliečiami.
  */
 
-// Locale-aware formulių nustatymas
-// Lietuvių locale naudoja ; vietoj , formulėse
 function setLocalFormula_(range, formula) {
   var locale = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetLocale();
   if (locale && locale.indexOf("en") !== 0) {
@@ -45,46 +41,15 @@ function setLocalFormula_(range, formula) {
 function setupDashboard() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  Logger.log("=== PRADEDAME SETUP ===");
-  Logger.log("Sheet pavadinimas: " + ss.getName());
+  Logger.log("=== PRADEDAME DASHBOARD SETUP ===");
+  Logger.log("Sheet: " + ss.getName());
   Logger.log("Locale: " + ss.getSpreadsheetLocale());
-  Logger.log("Visi lapai: " + ss.getSheets().map(function(s) { return s.getName(); }).join(", "));
+  Logger.log("Lapai: " + ss.getSheets().map(function(s) { return s.getName(); }).join(", "));
 
-  try {
-    findOrMigrateSmsSheet_(ss);
-    Logger.log("SMS migracija — OK");
-  } catch (e) {
-    Logger.log("SMS migracija KLAIDA: " + e.message);
-    SpreadsheetApp.getUi().alert("SMS migracija nepavyko: " + e.message);
+  var sms = ss.getSheetByName("SMS");
+  if (!sms) {
+    SpreadsheetApp.getUi().alert("SMS lapas nerastas! Dashboard negali veikti be SMS duomenų.");
     return;
-  }
-
-  try {
-    createCorrectionsSheet_(ss);
-    Logger.log("Pataisymai — OK");
-  } catch (e) {
-    Logger.log("Pataisymai KLAIDA: " + e.message);
-  }
-
-  try {
-    fixShiftedRows_(ss);
-    Logger.log("Stulpelių taisymas — OK");
-  } catch (e) {
-    Logger.log("Stulpelių taisymas KLAIDA: " + e.message);
-  }
-
-  try {
-    formatSmsSheet_(ss);
-    Logger.log("SMS formatavimas — OK");
-  } catch (e) {
-    Logger.log("SMS formatavimas KLAIDA: " + e.message);
-  }
-
-  try {
-    createChatView_(ss);
-    Logger.log("Pokalbiai — OK");
-  } catch (e) {
-    Logger.log("Pokalbiai KLAIDA: " + e.message);
   }
 
   try {
@@ -99,17 +64,12 @@ function setupDashboard() {
   var dashboard = ss.getSheetByName("Dashboard");
   if (dashboard) dashboard.activate();
 
-  Logger.log("=== SETUP BAIGTAS ===");
-  Logger.log("Visi lapai po setup: " + ss.getSheets().map(function(s) { return s.getName(); }).join(", "));
+  Logger.log("=== DASHBOARD SETUP BAIGTAS ===");
 
   SpreadsheetApp.getUi().alert(
-    "Viskas paruošta!\n\n" +
-    "• Dashboard — pagrindinė informacija\n" +
-    "• Pokalbiai — pokalbių peržiūra (chat stilius)\n" +
-    "• Pataisymai — AI atsakymų taisymas\n" +
-    "• SMS — raw duomenys (app čia rašo)\n\n" +
-    "Dashboard formulės atsinaujina automatiškai.\n" +
-    "Pokalbiai atsinaujina kiekvieną kartą paleidus setupDashboard."
+    "Dashboard atnaujintas!\n\n" +
+    "Formulės pritaikytos jūsų locale (" + ss.getSpreadsheetLocale() + ").\n" +
+    "Duomenys atsinaujina automatiškai."
   );
 }
 
@@ -161,10 +121,6 @@ function diagnoseSheet() {
     }
   } else {
     report.push("SMS lapas NERASTAS!");
-    var logai = ss.getSheetByName("Logai");
-    if (logai) {
-      report.push("  Bet rastas 'Logai' lapas — reikia migruoti (paleisk setupDashboard)");
-    }
   }
 
   report.push("");
@@ -187,24 +143,23 @@ function createDashboardSheet_(ss) {
 
   var smsCheck = ss.getSheetByName("SMS");
   if (!smsCheck) {
-    throw new Error("SMS lapas nerastas! Paleiskite setupDashboard dar kartą.");
+    throw new Error("SMS lapas nerastas!");
   }
-  Logger.log("Dashboard: SMS lapas rastas, eilučių: " + smsCheck.getLastRow());
 
   var sheet = ss.insertSheet("Dashboard", 0);
 
-  var white = "#FFFFFF";
-  var bgLight = "#F5F5F7";
+  // Premium monochrome palette
+  var bg = "#FAFAFA";
   var cardBg = "#FFFFFF";
-  var headerText = "#1D1D1F";
-  var subText = "#86868B";
-  var accent = "#007AFF";
-  var green = "#34C759";
-  var orange = "#FF9500";
-  var red = "#FF3B30";
-  var purple = "#AF52DE";
-  var teal = "#5AC8FA";
-  var borderColor = "#E5E5EA";
+  var headerText = "#111111";
+  var subText = "#888888";
+  var borderColor = "#E0E0E0";
+  var accentDark = "#222222";
+  var accentMid = "#555555";
+  var successColor = "#2D8A4E";
+  var warningColor = "#C47F17";
+  var dangerColor = "#C53030";
+  var infoColor = "#555555";
 
   sheet.setColumnWidth(1, 20);
   sheet.setColumnWidth(2, 180);
@@ -217,70 +172,71 @@ function createDashboardSheet_(ss) {
   sheet.setColumnWidth(9, 100);
   sheet.setColumnWidth(10, 20);
 
-  sheet.getRange("A1:J55").setBackground(bgLight).setFontFamily("Helvetica Neue");
+  sheet.getRange("A1:J50").setBackground(bg).setFontFamily("Google Sans");
 
   // ===== HEADER =====
   sheet.setRowHeight(1, 55);
-  sheet.getRange("B1:I1").merge().setValue("Proteros Servisas")
-    .setFontSize(22).setFontWeight("bold").setFontColor(headerText)
+  sheet.getRange("B1:I1").merge().setValue("PROTEROS SERVISAS")
+    .setFontSize(20).setFontWeight("bold").setFontColor(headerText)
     .setHorizontalAlignment("left").setVerticalAlignment("middle")
-    .setBackground(bgLight);
+    .setBackground(bg);
 
-  sheet.setRowHeight(2, 25);
+  sheet.setRowHeight(2, 22);
   var headerRange = sheet.getRange("B2:I2").merge();
   setLocalFormula_(headerRange, '=TEXT(NOW(),"yyyy-MM-dd HH:mm")&"  ·  Valdymo pultas"');
-  headerRange.setFontSize(11).setFontColor(subText)
-    .setHorizontalAlignment("left").setBackground(bgLight);
+  headerRange.setFontSize(10).setFontColor(subText)
+    .setHorizontalAlignment("left").setBackground(bg);
 
-  // ===== ROW 4-6: MAIN KPI CARDS =====
-  sheet.setRowHeight(3, 10);
+  // ===== KPI CARDS ROW 1 =====
+  sheet.setRowHeight(3, 12);
 
   appleKpiCard_(sheet, 4, "B", "C", "SMS šiandien",
     '=IFERROR(COUNTIFS(SMS!A:A,">="&TEXT(TODAY(),"yyyy-MM-dd"),SMS!A:A,"<"&TEXT(TODAY()+1,"yyyy-MM-dd")),0)',
-    accent, cardBg, subText, borderColor);
+    accentDark, cardBg, subText, borderColor);
 
   appleKpiCard_(sheet, 4, "E", "F", "Praleisti skambučiai",
     '=IFERROR(COUNTIFS(SMS!A:A,">="&TEXT(TODAY(),"yyyy-MM-dd"),SMS!A:A,"<"&TEXT(TODAY()+1,"yyyy-MM-dd"),SMS!D:D,"Praleistas skambutis"),0)',
-    orange, cardBg, subText, borderColor);
+    warningColor, cardBg, subText, borderColor);
 
   appleKpiCard_(sheet, 4, "H", "I", "Užsakymai",
     '=IFERROR(COUNTIFS(SMS!A:A,">="&TEXT(TODAY(),"yyyy-MM-dd"),SMS!A:A,"<"&TEXT(TODAY()+1,"yyyy-MM-dd"),SMS!D:D,"Booking"),0)',
-    green, cardBg, subText, borderColor);
+    successColor, cardBg, subText, borderColor);
 
   sheet.setRowHeight(4, 22);
   sheet.setRowHeight(5, 50);
   sheet.setRowHeight(6, 8);
 
+  // ===== KPI CARDS ROW 2 =====
   appleKpiCard_(sheet, 7, "B", "C", "Klaidos",
     '=IFERROR(COUNTIFS(SMS!A:A,">="&TEXT(TODAY(),"yyyy-MM-dd"),SMS!A:A,"<"&TEXT(TODAY()+1,"yyyy-MM-dd"),SMS!D:D,"Klaida"),0)',
-    red, cardBg, subText, borderColor);
+    dangerColor, cardBg, subText, borderColor);
 
   appleKpiCard_(sheet, 7, "E", "F", "Perdavimai savininkui",
     '=IFERROR(COUNTIFS(SMS!A:A,">="&TEXT(TODAY(),"yyyy-MM-dd"),SMS!A:A,"<"&TEXT(TODAY()+1,"yyyy-MM-dd"),SMS!D:D,"Perdavimas"),0)',
-    purple, cardBg, subText, borderColor);
+    accentMid, cardBg, subText, borderColor);
 
   appleKpiCard_(sheet, 7, "H", "I", "Laukia pataisymo",
     '=IFERROR(COUNTIF(Pataisymai!E:E,"Laukia pataisymo"),0)',
-    teal, cardBg, subText, borderColor);
+    infoColor, cardBg, subText, borderColor);
 
   sheet.setRowHeight(7, 22);
   sheet.setRowHeight(8, 50);
 
-  // ===== ROW 10: STATISTIKA =====
+  // ===== STATISTIKA =====
   sheet.setRowHeight(9, 15);
-  sheet.setRowHeight(10, 30);
-  sheet.getRange("B10:I10").merge().setValue("Šiandienos statistika")
-    .setFontSize(15).setFontWeight("bold").setFontColor(headerText)
-    .setBackground(bgLight);
+  sheet.setRowHeight(10, 28);
+  sheet.getRange("B10:I10").merge().setValue("Statistika")
+    .setFontSize(14).setFontWeight("bold").setFontColor(headerText)
+    .setBackground(bg);
 
   sheet.setRowHeight(11, 22);
   var statsLabels = ["Rodiklis", "Kiekis"];
   sheet.getRange("B11:C11").setValues([statsLabels])
-    .setFontWeight("bold").setFontSize(10).setFontColor(subText).setBackground(cardBg);
+    .setFontWeight("bold").setFontSize(9).setFontColor(subText).setBackground("#F2F2F2");
   sheet.getRange("E11:F11").setValues([statsLabels])
-    .setFontWeight("bold").setFontSize(10).setFontColor(subText).setBackground(cardBg);
+    .setFontWeight("bold").setFontSize(9).setFontColor(subText).setBackground("#F2F2F2");
   sheet.getRange("H11:I11").setValues([statsLabels])
-    .setFontWeight("bold").setFontSize(10).setFontColor(subText).setBackground(cardBg);
+    .setFontWeight("bold").setFontSize(9).setFontColor(subText).setBackground("#F2F2F2");
 
   var todayGte = '"&TEXT(TODAY(),"yyyy-MM-dd")';
   var tomorrowLt = '"&TEXT(TODAY()+1,"yyyy-MM-dd")';
@@ -304,13 +260,13 @@ function createDashboardSheet_(ss) {
   for (var i = 0; i < 3; i++) {
     var row = 12 + i;
     sheet.setRowHeight(row, 28);
-    sheet.getRange("B" + row).setValue(leftStats[i][0]).setFontColor(headerText).setFontSize(11).setBackground(cardBg);
-    setLocalFormula_(sheet.getRange("C" + row), leftStats[i][1]).setFontColor(headerText).setFontSize(12).setFontWeight("bold").setHorizontalAlignment("center").setBackground(cardBg);
-    sheet.getRange("E" + row).setValue(midStats[i][0]).setFontColor(headerText).setFontSize(11).setBackground(cardBg);
-    setLocalFormula_(sheet.getRange("F" + row), midStats[i][1]).setFontColor(headerText).setFontSize(12).setFontWeight("bold").setHorizontalAlignment("center").setBackground(cardBg);
+    sheet.getRange("B" + row).setValue(leftStats[i][0]).setFontColor(headerText).setFontSize(10).setBackground(cardBg);
+    setLocalFormula_(sheet.getRange("C" + row), leftStats[i][1]).setFontColor(headerText).setFontSize(11).setFontWeight("bold").setHorizontalAlignment("center").setBackground(cardBg);
+    sheet.getRange("E" + row).setValue(midStats[i][0]).setFontColor(headerText).setFontSize(10).setBackground(cardBg);
+    setLocalFormula_(sheet.getRange("F" + row), midStats[i][1]).setFontColor(headerText).setFontSize(11).setFontWeight("bold").setHorizontalAlignment("center").setBackground(cardBg);
     if (rightStats[i][0]) {
-      sheet.getRange("H" + row).setValue(rightStats[i][0]).setFontColor(headerText).setFontSize(11).setBackground(cardBg);
-      setLocalFormula_(sheet.getRange("I" + row), rightStats[i][1]).setFontColor(accent).setFontSize(12).setFontWeight("bold").setHorizontalAlignment("center").setBackground(cardBg);
+      sheet.getRange("H" + row).setValue(rightStats[i][0]).setFontColor(headerText).setFontSize(10).setBackground(cardBg);
+      setLocalFormula_(sheet.getRange("I" + row), rightStats[i][1]).setFontColor(accentDark).setFontSize(11).setFontWeight("bold").setHorizontalAlignment("center").setBackground(cardBg);
     }
   }
 
@@ -320,51 +276,51 @@ function createDashboardSheet_(ss) {
 
   // ===== SAVAITĖS APŽVALGA =====
   sheet.setRowHeight(15, 15);
-  sheet.setRowHeight(16, 30);
+  sheet.setRowHeight(16, 28);
   sheet.getRange("B16:I16").merge().setValue("Savaitės apžvalga")
-    .setFontSize(15).setFontWeight("bold").setFontColor(headerText).setBackground(bgLight);
+    .setFontSize(14).setFontWeight("bold").setFontColor(headerText).setBackground(bg);
 
-  sheet.setRowHeight(17, 24);
+  sheet.setRowHeight(17, 22);
   sheet.getRange("B17:H17").setValues([["Diena", "SMS", "Skambučiai", "Booking", "Klaidos", "Perdavimai", ""]])
-    .setFontWeight("bold").setFontSize(10).setFontColor(subText).setBackground(cardBg);
+    .setFontWeight("bold").setFontSize(9).setFontColor(subText).setBackground("#F2F2F2");
   sheet.getRange("B17:H17").setBorder(true, true, false, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
 
   for (var d = 0; d < 7; d++) {
     var row = 18 + d;
     sheet.setRowHeight(row, 26);
-    var rowBg = d % 2 === 0 ? cardBg : bgLight;
+    var rowBg = d % 2 === 0 ? cardBg : "#F7F7F7";
     var dayStart = 'TEXT(TODAY()-' + d + ',"yyyy-MM-dd")';
     var dayEnd = 'TEXT(TODAY()-' + (d - 1) + ',"yyyy-MM-dd")';
 
     setLocalFormula_(sheet.getRange("B" + row), '=TEXT(TODAY()-' + d + ',"MM-dd, ddd")')
-      .setFontColor(headerText).setFontSize(11).setBackground(rowBg);
+      .setFontColor(headerText).setFontSize(10).setBackground(rowBg);
     setLocalFormula_(sheet.getRange("C" + row), '=IFERROR(COUNTIFS(SMS!A:A,">="&' + dayStart + ',SMS!A:A,"<"&' + dayEnd + '),0)')
       .setFontColor(headerText).setFontWeight("bold").setHorizontalAlignment("center").setBackground(rowBg);
     setLocalFormula_(sheet.getRange("D" + row), '=IFERROR(COUNTIFS(SMS!A:A,">="&' + dayStart + ',SMS!A:A,"<"&' + dayEnd + ',SMS!D:D,"Praleistas skambutis"),0)')
-      .setFontColor(orange).setFontWeight("bold").setHorizontalAlignment("center").setBackground(rowBg);
+      .setFontColor(warningColor).setFontWeight("bold").setHorizontalAlignment("center").setBackground(rowBg);
     setLocalFormula_(sheet.getRange("E" + row), '=IFERROR(COUNTIFS(SMS!A:A,">="&' + dayStart + ',SMS!A:A,"<"&' + dayEnd + ',SMS!D:D,"Booking"),0)')
-      .setFontColor(green).setFontWeight("bold").setHorizontalAlignment("center").setBackground(rowBg);
+      .setFontColor(successColor).setFontWeight("bold").setHorizontalAlignment("center").setBackground(rowBg);
     setLocalFormula_(sheet.getRange("F" + row), '=IFERROR(COUNTIFS(SMS!A:A,">="&' + dayStart + ',SMS!A:A,"<"&' + dayEnd + ',SMS!D:D,"Klaida"),0)')
-      .setFontColor(red).setFontWeight("bold").setHorizontalAlignment("center").setBackground(rowBg);
+      .setFontColor(dangerColor).setFontWeight("bold").setHorizontalAlignment("center").setBackground(rowBg);
     setLocalFormula_(sheet.getRange("G" + row), '=IFERROR(COUNTIFS(SMS!A:A,">="&' + dayStart + ',SMS!A:A,"<"&' + dayEnd + ',SMS!D:D,"Perdavimas"),0)')
-      .setFontColor(purple).setFontWeight("bold").setHorizontalAlignment("center").setBackground(rowBg);
+      .setFontColor(accentMid).setFontWeight("bold").setHorizontalAlignment("center").setBackground(rowBg);
   }
   sheet.getRange("B17:G24").setBorder(true, true, true, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
 
   // ===== PASKUTINĖS KLAIDOS =====
   sheet.setRowHeight(25, 15);
-  sheet.setRowHeight(26, 30);
+  sheet.setRowHeight(26, 28);
   sheet.getRange("B26:I26").merge().setValue("Paskutinės klaidos")
-    .setFontSize(15).setFontWeight("bold").setFontColor(red).setBackground(bgLight);
+    .setFontSize(14).setFontWeight("bold").setFontColor(dangerColor).setBackground(bg);
 
   sheet.setRowHeight(27, 22);
   sheet.getRange("B27:I27").setValues([["Data", "Telefonas", "", "Klaidos aprašymas", "", "", "", ""]])
-    .setFontWeight("bold").setFontSize(10).setFontColor(subText).setBackground(cardBg);
+    .setFontWeight("bold").setFontSize(9).setFontColor(subText).setBackground("#F2F2F2");
 
   for (var i = 0; i < 5; i++) {
     var row = 28 + i;
     sheet.setRowHeight(row, 26);
-    var rowBg = i % 2 === 0 ? cardBg : bgLight;
+    var rowBg = i % 2 === 0 ? cardBg : "#F7F7F7";
     var errorCount = 'IFERROR(COUNTA(FILTER(SMS!A:A,SMS!D:D="Klaida")),0)';
     var idx = i + 1;
     setLocalFormula_(sheet.getRange("B" + row),
@@ -376,44 +332,9 @@ function createDashboardSheet_(ss) {
     var errDescRange = sheet.getRange("D" + row + ":I" + row).merge();
     setLocalFormula_(errDescRange,
       '=IF(' + errorCount + '>=' + idx + ',INDEX(FILTER(SMS!F:F,SMS!D:D="Klaida"),' + errorCount + '+1-' + idx + '),"—")')
-    errDescRange.setFontColor(red).setFontSize(10).setBackground(rowBg).setWrap(true);
+    errDescRange.setFontColor(dangerColor).setFontSize(10).setBackground(rowBg).setWrap(true);
   }
   sheet.getRange("B27:I32").setBorder(true, true, true, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
-
-  // ===== PASKUTINIAI POKALBIAI =====
-  sheet.setRowHeight(33, 15);
-  sheet.setRowHeight(34, 30);
-  sheet.getRange("B34:I34").merge().setValue("Paskutiniai pokalbiai")
-    .setFontSize(15).setFontWeight("bold").setFontColor(headerText).setBackground(bgLight);
-
-  sheet.setRowHeight(35, 22);
-  sheet.getRange("B35:I35").setValues([["Data", "Vardas", "Tel.", "Tipas", "Siuntėjas", "Žinutė", "", ""]])
-    .setFontWeight("bold").setFontSize(10).setFontColor(subText).setBackground(cardBg);
-
-  for (var i = 0; i < 10; i++) {
-    var row = 36 + i;
-    sheet.setRowHeight(row, 26);
-    var rowBg = i % 2 === 0 ? cardBg : bgLight;
-    var smsRows = 'COUNTA(SMS!A:A)';
-    var targetRow = smsRows + '+1-' + (i + 1);
-    var cols = ["A", "B", "C", "D", "E", "F"];
-    var colTargets = ["B", "C", "D", "E", "F", "G"];
-    for (var c = 0; c < cols.length; c++) {
-      var formula = '=IF(' + smsRows + '>=' + (i + 2) + ',INDEX(SMS!' + cols[c] + ':' + cols[c] + ',' + targetRow + '),"")';
-      if (c === 5) {
-        var msgRange = sheet.getRange(colTargets[c] + row + ":I" + row).merge();
-        setLocalFormula_(msgRange, formula);
-        msgRange.setFontColor(headerText).setFontSize(10).setBackground(rowBg).setWrap(true);
-      } else if (c === 4) {
-        setLocalFormula_(sheet.getRange(colTargets[c] + row), formula)
-          .setFontColor(accent).setFontSize(10).setFontWeight("bold").setBackground(rowBg);
-      } else {
-        setLocalFormula_(sheet.getRange(colTargets[c] + row), formula)
-          .setFontColor(headerText).setFontSize(10).setBackground(rowBg);
-      }
-    }
-  }
-  sheet.getRange("B35:I45").setBorder(true, true, true, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
 
   sheet.protect().setDescription("Dashboard — automatinės formulės").setWarningOnly(true);
   sheet.setHiddenGridlines(true);
@@ -422,708 +343,16 @@ function createDashboardSheet_(ss) {
 function appleKpiCard_(sheet, startRow, col1, col2, label, formula, valueColor, cardBg, subText, borderColor) {
   sheet.getRange(col1 + startRow + ":" + col2 + startRow).merge()
     .setValue(label)
-    .setFontSize(11).setFontColor(subText)
+    .setFontSize(10).setFontColor(subText)
     .setBackground(cardBg).setHorizontalAlignment("center").setVerticalAlignment("bottom");
 
   var valueRow = startRow + 1;
   var valueRange = sheet.getRange(col1 + valueRow + ":" + col2 + valueRow).merge();
   setLocalFormula_(valueRange, formula);
-  valueRange.setFontSize(32).setFontWeight("bold").setFontColor(valueColor)
+  valueRange.setFontSize(30).setFontWeight("bold").setFontColor(valueColor)
     .setHorizontalAlignment("center").setVerticalAlignment("middle")
     .setBackground(cardBg);
 
   sheet.getRange(col1 + startRow + ":" + col2 + valueRow)
     .setBorder(true, true, true, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
 }
-
-// ==================== PATAISYMAI ====================
-
-function createCorrectionsSheet_(ss) {
-  var sheet = ss.getSheetByName("Pataisymai");
-  var isNew = false;
-
-  if (!sheet) {
-    sheet = ss.insertSheet("Pataisymai");
-    isNew = true;
-
-    var header = ["Kliento žinutė", "Blogas atsakymas", "Teisingas atsakymas", "Pastaba", "Statusas"];
-    sheet.getRange(1, 1, 1, 5).setValues([header]);
-    sheet.getRange("A1:E1").setFontWeight("bold").setFontSize(11)
-      .setBackground("#F5F5F7").setFontColor("#1D1D1F")
-      .setBorder(false, false, true, false, false, false, "#E5E5EA", SpreadsheetApp.BorderStyle.SOLID);
-
-    sheet.setColumnWidth(1, 300);
-    sheet.setColumnWidth(2, 300);
-    sheet.setColumnWidth(3, 300);
-    sheet.setColumnWidth(4, 200);
-    sheet.setColumnWidth(5, 130);
-    sheet.setFrozenRows(1);
-
-    var example = [
-      "Ar galima atvežti BMW?",
-      "Taip, priimame visus automobilius.",
-      "Taip, BMW aptarnaujame. Kokia problema? Galiu pasiūlyti laiką vizitui.",
-      "Pavyzdys",
-      "Pataisyta"
-    ];
-    sheet.getRange(2, 1, 1, 5).setValues([example]);
-    sheet.getRange("A2:E2").setFontColor("#86868B").setFontStyle("italic");
-  }
-
-  addMissingCorrections_(sheet);
-
-  if (isNew) {
-    var infoRow = sheet.getLastRow() + 2;
-    sheet.getRange("A" + infoRow).setValue("Kai app atsakė blogai — nukopijuok kliento žinutę ir blogą atsakymą čia, parašyk teisingą atsakymą, pakeisk statusą į \"Pataisyta\". App mokysis iš šių pataisymų.")
-      .setFontColor("#86868B").setFontStyle("italic");
-    sheet.getRange("A" + infoRow + ":E" + infoRow).merge();
-  }
-
-  Logger.log("Pataisymai " + (isNew ? "sukurtas" : "atnaujintas"));
-}
-
-function addMissingCorrections_(sheet) {
-  var corrections = [
-    [
-      "Sveiki, noreciau suzinoti ar galima pas jus patikrinti volvo xc60 variklio darba? Kartais pastebiu neiprastus garsus.",
-      "Deja, negalime suteikti informacijos apie automobilio remontą šiuo kanalu. Prašome paskambinti į mūsų servisą.",
-      "Sveiki! Taip, tikrai galime patikrinti Volvo XC60 variklį. Artimiausi laisvi laikai: rytoj 9:00 arba 14:00. Kuris Jums tiktų?",
-      "Negalima siųsti skambinti — žmogus jau skambino ir niekas nepakėlė. Tikslas: pasiūlyti laiką.",
-      "Laukia pataisymo"
-    ]
-  ];
-
-  var lastRow = sheet.getLastRow();
-  var existingData = lastRow > 1 ? sheet.getRange(2, 2, lastRow - 1, 1).getValues().map(function(r) { return r[0]; }) : [];
-
-  var toAdd = [];
-  for (var i = 0; i < corrections.length; i++) {
-    var badAnswer = corrections[i][1];
-    if (existingData.indexOf(badAnswer) === -1) {
-      toAdd.push(corrections[i]);
-    }
-  }
-
-  if (toAdd.length > 0) {
-    var startRow = lastRow + 1;
-    sheet.getRange(startRow, 1, toAdd.length, 5).setValues(toAdd);
-    Logger.log("Pridėta " + toAdd.length + " naujų pataisymų");
-  } else {
-    Logger.log("Visi pataisymai jau egzistuoja");
-  }
-}
-
-// ==================== SMS MIGRACIJA ====================
-
-function findOrMigrateSmsSheet_(ss) {
-  var smsSheet = ss.getSheetByName("SMS");
-  var logaiSheet = ss.getSheetByName("Logai");
-
-  Logger.log("SMS lapas: " + (smsSheet ? "rastas" : "nerastas"));
-  Logger.log("Logai lapas: " + (logaiSheet ? "rastas" : "nerastas"));
-
-  if (smsSheet) {
-    var lastCol = smsSheet.getLastColumn();
-    Logger.log("SMS stulpelių: " + lastCol + ", eilučių: " + smsSheet.getLastRow());
-
-    if (lastCol >= 5) {
-      var header = smsSheet.getRange("A1:F1").getValues()[0];
-      Logger.log("SMS header: " + header.join(" | "));
-
-      if (header[4] === "Siuntėjas") {
-        Logger.log("SMS jau teisingo formato — nieko nedaryti");
-        return;
-      }
-
-      if (header[4] === "Kliento žinutė") {
-        Logger.log("SMS seno horizontalaus formato — migruojam");
-        migrateHorizontal6ToVertical_(smsSheet);
-        return;
-      }
-
-      if (header[3] === "Žinutė" && header[4] === "AI atsakymas") {
-        Logger.log("SMS su Logai formatu (5 stulpeliai) — migruojam");
-        migrateLogaiFormatToVertical_(smsSheet);
-        return;
-      }
-    }
-
-    Logger.log("SMS lapas rastas bet neatpažintas formatas — perkuriam header");
-    smsSheet.getRange("A1:F1").setValues([["Data", "Vardas", "Telefonas", "Tipas", "Siuntėjas", "Žinutė"]]);
-    smsSheet.getRange("A1:F1").setFontWeight("bold").setFontSize(11)
-      .setBackground("#F5F5F7").setFontColor("#1D1D1F");
-    return;
-  }
-
-  if (logaiSheet) {
-    Logger.log("Migruojam Logai → SMS");
-    migrateLogaiToSms_(logaiSheet);
-    return;
-  }
-
-  Logger.log("Nei SMS nei Logai nerasta — kuriam naują SMS lapą");
-  var sheet = ss.insertSheet("SMS");
-  sheet.getRange("A1:F1").setValues([["Data", "Vardas", "Telefonas", "Tipas", "Siuntėjas", "Žinutė"]]);
-  sheet.getRange("A1:F1").setFontWeight("bold").setFontSize(11)
-    .setBackground("#F5F5F7").setFontColor("#1D1D1F");
-  sheet.setColumnWidth(1, 140);
-  sheet.setColumnWidth(2, 120);
-  sheet.setColumnWidth(3, 120);
-  sheet.setColumnWidth(4, 130);
-  sheet.setColumnWidth(5, 90);
-  sheet.setColumnWidth(6, 400);
-  sheet.setFrozenRows(1);
-}
-
-function migrateLogaiToSms_(logaiSheet) {
-  var lastRow = logaiSheet.getLastRow();
-  Logger.log("Logai eilučių: " + lastRow);
-  var newRows = [];
-
-  if (lastRow > 1) {
-    var data = logaiSheet.getRange(2, 1, lastRow - 1, 5).getValues();
-
-    for (var i = 0; i < data.length; i++) {
-      var timestamp = data[i][0];
-      var phone = data[i][1] ? data[i][1].toString() : "";
-      var type = data[i][2] ? data[i][2].toString() : "";
-      var message = data[i][3] ? data[i][3].toString() : "";
-      var aiReply = data[i][4] ? data[i][4].toString() : "";
-
-      if (!timestamp && !phone && !message && !aiReply) continue;
-
-      var sender = "Klientas";
-      if (type === "Praleistas skambutis" || type === "Perdavimas" ||
-          type === "Uždarytas" || type === "Klaida") {
-        sender = "Sistema";
-      }
-
-      if (message) {
-        newRows.push([timestamp, "", phone, type, sender, message]);
-      }
-      if (aiReply) {
-        newRows.push([timestamp, "", phone, type, "Agentas", aiReply]);
-      }
-    }
-  }
-
-  logaiSheet.setName("SMS");
-  logaiSheet.clear();
-
-  logaiSheet.getRange("A1:F1").setValues([["Data", "Vardas", "Telefonas", "Tipas", "Siuntėjas", "Žinutė"]]);
-  logaiSheet.getRange("A1:F1").setFontWeight("bold").setFontSize(11)
-    .setBackground("#F5F5F7").setFontColor("#1D1D1F");
-  logaiSheet.setColumnWidth(1, 140);
-  logaiSheet.setColumnWidth(2, 120);
-  logaiSheet.setColumnWidth(3, 120);
-  logaiSheet.setColumnWidth(4, 130);
-  logaiSheet.setColumnWidth(5, 90);
-  logaiSheet.setColumnWidth(6, 400);
-  logaiSheet.setFrozenRows(1);
-
-  if (newRows.length > 0) {
-    logaiSheet.getRange(2, 1, newRows.length, 6).setValues(newRows);
-  }
-  Logger.log("Logai → SMS migracija baigta, naujų eilučių: " + newRows.length);
-}
-
-function migrateLogaiFormatToVertical_(smsSheet) {
-  var lastRow = smsSheet.getLastRow();
-  var newRows = [];
-
-  if (lastRow > 1) {
-    var data = smsSheet.getRange(2, 1, lastRow - 1, 5).getValues();
-
-    for (var i = 0; i < data.length; i++) {
-      var timestamp = data[i][0];
-      var phone = data[i][1] ? data[i][1].toString() : "";
-      var type = data[i][2] ? data[i][2].toString() : "";
-      var message = data[i][3] ? data[i][3].toString() : "";
-      var aiReply = data[i][4] ? data[i][4].toString() : "";
-
-      if (!timestamp && !phone && !message && !aiReply) continue;
-
-      var sender = "Klientas";
-      if (type === "Praleistas skambutis" || type === "Perdavimas" ||
-          type === "Uždarytas" || type === "Klaida") {
-        sender = "Sistema";
-      }
-
-      if (message) {
-        newRows.push([timestamp, "", phone, type, sender, message]);
-      }
-      if (aiReply) {
-        newRows.push([timestamp, "", phone, type, "Agentas", aiReply]);
-      }
-    }
-  }
-
-  smsSheet.clear();
-  smsSheet.getRange("A1:F1").setValues([["Data", "Vardas", "Telefonas", "Tipas", "Siuntėjas", "Žinutė"]]);
-  smsSheet.getRange("A1:F1").setFontWeight("bold").setFontSize(11)
-    .setBackground("#F5F5F7").setFontColor("#1D1D1F");
-  smsSheet.setColumnWidth(1, 140);
-  smsSheet.setColumnWidth(2, 120);
-  smsSheet.setColumnWidth(3, 120);
-  smsSheet.setColumnWidth(4, 130);
-  smsSheet.setColumnWidth(5, 90);
-  smsSheet.setColumnWidth(6, 400);
-  smsSheet.setFrozenRows(1);
-
-  if (newRows.length > 0) {
-    smsSheet.getRange(2, 1, newRows.length, 6).setValues(newRows);
-  }
-  Logger.log("SMS Logai-formato migracija baigta, naujų eilučių: " + newRows.length);
-}
-
-function migrateHorizontal6ToVertical_(smsSheet) {
-  var lastRow = smsSheet.getLastRow();
-  Logger.log("Horizontalaus formato migracija, eilučių: " + lastRow);
-
-  if (lastRow <= 1) {
-    smsSheet.getRange("E1").setValue("Siuntėjas");
-    smsSheet.getRange("F1").setValue("Žinutė");
-    return;
-  }
-
-  var data = smsSheet.getRange(2, 1, lastRow - 1, 6).getValues();
-  var newRows = [];
-
-  for (var i = 0; i < data.length; i++) {
-    var timestamp = data[i][0];
-    var name = data[i][1] ? data[i][1].toString() : "";
-    var phone = data[i][2] ? data[i][2].toString() : "";
-    var type = data[i][3] ? data[i][3].toString() : "";
-    var clientMsg = data[i][4] ? data[i][4].toString() : "";
-    var aiReply = data[i][5] ? data[i][5].toString() : "";
-
-    if (!timestamp && !phone && !clientMsg && !aiReply) continue;
-
-    var sender = "Klientas";
-    if (type === "Praleistas skambutis" || type === "Perdavimas" ||
-        type === "Uždarytas" || type === "Klaida") {
-      sender = "Sistema";
-    }
-
-    if (clientMsg) {
-      newRows.push([timestamp, name, phone, type, sender, clientMsg]);
-    }
-    if (aiReply) {
-      newRows.push([timestamp, name, phone, type, "Agentas", aiReply]);
-    }
-  }
-
-  smsSheet.clear();
-  smsSheet.getRange("A1:F1").setValues([["Data", "Vardas", "Telefonas", "Tipas", "Siuntėjas", "Žinutė"]]);
-  smsSheet.getRange("A1:F1").setFontWeight("bold").setFontSize(11)
-    .setBackground("#F5F5F7").setFontColor("#1D1D1F");
-
-  if (newRows.length > 0) {
-    smsSheet.getRange(2, 1, newRows.length, 6).setValues(newRows);
-  }
-  Logger.log("Horizontalaus formato migracija baigta, naujų eilučių: " + newRows.length);
-}
-
-// ==================== STULPELIŲ POSLINKIO TAISYMAS ====================
-
-function fixShiftedRows_(ss) {
-  var sms = ss.getSheetByName("SMS");
-  if (!sms) return;
-
-  var lastRow = sms.getLastRow();
-  if (lastRow <= 1) return;
-
-  var data = sms.getRange(2, 1, lastRow - 1, 6).getValues();
-  var fixed = 0;
-
-  for (var i = 0; i < data.length; i++) {
-    var vardas = data[i][1] ? data[i][1].toString() : "";
-    var telefonas = data[i][2] ? data[i][2].toString() : "";
-
-    // Shifted row: phone number is in Vardas column (B), Telefonas (C) has something else
-    if (vardas.match(/^\+?\d{8,}$/) && !telefonas.match(/^\+?\d{8,}$/)) {
-      // Shift right: insert empty Vardas, move everything right
-      var row = i + 2;
-      var newRow = [data[i][0], "", vardas, data[i][2], data[i][3], data[i][4]];
-      sms.getRange(row, 1, 1, 6).setValues([newRow]);
-      fixed++;
-    }
-  }
-
-  if (fixed > 0) {
-    Logger.log("Pataisyta " + fixed + " eilučių su pasislinkusiais stulpeliais");
-  } else {
-    Logger.log("Pasislinkusių eilučių nerasta");
-  }
-}
-
-// ==================== SMS VIZUALINIS FORMATAVIMAS ====================
-
-function formatSmsSheet_(ss) {
-  var sms = ss.getSheetByName("SMS");
-  if (!sms) return;
-
-  var lastRow = sms.getLastRow();
-  if (lastRow <= 1) return;
-
-  // Spalvų paletė pokalbių atskyrimui (šviesūs fonai)
-  var conversationColors = [
-    "#FFFFFF",  // balta
-    "#F0F7FF",  // šviesiai mėlyna
-    "#FFF8F0",  // šviesiai oranžinė
-    "#F0FFF4",  // šviesiai žalia
-    "#FFF0F8",  // šviesiai rožinė
-    "#F8F0FF",  // šviesiai violetinė
-    "#F0FFFF",  // šviesiai žydra
-    "#FFFFF0",  // šviesiai geltona
-  ];
-
-  // Siuntėjų spalvos
-  var senderColors = {
-    "Klientas": "#1D1D1F",
-    "Agentas": "#007AFF",
-    "Sistema": "#86868B"
-  };
-
-  var senderBgs = {
-    "Klientas": null,
-    "Agentas": "#EBF5FF",
-    "Sistema": "#F5F5F7"
-  };
-
-  var data = sms.getRange(2, 1, lastRow - 1, 6).getValues();
-
-  // Sugrupuoti pokalbius pagal telefono numerį
-  var phoneToColor = {};
-  var colorIndex = 0;
-
-  for (var i = 0; i < data.length; i++) {
-    var row = i + 2;
-    var phone = data[i][2] ? data[i][2].toString() : "";
-    var sender = data[i][4] ? data[i][4].toString() : "";
-
-    // Priskirti spalvą pokalbiui
-    if (phone && !phoneToColor[phone]) {
-      phoneToColor[phone] = conversationColors[colorIndex % conversationColors.length];
-      colorIndex++;
-    }
-
-    var rowBg = phone ? phoneToColor[phone] : "#FFFFFF";
-    var senderBg = senderBgs[sender];
-
-    // Fono spalva pagal pokalbį
-    sms.getRange(row, 1, 1, 6).setBackground(rowBg);
-
-    // Siuntėjo teksto spalva
-    var textColor = senderColors[sender] || "#1D1D1F";
-    sms.getRange(row, 5).setFontColor(textColor).setFontWeight("bold");
-
-    // Žinutės spalva pagal siuntėją
-    sms.getRange(row, 6).setFontColor(textColor);
-
-    // Agentas ir Sistema gauna subtilesnį foną žinutės stulpelyje
-    if (senderBg) {
-      sms.getRange(row, 5, 1, 2).setBackground(senderBg);
-    }
-  }
-
-  // Pokalbių skirtukai — storesnis apatinis kraštas kai keičiasi telefono numeris
-  var prevPhone = "";
-  for (var i = 0; i < data.length; i++) {
-    var phone = data[i][2] ? data[i][2].toString() : "";
-    if (prevPhone && phone !== prevPhone) {
-      var row = i + 2;
-      sms.getRange(row, 1, 1, 6).setBorder(true, false, false, false, false, false, "#CCCCCC", SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
-    }
-    prevPhone = phone;
-  }
-
-  // Stulpelių pločiai
-  sms.setColumnWidth(1, 140);
-  sms.setColumnWidth(2, 120);
-  sms.setColumnWidth(3, 120);
-  sms.setColumnWidth(4, 130);
-  sms.setColumnWidth(5, 90);
-  sms.setColumnWidth(6, 450);
-
-  // Žinutės stulpelis su word wrap
-  sms.getRange(2, 6, lastRow - 1, 1).setWrap(true);
-
-  Logger.log("SMS formatavimas baigtas, pokalbių: " + colorIndex + ", eilučių: " + (lastRow - 1));
-}
-
-// ==================== POKALBIAI (CHAT BUBBLES) ====================
-
-function createChatView_(ss) {
-  var existing = ss.getSheetByName("Pokalbiai");
-  if (existing) ss.deleteSheet(existing);
-
-  var sms = ss.getSheetByName("SMS");
-  if (!sms) return;
-
-  var lastRow = sms.getLastRow();
-  if (lastRow <= 1) {
-    Logger.log("SMS tuščias — Pokalbiai nereikalingas");
-    return;
-  }
-
-  var data = sms.getRange(2, 1, lastRow - 1, 6).getValues();
-
-  // Sugrupuoti pagal telefono numerį, išlaikant chronologinę tvarką
-  var conversations = [];
-  var phoneOrder = [];
-  var phoneMap = {};
-
-  for (var i = 0; i < data.length; i++) {
-    var phone = data[i][2] ? data[i][2].toString() : "";
-    if (!phone) phone = data[i][1] ? data[i][1].toString() : "Nežinomas";
-
-    if (!phoneMap[phone]) {
-      phoneMap[phone] = { phone: phone, name: "", messages: [], firstTime: "", lastTime: "", hasBooking: false, hasError: false };
-      phoneOrder.push(phone);
-    }
-    var convo = phoneMap[phone];
-
-    var timestamp = data[i][0] ? data[i][0].toString() : "";
-    var name = data[i][1] ? data[i][1].toString() : "";
-    var type = data[i][3] ? data[i][3].toString() : "";
-    var sender = data[i][4] ? data[i][4].toString() : "";
-    var message = data[i][5] ? data[i][5].toString() : "";
-
-    if (name && !name.match(/^\+?\d{8,}$/)) convo.name = name;
-    if (!convo.firstTime) convo.firstTime = timestamp;
-    convo.lastTime = timestamp;
-    if (type === "Booking" || type === "Savininko booking") convo.hasBooking = true;
-    if (type === "Klaida") convo.hasError = true;
-
-    convo.messages.push({ timestamp: timestamp, type: type, sender: sender, message: message });
-  }
-
-  // Naujausias pokalbis viršuje
-  phoneOrder.reverse();
-
-  var sheet = ss.insertSheet("Pokalbiai");
-
-  // Stulpelių pločiai
-  sheet.setColumnWidth(1, 40);   // ikona
-  sheet.setColumnWidth(2, 550);  // žinutė
-  sheet.setColumnWidth(3, 120);  // laikas
-
-  var bgLight = "#F5F5F7";
-  var white = "#FFFFFF";
-  var headerBg = "#1D1D1F";
-  var headerText = "#FFFFFF";
-  var bookingBg = "#E8F5E9";
-  var bookingColor = "#2E7D32";
-  var errorBg = "#FFEBEE";
-  var errorColor = "#C62828";
-  var agentBg = "#E3F2FD";
-  var agentColor = "#1565C0";
-  var systemColor = "#9E9E9E";
-  var clientColor = "#1D1D1F";
-  var waitingBg = "#FFF8E1";
-
-  sheet.getRange("A:C").setBackground(bgLight).setFontFamily("Helvetica Neue");
-
-  var row = 1;
-
-  // Viršutinis header
-  sheet.getRange("A1:C1").merge().setValue("Pokalbiai · Proteros Servisas")
-    .setFontSize(16).setFontWeight("bold").setFontColor("#1D1D1F")
-    .setBackground(bgLight).setVerticalAlignment("middle");
-  sheet.setRowHeight(1, 45);
-  row = 2;
-
-  sheet.getRange("A2:C2").merge()
-    .setValue("Naujausias viršuje · Atnaujinta: " + Utilities.formatDate(new Date(), "Europe/Vilnius", "yyyy-MM-dd HH:mm"))
-    .setFontSize(9).setFontColor("#86868B").setBackground(bgLight);
-  sheet.setRowHeight(2, 20);
-  row = 3;
-
-  // Tarpas
-  sheet.setRowHeight(row, 8);
-  row++;
-
-  for (var p = 0; p < phoneOrder.length; p++) {
-    var convo = phoneMap[phoneOrder[p]];
-
-    // ===== POKALBIO HEADER =====
-    var statusIcon = "⏳";
-    var statusText = "Laukia atsakymo";
-    var statusBgColor = waitingBg;
-    if (convo.hasBooking) {
-      statusIcon = "✅";
-      statusText = "Užregistruotas";
-      statusBgColor = bookingBg;
-    } else if (convo.hasError) {
-      statusIcon = "❌";
-      statusText = "Klaida";
-      statusBgColor = errorBg;
-    }
-
-    var displayName = convo.name || "(nežinomas)";
-    var headerLabel = "📞  " + displayName + "  ·  " + convo.phone;
-
-    sheet.setRowHeight(row, 32);
-    sheet.getRange("A" + row + ":B" + row).merge()
-      .setValue(headerLabel)
-      .setFontSize(12).setFontWeight("bold").setFontColor(headerText)
-      .setBackground(headerBg).setVerticalAlignment("middle");
-
-    var timeStr = convo.firstTime;
-    if (timeStr.length > 16) timeStr = timeStr.substring(5, 16);
-    sheet.getRange("C" + row)
-      .setValue(statusIcon + " " + statusText)
-      .setFontSize(10).setFontWeight("bold")
-      .setFontColor(convo.hasBooking ? bookingColor : (convo.hasError ? errorColor : "#F57F17"))
-      .setBackground(statusBgColor).setHorizontalAlignment("center").setVerticalAlignment("middle");
-
-    sheet.getRange("A" + row + ":C" + row)
-      .setBorder(true, true, false, true, false, false, "#BDBDBD", SpreadsheetApp.BorderStyle.SOLID);
-    row++;
-
-    // Data eilutė
-    sheet.setRowHeight(row, 18);
-    sheet.getRange("A" + row + ":C" + row).merge()
-      .setValue("    " + convo.firstTime + (convo.firstTime !== convo.lastTime ? "  →  " + convo.lastTime : ""))
-      .setFontSize(9).setFontColor("#9E9E9E").setBackground(white);
-    row++;
-
-    // ===== ŽINUTĖS =====
-    for (var m = 0; m < convo.messages.length; m++) {
-      var msg = convo.messages[m];
-
-      var icon = "";
-      var msgText = "";
-      var msgBg = white;
-      var msgColor = clientColor;
-      var msgWeight = "normal";
-      var rowHeight = 28;
-
-      if (msg.type === "Praleistas skambutis" && msg.sender === "Sistema") {
-        icon = "🔴";
-        msgText = "Praleistas skambutis";
-        msgBg = "#FFF3F0";
-        msgColor = "#E65100";
-        rowHeight = 24;
-      } else if (msg.type === "Klaida") {
-        icon = "⚠️";
-        msgText = msg.message;
-        msgBg = errorBg;
-        msgColor = errorColor;
-        rowHeight = 26;
-      } else if ((msg.type === "Booking" || msg.type === "Savininko booking") && msg.sender === "Agentas") {
-        icon = "✅";
-        var bookingInfo = msg.message;
-        if (bookingInfo.indexOf("|") > -1) {
-          var parts = bookingInfo.split("|");
-          msgText = parts[0].trim() + "  ·  " + parts[1].trim();
-          if (parts[2]) msgText += "\n" + parts[2].trim();
-        } else {
-          msgText = bookingInfo;
-        }
-        msgBg = bookingBg;
-        msgColor = bookingColor;
-        msgWeight = "bold";
-        rowHeight = 42;
-      } else if ((msg.type === "Booking" || msg.type === "Savininko booking") && msg.sender !== "Agentas") {
-        icon = "👤";
-        msgText = msg.message;
-        msgBg = bookingBg;
-        msgColor = bookingColor;
-      } else if (msg.sender === "Agentas") {
-        icon = "🤖";
-        msgText = msg.message;
-        msgBg = agentBg;
-        msgColor = agentColor;
-        if (msg.message.length > 100) rowHeight = 52;
-        if (msg.message.length > 200) rowHeight = 72;
-      } else if (msg.sender === "Klientas") {
-        icon = "👤";
-        msgText = msg.message;
-        msgBg = white;
-        msgColor = clientColor;
-        if (msg.message.length > 100) rowHeight = 42;
-      } else {
-        icon = "ℹ️";
-        msgText = msg.message;
-        msgBg = "#F5F5F5";
-        msgColor = systemColor;
-      }
-
-      // Praleidžiam dubliuotus greeting po "Praleistas skambutis"
-      if (msg.sender === "Agentas" && msg.type === "Praleistas skambutis" && m > 0
-          && convo.messages[m-1].type === "Praleistas skambutis" && convo.messages[m-1].sender === "Sistema") {
-        // Trumpinam greeting
-        var greeting = msg.message;
-        if (greeting.length > 80) {
-          greeting = greeting.substring(0, 77) + "...";
-        }
-        icon = "🤖";
-        msgText = greeting;
-        msgBg = agentBg;
-        msgColor = agentColor;
-        rowHeight = 28;
-      }
-
-      sheet.setRowHeight(row, rowHeight);
-      sheet.getRange("A" + row).setValue(icon)
-        .setFontSize(14).setHorizontalAlignment("center").setVerticalAlignment("top")
-        .setBackground(msgBg);
-      sheet.getRange("B" + row).setValue(msgText)
-        .setFontSize(10).setFontColor(msgColor).setFontWeight(msgWeight)
-        .setBackground(msgBg).setWrap(true).setVerticalAlignment("top");
-
-      // Laikas tik pirmai ir paskutinei žinutei, arba jei keičiasi minutė
-      var showTime = (m === 0 || m === convo.messages.length - 1);
-      if (m > 0 && msg.timestamp !== convo.messages[m-1].timestamp) showTime = true;
-      if (showTime) {
-        var t = msg.timestamp;
-        if (t.length > 16) t = t.substring(11, 16);
-        sheet.getRange("C" + row).setValue(t)
-          .setFontSize(9).setFontColor("#BDBDBD").setHorizontalAlignment("right").setVerticalAlignment("top")
-          .setBackground(msgBg);
-      } else {
-        sheet.getRange("C" + row).setBackground(msgBg);
-      }
-
-      // Šoniniai border
-      sheet.getRange("A" + row + ":C" + row)
-        .setBorder(false, true, false, true, false, false, "#BDBDBD", SpreadsheetApp.BorderStyle.SOLID);
-      row++;
-    }
-
-    // ===== POKALBIO APAČIA =====
-    sheet.setRowHeight(row, 4);
-    sheet.getRange("A" + row + ":C" + row)
-      .setBorder(false, true, true, true, false, false, "#BDBDBD", SpreadsheetApp.BorderStyle.SOLID)
-      .setBackground(white);
-    row++;
-
-    // Tarpas tarp pokalbių
-    sheet.setRowHeight(row, 12);
-    sheet.getRange("A" + row + ":C" + row).setBackground(bgLight);
-    row++;
-  }
-
-  // Statistika apačioje
-  sheet.setRowHeight(row, 8);
-  row++;
-  var totalConversations = phoneOrder.length;
-  var totalBookings = 0;
-  var totalErrors = 0;
-  for (var k = 0; k < phoneOrder.length; k++) {
-    if (phoneMap[phoneOrder[k]].hasBooking) totalBookings++;
-    if (phoneMap[phoneOrder[k]].hasError) totalErrors++;
-  }
-  sheet.getRange("A" + row + ":C" + row).merge()
-    .setValue("Viso pokalbių: " + totalConversations + "  ·  Užregistruota: " + totalBookings + "  ·  Klaidos: " + totalErrors + "  ·  Laukia: " + (totalConversations - totalBookings - totalErrors))
-    .setFontSize(10).setFontColor("#86868B").setBackground(bgLight).setHorizontalAlignment("center");
-  sheet.setRowHeight(row, 28);
-
-  sheet.setHiddenGridlines(true);
-  sheet.protect().setDescription("Pokalbiai — generuojamas automatiškai").setWarningOnly(true);
-
-  Logger.log("Pokalbiai sukurtas: " + totalConversations + " pokalbių, " + (row) + " eilučių");
-}
-
