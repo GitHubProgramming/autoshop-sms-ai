@@ -101,6 +101,31 @@ function diagnoseSheet() {
   SpreadsheetApp.getUi().alert(text.substring(0, 1500));
 }
 
+function diagnoseStatusas() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var st = ss.getSheetByName("Statusas");
+  if (!st) { SpreadsheetApp.getUi().alert("Statusas lapas NERASTAS!"); return; }
+
+  var lastRow = st.getLastRow();
+  var lastCol = st.getLastColumn();
+  var report = [];
+  report.push("Statusas: " + lastRow + " eil, " + lastCol + " stulp");
+
+  var data = st.getRange(1, 1, lastRow, lastCol).getValues();
+  for (var r = 0; r < data.length; r++) {
+    var cells = [];
+    for (var c = 0; c < data[r].length; c++) {
+      var v = data[r][c] ? data[r][c].toString() : "";
+      if (v) cells.push("[" + c + "]=" + v);
+    }
+    report.push("Row" + r + ": " + cells.join(" | "));
+  }
+
+  var text = report.join("\n");
+  Logger.log(text);
+  SpreadsheetApp.getUi().alert(text.substring(0, 1500));
+}
+
 // ==================== DASHBOARD ====================
 
 function createDashboardSheet_(ss) {
