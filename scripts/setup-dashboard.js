@@ -190,19 +190,16 @@ function createDashboardSheet_(ss) {
   // ===== KPI CARDS ROW 1 =====
   sheet.setRowHeight(3, 12);
 
-  var todayStr = 'TEXT(TODAY(),"yyyy-MM-dd")';
-  var tomorrowStr = 'TEXT(TODAY()+1,"yyyy-MM-dd")';
-
   appleKpiCard_(sheet, 4, "B", "C", "SMS šiandien",
-    '=IFERROR(COUNTIFS(LEFT(SMS!A:A,10),">="&' + todayStr + ',LEFT(SMS!A:A,10),"<"&' + tomorrowStr + '),0)',
+    '=IFERROR(COUNTIFS(SMS!A:A,">="&TODAY(),SMS!A:A,"<"&TODAY()+1),0)',
     accentDark, cardBg, subText, borderColor);
 
   appleKpiCard_(sheet, 4, "E", "F", "Praleisti skambučiai",
-    '=IFERROR(COUNTIFS(LEFT(SMS!A:A,10),">="&' + todayStr + ',LEFT(SMS!A:A,10),"<"&' + tomorrowStr + ',SMS!D:D,"Praleistas skambutis"),0)',
+    '=IFERROR(COUNTIFS(SMS!A:A,">="&TODAY(),SMS!A:A,"<"&TODAY()+1,SMS!D:D,"Praleistas skambutis"),0)',
     warningColor, cardBg, subText, borderColor);
 
   appleKpiCard_(sheet, 4, "H", "I", "Užsakymai",
-    '=IFERROR(COUNTIFS(LEFT(SMS!A:A,10),">="&' + todayStr + ',LEFT(SMS!A:A,10),"<"&' + tomorrowStr + ',SMS!D:D,"Booking"),0)',
+    '=IFERROR(COUNTIFS(SMS!A:A,">="&TODAY(),SMS!A:A,"<"&TODAY()+1,SMS!D:D,"Booking"),0)',
     successColor, cardBg, subText, borderColor);
 
   sheet.setRowHeight(4, 22);
@@ -211,11 +208,11 @@ function createDashboardSheet_(ss) {
 
   // ===== KPI CARDS ROW 2 =====
   appleKpiCard_(sheet, 7, "B", "C", "Klaidos",
-    '=IFERROR(COUNTIFS(LEFT(SMS!A:A,10),">="&' + todayStr + ',LEFT(SMS!A:A,10),"<"&' + tomorrowStr + ',SMS!D:D,"Klaida"),0)',
+    '=IFERROR(COUNTIFS(SMS!A:A,">="&TODAY(),SMS!A:A,"<"&TODAY()+1,SMS!D:D,"Klaida"),0)',
     dangerColor, cardBg, subText, borderColor);
 
   appleKpiCard_(sheet, 7, "E", "F", "Perdavimai savininkui",
-    '=IFERROR(COUNTIFS(LEFT(SMS!A:A,10),">="&' + todayStr + ',LEFT(SMS!A:A,10),"<"&' + tomorrowStr + ',SMS!D:D,"Perdavimas"),0)',
+    '=IFERROR(COUNTIFS(SMS!A:A,">="&TODAY(),SMS!A:A,"<"&TODAY()+1,SMS!D:D,"Perdavimas"),0)',
     accentMid, cardBg, subText, borderColor);
 
   appleKpiCard_(sheet, 7, "H", "I", "Laukia pataisymo",
@@ -241,23 +238,19 @@ function createDashboardSheet_(ss) {
   sheet.getRange("H11:I11").setValues([statsLabels])
     .setFontWeight("bold").setFontSize(9).setFontColor(subText).setBackground("#F2F2F2");
 
-  var LA = 'LEFT(SMS!A:A,10)';
-  var todayGte = '"&TEXT(TODAY(),"yyyy-MM-dd")';
-  var tomorrowLt = '"&TEXT(TODAY()+1,"yyyy-MM-dd")';
-
   var leftStats = [
-    ["Pokalbiai (AI)", '=IFERROR(COUNTIFS(' + LA + ',">=' + todayGte + ',' + LA + ',"<' + tomorrowLt + ',SMS!D:D,"Pokalbis",SMS!E:E,"Agentas"),0)'],
-    ["Klientų žinutės", '=IFERROR(COUNTIFS(' + LA + ',">=' + todayGte + ',' + LA + ',"<' + tomorrowLt + ',SMS!E:E,"Klientas"),0)'],
-    ["AI atsakymai", '=IFERROR(COUNTIFS(' + LA + ',">=' + todayGte + ',' + LA + ',"<' + tomorrowLt + ',SMS!E:E,"Agentas"),0)'],
+    ["Pokalbiai (AI)", '=IFERROR(COUNTIFS(SMS!A:A,">="&TODAY(),SMS!A:A,"<"&TODAY()+1,SMS!D:D,"Pokalbis",SMS!E:E,"Agentas"),0)'],
+    ["Klientų žinutės", '=IFERROR(COUNTIFS(SMS!A:A,">="&TODAY(),SMS!A:A,"<"&TODAY()+1,SMS!E:E,"Klientas"),0)'],
+    ["AI atsakymai", '=IFERROR(COUNTIFS(SMS!A:A,">="&TODAY(),SMS!A:A,"<"&TODAY()+1,SMS!E:E,"Agentas"),0)'],
   ];
   var midStats = [
-    ["Uždaryti pokalbiai", '=IFERROR(COUNTIFS(' + LA + ',">=' + todayGte + ',' + LA + ',"<' + tomorrowLt + ',SMS!D:D,"Uždarytas"),0)'],
-    ["Savininko booking", '=IFERROR(COUNTIFS(' + LA + ',">=' + todayGte + ',' + LA + ',"<' + tomorrowLt + ',SMS!D:D,"Savininko booking"),0)'],
+    ["Uždaryti pokalbiai", '=IFERROR(COUNTIFS(SMS!A:A,">="&TODAY(),SMS!A:A,"<"&TODAY()+1,SMS!D:D,"Uždarytas"),0)'],
+    ["Savininko booking", '=IFERROR(COUNTIFS(SMS!A:A,">="&TODAY(),SMS!A:A,"<"&TODAY()+1,SMS!D:D,"Savininko booking"),0)'],
     ["Pataisymai (viso)", '=IFERROR(COUNTA(Pataisymai!A2:A),0)'],
   ];
   var rightStats = [
-    ["Konversija", '=IFERROR(TEXT(COUNTIFS(' + LA + ',">=' + todayGte + ',' + LA + ',"<' + tomorrowLt + ',SMS!D:D,"Booking")/COUNTIFS(' + LA + ',">=' + todayGte + ',' + LA + ',"<' + tomorrowLt + ',SMS!D:D,"Praleistas skambutis"),"0%"),"—")'],
-    ["Sėkmės rodiklis", '=IFERROR(TEXT(1-COUNTIFS(' + LA + ',">=' + todayGte + ',' + LA + ',"<' + tomorrowLt + ',SMS!D:D,"Klaida")/COUNTIFS(' + LA + ',">=' + todayGte + ',' + LA + ',"<' + tomorrowLt + '),"0%"),"—")'],
+    ["Konversija", '=IFERROR(TEXT(COUNTIFS(SMS!A:A,">="&TODAY(),SMS!A:A,"<"&TODAY()+1,SMS!D:D,"Booking")/COUNTIFS(SMS!A:A,">="&TODAY(),SMS!A:A,"<"&TODAY()+1,SMS!D:D,"Praleistas skambutis"),"0%"),"—")'],
+    ["Sėkmės rodiklis", '=IFERROR(TEXT(1-COUNTIFS(SMS!A:A,">="&TODAY(),SMS!A:A,"<"&TODAY()+1,SMS!D:D,"Klaida")/COUNTIFS(SMS!A:A,">="&TODAY(),SMS!A:A,"<"&TODAY()+1),"0%"),"—")'],
     ["", ""],
   ];
 
@@ -293,20 +286,17 @@ function createDashboardSheet_(ss) {
     var row = 18 + d;
     sheet.setRowHeight(row, 26);
     var rowBg = d % 2 === 0 ? cardBg : "#F7F7F7";
-    var dayStart = 'TEXT(TODAY()-' + d + ',"yyyy-MM-dd")';
-    var dayEnd = 'TEXT(TODAY()-' + (d - 1) + ',"yyyy-MM-dd")';
-
     setLocalFormula_(sheet.getRange("B" + row), '=TEXT(TODAY()-' + d + ',"MM-dd, ddd")')
       .setFontColor(headerText).setFontSize(10).setBackground(rowBg);
-    setLocalFormula_(sheet.getRange("C" + row), '=IFERROR(COUNTIFS(LEFT(SMS!A:A,10),">="&' + dayStart + ',LEFT(SMS!A:A,10),"<"&' + dayEnd + '),0)')
+    setLocalFormula_(sheet.getRange("C" + row), '=IFERROR(COUNTIFS(SMS!A:A,">="&TODAY()-' + d + ',SMS!A:A,"<"&TODAY()-' + (d-1) + '),0)')
       .setFontColor(headerText).setFontWeight("bold").setHorizontalAlignment("center").setBackground(rowBg);
-    setLocalFormula_(sheet.getRange("D" + row), '=IFERROR(COUNTIFS(LEFT(SMS!A:A,10),">="&' + dayStart + ',LEFT(SMS!A:A,10),"<"&' + dayEnd + ',SMS!D:D,"Praleistas skambutis"),0)')
+    setLocalFormula_(sheet.getRange("D" + row), '=IFERROR(COUNTIFS(SMS!A:A,">="&TODAY()-' + d + ',SMS!A:A,"<"&TODAY()-' + (d-1) + ',SMS!D:D,"Praleistas skambutis"),0)')
       .setFontColor(warningColor).setFontWeight("bold").setHorizontalAlignment("center").setBackground(rowBg);
-    setLocalFormula_(sheet.getRange("E" + row), '=IFERROR(COUNTIFS(LEFT(SMS!A:A,10),">="&' + dayStart + ',LEFT(SMS!A:A,10),"<"&' + dayEnd + ',SMS!D:D,"Booking"),0)')
+    setLocalFormula_(sheet.getRange("E" + row), '=IFERROR(COUNTIFS(SMS!A:A,">="&TODAY()-' + d + ',SMS!A:A,"<"&TODAY()-' + (d-1) + ',SMS!D:D,"Booking"),0)')
       .setFontColor(successColor).setFontWeight("bold").setHorizontalAlignment("center").setBackground(rowBg);
-    setLocalFormula_(sheet.getRange("F" + row), '=IFERROR(COUNTIFS(LEFT(SMS!A:A,10),">="&' + dayStart + ',LEFT(SMS!A:A,10),"<"&' + dayEnd + ',SMS!D:D,"Klaida"),0)')
+    setLocalFormula_(sheet.getRange("F" + row), '=IFERROR(COUNTIFS(SMS!A:A,">="&TODAY()-' + d + ',SMS!A:A,"<"&TODAY()-' + (d-1) + ',SMS!D:D,"Klaida"),0)')
       .setFontColor(dangerColor).setFontWeight("bold").setHorizontalAlignment("center").setBackground(rowBg);
-    setLocalFormula_(sheet.getRange("G" + row), '=IFERROR(COUNTIFS(LEFT(SMS!A:A,10),">="&' + dayStart + ',LEFT(SMS!A:A,10),"<"&' + dayEnd + ',SMS!D:D,"Perdavimas"),0)')
+    setLocalFormula_(sheet.getRange("G" + row), '=IFERROR(COUNTIFS(SMS!A:A,">="&TODAY()-' + d + ',SMS!A:A,"<"&TODAY()-' + (d-1) + ',SMS!D:D,"Perdavimas"),0)')
       .setFontColor(accentMid).setFontWeight("bold").setHorizontalAlignment("center").setBackground(rowBg);
   }
   sheet.getRange("B17:G24").setBorder(true, true, true, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
