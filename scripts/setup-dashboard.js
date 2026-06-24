@@ -323,25 +323,30 @@ function createDashboardSheet_(ss) {
     Logger.log("Statusas: " + lastStatusRow + " eilučių, " + lastStatusCol + " stulpelių");
     Logger.log("Statusas row0: " + JSON.stringify(allStatus[0]));
 
-    // Rasti D ir F stulpelių indeksus (device headers)
-    // Statusas struktūra: tuščios A-C celės, D1=email1, F1=email2
-    // D=3, E=4, F=5, G=6 (0-indexed)
+    // Rasti email eilutę ir device stulpelius
+    var emailRow = -1;
     var d1col = -1, d2col = -1;
-    for (var c = 0; c < allStatus[0].length; c++) {
-      var val = allStatus[0][c] ? allStatus[0][c].toString() : "";
-      if (val && val.indexOf("@") > -1) {
-        if (d1col === -1) { d1col = c; }
-        else if (d2col === -1) { d2col = c; }
+    for (var r = 0; r < allStatus.length; r++) {
+      for (var c = 0; c < allStatus[r].length; c++) {
+        var val = allStatus[r][c] ? allStatus[r][c].toString() : "";
+        if (val && val.indexOf("@") > -1) {
+          if (emailRow === -1) emailRow = r;
+          if (r === emailRow) {
+            if (d1col === -1) d1col = c;
+            else if (d2col === -1) d2col = c;
+          }
+        }
       }
+      if (emailRow > -1) break;
     }
 
-    Logger.log("Device columns: d1=" + d1col + ", d2=" + d2col);
+    Logger.log("Email row: " + emailRow + ", Device columns: d1=" + d1col + ", d2=" + d2col);
 
     var devices = [];
 
-    if (d1col >= 0) {
-      var dev = { name: allStatus[0][d1col].toString(), rows: [] };
-      for (var r = 1; r < allStatus.length; r++) {
+    if (d1col >= 0 && emailRow >= 0) {
+      var dev = { name: allStatus[emailRow][d1col].toString(), rows: [] };
+      for (var r = emailRow + 1; r < allStatus.length; r++) {
         var label = allStatus[r][d1col] ? allStatus[r][d1col].toString() : "";
         var value = (d1col + 1 < allStatus[r].length && allStatus[r][d1col + 1]) ? allStatus[r][d1col + 1].toString() : "";
         if (label) dev.rows.push([label, value]);
@@ -349,9 +354,9 @@ function createDashboardSheet_(ss) {
       devices.push(dev);
     }
 
-    if (d2col >= 0) {
-      var dev2 = { name: allStatus[0][d2col].toString(), rows: [] };
-      for (var r = 1; r < allStatus.length; r++) {
+    if (d2col >= 0 && emailRow >= 0) {
+      var dev2 = { name: allStatus[emailRow][d2col].toString(), rows: [] };
+      for (var r = emailRow + 1; r < allStatus.length; r++) {
         var label = allStatus[r][d2col] ? allStatus[r][d2col].toString() : "";
         var value = (d2col + 1 < allStatus[r].length && allStatus[r][d2col + 1]) ? allStatus[r][d2col + 1].toString() : "";
         if (label) dev2.rows.push([label, value]);
