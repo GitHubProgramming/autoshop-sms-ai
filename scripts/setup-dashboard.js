@@ -36,6 +36,13 @@ function setupDashboard() {
     return;
   }
 
+  try {
+    createNotifikacijosSheet_(ss);
+    Logger.log("Notifikacijos — OK");
+  } catch (e) {
+    Logger.log("Notifikacijos KLAIDA: " + e.message);
+  }
+
   var dashboard = ss.getSheetByName("Dashboard");
   if (dashboard) dashboard.activate();
 
@@ -529,4 +536,122 @@ function kpiCard_(sheet, startRow, col1, col2, label, value, valueColor, cardBg,
 
   sheet.getRange(col1 + startRow + ":" + col2 + valueRow)
     .setBorder(true, true, true, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
+}
+
+// ==================== NOTIFIKACIJOS ====================
+
+function createNotifikacijosSheet_(ss) {
+  var existing = ss.getSheetByName("Notifikacijos");
+  if (existing) ss.deleteSheet(existing);
+
+  var sheet = ss.insertSheet("Notifikacijos");
+
+  var bg = "#FAFAFA";
+  var cardBg = "#FFFFFF";
+  var headerText = "#111111";
+  var subText = "#888888";
+  var borderColor = "#E0E0E0";
+
+  sheet.setColumnWidth(1, 20);
+  sheet.setColumnWidth(2, 200);
+  sheet.setColumnWidth(3, 280);
+  sheet.setColumnWidth(4, 350);
+  sheet.setColumnWidth(5, 200);
+  sheet.setColumnWidth(6, 20);
+
+  sheet.getRange("A1:F30").setBackground(bg).setFontFamily("Google Sans");
+
+  // Header
+  sheet.setRowHeight(1, 40);
+  sheet.getRange("B1:E1").merge().setValue("APP NOTIFIKACIJOS")
+    .setFontSize(18).setFontWeight("bold").setFontColor(headerText)
+    .setHorizontalAlignment("left").setVerticalAlignment("middle");
+
+  sheet.setRowHeight(2, 6);
+
+  // Description
+  sheet.setRowHeight(3, 30);
+  sheet.getRange("B3:E3").merge()
+    .setValue("Visos notifikacijos kurias gauna savininkas telefone iš Proteros SMS AI aplikacijos")
+    .setFontSize(10).setFontColor(subText).setVerticalAlignment("middle");
+
+  sheet.setRowHeight(4, 6);
+
+  // Table header
+  sheet.setRowHeight(5, 28);
+  sheet.getRange("B5:E5").setValues([["Notifikacija", "Pranešimo tekstas", "Kada siunčiama", "Veiksmas"]])
+    .setFontWeight("bold").setFontSize(10).setFontColor("#FFFFFF").setBackground("#222222")
+    .setVerticalAlignment("middle");
+
+  var notifications = [
+    [
+      "✅ Vizitas užregistruotas!",
+      "{tel} — {paslauga} {data laikas}\n✓ Kalendorius",
+      "Kai klientas patvirtina vizitą ir AI užregistruoja booking",
+      "Informacinis — vizitas jau kalendoriuje"
+    ],
+    [
+      "⚠️ Reikia dėmesio\n(per daug žinučių)",
+      "Pokalbis su {tel} perduotas savininkui",
+      "Kai AI ir klientas per 20 žinučių nesusitarė",
+      "Paskambink klientui ir užbaik registraciją"
+    ],
+    [
+      "⚠️ Reikia dėmesio\n(perkėlimo limitas)",
+      "Pokalbis su {tel} perduotas savininkui",
+      "Kai klientas bando perkelti vizitą 2+ kartus",
+      "Paskambink klientui dėl laiko keitimo"
+    ],
+    [
+      "🔴 Laiko konfliktas!",
+      "{tel} norėjo {data laikas} — laikas užimtas. Perimkite pokalbį.",
+      "Kai klientas nori laiko kuris užimtas ir nėra laisvų alternatyvų",
+      "Paskambink ir pasiūlyk kitą laiką"
+    ],
+    [
+      "📱 Klientas neatsako",
+      "Pokalbis su {tel} — jau 30 min. be atsakymo. Paskambink klientui.",
+      "Kai klientas nerašo 30+ min. aktyvaus pokalbio metu (tikrinama kas 5 min.)",
+      "Paskambink klientui ir užbaik registraciją"
+    ],
+    [
+      "📋 Kalendorius nesync",
+      "{tel} — {paslauga} {data laikas}\n⚠ Kalendorius nesync",
+      "Kai vizitas užregistruotas bet Google Calendar sync nepavyko",
+      "Patikrink Google Calendar prieigą ir pridėk vizitą rankiniu būdu"
+    ]
+  ];
+
+  for (var i = 0; i < notifications.length; i++) {
+    var row = 6 + i;
+    sheet.setRowHeight(row, 65);
+    var rowBg = i % 2 === 0 ? cardBg : "#F7F7F7";
+
+    sheet.getRange("B" + row).setValue(notifications[i][0])
+      .setFontSize(10).setFontWeight("bold").setFontColor(headerText)
+      .setBackground(rowBg).setVerticalAlignment("middle").setWrap(true);
+    sheet.getRange("C" + row).setValue(notifications[i][1])
+      .setFontSize(9).setFontColor(headerText).setFontFamily("Roboto Mono")
+      .setBackground(rowBg).setVerticalAlignment("middle").setWrap(true);
+    sheet.getRange("D" + row).setValue(notifications[i][2])
+      .setFontSize(9).setFontColor(subText)
+      .setBackground(rowBg).setVerticalAlignment("middle").setWrap(true);
+    sheet.getRange("E" + row).setValue(notifications[i][3])
+      .setFontSize(9).setFontColor(headerText)
+      .setBackground(rowBg).setVerticalAlignment("middle").setWrap(true);
+  }
+
+  var lastRow = 6 + notifications.length - 1;
+  sheet.getRange("B5:E" + lastRow)
+    .setBorder(true, true, true, true, true, true, borderColor, SpreadsheetApp.BorderStyle.SOLID);
+
+  // Footer note
+  var noteRow = lastRow + 2;
+  sheet.setRowHeight(noteRow, 30);
+  sheet.getRange("B" + noteRow + ":E" + noteRow).merge()
+    .setValue("Visos notifikacijos rodomos telefone kaip Android pranešimai su HIGH priority. Paspaudus ant pranešimo atidaroma Proteros app.")
+    .setFontSize(9).setFontColor(subText).setVerticalAlignment("middle");
+
+  sheet.setHiddenGridlines(true);
+  sheet.protect().setDescription("Notifikacijos — informacinis lapas").setWarningOnly(true);
 }
