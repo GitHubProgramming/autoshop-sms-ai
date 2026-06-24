@@ -67,6 +67,27 @@ function setupDashboard() {
   }
 
   try {
+    fixShiftedRows_(ss);
+    Logger.log("Stulpelių taisymas — OK");
+  } catch (e) {
+    Logger.log("Stulpelių taisymas KLAIDA: " + e.message);
+  }
+
+  try {
+    formatSmsSheet_(ss);
+    Logger.log("SMS formatavimas — OK");
+  } catch (e) {
+    Logger.log("SMS formatavimas KLAIDA: " + e.message);
+  }
+
+  try {
+    cleanupUnusedSheets_(ss);
+    Logger.log("Lapų valymas — OK");
+  } catch (e) {
+    Logger.log("Lapų valymas KLAIDA: " + e.message);
+  }
+
+  try {
     createDashboardSheet_(ss);
     Logger.log("Dashboard — OK");
   } catch (e) {
@@ -446,6 +467,16 @@ function createCorrectionsSheet_(ss) {
   sheet.getRange(2, 1, 1, 5).setValues([example]);
   sheet.getRange("A2:E2").setFontColor("#86868B").setFontStyle("italic");
 
+  var volvoFix = [
+    "Sveiki, noreciau suzinoti ar galima pas jus patikrinti volvo xc60 variklio darba? Kartais pastebiu neiprastus garsus.",
+    "Deja, negalime suteikti informacijos apie automobilio remontą šiuo kanalu. Prašome paskambinti į mūsų servisą.",
+    "Sveiki! Taip, tikrai galime patikrinti Volvo XC60 variklį. Artimiausi laisvi laikai: rytoj 9:00 arba 14:00. Kuris Jums tiktų?",
+    "Negalima siųsti skambinti — žmogus jau skambino ir niekas nepakėlė. Tikslas: pasiūlyti laiką.",
+    "Laukia pataisymo"
+  ];
+  sheet.getRange(3, 1, 1, 5).setValues([volvoFix]);
+  sheet.getRange("A3:E3").setFontColor("#1D1D1F");
+
   sheet.getRange("A4").setValue("Kai app atsakė blogai — nukopijuok kliento žinutę ir blogą atsakymą čia, parašyk teisingą atsakymą, pakeisk statusą į \"Pataisyta\". App mokysis iš šių pataisymų.")
     .setFontColor("#86868B").setFontStyle("italic");
   sheet.getRange("A4:E4").merge();
@@ -661,4 +692,156 @@ function migrateHorizontal6ToVertical_(smsSheet) {
     smsSheet.getRange(2, 1, newRows.length, 6).setValues(newRows);
   }
   Logger.log("Horizontalaus formato migracija baigta, naujų eilučių: " + newRows.length);
+}
+
+// ==================== STULPELIŲ POSLINKIO TAISYMAS ====================
+
+function fixShiftedRows_(ss) {
+  var sms = ss.getSheetByName("SMS");
+  if (!sms) return;
+
+  var lastRow = sms.getLastRow();
+  if (lastRow <= 1) return;
+
+  var data = sms.getRange(2, 1, lastRow - 1, 6).getValues();
+  var fixed = 0;
+
+  for (var i = 0; i < data.length; i++) {
+    var vardas = data[i][1] ? data[i][1].toString() : "";
+    var telefonas = data[i][2] ? data[i][2].toString() : "";
+
+    // Shifted row: phone number is in Vardas column (B), Telefonas (C) has something else
+    if (vardas.match(/^\+?\d{8,}$/) && !telefonas.match(/^\+?\d{8,}$/)) {
+      // Shift right: insert empty Vardas, move everything right
+      var row = i + 2;
+      var newRow = [data[i][0], "", vardas, data[i][2], data[i][3], data[i][4]];
+      sms.getRange(row, 1, 1, 6).setValues([newRow]);
+      fixed++;
+    }
+  }
+
+  if (fixed > 0) {
+    Logger.log("Pataisyta " + fixed + " eilučių su pasislinkusiais stulpeliais");
+  } else {
+    Logger.log("Pasislinkusių eilučių nerasta");
+  }
+}
+
+// ==================== SMS VIZUALINIS FORMATAVIMAS ====================
+
+function formatSmsSheet_(ss) {
+  var sms = ss.getSheetByName("SMS");
+  if (!sms) return;
+
+  var lastRow = sms.getLastRow();
+  if (lastRow <= 1) return;
+
+  // Spalvų paletė pokalbių atskyrimui (šviesūs fonai)
+  var conversationColors = [
+    "#FFFFFF",  // balta
+    "#F0F7FF",  // šviesiai mėlyna
+    "#FFF8F0",  // šviesiai oranžinė
+    "#F0FFF4",  // šviesiai žalia
+    "#FFF0F8",  // šviesiai rožinė
+    "#F8F0FF",  // šviesiai violetinė
+    "#F0FFFF",  // šviesiai žydra
+    "#FFFFF0",  // šviesiai geltona
+  ];
+
+  // Siuntėjų spalvos
+  var senderColors = {
+    "Klientas": "#1D1D1F",
+    "Agentas": "#007AFF",
+    "Sistema": "#86868B"
+  };
+
+  var senderBgs = {
+    "Klientas": null,
+    "Agentas": "#EBF5FF",
+    "Sistema": "#F5F5F7"
+  };
+
+  var data = sms.getRange(2, 1, lastRow - 1, 6).getValues();
+
+  // Sugrupuoti pokalbius pagal telefono numerį
+  var phoneToColor = {};
+  var colorIndex = 0;
+
+  for (var i = 0; i < data.length; i++) {
+    var row = i + 2;
+    var phone = data[i][2] ? data[i][2].toString() : "";
+    var sender = data[i][4] ? data[i][4].toString() : "";
+
+    // Priskirti spalvą pokalbiui
+    if (phone && !phoneToColor[phone]) {
+      phoneToColor[phone] = conversationColors[colorIndex % conversationColors.length];
+      colorIndex++;
+    }
+
+    var rowBg = phone ? phoneToColor[phone] : "#FFFFFF";
+    var senderBg = senderBgs[sender];
+
+    // Fono spalva pagal pokalbį
+    sms.getRange(row, 1, 1, 6).setBackground(rowBg);
+
+    // Siuntėjo teksto spalva
+    var textColor = senderColors[sender] || "#1D1D1F";
+    sms.getRange(row, 5).setFontColor(textColor).setFontWeight("bold");
+
+    // Žinutės spalva pagal siuntėją
+    sms.getRange(row, 6).setFontColor(textColor);
+
+    // Agentas ir Sistema gauna subtilesnį foną žinutės stulpelyje
+    if (senderBg) {
+      sms.getRange(row, 5, 1, 2).setBackground(senderBg);
+    }
+  }
+
+  // Pokalbių skirtukai — storesnis apatinis kraštas kai keičiasi telefono numeris
+  var prevPhone = "";
+  for (var i = 0; i < data.length; i++) {
+    var phone = data[i][2] ? data[i][2].toString() : "";
+    if (prevPhone && phone !== prevPhone) {
+      var row = i + 2;
+      sms.getRange(row, 1, 1, 6).setBorder(true, false, false, false, false, false, "#CCCCCC", SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+    }
+    prevPhone = phone;
+  }
+
+  // Stulpelių pločiai
+  sms.setColumnWidth(1, 140);
+  sms.setColumnWidth(2, 120);
+  sms.setColumnWidth(3, 120);
+  sms.setColumnWidth(4, 130);
+  sms.setColumnWidth(5, 90);
+  sms.setColumnWidth(6, 450);
+
+  // Žinutės stulpelis su word wrap
+  sms.getRange(2, 6, lastRow - 1, 1).setWrap(true);
+
+  Logger.log("SMS formatavimas baigtas, pokalbių: " + colorIndex + ", eilučių: " + (lastRow - 1));
+}
+
+// ==================== NEREIKALINGŲ LAPŲ VALYMAS ====================
+
+function cleanupUnusedSheets_(ss) {
+  var keepSheets = ["Dashboard", "SMS", "Pataisymai"];
+  var sheets = ss.getSheets();
+  var removed = [];
+
+  for (var i = sheets.length - 1; i >= 0; i--) {
+    var name = sheets[i].getName();
+    if (keepSheets.indexOf(name) === -1) {
+      // Neleisti ištrinti jei tik 3 ar mažiau lapų liks
+      if (sheets.length - removed.length <= 3) break;
+      removed.push(name);
+      ss.deleteSheet(sheets[i]);
+    }
+  }
+
+  if (removed.length > 0) {
+    Logger.log("Ištrinti nereikalingi lapai: " + removed.join(", "));
+  } else {
+    Logger.log("Nereikalingų lapų nerasta");
+  }
 }
