@@ -81,13 +81,6 @@ function setupDashboard() {
   }
 
   try {
-    cleanupUnusedSheets_(ss);
-    Logger.log("Lapų valymas — OK");
-  } catch (e) {
-    Logger.log("Lapų valymas KLAIDA: " + e.message);
-  }
-
-  try {
     createDashboardSheet_(ss);
     Logger.log("Dashboard — OK");
   } catch (e) {
@@ -822,26 +815,3 @@ function formatSmsSheet_(ss) {
   Logger.log("SMS formatavimas baigtas, pokalbių: " + colorIndex + ", eilučių: " + (lastRow - 1));
 }
 
-// ==================== NEREIKALINGŲ LAPŲ VALYMAS ====================
-
-function cleanupUnusedSheets_(ss) {
-  var keepSheets = ["Dashboard", "SMS", "Pataisymai"];
-  var sheets = ss.getSheets();
-  var removed = [];
-
-  for (var i = sheets.length - 1; i >= 0; i--) {
-    var name = sheets[i].getName();
-    if (keepSheets.indexOf(name) === -1) {
-      // Neleisti ištrinti jei tik 3 ar mažiau lapų liks
-      if (sheets.length - removed.length <= 3) break;
-      removed.push(name);
-      ss.deleteSheet(sheets[i]);
-    }
-  }
-
-  if (removed.length > 0) {
-    Logger.log("Ištrinti nereikalingi lapai: " + removed.join(", "));
-  } else {
-    Logger.log("Nereikalingų lapų nerasta");
-  }
-}
