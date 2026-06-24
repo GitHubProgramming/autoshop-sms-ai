@@ -13,13 +13,41 @@
  * 1. Pasirink funkciją: diagnoseSheet
  * 2. Paspausk ▶ Run
  * 3. Žiūrėk View → Logs — ten bus visa informacija
+ *
+ * PASTABA: Automatiškai aptinka Google Sheets locale (lt_LT, en_US ir kt.)
+ * ir pritaiko formulių skyriklį (, arba ;)
  */
+
+// Locale-aware formulių nustatymas
+// Lietuvių locale naudoja ; vietoj , formulėse
+function setLocalFormula_(range, formula) {
+  var locale = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetLocale();
+  if (locale && locale.indexOf("en") !== 0) {
+    var result = "";
+    var inQuotes = false;
+    for (var i = 0; i < formula.length; i++) {
+      var ch = formula.charAt(i);
+      if (ch === '"') {
+        inQuotes = !inQuotes;
+        result += ch;
+      } else if (ch === ',' && !inQuotes) {
+        result += ';';
+      } else {
+        result += ch;
+      }
+    }
+    formula = result;
+  }
+  range.setFormula(formula);
+  return range;
+}
 
 function setupDashboard() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
   Logger.log("=== PRADEDAME SETUP ===");
   Logger.log("Sheet pavadinimas: " + ss.getName());
+  Logger.log("Locale: " + ss.getSpreadsheetLocale());
   Logger.log("Visi lapai: " + ss.getSheets().map(function(s) { return s.getName(); }).join(", "));
 
   try {
@@ -69,6 +97,8 @@ function diagnoseSheet() {
   report.push("=== DIAGNOSTIKA ===");
   report.push("Sheet: " + ss.getName());
   report.push("ID: " + ss.getId());
+  report.push("Locale: " + ss.getSpreadsheetLocale());
+  report.push("Formulių skyriklys: " + (ss.getSpreadsheetLocale().indexOf("en") === 0 ? "kablelis (,)" : "kabliataškis (;)"));
   report.push("");
 
   var sheets = ss.getSheets();
@@ -174,9 +204,9 @@ function createDashboardSheet_(ss) {
     .setBackground(bgLight);
 
   sheet.setRowHeight(2, 25);
-  sheet.getRange("B2:I2").merge()
-    .setFormula('=TEXT(NOW(),"yyyy-MM-dd HH:mm")&"  ·  Valdymo pultas"')
-    .setFontSize(11).setFontColor(subText)
+  var headerRange = sheet.getRange("B2:I2").merge();
+  setLocalFormula_(headerRange, '=TEXT(NOW(),"yyyy-MM-dd HH:mm")&"  ·  Valdymo pultas"');
+  headerRange.setFontSize(11).setFontColor(subText)
     .setHorizontalAlignment("left").setBackground(bgLight);
 
   // ===== ROW 4-6: MAIN KPI CARDS =====
@@ -252,12 +282,12 @@ function createDashboardSheet_(ss) {
     var row = 12 + i;
     sheet.setRowHeight(row, 28);
     sheet.getRange("B" + row).setValue(leftStats[i][0]).setFontColor(headerText).setFontSize(11).setBackground(cardBg);
-    sheet.getRange("C" + row).setFormula(leftStats[i][1]).setFontColor(headerText).setFontSize(12).setFontWeight("bold").setHorizontalAlignment("center").setBackground(cardBg);
+    setLocalFormula_(sheet.getRange("C" + row), leftStats[i][1]).setFontColor(headerText).setFontSize(12).setFontWeight("bold").setHorizontalAlignment("center").setBackground(cardBg);
     sheet.getRange("E" + row).setValue(midStats[i][0]).setFontColor(headerText).setFontSize(11).setBackground(cardBg);
-    sheet.getRange("F" + row).setFormula(midStats[i][1]).setFontColor(headerText).setFontSize(12).setFontWeight("bold").setHorizontalAlignment("center").setBackground(cardBg);
+    setLocalFormula_(sheet.getRange("F" + row), midStats[i][1]).setFontColor(headerText).setFontSize(12).setFontWeight("bold").setHorizontalAlignment("center").setBackground(cardBg);
     if (rightStats[i][0]) {
       sheet.getRange("H" + row).setValue(rightStats[i][0]).setFontColor(headerText).setFontSize(11).setBackground(cardBg);
-      sheet.getRange("I" + row).setFormula(rightStats[i][1]).setFontColor(accent).setFontSize(12).setFontWeight("bold").setHorizontalAlignment("center").setBackground(cardBg);
+      setLocalFormula_(sheet.getRange("I" + row), rightStats[i][1]).setFontColor(accent).setFontSize(12).setFontWeight("bold").setHorizontalAlignment("center").setBackground(cardBg);
     }
   }
 
@@ -283,17 +313,17 @@ function createDashboardSheet_(ss) {
     var dayStart = 'TEXT(TODAY()-' + d + ',"yyyy-MM-dd")';
     var dayEnd = 'TEXT(TODAY()-' + (d - 1) + ',"yyyy-MM-dd")';
 
-    sheet.getRange("B" + row).setFormula('=TEXT(TODAY()-' + d + ',"MM-dd, ddd")')
+    setLocalFormula_(sheet.getRange("B" + row), '=TEXT(TODAY()-' + d + ',"MM-dd, ddd")')
       .setFontColor(headerText).setFontSize(11).setBackground(rowBg);
-    sheet.getRange("C" + row).setFormula('=IFERROR(COUNTIFS(SMS!A:A,">="&' + dayStart + ',SMS!A:A,"<"&' + dayEnd + '),0)')
+    setLocalFormula_(sheet.getRange("C" + row), '=IFERROR(COUNTIFS(SMS!A:A,">="&' + dayStart + ',SMS!A:A,"<"&' + dayEnd + '),0)')
       .setFontColor(headerText).setFontWeight("bold").setHorizontalAlignment("center").setBackground(rowBg);
-    sheet.getRange("D" + row).setFormula('=IFERROR(COUNTIFS(SMS!A:A,">="&' + dayStart + ',SMS!A:A,"<"&' + dayEnd + ',SMS!D:D,"Praleistas skambutis"),0)')
+    setLocalFormula_(sheet.getRange("D" + row), '=IFERROR(COUNTIFS(SMS!A:A,">="&' + dayStart + ',SMS!A:A,"<"&' + dayEnd + ',SMS!D:D,"Praleistas skambutis"),0)')
       .setFontColor(orange).setFontWeight("bold").setHorizontalAlignment("center").setBackground(rowBg);
-    sheet.getRange("E" + row).setFormula('=IFERROR(COUNTIFS(SMS!A:A,">="&' + dayStart + ',SMS!A:A,"<"&' + dayEnd + ',SMS!D:D,"Booking"),0)')
+    setLocalFormula_(sheet.getRange("E" + row), '=IFERROR(COUNTIFS(SMS!A:A,">="&' + dayStart + ',SMS!A:A,"<"&' + dayEnd + ',SMS!D:D,"Booking"),0)')
       .setFontColor(green).setFontWeight("bold").setHorizontalAlignment("center").setBackground(rowBg);
-    sheet.getRange("F" + row).setFormula('=IFERROR(COUNTIFS(SMS!A:A,">="&' + dayStart + ',SMS!A:A,"<"&' + dayEnd + ',SMS!D:D,"Klaida"),0)')
+    setLocalFormula_(sheet.getRange("F" + row), '=IFERROR(COUNTIFS(SMS!A:A,">="&' + dayStart + ',SMS!A:A,"<"&' + dayEnd + ',SMS!D:D,"Klaida"),0)')
       .setFontColor(red).setFontWeight("bold").setHorizontalAlignment("center").setBackground(rowBg);
-    sheet.getRange("G" + row).setFormula('=IFERROR(COUNTIFS(SMS!A:A,">="&' + dayStart + ',SMS!A:A,"<"&' + dayEnd + ',SMS!D:D,"Perdavimas"),0)')
+    setLocalFormula_(sheet.getRange("G" + row), '=IFERROR(COUNTIFS(SMS!A:A,">="&' + dayStart + ',SMS!A:A,"<"&' + dayEnd + ',SMS!D:D,"Perdavimas"),0)')
       .setFontColor(purple).setFontWeight("bold").setHorizontalAlignment("center").setBackground(rowBg);
   }
   sheet.getRange("B17:G24").setBorder(true, true, true, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
@@ -314,15 +344,16 @@ function createDashboardSheet_(ss) {
     var rowBg = i % 2 === 0 ? cardBg : bgLight;
     var errorCount = 'IFERROR(COUNTA(FILTER(SMS!A:A,SMS!D:D="Klaida")),0)';
     var idx = i + 1;
-    sheet.getRange("B" + row).setFormula(
+    setLocalFormula_(sheet.getRange("B" + row),
       '=IF(' + errorCount + '>=' + idx + ',INDEX(FILTER(SMS!A:A,SMS!D:D="Klaida"),' + errorCount + '+1-' + idx + '),"—")')
       .setFontColor(subText).setFontSize(10).setBackground(rowBg);
-    sheet.getRange("C" + row).setFormula(
+    setLocalFormula_(sheet.getRange("C" + row),
       '=IF(' + errorCount + '>=' + idx + ',INDEX(FILTER(SMS!C:C,SMS!D:D="Klaida"),' + errorCount + '+1-' + idx + '),"—")')
       .setFontColor(headerText).setFontSize(10).setBackground(rowBg);
-    sheet.getRange("D" + row + ":I" + row).merge().setFormula(
+    var errDescRange = sheet.getRange("D" + row + ":I" + row).merge();
+    setLocalFormula_(errDescRange,
       '=IF(' + errorCount + '>=' + idx + ',INDEX(FILTER(SMS!F:F,SMS!D:D="Klaida"),' + errorCount + '+1-' + idx + '),"—")')
-      .setFontColor(red).setFontSize(10).setBackground(rowBg).setWrap(true);
+    errDescRange.setFontColor(red).setFontSize(10).setBackground(rowBg).setWrap(true);
   }
   sheet.getRange("B27:I32").setBorder(true, true, true, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
 
@@ -347,13 +378,14 @@ function createDashboardSheet_(ss) {
     for (var c = 0; c < cols.length; c++) {
       var formula = '=IF(' + smsRows + '>=' + (i + 2) + ',INDEX(SMS!' + cols[c] + ':' + cols[c] + ',' + targetRow + '),"")';
       if (c === 5) {
-        sheet.getRange(colTargets[c] + row + ":I" + row).merge().setFormula(formula)
-          .setFontColor(headerText).setFontSize(10).setBackground(rowBg).setWrap(true);
+        var msgRange = sheet.getRange(colTargets[c] + row + ":I" + row).merge();
+        setLocalFormula_(msgRange, formula);
+        msgRange.setFontColor(headerText).setFontSize(10).setBackground(rowBg).setWrap(true);
       } else if (c === 4) {
-        sheet.getRange(colTargets[c] + row).setFormula(formula)
+        setLocalFormula_(sheet.getRange(colTargets[c] + row), formula)
           .setFontColor(accent).setFontSize(10).setFontWeight("bold").setBackground(rowBg);
       } else {
-        sheet.getRange(colTargets[c] + row).setFormula(formula)
+        setLocalFormula_(sheet.getRange(colTargets[c] + row), formula)
           .setFontColor(headerText).setFontSize(10).setBackground(rowBg);
       }
     }
@@ -371,9 +403,9 @@ function appleKpiCard_(sheet, startRow, col1, col2, label, formula, valueColor, 
     .setBackground(cardBg).setHorizontalAlignment("center").setVerticalAlignment("bottom");
 
   var valueRow = startRow + 1;
-  sheet.getRange(col1 + valueRow + ":" + col2 + valueRow).merge()
-    .setFormula(formula)
-    .setFontSize(32).setFontWeight("bold").setFontColor(valueColor)
+  var valueRange = sheet.getRange(col1 + valueRow + ":" + col2 + valueRow).merge();
+  setLocalFormula_(valueRange, formula);
+  valueRange.setFontSize(32).setFontWeight("bold").setFontColor(valueColor)
     .setHorizontalAlignment("center").setVerticalAlignment("middle")
     .setBackground(cardBg);
 
