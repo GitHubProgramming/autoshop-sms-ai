@@ -430,50 +430,78 @@ function appleKpiCard_(sheet, startRow, col1, col2, label, formula, valueColor, 
 // ==================== PATAISYMAI ====================
 
 function createCorrectionsSheet_(ss) {
-  if (ss.getSheetByName("Pataisymai")) {
-    Logger.log("Pataisymai lapas jau egzistuoja");
-    return;
+  var sheet = ss.getSheetByName("Pataisymai");
+  var isNew = false;
+
+  if (!sheet) {
+    sheet = ss.insertSheet("Pataisymai");
+    isNew = true;
+
+    var header = ["Kliento žinutė", "Blogas atsakymas", "Teisingas atsakymas", "Pastaba", "Statusas"];
+    sheet.getRange(1, 1, 1, 5).setValues([header]);
+    sheet.getRange("A1:E1").setFontWeight("bold").setFontSize(11)
+      .setBackground("#F5F5F7").setFontColor("#1D1D1F")
+      .setBorder(false, false, true, false, false, false, "#E5E5EA", SpreadsheetApp.BorderStyle.SOLID);
+
+    sheet.setColumnWidth(1, 300);
+    sheet.setColumnWidth(2, 300);
+    sheet.setColumnWidth(3, 300);
+    sheet.setColumnWidth(4, 200);
+    sheet.setColumnWidth(5, 130);
+    sheet.setFrozenRows(1);
+
+    var example = [
+      "Ar galima atvežti BMW?",
+      "Taip, priimame visus automobilius.",
+      "Taip, BMW aptarnaujame. Kokia problema? Galiu pasiūlyti laiką vizitui.",
+      "Pavyzdys",
+      "Pataisyta"
+    ];
+    sheet.getRange(2, 1, 1, 5).setValues([example]);
+    sheet.getRange("A2:E2").setFontColor("#86868B").setFontStyle("italic");
   }
 
-  var sheet = ss.insertSheet("Pataisymai");
+  addMissingCorrections_(sheet);
 
-  var header = ["Kliento žinutė", "Blogas atsakymas", "Teisingas atsakymas", "Pastaba", "Statusas"];
-  sheet.getRange(1, 1, 1, 5).setValues([header]);
-  sheet.getRange("A1:E1").setFontWeight("bold").setFontSize(11)
-    .setBackground("#F5F5F7").setFontColor("#1D1D1F")
-    .setBorder(false, false, true, false, false, false, "#E5E5EA", SpreadsheetApp.BorderStyle.SOLID);
+  if (isNew) {
+    var infoRow = sheet.getLastRow() + 2;
+    sheet.getRange("A" + infoRow).setValue("Kai app atsakė blogai — nukopijuok kliento žinutę ir blogą atsakymą čia, parašyk teisingą atsakymą, pakeisk statusą į \"Pataisyta\". App mokysis iš šių pataisymų.")
+      .setFontColor("#86868B").setFontStyle("italic");
+    sheet.getRange("A" + infoRow + ":E" + infoRow).merge();
+  }
 
-  sheet.setColumnWidth(1, 300);
-  sheet.setColumnWidth(2, 300);
-  sheet.setColumnWidth(3, 300);
-  sheet.setColumnWidth(4, 200);
-  sheet.setColumnWidth(5, 130);
-  sheet.setFrozenRows(1);
+  Logger.log("Pataisymai " + (isNew ? "sukurtas" : "atnaujintas"));
+}
 
-  var example = [
-    "Ar galima atvežti BMW?",
-    "Taip, priimame visus automobilius.",
-    "Taip, BMW aptarnaujame. Kokia problema? Galiu pasiūlyti laiką vizitui.",
-    "Pavyzdys",
-    "Pataisyta"
+function addMissingCorrections_(sheet) {
+  var corrections = [
+    [
+      "Sveiki, noreciau suzinoti ar galima pas jus patikrinti volvo xc60 variklio darba? Kartais pastebiu neiprastus garsus.",
+      "Deja, negalime suteikti informacijos apie automobilio remontą šiuo kanalu. Prašome paskambinti į mūsų servisą.",
+      "Sveiki! Taip, tikrai galime patikrinti Volvo XC60 variklį. Artimiausi laisvi laikai: rytoj 9:00 arba 14:00. Kuris Jums tiktų?",
+      "Negalima siųsti skambinti — žmogus jau skambino ir niekas nepakėlė. Tikslas: pasiūlyti laiką.",
+      "Laukia pataisymo"
+    ]
   ];
-  sheet.getRange(2, 1, 1, 5).setValues([example]);
-  sheet.getRange("A2:E2").setFontColor("#86868B").setFontStyle("italic");
 
-  var volvoFix = [
-    "Sveiki, noreciau suzinoti ar galima pas jus patikrinti volvo xc60 variklio darba? Kartais pastebiu neiprastus garsus.",
-    "Deja, negalime suteikti informacijos apie automobilio remontą šiuo kanalu. Prašome paskambinti į mūsų servisą.",
-    "Sveiki! Taip, tikrai galime patikrinti Volvo XC60 variklį. Artimiausi laisvi laikai: rytoj 9:00 arba 14:00. Kuris Jums tiktų?",
-    "Negalima siųsti skambinti — žmogus jau skambino ir niekas nepakėlė. Tikslas: pasiūlyti laiką.",
-    "Laukia pataisymo"
-  ];
-  sheet.getRange(3, 1, 1, 5).setValues([volvoFix]);
-  sheet.getRange("A3:E3").setFontColor("#1D1D1F");
+  var lastRow = sheet.getLastRow();
+  var existingData = lastRow > 1 ? sheet.getRange(2, 2, lastRow - 1, 1).getValues().map(function(r) { return r[0]; }) : [];
 
-  sheet.getRange("A4").setValue("Kai app atsakė blogai — nukopijuok kliento žinutę ir blogą atsakymą čia, parašyk teisingą atsakymą, pakeisk statusą į \"Pataisyta\". App mokysis iš šių pataisymų.")
-    .setFontColor("#86868B").setFontStyle("italic");
-  sheet.getRange("A4:E4").merge();
-  Logger.log("Pataisymai lapas sukurtas");
+  var toAdd = [];
+  for (var i = 0; i < corrections.length; i++) {
+    var badAnswer = corrections[i][1];
+    if (existingData.indexOf(badAnswer) === -1) {
+      toAdd.push(corrections[i]);
+    }
+  }
+
+  if (toAdd.length > 0) {
+    var startRow = lastRow + 1;
+    sheet.getRange(startRow, 1, toAdd.length, 5).setValues(toAdd);
+    Logger.log("Pridėta " + toAdd.length + " naujų pataisymų");
+  } else {
+    Logger.log("Visi pataisymai jau egzistuoja");
+  }
 }
 
 // ==================== SMS MIGRACIJA ====================
