@@ -163,35 +163,35 @@ function createDashboardSheet_(ss) {
   sheet.setColumnWidth(9, 100);
   sheet.setColumnWidth(10, 20);
 
-  sheet.getRange("A1:J55").setBackground(bg).setFontFamily("Google Sans");
+  sheet.getRange("A1:J45").setBackground(bg).setFontFamily("Google Sans");
 
-  // ===== HEADER =====
-  sheet.setRowHeight(1, 55);
-  sheet.getRange("B1:I1").merge().setValue("PROTEROS SERVISAS")
-    .setFontSize(20).setFontWeight("bold").setFontColor(headerText)
+  // ===== ROW 1: HEADER =====
+  sheet.setRowHeight(1, 40);
+  sheet.getRange("B1:F1").merge().setValue("PROTEROS SERVISAS")
+    .setFontSize(18).setFontWeight("bold").setFontColor(headerText)
     .setHorizontalAlignment("left").setVerticalAlignment("middle")
     .setBackground(bg);
-
-  sheet.setRowHeight(2, 22);
   var now = Utilities.formatDate(new Date(), "Europe/Vilnius", "yyyy-MM-dd HH:mm");
-  sheet.getRange("B2:I2").merge().setValue(now + "  ·  Valdymo pultas")
+  sheet.getRange("G1:I1").merge().setValue(now)
     .setFontSize(10).setFontColor(subText)
-    .setHorizontalAlignment("left").setBackground(bg);
+    .setHorizontalAlignment("right").setVerticalAlignment("middle").setBackground(bg);
 
-  // ===== KPI CARDS ROW 1 =====
-  sheet.setRowHeight(3, 12);
+  // ===== ROW 2: spacer =====
+  sheet.setRowHeight(2, 6);
 
-  kpiCard_(sheet, 4, "B", "C", "SMS šiandien", smsData.today.total, accentDark, cardBg, subText, borderColor);
-  kpiCard_(sheet, 4, "E", "F", "Praleisti skambučiai", smsData.today.missed, warningColor, cardBg, subText, borderColor);
-  kpiCard_(sheet, 4, "H", "I", "Užsakymai", smsData.today.bookings, successColor, cardBg, subText, borderColor);
+  // ===== ROW 3-4: KPI CARDS ROW 1 =====
+  kpiCard_(sheet, 3, "B", "C", "SMS šiandien", smsData.today.total, accentDark, cardBg, subText, borderColor);
+  kpiCard_(sheet, 3, "E", "F", "Praleisti skambučiai", smsData.today.missed, warningColor, cardBg, subText, borderColor);
+  kpiCard_(sheet, 3, "H", "I", "Užsakymai", smsData.today.bookings, successColor, cardBg, subText, borderColor);
+  sheet.setRowHeight(3, 18);
+  sheet.setRowHeight(4, 40);
 
-  sheet.setRowHeight(4, 22);
-  sheet.setRowHeight(5, 50);
-  sheet.setRowHeight(6, 8);
+  // ===== ROW 5: spacer =====
+  sheet.setRowHeight(5, 4);
 
-  // ===== KPI CARDS ROW 2 =====
-  kpiCard_(sheet, 7, "B", "C", "Klaidos", smsData.today.errors, dangerColor, cardBg, subText, borderColor);
-  kpiCard_(sheet, 7, "E", "F", "Perdavimai", smsData.today.transfers, accentMid, cardBg, subText, borderColor);
+  // ===== ROW 6-7: KPI CARDS ROW 2 =====
+  kpiCard_(sheet, 6, "B", "C", "Klaidos", smsData.today.errors, dangerColor, cardBg, subText, borderColor);
+  kpiCard_(sheet, 6, "E", "F", "Perdavimai", smsData.today.transfers, accentMid, cardBg, subText, borderColor);
 
   var patSheet = ss.getSheetByName("Pataisymai");
   var pendingFixes = 0;
@@ -201,24 +201,26 @@ function createDashboardSheet_(ss) {
       if (statuses[i][0] === "Laukia pataisymo") pendingFixes++;
     }
   }
-  kpiCard_(sheet, 7, "H", "I", "Laukia pataisymo", pendingFixes, accentMid, cardBg, subText, borderColor);
+  kpiCard_(sheet, 6, "H", "I", "Laukia pataisymo", pendingFixes, accentMid, cardBg, subText, borderColor);
+  sheet.setRowHeight(6, 18);
+  sheet.setRowHeight(7, 40);
 
-  sheet.setRowHeight(7, 22);
-  sheet.setRowHeight(8, 50);
+  // ===== ROW 8: spacer =====
+  sheet.setRowHeight(8, 6);
 
-  // ===== STATISTIKA =====
-  sheet.setRowHeight(9, 15);
-  sheet.setRowHeight(10, 28);
-  sheet.getRange("B10:I10").merge().setValue("Statistika")
-    .setFontSize(14).setFontWeight("bold").setFontColor(headerText).setBackground(bg);
+  // ===== ROW 9: Statistika header =====
+  sheet.setRowHeight(9, 22);
+  sheet.getRange("B9:I9").merge().setValue("Statistika")
+    .setFontSize(12).setFontWeight("bold").setFontColor(headerText).setBackground(bg);
 
-  sheet.setRowHeight(11, 22);
-  sheet.getRange("B11:C11").setValues([["Rodiklis", "Kiekis"]])
-    .setFontWeight("bold").setFontSize(9).setFontColor(subText).setBackground("#F2F2F2");
-  sheet.getRange("E11:F11").setValues([["Rodiklis", "Kiekis"]])
-    .setFontWeight("bold").setFontSize(9).setFontColor(subText).setBackground("#F2F2F2");
-  sheet.getRange("H11:I11").setValues([["Rodiklis", "Reikšmė"]])
-    .setFontWeight("bold").setFontSize(9).setFontColor(subText).setBackground("#F2F2F2");
+  // ===== ROW 10: stats headers =====
+  sheet.setRowHeight(10, 18);
+  sheet.getRange("B10:C10").setValues([["Rodiklis", "Kiekis"]])
+    .setFontWeight("bold").setFontSize(8).setFontColor(subText).setBackground("#F2F2F2");
+  sheet.getRange("E10:F10").setValues([["Rodiklis", "Kiekis"]])
+    .setFontWeight("bold").setFontSize(8).setFontColor(subText).setBackground("#F2F2F2");
+  sheet.getRange("H10:I10").setValues([["Rodiklis", "Reikšmė"]])
+    .setFontWeight("bold").setFontSize(8).setFontColor(subText).setBackground("#F2F2F2");
 
   var leftStats = [
     ["Pokalbiai (AI)", smsData.today.aiConversations],
@@ -237,84 +239,84 @@ function createDashboardSheet_(ss) {
     ["Sėkmės rodiklis", successRate],
   ];
 
+  // ===== ROW 11-13: stats data =====
   for (var i = 0; i < 3; i++) {
-    var row = 12 + i;
-    sheet.setRowHeight(row, 28);
-    sheet.getRange("B" + row).setValue(leftStats[i][0]).setFontColor(headerText).setFontSize(10).setBackground(cardBg);
-    sheet.getRange("C" + row).setValue(leftStats[i][1]).setFontColor(headerText).setFontSize(11).setFontWeight("bold").setHorizontalAlignment("center").setBackground(cardBg);
-    sheet.getRange("E" + row).setValue(midStats[i][0]).setFontColor(headerText).setFontSize(10).setBackground(cardBg);
-    sheet.getRange("F" + row).setValue(midStats[i][1]).setFontColor(headerText).setFontSize(11).setFontWeight("bold").setHorizontalAlignment("center").setBackground(cardBg);
+    var row = 11 + i;
+    sheet.setRowHeight(row, 22);
+    sheet.getRange("B" + row).setValue(leftStats[i][0]).setFontColor(headerText).setFontSize(9).setBackground(cardBg);
+    sheet.getRange("C" + row).setValue(leftStats[i][1]).setFontColor(headerText).setFontSize(10).setFontWeight("bold").setHorizontalAlignment("center").setBackground(cardBg);
+    sheet.getRange("E" + row).setValue(midStats[i][0]).setFontColor(headerText).setFontSize(9).setBackground(cardBg);
+    sheet.getRange("F" + row).setValue(midStats[i][1]).setFontColor(headerText).setFontSize(10).setFontWeight("bold").setHorizontalAlignment("center").setBackground(cardBg);
     if (i < rightStats.length) {
-      sheet.getRange("H" + row).setValue(rightStats[i][0]).setFontColor(headerText).setFontSize(10).setBackground(cardBg);
-      sheet.getRange("I" + row).setValue(rightStats[i][1]).setFontColor(accentDark).setFontSize(11).setFontWeight("bold").setHorizontalAlignment("center").setBackground(cardBg);
+      sheet.getRange("H" + row).setValue(rightStats[i][0]).setFontColor(headerText).setFontSize(9).setBackground(cardBg);
+      sheet.getRange("I" + row).setValue(rightStats[i][1]).setFontColor(accentDark).setFontSize(10).setFontWeight("bold").setHorizontalAlignment("center").setBackground(cardBg);
     }
   }
 
-  sheet.getRange("B11:C14").setBorder(true, true, true, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
-  sheet.getRange("E11:F14").setBorder(true, true, true, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
-  sheet.getRange("H11:I13").setBorder(true, true, true, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
+  sheet.getRange("B10:C13").setBorder(true, true, true, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
+  sheet.getRange("E10:F13").setBorder(true, true, true, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
+  sheet.getRange("H10:I12").setBorder(true, true, true, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
 
-  // ===== SAVAITĖS APŽVALGA =====
-  sheet.setRowHeight(15, 15);
-  sheet.setRowHeight(16, 28);
-  sheet.getRange("B16:I16").merge().setValue("Savaitės apžvalga")
-    .setFontSize(14).setFontWeight("bold").setFontColor(headerText).setBackground(bg);
+  // ===== ROW 14: spacer =====
+  sheet.setRowHeight(14, 6);
 
-  sheet.setRowHeight(17, 22);
-  sheet.getRange("B17:H17").setValues([["Diena", "SMS", "Skambučiai", "Booking", "Klaidos", "Perdavimai", ""]])
-    .setFontWeight("bold").setFontSize(9).setFontColor(subText).setBackground("#F2F2F2");
-  sheet.getRange("B17:H17").setBorder(true, true, false, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
+  // ===== ROW 15: Savaitės apžvalga header =====
+  sheet.setRowHeight(15, 22);
+  sheet.getRange("B15:G15").merge().setValue("Savaitės apžvalga")
+    .setFontSize(12).setFontWeight("bold").setFontColor(headerText).setBackground(bg);
 
+  // Paskutinės klaidos header (šalia savaitės)
+  sheet.getRange("H15:I15").merge().setValue("Paskutinės klaidos")
+    .setFontSize(12).setFontWeight("bold").setFontColor(dangerColor).setBackground(bg);
+
+  // ===== ROW 16: column headers =====
+  sheet.setRowHeight(16, 18);
+  sheet.getRange("B16:G16").setValues([["Diena", "SMS", "Skamb.", "Book.", "Klaid.", "Perd."]])
+    .setFontWeight("bold").setFontSize(8).setFontColor(subText).setBackground("#F2F2F2");
+  sheet.getRange("B16:G16").setBorder(true, true, false, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
+
+  sheet.getRange("H16:I16").setValues([["Tel.", "Aprašymas"]])
+    .setFontWeight("bold").setFontSize(8).setFontColor(subText).setBackground("#F2F2F2");
+  sheet.getRange("H16:I16").setBorder(true, true, false, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
+
+  // ===== ROW 17-23: savaitė + klaidos side by side =====
   for (var d = 0; d < 7; d++) {
-    var row = 18 + d;
-    sheet.setRowHeight(row, 26);
+    var row = 17 + d;
+    sheet.setRowHeight(row, 21);
     var rowBg = d % 2 === 0 ? cardBg : "#F7F7F7";
     var dayData = smsData.days[d];
 
-    sheet.getRange("B" + row).setValue(dayData.label).setFontColor(headerText).setFontSize(10).setBackground(rowBg);
-    sheet.getRange("C" + row).setValue(dayData.total).setFontColor(headerText).setFontWeight("bold").setHorizontalAlignment("center").setBackground(rowBg);
-    sheet.getRange("D" + row).setValue(dayData.missed).setFontColor(warningColor).setFontWeight("bold").setHorizontalAlignment("center").setBackground(rowBg);
-    sheet.getRange("E" + row).setValue(dayData.bookings).setFontColor(successColor).setFontWeight("bold").setHorizontalAlignment("center").setBackground(rowBg);
-    sheet.getRange("F" + row).setValue(dayData.errors).setFontColor(dangerColor).setFontWeight("bold").setHorizontalAlignment("center").setBackground(rowBg);
-    sheet.getRange("G" + row).setValue(dayData.transfers).setFontColor(accentMid).setFontWeight("bold").setHorizontalAlignment("center").setBackground(rowBg);
-  }
-  sheet.getRange("B17:G24").setBorder(true, true, true, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
+    sheet.getRange("B" + row).setValue(dayData.label).setFontColor(headerText).setFontSize(9).setBackground(rowBg);
+    sheet.getRange("C" + row).setValue(dayData.total).setFontColor(headerText).setFontWeight("bold").setHorizontalAlignment("center").setFontSize(9).setBackground(rowBg);
+    sheet.getRange("D" + row).setValue(dayData.missed).setFontColor(warningColor).setFontWeight("bold").setHorizontalAlignment("center").setFontSize(9).setBackground(rowBg);
+    sheet.getRange("E" + row).setValue(dayData.bookings).setFontColor(successColor).setFontWeight("bold").setHorizontalAlignment("center").setFontSize(9).setBackground(rowBg);
+    sheet.getRange("F" + row).setValue(dayData.errors).setFontColor(dangerColor).setFontWeight("bold").setHorizontalAlignment("center").setFontSize(9).setBackground(rowBg);
+    sheet.getRange("G" + row).setValue(dayData.transfers).setFontColor(accentMid).setFontWeight("bold").setHorizontalAlignment("center").setFontSize(9).setBackground(rowBg);
 
-  // ===== PASKUTINĖS KLAIDOS =====
-  sheet.setRowHeight(25, 15);
-  sheet.setRowHeight(26, 28);
-  sheet.getRange("B26:I26").merge().setValue("Paskutinės klaidos")
-    .setFontSize(14).setFontWeight("bold").setFontColor(dangerColor).setBackground(bg);
-
-  sheet.setRowHeight(27, 22);
-  sheet.getRange("B27:I27").setValues([["Data", "Telefonas", "", "Klaidos aprašymas", "", "", "", ""]])
-    .setFontWeight("bold").setFontSize(9).setFontColor(subText).setBackground("#F2F2F2");
-
-  for (var i = 0; i < 5; i++) {
-    var row = 28 + i;
-    sheet.setRowHeight(row, 26);
-    var rowBg = i % 2 === 0 ? cardBg : "#F7F7F7";
-    if (i < smsData.lastErrors.length) {
-      var err = smsData.lastErrors[i];
-      sheet.getRange("B" + row).setValue(err.date).setFontColor(subText).setFontSize(10).setBackground(rowBg);
-      sheet.getRange("C" + row).setValue(err.phone).setFontColor(headerText).setFontSize(10).setBackground(rowBg);
-      sheet.getRange("D" + row + ":I" + row).merge().setValue(err.message)
-        .setFontColor(dangerColor).setFontSize(10).setBackground(rowBg).setWrap(true);
-    } else {
-      sheet.getRange("B" + row).setValue("—").setFontColor(subText).setFontSize(10).setBackground(rowBg);
-      sheet.getRange("C" + row).setValue("").setBackground(rowBg);
-      sheet.getRange("D" + row + ":I" + row).merge().setValue("").setBackground(rowBg);
+    // Klaidos (dešinėje)
+    if (d < 5) {
+      if (d < smsData.lastErrors.length) {
+        var err = smsData.lastErrors[d];
+        sheet.getRange("H" + row).setValue(err.phone).setFontColor(headerText).setFontSize(8).setBackground(rowBg);
+        sheet.getRange("I" + row).setValue(err.message).setFontColor(dangerColor).setFontSize(8).setBackground(rowBg).setWrap(true);
+      } else {
+        sheet.getRange("H" + row).setValue("—").setFontColor(subText).setFontSize(8).setBackground(rowBg);
+        sheet.getRange("I" + row).setValue("").setBackground(rowBg);
+      }
     }
   }
-  sheet.getRange("B27:I32").setBorder(true, true, true, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
+  sheet.getRange("B16:G23").setBorder(true, true, true, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
+  sheet.getRange("H16:I21").setBorder(true, true, true, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
+
+  // ===== ROW 24: spacer =====
+  sheet.setRowHeight(24, 6);
 
   // ===== ĮRENGINIŲ STATUSAS (iš Statusas lapo) =====
   var statusSheet = ss.getSheetByName("Statusas");
   if (statusSheet && statusSheet.getLastRow() >= 1) {
-    sheet.setRowHeight(33, 15);
-    sheet.setRowHeight(34, 28);
-    sheet.getRange("B34:I34").merge().setValue("Įrenginių statusas")
-      .setFontSize(14).setFontWeight("bold").setFontColor(headerText).setBackground(bg);
+    sheet.setRowHeight(25, 22);
+    sheet.getRange("B25:I25").merge().setValue("Įrenginių statusas")
+      .setFontSize(12).setFontWeight("bold").setFontColor(headerText).setBackground(bg);
 
     var lastStatusRow = statusSheet.getLastRow();
     var lastStatusCol = statusSheet.getLastColumn();
@@ -367,7 +369,7 @@ function createDashboardSheet_(ss) {
     Logger.log("Devices found: " + devices.length);
 
     if (devices.length > 0) {
-      sheet.setRowHeight(35, 22);
+      sheet.setRowHeight(26, 18);
       var maxRows = 0;
 
       for (var di = 0; di < devices.length && di < 2; di++) {
@@ -376,18 +378,18 @@ function createDashboardSheet_(ss) {
         var colValue = di === 0 ? "C" : "G";
         var colMergeEnd = di === 0 ? "D" : "H";
 
-        sheet.getRange(colLabel + "35:" + colMergeEnd + "35").merge()
+        sheet.getRange(colLabel + "26:" + colMergeEnd + "26").merge()
           .setValue(dev.name)
-          .setFontSize(11).setFontWeight("bold").setFontColor(headerText)
+          .setFontSize(9).setFontWeight("bold").setFontColor(headerText)
           .setBackground("#F2F2F2").setHorizontalAlignment("center");
 
         for (var ri = 0; ri < dev.rows.length; ri++) {
-          var row = 36 + ri;
-          sheet.setRowHeight(row, 24);
+          var row = 27 + ri;
+          sheet.setRowHeight(row, 21);
           var rowBg = ri % 2 === 0 ? cardBg : "#F7F7F7";
 
           sheet.getRange(colLabel + row).setValue(dev.rows[ri][0])
-            .setFontColor(subText).setFontSize(10).setBackground(rowBg);
+            .setFontColor(subText).setFontSize(9).setBackground(rowBg);
 
           var valText = dev.rows[ri][1];
           var valColor = headerText;
@@ -396,14 +398,14 @@ function createDashboardSheet_(ss) {
 
           sheet.getRange(colValue + row + ":" + colMergeEnd + row).merge()
             .setValue(valText)
-            .setFontColor(valColor).setFontSize(10).setFontWeight("bold")
+            .setFontColor(valColor).setFontSize(9).setFontWeight("bold")
             .setBackground(rowBg).setHorizontalAlignment("center");
         }
 
         if (dev.rows.length > maxRows) maxRows = dev.rows.length;
 
-        var lastDevRow = 36 + dev.rows.length - 1;
-        sheet.getRange(colLabel + "35:" + colMergeEnd + lastDevRow)
+        var lastDevRow = 27 + dev.rows.length - 1;
+        sheet.getRange(colLabel + "26:" + colMergeEnd + lastDevRow)
           .setBorder(true, true, true, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
       }
     }
