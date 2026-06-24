@@ -11,6 +11,8 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import com.proteros.smsai.api.GoogleSheetsClient
+import com.proteros.smsai.data.AppDatabase
+import com.proteros.smsai.data.AppRepository
 import com.proteros.smsai.util.AppLog
 import androidx.core.app.NotificationCompat
 import com.proteros.smsai.AutoShopApp
@@ -37,6 +39,12 @@ class SmsAgentService : Service() {
                     }
                 } catch (e: Exception) {
                     AppLog.e(TAG, "Refresh check failed", e)
+                }
+                try {
+                    val repo = AppRepository(applicationContext, AppDatabase.getInstance(applicationContext))
+                    repo.checkInactiveConversations()
+                } catch (e: Exception) {
+                    AppLog.e(TAG, "Inactivity check failed", e)
                 }
             }
             refreshHandler.postDelayed(this, refreshCheckInterval)
