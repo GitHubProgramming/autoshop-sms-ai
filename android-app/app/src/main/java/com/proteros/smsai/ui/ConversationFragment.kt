@@ -6,6 +6,7 @@ import android.app.TimePickerDialog
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.widget.PopupMenu
 import com.proteros.smsai.util.AppLog
 import com.proteros.smsai.util.maskPhone
 import android.view.LayoutInflater
@@ -49,11 +50,14 @@ class ConversationFragment : Fragment() {
         chatAdapter = ChatAdapter()
 
         binding.toolbarTitle.text = args.phoneNumber
+        binding.toolbarSubtitle.text = args.phoneNumber
+        binding.toolbarSubtitle.visibility = View.VISIBLE
+        updateAvatar(args.phoneNumber)
+
         viewModel.contactName.observe(viewLifecycleOwner) { name ->
             if (!name.isNullOrBlank()) {
                 binding.toolbarTitle.text = name
-                binding.toolbarSubtitle.text = args.phoneNumber
-                binding.toolbarSubtitle.visibility = View.VISIBLE
+                updateAvatar(name)
             }
         }
         binding.recyclerMessages.layoutManager = LinearLayoutManager(context).apply {
@@ -63,13 +67,30 @@ class ConversationFragment : Fragment() {
 
         binding.btnBack.setOnClickListener { findNavController().navigateUp() }
 
-        binding.toolbarSubtitle.setOnClickListener {
-            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${args.phoneNumber}"))
-            startActivity(intent)
+        binding.btnCall.setOnClickListener {
+            startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:${args.phoneNumber}")))
         }
 
-        binding.btnTakeover.setOnClickListener {
-            viewModel.toggleTakeover()
+        binding.btnMore.setOnClickListener { view ->
+            val popup = PopupMenu(requireContext(), view)
+            val takeoverLabel = if (viewModel.isTakeover.value == true) "Grąžinti AI" else "Perimti"
+            popup.menu.add(takeoverLabel)
+            popup.menu.add("Uždaryti pokalbį")
+            popup.setOnMenuItemClickListener { item ->
+                when (item.title) {
+                    takeoverLabel -> viewModel.toggleTakeover()
+                    "Uždaryti pokalbį" -> {
+                        AlertDialog.Builder(requireContext())
+                            .setTitle("Uždaryti pokalbį?")
+                            .setMessage("Pokalbis bus pažymėtas kaip nepavykęs.")
+                            .setPositiveButton("Uždaryti") { _, _ -> viewModel.closeConversation() }
+                            .setNegativeButton("Atšaukti", null)
+                            .show()
+                    }
+                }
+                true
+            }
+            popup.show()
         }
 
         binding.btnSend.setOnClickListener {
@@ -106,7 +127,6 @@ class ConversationFragment : Fragment() {
         }
 
         viewModel.isTakeover.observe(viewLifecycleOwner) { takeover ->
-            binding.btnTakeover.text = if (takeover) "Grąžinti AI" else "Perimti"
             binding.takeoverBanner.visibility = if (takeover) View.VISIBLE else View.GONE
             binding.inputContainer.visibility = if (takeover) View.VISIBLE else View.GONE
             updateActionButtons()
@@ -114,7 +134,7 @@ class ConversationFragment : Fragment() {
 
         viewModel.status.observe(viewLifecycleOwner) { status ->
             val isClosed = status == "closed" || status == "booked"
-            binding.btnTakeover.visibility = if (isClosed) View.GONE else View.VISIBLE
+            binding.btnMore.visibility = if (isClosed) View.GONE else View.VISIBLE
             updateActionButtons()
         }
 
@@ -126,9 +146,15 @@ class ConversationFragment : Fragment() {
             if (err != null) Toast.makeText(context, err, Toast.LENGTH_LONG).show()
         }
 
-        // Show phone number as clickable even without contact name
-        binding.toolbarSubtitle.text = args.phoneNumber
-        binding.toolbarSubtitle.visibility = View.VISIBLE
+    }
+
+    private fun updateAvatar(displayName: String) {
+        val initials = if (displayName.startsWith("+") || displayName.all { it.isDigit() }) {
+            displayName.takeLast(2)
+        } else {
+            displayName.split(" ").take(2).map { it.first().uppercaseChar() }.joinToString("")
+        }
+        binding.avatarText.text = initials
     }
 
     private fun updateActionButtons() {
