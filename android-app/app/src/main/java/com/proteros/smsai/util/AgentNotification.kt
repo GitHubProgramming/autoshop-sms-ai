@@ -30,6 +30,14 @@ object AgentNotification {
         show(context, "Laiko konfliktas!", "$phone norėjo ${dateTime ?: "?"} — laikas užimtas. Perimkite pokalbį.")
     }
 
+    fun serviceRestarted(context: Context) {
+        show(context, "Servisas perkrautas", "SMS agentas buvo sustabdytas sistemos ir automatiškai paleistas iš naujo.")
+    }
+
+    fun batteryWarning(context: Context) {
+        show(context, "Baterijos optimizavimas įjungtas", "SMS agentas gali būti sustabdytas. Išjunkite baterijos optimizavimą šiai programai.")
+    }
+
     private fun show(context: Context, title: String, text: String) {
         try {
             val intent = Intent(context, MainActivity::class.java).apply {

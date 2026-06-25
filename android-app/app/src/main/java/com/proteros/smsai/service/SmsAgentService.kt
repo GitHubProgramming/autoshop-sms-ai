@@ -1,5 +1,6 @@
 package com.proteros.smsai.service
 
+import android.app.AlarmManager
 import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
@@ -10,10 +11,13 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
 import com.proteros.smsai.api.GoogleSheetsClient
 import com.proteros.smsai.data.AppDatabase
 import com.proteros.smsai.data.AppRepository
+import com.proteros.smsai.util.AgentNotification
 import com.proteros.smsai.util.AppLog
+import com.proteros.smsai.util.SecurePrefs
 import androidx.core.app.NotificationCompat
 import com.proteros.smsai.AutoShopApp
 import com.proteros.smsai.R
@@ -70,18 +74,87 @@ class SmsAgentService : Service() {
                 sheetsClient.initializeSheets()
             } catch (e: Exception) { AppLog.e(TAG, "Initial status report failed", e) }
         }
+        checkBatteryOptimization()
+        scheduleWatchdog()
         refreshHandler.postDelayed(refreshCheckRunnable, refreshCheckInterval)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        AppLog.i(TAG, "SmsAgentService started")
+        val restarted = intent?.getBooleanExtra(EXTRA_RESTARTED, false) == true
+        if (restarted) {
+            AppLog.w(TAG, "SmsAgentService RESTARTED after being killed")
+            AgentNotification.serviceRestarted(applicationContext)
+        } else {
+            AppLog.i(TAG, "SmsAgentService started")
+        }
         return START_STICKY
     }
 
     override fun onDestroy() {
         refreshHandler.removeCallbacks(refreshCheckRunnable)
         super.onDestroy()
-        AppLog.i(TAG, "SmsAgentService destroyed")
+        AppLog.w(TAG, "SmsAgentService destroyed — scheduling restart")
+        if (SecurePrefs.isEnabled(applicationContext)) {
+            scheduleRestart()
+        }
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        AppLog.w(TAG, "Task removed (app swiped away) — scheduling restart")
+        if (SecurePrefs.isEnabled(applicationContext)) {
+            scheduleRestart()
+        }
+    }
+
+    private fun scheduleRestart() {
+        try {
+            val restartIntent = Intent(applicationContext, ServiceRestartReceiver::class.java)
+            val pendingIntent = PendingIntent.getBroadcast(
+                applicationContext, RESTART_REQUEST_CODE, restartIntent,
+                PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                System.currentTimeMillis() + RESTART_DELAY_MS,
+                pendingIntent
+            )
+        } catch (e: Exception) {
+            AppLog.e(TAG, "Failed to schedule restart", e)
+        }
+    }
+
+    private fun scheduleWatchdog() {
+        try {
+            val watchdogIntent = Intent(applicationContext, ServiceRestartReceiver::class.java)
+            watchdogIntent.putExtra("watchdog", true)
+            val pendingIntent = PendingIntent.getBroadcast(
+                applicationContext, WATCHDOG_REQUEST_CODE, watchdogIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            alarmManager.setRepeating(
+                AlarmManager.RTC_WAKEUP,
+                System.currentTimeMillis() + WATCHDOG_INTERVAL_MS,
+                WATCHDOG_INTERVAL_MS,
+                pendingIntent
+            )
+        } catch (e: Exception) {
+            AppLog.e(TAG, "Failed to schedule watchdog", e)
+        }
+    }
+
+    private fun checkBatteryOptimization() {
+        try {
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                AppLog.w(TAG, "Battery optimization is ON — service may be killed")
+                AgentNotification.batteryWarning(applicationContext)
+            }
+        } catch (e: Exception) {
+            AppLog.e(TAG, "Battery check failed", e)
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -104,6 +177,11 @@ class SmsAgentService : Service() {
     companion object {
         private const val TAG = "SmsAgentService"
         private const val NOTIFICATION_ID = 1
+        const val EXTRA_RESTARTED = "restarted"
+        private const val RESTART_REQUEST_CODE = 9001
+        private const val WATCHDOG_REQUEST_CODE = 9002
+        private const val RESTART_DELAY_MS = 5_000L
+        private const val WATCHDOG_INTERVAL_MS = 15 * 60 * 1000L
 
         fun start(context: Context) {
             try {
