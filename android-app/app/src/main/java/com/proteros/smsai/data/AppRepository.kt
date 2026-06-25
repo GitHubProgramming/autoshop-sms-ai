@@ -235,12 +235,16 @@ class AppRepository(
                     dateTime = aiResponse.dateTime ?: "",
                     contactName = convo.contactName,
                     conversationSummary = chatSummary,
-                    durationMin = serviceDuration
+                    durationMin = serviceDuration,
+                    carInfo = aiResponse.carInfo
                 )
             } catch (e: Exception) {
                 AppLog.e("AppRepo", "Calendar event creation failed", e)
             }
             conversationDao.setBooked(phone, eventId ?: "", aiResponse.service, aiResponse.dateTime)
+            if (!aiResponse.carInfo.isNullOrBlank()) {
+                conversationDao.updateCarInfo(phone, aiResponse.carInfo)
+            }
             messageDao.insert(
                 Message(
                     conversationPhone = phone,

@@ -7,9 +7,11 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -17,6 +19,7 @@ import androidx.fragment.app.viewModels
 import com.proteros.smsai.AutoShopApp
 import com.proteros.smsai.R
 import com.proteros.smsai.databinding.FragmentWeekBinding
+import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -265,12 +268,70 @@ class WeekFragment : Fragment() {
                             addRow("🕐", "Laikas", timeStr)
                             addRow("👤", "Klientas", clientName)
                             addRow("📞", "Telefonas", phone)
-                        }
 
-                        AlertDialog.Builder(ctx)
-                            .setView(dialogView)
-                            .setPositiveButton("UŽDARYTI", null)
-                            .show()
+                            val repo = (requireActivity().application as AutoShopApp).repository
+                            var carInfoText = ""
+                            var existingComment = ""
+                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                                val convo = repo.conversationDao.getByPhone(phone)
+                                carInfoText = convo?.carInfo ?: ""
+                                existingComment = convo?.bookingComment ?: ""
+                                if (carInfoText.isNotBlank()) {
+                                    addRow("🚗", "Automobilis", carInfoText)
+                                }
+
+                                addView(android.view.View(ctx).apply {
+                                    setBackgroundColor(0xFFE0E0E0.toInt())
+                                    layoutParams = LinearLayout.LayoutParams(
+                                        LinearLayout.LayoutParams.MATCH_PARENT, dp(1)
+                                    ).apply { setMargins(0, dp(12), 0, dp(8)) }
+                                })
+
+                                addView(TextView(ctx).apply {
+                                    text = "💬 Komentaras"
+                                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+                                    setTextColor(0xFF999999.toInt())
+                                    setPadding(dp(32), 0, 0, dp(4))
+                                })
+
+                                val commentField = EditText(ctx).apply {
+                                    hint = "Pridėti komentarą..."
+                                    setText(existingComment)
+                                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                                    minLines = 1
+                                    maxLines = 3
+                                    setPadding(dp(32), dp(4), 0, dp(4))
+                                    setBackgroundColor(0x00000000)
+                                }
+                                addView(commentField)
+
+                                val calendarClient = com.proteros.smsai.api.GoogleCalendarClient(ctx)
+
+                                AlertDialog.Builder(ctx)
+                                    .setView(this@apply)
+                                    .setPositiveButton("UŽDARYTI") { _, _ ->
+                                        val newComment = commentField.text.toString().trim()
+                                        if (newComment != existingComment) {
+                                            viewModel.updateBookingComment(calendarClient, phone, apptRef.eventId, newComment)
+                                        }
+                                    }
+                                    .setNegativeButton("IŠTRINTI") { _, _ ->
+                                        AlertDialog.Builder(ctx)
+                                            .setTitle("Ar tikrai norite ištrinti vizitą?")
+                                            .setMessage("${apptRef.service} — $clientName, $dateStr $timeStr")
+                                            .setPositiveButton("IŠTRINTI") { _, _ ->
+                                                viewModel.deleteAppointment(calendarClient, apptRef.eventId, phone)
+                                                Toast.makeText(ctx, "Vizitas ištrintas", Toast.LENGTH_SHORT).show()
+                                                refreshWeekCalendar()
+                                            }
+                                            .setNegativeButton("ATŠAUKTI", null)
+                                            .show()
+                                    }
+                                    .show().apply {
+                                        getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(0xFFC0392B.toInt())
+                                    }
+                            }
+                        }
                     }
 
                     cell.addView(block)

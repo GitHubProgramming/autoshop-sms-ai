@@ -80,9 +80,10 @@ $rulesBlock
 Tavo tikslas: ${kb.agentGoal}.
 Datą SMS tekste VISADA rašyk formatu: MM-dd, pvz "06-18 10:00" (mėnuo-diena).
 Kai klientas sutinka su laiku arba nurodo laiką, atsakyk formatu:
-[BOOKING:paslauga|data ir laikas]
+[BOOKING:paslauga|data ir laikas|automobilio markė modelis]
 Data formatu: YYYY-MM-DD HH:MM
-Pvz: [BOOKING:Stabdžių remontas|2025-06-18 10:00]
+Pvz: [BOOKING:Stabdžių remontas|2025-06-18 10:00|Toyota Avensis]
+Jei automobilio info nežinoma: [BOOKING:Stabdžių remontas|2025-06-18 10:00|]
 
 Rašyk lietuviškai, mandagiai, profesionaliai.
 NENAUDOK jokio markdown formatavimo (**, *, # ir pan.) — tai SMS žinutė, rašyk paprastu tekstu.$customBlock$correctionsBlock
@@ -117,7 +118,8 @@ NENAUDOK jokio markdown formatavimo (**, *, # ir pan.) — tai SMS žinutė, ra�
         val text: String,
         val bookingDetected: Boolean = false,
         val service: String? = null,
-        val dateTime: String? = null
+        val dateTime: String? = null,
+        val carInfo: String? = null
     )
 
     suspend fun generateReply(phone: String, history: List<Message>, latestMessage: String, contactName: String? = null, extraInfo: String? = null): AiReply = withContext(Dispatchers.IO) {
@@ -152,15 +154,17 @@ NENAUDOK jokio markdown formatavimo (**, *, # ir pan.) — tai SMS žinutė, ra�
             val responseText = callClaude(apiKey, (0 until messages.length()).map { messages.getJSONObject(it) }, fullContext)
             AppLog.i(TAG, "Reply for ${maskPhone(phone)} (${responseText.length} chars)")
 
-            val bookingRegex = """\[BOOKING:([^|]+)\|(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})]""".toRegex()
+            val bookingRegex = """\[BOOKING:([^|]+)\|(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})(?:\|([^]]*))?\]""".toRegex()
             val match = bookingRegex.find(responseText)
 
             if (match != null) {
+                val carInfo = match.groupValues.getOrNull(3)?.trim()?.ifEmpty { null }
                 AiReply(
                     text = responseText.replace(bookingRegex, "").trim(),
                     bookingDetected = true,
                     service = match.groupValues[1],
-                    dateTime = match.groupValues[2]
+                    dateTime = match.groupValues[2],
+                    carInfo = carInfo
                 )
             } else {
                 AiReply(text = responseText)

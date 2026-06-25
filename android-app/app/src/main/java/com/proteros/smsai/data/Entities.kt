@@ -19,7 +19,9 @@ data class Conversation(
     val bookingService: String? = null,
     val bookingDateTime: String? = null,
     val rescheduleCount: Int = 0,
-    val inactivityNotified: Boolean = false
+    val inactivityNotified: Boolean = false,
+    val carInfo: String? = null,
+    val bookingComment: String? = null
 ) {
     companion object {
         const val STATUS_ACTIVE = "active"
