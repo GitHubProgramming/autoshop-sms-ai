@@ -104,7 +104,8 @@ class GoogleSheetsClient(private val context: Context) {
                 "DUK!A2:B50",
                 "Taisyklės!A2:A50",
                 "Garantijos ir sąlygos!A2:B50",
-                "Pataisymai!A2:E50"
+                "Pataisymai!A2:E50",
+                "Promptas!B6:C30"
             )
 
             val response = service.spreadsheets().values()
@@ -120,9 +121,17 @@ class GoogleSheetsClient(private val context: Context) {
             val ruleRows = valueRanges.getOrNull(3)?.getValues() ?: emptyList()
             val warrantyRows = valueRanges.getOrNull(4)?.getValues() ?: emptyList()
             val correctionRows = valueRanges.getOrNull(5)?.getValues() ?: emptyList()
+            val promptRows = valueRanges.getOrNull(6)?.getValues() ?: emptyList()
 
             val info = mutableMapOf<String, String>()
             for (row in infoRows) {
+                if (row.size >= 2) {
+                    val key = row[0]?.toString()?.trim() ?: continue
+                    val value = row[1]?.toString()?.trim() ?: continue
+                    if (key.isNotBlank() && value.isNotBlank()) info[key] = value
+                }
+            }
+            for (row in promptRows) {
                 if (row.size >= 2) {
                     val key = row[0]?.toString()?.trim() ?: continue
                     val value = row[1]?.toString()?.trim() ?: continue

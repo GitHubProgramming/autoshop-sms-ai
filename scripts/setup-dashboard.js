@@ -43,6 +43,13 @@ function setupDashboard() {
     Logger.log("Notifikacijos KLAIDA: " + e.message);
   }
 
+  try {
+    createPromptasSheet_(ss);
+    Logger.log("Promptas — OK");
+  } catch (e) {
+    Logger.log("Promptas KLAIDA: " + e.message);
+  }
+
   var dashboard = ss.getSheetByName("Dashboard");
   if (dashboard) dashboard.activate();
 
@@ -751,4 +758,243 @@ function createNotifikacijosSheet_(ss) {
 
   sheet.setHiddenGridlines(true);
   sheet.protect().setDescription("Notifikacijos — informacinis lapas").setWarningOnly(true);
+}
+
+// ==================== PROMPTAS ====================
+
+function createPromptasSheet_(ss) {
+  var existing = ss.getSheetByName("Promptas");
+  if (existing) ss.deleteSheet(existing);
+
+  var sheet = ss.insertSheet("Promptas");
+
+  var bg = "#FAFAFA";
+  var cardBg = "#FFFFFF";
+  var headerText = "#111111";
+  var subText = "#888888";
+  var borderColor = "#E0E0E0";
+  var editableBg = "#FFFDE7";
+  var sectionColor = "#1B5E20";
+
+  sheet.setColumnWidth(1, 20);
+  sheet.setColumnWidth(2, 280);
+  sheet.setColumnWidth(3, 500);
+  sheet.setColumnWidth(4, 20);
+
+  sheet.getRange("A1:D60").setBackground(bg).setFontFamily("Google Sans");
+
+  // Header
+  sheet.setRowHeight(1, 45);
+  sheet.getRange("B1:C1").merge().setValue("AI AGENTO PROMPTAS")
+    .setFontSize(20).setFontWeight("bold").setFontColor(headerText)
+    .setHorizontalAlignment("left").setVerticalAlignment("middle");
+
+  sheet.setRowHeight(2, 6);
+
+  sheet.setRowHeight(3, 35);
+  sheet.getRange("B3:C3").merge()
+    .setValue("Čia galite matyti ir redaguoti visą AI agento konfigūraciją. Pakeitus reikšmę — app automatiškai naudos naują nustatymą.")
+    .setFontSize(10).setFontColor(subText).setVerticalAlignment("middle").setWrap(true);
+
+  sheet.setRowHeight(4, 6);
+
+  // Read current values from Servisas sheet
+  var servisas = ss.getSheetByName("Servisas");
+  var currentValues = {};
+  if (servisas && servisas.getLastRow() > 1) {
+    var data = servisas.getRange(2, 1, servisas.getLastRow() - 1, 2).getValues();
+    for (var i = 0; i < data.length; i++) {
+      var key = data[i][0] ? data[i][0].toString().trim() : "";
+      var val = data[i][1] ? data[i][1].toString().trim() : "";
+      if (key) currentValues[key] = val;
+    }
+  }
+
+  // Read rules
+  var rulesSheet = ss.getSheetByName("Taisyklės");
+  var currentRules = [];
+  if (rulesSheet && rulesSheet.getLastRow() > 1) {
+    var rData = rulesSheet.getRange(2, 1, rulesSheet.getLastRow() - 1, 1).getValues();
+    for (var i = 0; i < rData.length; i++) {
+      var r = rData[i][0] ? rData[i][0].toString().trim() : "";
+      if (r && !r.startsWith("*")) currentRules.push(r);
+    }
+  }
+
+  var row = 5;
+
+  // === SECTION 1: Pagrindiniai nustatymai ===
+  row = sectionHeader_(sheet, row, "PAGRINDINIAI NUSTATYMAI", sectionColor, bg);
+
+  var mainFields = [
+    ["Agento tikslas", currentValues["Agento tikslas"] || "Kuo greičiau susitarti dėl vizito laiko", "Pagrindinis AI tikslas — ką jis turi pasiekti kiekviename pokalbyje"],
+    ["Pasisveikinimo žinutė", currentValues["Pasisveikinimo žinutė"] || "Sveiki! Matome, kad bandėte skambinti. Kuo galime padėti?", "Pirmoji žinutė klientui po praleisto skambučio"],
+    ["Max žinučių skaičius", currentValues["Max žinučių skaičius"] || "8", "Po kiek žinučių pokalbis perduodamas savininkui (jei nesusitarta)"],
+    ["Vizito trukmė (min)", currentValues["Vizito trukmė (min)"] || "60", "Kiek minučių trunka standartinis vizitas kalendoriuje"],
+    ["Papildomas promptas", currentValues["Papildomas promptas"] || "", "Papildomos instrukcijos AI agentui (laisva forma)"]
+  ];
+
+  for (var i = 0; i < mainFields.length; i++) {
+    row = editableRow_(sheet, row, mainFields[i][0], mainFields[i][1], mainFields[i][2], headerText, subText, editableBg, cardBg, borderColor);
+  }
+
+  row++;
+  sheet.setRowHeight(row, 6);
+  row++;
+
+  // === SECTION 2: Verslo informacija ===
+  row = sectionHeader_(sheet, row, "VERSLO INFORMACIJA", sectionColor, bg);
+
+  var bizFields = [
+    ["Įmonės pavadinimas", currentValues["Įmonės pavadinimas"] || "Proteros Servisas", "Verslo pavadinimas naudojamas AI pokalbyje"],
+    ["Adresas", currentValues["Adresas"] || "Aukštaičių g. 29-2, Panevėžys", "Adresas siunčiamas klientui su Google Maps nuoroda"],
+    ["Darbo laikas", currentValues["Darbo laikas"] || "I-V 8:00-17:00", "AI siūlys vizitus tik darbo metu"],
+    ["Telefono numeris", currentValues["Telefono numeris"] || "", "Rodomas klientui jei reikia perskambinti"]
+  ];
+
+  for (var i = 0; i < bizFields.length; i++) {
+    row = editableRow_(sheet, row, bizFields[i][0], bizFields[i][1], bizFields[i][2], headerText, subText, editableBg, cardBg, borderColor);
+  }
+
+  row++;
+  sheet.setRowHeight(row, 6);
+  row++;
+
+  // === SECTION 3: Elgesio taisyklės ===
+  row = sectionHeader_(sheet, row, "ELGESIO TAISYKLĖS", sectionColor, bg);
+
+  sheet.setRowHeight(row, 25);
+  sheet.getRange("B" + row + ":C" + row).merge()
+    .setValue("Šios taisyklės nuskaitomos iš \"Taisyklės\" lapo. Redaguokite jas ten.")
+    .setFontSize(9).setFontColor(subText).setBackground(bg).setWrap(true);
+  row++;
+
+  var builtInRules = [
+    "Priimk BET KOKIĄ su automobiliu susijusią užklausą",
+    "Kai klientas parašo problemą — iškart pasiūlyk 2 artimiausius laisvus laikus",
+    "Jei klientas sutinka su laiku — iškart registruok",
+    "Registracijos patvirtinime NERAŠYK adreso (sistema pridės automatiškai)",
+    "Rašyk lietuviškai, mandagiai, profesionaliai",
+    "NENAUDOK markdown formatavimo — tai SMS žinutė"
+  ];
+
+  sheet.setRowHeight(row, 18);
+  sheet.getRange("B" + row).setValue("Integruotos taisyklės (nekeičiamos):")
+    .setFontSize(9).setFontWeight("bold").setFontColor(subText).setBackground(bg);
+  row++;
+
+  for (var i = 0; i < builtInRules.length; i++) {
+    sheet.setRowHeight(row, 20);
+    sheet.getRange("B" + row + ":C" + row).merge()
+      .setValue("  • " + builtInRules[i])
+      .setFontSize(9).setFontColor(headerText).setBackground("#F5F5F5");
+    row++;
+  }
+
+  row++;
+
+  if (currentRules.length > 0) {
+    sheet.getRange("B" + row).setValue("Jūsų taisyklės (iš \"Taisyklės\" lapo):")
+      .setFontSize(9).setFontWeight("bold").setFontColor(subText).setBackground(bg);
+    row++;
+
+    for (var i = 0; i < currentRules.length; i++) {
+      sheet.setRowHeight(row, 20);
+      sheet.getRange("B" + row + ":C" + row).merge()
+        .setValue("  • " + currentRules[i])
+        .setFontSize(9).setFontColor(headerText).setBackground(cardBg);
+      row++;
+    }
+    row++;
+  }
+
+  sheet.setRowHeight(row, 6);
+  row++;
+
+  // === SECTION 4: Booking formatas ===
+  row = sectionHeader_(sheet, row, "BOOKING FORMATAS (automatinis)", sectionColor, bg);
+
+  var bookingInfo = [
+    "Kai klientas sutinka su vizito laiku, AI automatiškai sugeneruoja booking žymą:",
+    "",
+    "Formatas: [BOOKING:paslauga|data ir laikas|automobilio markė modelis]",
+    "Pavyzdys: [BOOKING:Stabdžių remontas|2025-06-18 10:00|Toyota Avensis]",
+    "",
+    "AI taip pat klausia kliento automobilio markę ir modelį pokalbio metu."
+  ];
+
+  for (var i = 0; i < bookingInfo.length; i++) {
+    sheet.setRowHeight(row, bookingInfo[i] === "" ? 6 : 20);
+    if (bookingInfo[i] !== "") {
+      sheet.getRange("B" + row + ":C" + row).merge()
+        .setValue(bookingInfo[i])
+        .setFontSize(9).setFontColor(headerText).setBackground("#F5F5F5")
+        .setFontFamily(i === 2 || i === 3 ? "Roboto Mono" : "Google Sans");
+    }
+    row++;
+  }
+
+  row++;
+
+  // === SECTION 5: Duomenų šaltiniai ===
+  row = sectionHeader_(sheet, row, "DUOMENŲ ŠALTINIAI", sectionColor, bg);
+
+  var sources = [
+    ["Servisas", "Verslo informacija (pavadinimas, adresas, darbo laikas)"],
+    ["Paslaugos", "Teikiamų paslaugų sąrašas su kainomis ir trukme"],
+    ["DUK", "Dažnai užduodami klausimai ir atsakymai"],
+    ["Taisyklės", "AI elgesio taisyklės"],
+    ["Garantijos ir sąlygos", "Garantijų sąlygos klientams"],
+    ["Pataisymai", "Blogų atsakymų pataisymai (AI mokosi iš klaidų)"],
+    ["Promptas", "Šis lapas — konsoliduota AI konfigūracija"]
+  ];
+
+  sheet.setRowHeight(row, 18);
+  sheet.getRange("B" + row).setValue("Lapas").setFontWeight("bold").setFontSize(9).setFontColor(subText).setBackground("#F2F2F2");
+  sheet.getRange("C" + row).setValue("Paskirtis").setFontWeight("bold").setFontSize(9).setFontColor(subText).setBackground("#F2F2F2");
+  row++;
+
+  for (var i = 0; i < sources.length; i++) {
+    var rowBg = i % 2 === 0 ? cardBg : "#F7F7F7";
+    sheet.setRowHeight(row, 22);
+    sheet.getRange("B" + row).setValue(sources[i][0]).setFontSize(9).setFontColor(headerText).setBackground(rowBg);
+    sheet.getRange("C" + row).setValue(sources[i][1]).setFontSize(9).setFontColor(subText).setBackground(rowBg);
+    row++;
+  }
+
+  sheet.setHiddenGridlines(true);
+}
+
+function sectionHeader_(sheet, row, title, color, bg) {
+  sheet.setRowHeight(row, 28);
+  sheet.getRange("B" + row + ":C" + row).merge()
+    .setValue(title)
+    .setFontSize(12).setFontWeight("bold").setFontColor(color)
+    .setBackground(bg).setVerticalAlignment("middle");
+  return row + 1;
+}
+
+function editableRow_(sheet, row, label, value, description, headerText, subText, editableBg, cardBg, borderColor) {
+  sheet.setRowHeight(row, 18);
+  sheet.getRange("B" + row + ":C" + row).merge()
+    .setValue(description)
+    .setFontSize(8).setFontColor(subText).setBackground(cardBg);
+  row++;
+
+  var isMultiline = label === "Papildomas promptas" || label === "Pasisveikinimo žinutė";
+  sheet.setRowHeight(row, isMultiline ? 60 : 28);
+
+  sheet.getRange("B" + row).setValue(label)
+    .setFontSize(10).setFontWeight("bold").setFontColor(headerText)
+    .setBackground(cardBg).setVerticalAlignment("middle");
+
+  sheet.getRange("C" + row).setValue(value)
+    .setFontSize(10).setFontColor(headerText)
+    .setBackground(editableBg).setVerticalAlignment("middle")
+    .setWrap(true);
+
+  sheet.getRange("B" + row + ":C" + row)
+    .setBorder(true, true, true, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
+
+  return row + 1;
 }
