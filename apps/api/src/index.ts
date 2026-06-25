@@ -48,6 +48,13 @@ import { devLoopExecuteRoute } from "./routes/internal/dev-loop-execute";
 import { leadsRoute } from "./routes/internal/leads";
 import { zadarmaWebhookRoute } from "./routes/internal/zadarma-webhook";
 import { adminCooldownsRoute } from "./routes/internal/admin-cooldowns";
+import { bbAuthRoute } from "./routes/buyback/auth";
+import { bbProfileRoute } from "./routes/buyback/profile";
+import { bbPerfectWeekRoute } from "./routes/buyback/perfect-week";
+import { bbScheduleRoute } from "./routes/buyback/schedule";
+import { bbDripRoute } from "./routes/buyback/drip";
+import { bbAuditRoute } from "./routes/buyback/audit";
+import { bbAnalyticsRoute } from "./routes/buyback/analytics";
 import { db } from "./db/client";
 import { redis } from "./queues/redis";
 import { deadLetterQueue } from "./queues/dead-letter";
@@ -189,6 +196,15 @@ async function bootstrap() {
   await app.register(tenantProvisionNumberRoute, { prefix: "/tenant" });
   await app.register(testCallForwardingRoute, { prefix: "/tenant" });
 
+  // ── Buyback Time (Dan Martell) routes ────────────────────
+  await app.register(bbAuthRoute, { prefix: "/bb-auth" });
+  await app.register(bbProfileRoute, { prefix: "/bb" });
+  await app.register(bbPerfectWeekRoute, { prefix: "/bb" });
+  await app.register(bbScheduleRoute, { prefix: "/bb" });
+  await app.register(bbDripRoute, { prefix: "/bb" });
+  await app.register(bbAuditRoute, { prefix: "/bb" });
+  await app.register(bbAnalyticsRoute, { prefix: "/bb" });
+
   // ── Static frontend (login.html, signup.html, etc.) ───────
   // Served AFTER API routes so API paths are never shadowed.
   // Resolution order:
@@ -277,6 +293,27 @@ async function bootstrap() {
     reply.header("Pragma", "no-cache");
     reply.header("Expires", "0");
     void reply.sendFile("onboarding.html");
+  });
+
+  app.get("/buyback", (_req, reply) => {
+    reply.header("Cache-Control", "no-store, no-cache, must-revalidate");
+    reply.header("Pragma", "no-cache");
+    reply.header("Expires", "0");
+    void reply.sendFile("buyback.html");
+  });
+
+  app.get("/buyback/:view", (_req, reply) => {
+    reply.header("Cache-Control", "no-store, no-cache, must-revalidate");
+    reply.header("Pragma", "no-cache");
+    reply.header("Expires", "0");
+    void reply.sendFile("buyback.html");
+  });
+
+  app.get("/buyback-login", (_req, reply) => {
+    reply.header("Cache-Control", "no-store, no-cache, must-revalidate");
+    reply.header("Pragma", "no-cache");
+    reply.header("Expires", "0");
+    void reply.sendFile("buyback-login.html");
   });
 
   // ── Graceful shutdown ─────────────────────────────────────

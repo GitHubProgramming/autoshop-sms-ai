@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buyback Time</title>
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/brand-tokens.css">
+<style>
+/* ═══════════════════════════════════════════
+   BUYBACK TIME — Design System
+   ═══════════════════════════════════════════ */
+:root {
+  --bb-deep-work: #DC2626; --bb-deep-work-soft: #FEE2E2; --bb-deep-work-border: #FECACA;
+  --bb-people: #D97706; --bb-people-soft: #FEF3C7; --bb-people-border: #FDE68A;
+  --bb-admin: #2563EB; --bb-admin-soft: #DBEAFE; --bb-admin-border: #BFDBFE;
+  --bb-protected: #16A34A; --bb-protected-soft: #DCFCE7; --bb-protected-border: #BBF7D0;
+  --sidebar-w: 240px;
+  --bg: var(--color-bg-page); --bg-panel: #fff;
+  --text: var(--color-text-primary); --text-sec: var(--color-text-secondary); --text-ter: var(--color-text-tertiary);
+  --border: var(--color-border); --radius: 10px; --radius-sm: 8px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);line-height:1.6;min-height:100vh}
+
+/* ── Layout ── */
+.layout{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);background:#0D1B2A;color:#fff;padding:24px 16px;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:transform .3s}
+.main{margin-left:var(--sidebar-w);flex:1;padding:32px;max-width:1200px}
+
+/* ── Sidebar ── */
+.sb-logo{font-family:var(--font-display);font-size:22px;font-weight:800;text-transform:uppercase;letter-spacing:1px;padding:0 8px;margin-bottom:4px}
+.sb-logo .accent{color:var(--bb-deep-work)}
+.sb-user{font-size:13px;color:rgba(255,255,255,0.5);padding:0 8px;margin-bottom:24px}
+.sb-section{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.35);padding:8px 8px 4px;margin-top:16px}
+.sb-link{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:var(--radius-sm);color:rgba(255,255,255,0.7);font-size:14px;font-weight:500;cursor:pointer;transition:all .15s;text-decoration:none}
+.sb-link:hover{background:rgba(255,255,255,0.08);color:#fff}
+.sb-link.active{background:rgba(220,38,38,0.15);color:#fff}
+.sb-link .icon{font-size:16px;width:20px;text-align:center}
+.sb-spacer{flex:1}
+.sb-logout{margin-top:auto;padding-top:16px;border-top:1px solid rgba(255,255,255,0.08)}
+
+/* ── View containers ── */
+.view{display:none}
+.view.active{display:block}
+
+/* ── Shared components ── */
+.page-title{font-family:var(--font-display);font-size:28px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}
+.page-desc{color:var(--text-sec);font-size:14px;margin-bottom:24px}
+.card{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:16px;box-shadow:var(--shadow-sm)}
+.card-title{font-weight:700;font-size:16px;margin-bottom:12px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:var(--bb-deep-work);color:#fff}
+.btn-primary:hover{background:#B91C1C}
+.btn-secondary{background:var(--color-bg-surface-alt);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:hover{background:var(--color-bg-hover)}
+.btn-sm{padding:6px 12px;font-size:12px}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600}
+.form-row{display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.form-row > *{flex:1;min-width:120px}
+.form-group{margin-bottom:12px}
+.form-group label{display:block;font-size:12px;font-weight:600;color:var(--text-sec);margin-bottom:4px}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font-body);outline:none}
+.form-group input:focus,.form-group select:focus{border-color:var(--bb-deep-work);box-shadow:0 0 0 3px rgba(220,38,38,0.08)}
+
+/* ── Modal ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center}
+.modal-bg.visible{display:flex}
+.modal{background:#fff;border-radius:var(--radius);padding:28px;width:90%;max-width:480px;box-shadow:var(--shadow-lg)}
+.modal-title{font-weight:700;font-size:18px;margin-bottom:16px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+
+/* ── Category colors ── */
+.cat-deep_work{background:var(--bb-deep-work-soft);border-color:var(--bb-deep-work-border);color:var(--bb-deep-work)}
+.cat-people{background:var(--bb-people-soft);border-color:var(--bb-people-border);color:var(--bb-people)}
+.cat-admin{background:var(--bb-admin-soft);border-color:var(--bb-admin-border);color:var(--bb-admin)}
+.cat-protected{background:var(--bb-protected-soft);border-color:var(--bb-protected-border);color:var(--bb-protected)}
+.cat-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.cat-dot.deep_work{background:var(--bb-deep-work)}
+.cat-dot.people{background:var(--bb-people)}
+.cat-dot.admin{background:var(--bb-admin)}
+.cat-dot.protected{background:var(--bb-protected)}
+
+/* ═══════════════════════════════════════════
+   VIEW: SETUP
+   ═══════════════════════════════════════════ */
+.buyback-calc{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:16px 0}
+.calc-step{text-align:center;padding:16px 20px;background:var(--color-bg-surface-alt);border-radius:var(--radius-sm)}
+.calc-step .val{font-family:var(--font-display);font-size:28px;font-weight:800}
+.calc-step .lbl{font-size:11px;color:var(--text-ter);text-transform:uppercase}
+.calc-op{font-size:24px;font-weight:700;color:var(--text-ter)}
+.buyback-result{text-align:center;padding:24px;background:var(--bb-deep-work-soft);border:2px solid var(--bb-deep-work-border);border-radius:var(--radius)}
+.buyback-result .rate{font-family:var(--font-display);font-size:48px;font-weight:900;color:var(--bb-deep-work)}
+.buyback-result .rate-label{font-size:14px;color:var(--bb-deep-work);font-weight:600}
+
+/* ═══════════════════════════════════════════
+   VIEW: PERFECT WEEK
+   ═══════════════════════════════════════════ */
+.pw-legend{display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap}
+.pw-legend-item{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500}
+.pw-grid{display:grid;grid-template-columns:60px repeat(7, 1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.pw-header{background:var(--color-bg-surface-alt);padding:8px 4px;text-align:center;font-size:12px;font-weight:700;text-transform:uppercase}
+.pw-time{background:var(--color-bg-surface-alt);padding:4px 8px;font-size:11px;color:var(--text-ter);font-family:var(--font-mono);text-align:right;display:flex;align-items:flex-start;justify-content:flex-end}
+.pw-cell{background:#fff;min-height:32px;position:relative;cursor:pointer;transition:background .1s}
+.pw-cell:hover{background:var(--color-bg-hover)}
+.pw-block{position:absolute;left:2px;right:2px;border-radius:4px;padding:2px 6px;font-size:11px;font-weight:600;cursor:pointer;overflow:hidden;border:1px solid;z-index:1;line-height:1.3}
+.pw-block .block-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ═══════════════════════════════════════════
+   VIEW: TODAY
+   ═══════════════════════════════════════════ */
+.today-nav{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.today-nav .date-display{font-family:var(--font-display);font-size:22px;font-weight:700}
+.today-progress{margin-bottom:20px}
+.progress-bar{height:8px;background:var(--color-bg-surface-alt);border-radius:4px;overflow:hidden}
+.progress-fill{height:100%;background:var(--bb-protected);border-radius:4px;transition:width .3s}
+.progress-text{font-size:13px;color:var(--text-sec);margin-top:4px}
+.today-entry{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;transition:all .15s}
+.today-entry.completed{opacity:0.6}
+.today-entry.completed .entry-label{text-decoration:line-through}
+.entry-check{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.entry-check.checked{border-color:var(--bb-protected);background:var(--bb-protected);color:#fff}
+.entry-time{font-family:var(--font-mono);font-size:13px;color:var(--text-ter);min-width:100px}
+.entry-label{font-weight:600;font-size:14px;flex:1}
+.entry-cat{padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;border:1px solid}
+.streak-badge{display:flex;align-items:center;gap:8px;padding:12px 20px;background:linear-gradient(135deg,#FEF3C7,#FDE68A);border-radius:var(--radius);font-weight:700;font-size:15px;margin-bottom:20px}
+
+/* ═══════════════════════════════════════════
+   VIEW: DRIP MATRIX
+   ═══════════════════════════════════════════ */
+.drip-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+.drip-quadrant{border-radius:var(--radius);padding:20px;min-height:200px}
+.drip-quadrant.q-delegation{background:#F9FAFB;border:1px solid #E5E7EB}
+.drip-quadrant.q-replacement{background:var(--bb-people-soft);border:1px solid var(--bb-people-border)}
+.drip-quadrant.q-investment{background:var(--bb-admin-soft);border:1px solid var(--bb-admin-border)}
+.drip-quadrant.q-production{background:var(--bb-protected-soft);border:1px solid var(--bb-protected-border)}
+.drip-q-title{font-weight:800;font-size:14px;text-transform:uppercase;margin-bottom:4px}
+.drip-q-desc{font-size:12px;color:var(--text-sec);margin-bottom:12px}
+.drip-task-card{background:rgba(255,255,255,0.85);border-radius:6px;padding:10px 12px;margin-bottom:8px;font-size:13px;cursor:pointer;transition:box-shadow .15s;border:1px solid rgba(0,0,0,0.06)}
+.drip-task-card:hover{box-shadow:var(--shadow-md)}
+.drip-task-name{font-weight:600}
+.drip-task-meta{font-size:11px;color:var(--text-ter);margin-top:4px}
+.drip-below-rate{background:#FEF2F2;color:#DC2626;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;display:inline-block;margin-top:4px}
+.drip-axes{position:relative;margin-bottom:8px}
+.drip-axis-label{font-size:11px;color:var(--text-ter);text-transform:uppercase;letter-spacing:1px;font-weight:600}
+.drip-axis-y{text-align:center;margin-bottom:8px}
+.drip-axis-x{display:flex;justify-content:space-between;margin-top:8px}
+
+/* ═══════════════════════════════════════════
+   VIEW: TIME AUDIT
+   ═══════════════════════════════════════════ */
+.audit-timeline{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.audit-slot{display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--color-bg-surface-alt);font-size:13px;min-height:36px}
+.audit-slot:last-child{border-bottom:none}
+.audit-slot-time{font-family:var(--font-mono);font-size:12px;color:var(--text-ter);min-width:50px}
+.audit-slot-activity{flex:1;padding:4px 8px;border:1px solid transparent;border-radius:4px;font-size:13px;cursor:pointer}
+.audit-slot-activity:hover{border-color:var(--border)}
+.audit-slot-value{display:flex;gap:2px}
+.audit-slot-value .dollar{width:18px;height:18px;border-radius:3px;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid var(--border);color:var(--text-ter)}
+.audit-slot-value .dollar.active{background:var(--bb-people);color:#fff;border-color:var(--bb-people)}
+.audit-energy{display:flex;gap:4px}
+.audit-energy .dot{width:18px;height:18px;border-radius:50%;cursor:pointer;border:2px solid var(--border);transition:all .15s}
+.audit-energy .dot.energizing{border-color:var(--bb-protected)}
+.audit-energy .dot.energizing.active{background:var(--bb-protected)}
+.audit-energy .dot.neutral{border-color:var(--bb-people)}
+.audit-energy .dot.neutral.active{background:var(--bb-people)}
+.audit-energy .dot.draining{border-color:var(--bb-deep-work)}
+.audit-energy .dot.draining.active{background:var(--bb-deep-work)}
+.audit-summary{display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:12px;margin-bottom:20px}
+.audit-stat{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px;text-align:center}
+.audit-stat .stat-val{font-family:var(--font-display);font-size:28px;font-weight:800}
+.audit-stat .stat-lbl{font-size:12px;color:var(--text-ter)}
+
+/* ═══════════════════════════════════════════
+   VIEW: ANALYTICS
+   ═══════════════════════════════════════════ */
+.analytics-grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:16px}
+.chart-container{position:relative;height:240px}
+.chart-container canvas{width:100%!important;height:100%!important}
+.streak-cards{display:grid;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));gap:12px;margin-bottom:24px}
+.streak-card{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center}
+.streak-card .sc-val{font-family:var(--font-display);font-size:42px;font-weight:900}
+.streak-card .sc-lbl{font-size:12px;color:var(--text-ter);text-transform:uppercase}
+
+/* ── Mobile ── */
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0;padding:16px}
+  .mobile-toggle{display:flex!important}
+  .pw-grid{grid-template-columns:60px repeat(1, 1fr);overflow-x:auto}
+  .drip-grid{grid-template-columns:1fr}
+}
+.mobile-toggle{display:none;position:fixed;top:12px;left:12px;z-index:150;background:#0D1B2A;color:#fff;border:none;padding:8px 12px;border-radius:var(--radius-sm);cursor:pointer;font-size:18px}
+</style>
+</head>
+<body>
+
+<button class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
+
+<div class="layout">
+<!-- ═══════ SIDEBAR ═══════ -->
+<nav class="sidebar">
+  <div class="sb-logo">Buyback <span class="accent">Time</span></div>
+  <div class="sb-user" id="sb-user-name">...</div>
+
+  <div class="sb-section">Planavimas</div>
+  <a class="sb-link active" data-view="setup"><span class="icon">&#9881;</span> Setup</a>
+  <a class="sb-link" data-view="perfect-week"><span class="icon">&#128197;</span> Perfect Week</a>
+
+  <div class="sb-section">Kasdienis</div>
+  <a class="sb-link" data-view="today"><span class="icon">&#9745;</span> Siandien</a>
+  <a class="sb-link" data-view="drip"><span class="icon">&#127919;</span> DRIP Matrica</a>
+  <a class="sb-link" data-view="audit"><span class="icon">&#9201;</span> Laiko Auditas</a>
+
+  <div class="sb-section">Analize</div>
+  <a class="sb-link" data-view="analytics"><span class="icon">&#128200;</span> Analitika</a>
+
+  <div class="sb-spacer"></div>
+  <div class="sb-logout">
+    <a class="sb-link" id="btn-logout"><span class="icon">&#8617;</span> Atsijungti</a>
+  </div>
+</nav>
+
+<!-- ═══════ MAIN CONTENT ═══════ -->
+<div class="main">
+
+<!-- ── VIEW: SETUP ── -->
+<div class="view active" id="view-setup">
+  <div class="page-title">Buyback Rate Setup</div>
+  <div class="page-desc">Apskaiciuok savo Buyback Rate — valandini tarifa, zemiau kurio uzduotis reikia deleguoti.</div>
+
+  <div class="card">
+    <div class="card-title">Profilis</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Vardas</label>
+        <input type="text" id="setup-name">
+      </div>
+      <div class="form-group">
+        <label>Laiko zona</label>
+        <select id="setup-timezone">
+          <option value="Europe/Vilnius">Europe/Vilnius</option>
+          <option value="Europe/London">Europe/London</option>
+          <option value="America/New_York">America/New_York</option>
+          <option value="America/Chicago">America/Chicago</option>
+          <option value="America/Los_Angeles">America/Los_Angeles</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Buyback Rate Skaiciuokle</div>
+    <div class="form-group">
+      <label>Metines pajamos (EUR)</label>
+      <input type="number" id="setup-income" placeholder="60000" min="0" step="1000">
+    </div>
+
+    <div class="buyback-calc">
+      <div class="calc-step">
+        <div class="val" id="calc-income">-</div>
+        <div class="lbl">Metines pajamos</div>
+      </div>
+      <div class="calc-op">&divide;</div>
+      <div class="calc-step">
+        <div class="val">2000</div>
+        <div class="lbl">Darbo val./m.</div>
+      </div>
+      <div class="calc-op">&divide;</div>
+      <div class="calc-step">
+        <div class="val">4</div>
+        <div class="lbl">Dalybos koef.</div>
+      </div>
+      <div class="calc-op">=</div>
+    </div>
+
+    <div class="buyback-result">
+      <div class="rate" id="calc-rate">-</div>
+      <div class="rate-label">EUR/val. — tavo Buyback Rate</div>
+    </div>
+    <p style="margin-top:12px;font-size:13px;color:var(--text-sec)">Bet kuria uzduoti, kurios delegavimo kaina mazesne uz sita tarifa — deleguok. Tau apsimoka nupirkti laika.</p>
+    <div style="margin-top:16px">
+      <button class="btn btn-primary" id="btn-save-profile">Issaugoti</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── VIEW: PERFECT WEEK ── -->
+<div class="view" id="view-perfect-week">
+  <div class="page-title">Perfect Week</div>
+  <div class="page-desc">Suprojektuok savo idealia savaite. Pirma uzpildyk "big rocks" — svarbiausius laiko blokus.</div>
+
+  <div class="pw-legend">
+    <div class="pw-legend-item"><span class="cat-dot deep_work"></span> Deep Work</div>
+    <div class="pw-legend-item"><span class="cat-dot people"></span> People</div>
+    <div class="pw-legend-item"><span class="cat-dot admin"></span> Admin</div>
+    <div class="pw-legend-item"><span class="cat-dot protected"></span> Protected</div>
+    <button class="btn btn-primary btn-sm" id="btn-add-block">+ Prideti bloka</button>
+  </div>
+
+  <div class="pw-grid" id="pw-grid">
+    <!-- generated by JS -->
+  </div>
+</div>
+
+<!-- ── VIEW: TODAY ── -->
+<div class="view" id="view-today">
+  <div class="page-title">Siandien</div>
+
+  <div class="today-nav">
+    <button class="btn btn-secondary btn-sm" id="btn-prev-day">&larr;</button>
+    <div class="date-display" id="today-date">...</div>
+    <button class="btn btn-secondary btn-sm" id="btn-next-day">&rarr;</button>
+    <button class="btn btn-secondary btn-sm" id="btn-today-now">Siandien</button>
+    <button class="btn btn-primary btn-sm" id="btn-add-entry" style="margin-left:auto">+ Prideti</button>
+  </div>
+
+  <div class="streak-badge" id="streak-badge" style="display:none">
+    <span>&#128293;</span> <span id="streak-count">0</span> dienu streak!
+  </div>
+
+  <div class="today-progress">
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    <div class="progress-text"><span id="progress-text">0/0 uzbaigta (0%)</span></div>
+  </div>
+
+  <div id="today-entries">
+    <!-- generated by JS -->
+  </div>
+</div>
+
+<!-- ── VIEW: DRIP MATRIX ── -->
+<div class="view" id="view-drip">
+  <div class="page-title">DRIP Matrica</div>
+  <div class="page-desc">Suskirstyk uzduotis pagal pinigu verte ir energijos poveiki. Buyback Rate: <strong id="drip-rate">-</strong> EUR/val.</div>
+
+  <div class="drip-axes">
+    <div class="drip-axis-y"><span class="drip-axis-label">&uarr; Auksta pinigine verte</span></div>
+  </div>
+
+  <div class="drip-grid">
+    <div class="drip-quadrant q-replacement" data-quadrant="replacement">
+      <div class="drip-q-title" style="color:var(--bb-people)">R — Replacement</div>
+      <div class="drip-q-desc">Auksti $, Zema energija — treniruok kita tave pakeisti</div>
+      <div class="drip-tasks" data-q="replacement"></div>
+    </div>
+    <div class="drip-quadrant q-production" data-quadrant="production">
+      <div class="drip-q-title" style="color:var(--bb-protected)">P — Production</div>
+      <div class="drip-q-desc">Auksti $, Auksta energija — tavo genijaus zona</div>
+      <div class="drip-tasks" data-q="production"></div>
+    </div>
+    <div class="drip-quadrant q-delegation" data-quadrant="delegation">
+      <div class="drip-q-title" style="color:#6B7280">D — Delegation</div>
+      <div class="drip-q-desc">Zemi $, Zema energija — deleguok nedelsiant</div>
+      <div class="drip-tasks" data-q="delegation"></div>
+    </div>
+    <div class="drip-quadrant q-investment" data-quadrant="investment">
+      <div class="drip-q-title" style="color:var(--bb-admin)">I — Investment</div>
+      <div class="drip-q-desc">Zemi $, Auksta energija — augimas ir mokymasis</div>
+      <div class="drip-tasks" data-q="investment"></div>
+    </div>
+  </div>
+
+  <div class="drip-axes">
+    <div class="drip-axis-x">
+      <span class="drip-axis-label">&larr; Zema energija</span>
+      <span class="drip-axis-label">Auksta energija &rarr;</span>
+    </div>
+  </div>
+
+  <div style="margin-top:16px">
+    <button class="btn btn-primary" id="btn-add-drip">+ Prideti uzduoti</button>
+  </div>
+</div>
+
+<!-- ── VIEW: TIME AUDIT ── -->
+<div class="view" id="view-audit">
+  <div class="page-title">Laiko ir Energijos Auditas</div>
+  <div class="page-desc">Sekk ka veiki kas 15 min. Ivertink verte ($1-$4) ir energija. 2 savaites — ir pamatysi kur dingsta tavo laikas.</div>
+
+  <div class="today-nav" style="margin-bottom:16px">
+    <button class="btn btn-secondary btn-sm" id="btn-audit-prev">&larr;</button>
+    <div class="date-display" id="audit-date">...</div>
+    <button class="btn btn-secondary btn-sm" id="btn-audit-next">&rarr;</button>
+    <button class="btn btn-secondary btn-sm" id="btn-audit-today">Siandien</button>
+  </div>
+
+  <div class="audit-summary" id="audit-summary">
+    <div class="audit-stat"><div class="stat-val" id="audit-total-hrs">0</div><div class="stat-lbl">Valandos sektos</div></div>
+    <div class="audit-stat"><div class="stat-val" id="audit-days">0</div><div class="stat-lbl">Dienos sektos</div></div>
+    <div class="audit-stat"><div class="stat-val" id="audit-energizing">0%</div><div class="stat-lbl">Energizuojancia</div></div>
+    <div class="audit-stat"><div class="stat-val" id="audit-draining">0%</div><div class="stat-lbl">Issunkiancia</div></div>
+  </div>
+
+  <div class="audit-timeline" id="audit-timeline">
+    <!-- generated by JS -->
+  </div>
+</div>
+
+<!-- ── VIEW: ANALYTICS ── -->
+<div class="view" id="view-analytics">
+  <div class="page-title">Analitika</div>
+  <div class="page-desc">Savaitine apzvalga ir streak sekimas.</div>
+
+  <div class="streak-cards">
+    <div class="streak-card"><div class="sc-val" id="an-current-streak">0</div><div class="sc-lbl">Dabartinis Streak</div></div>
+    <div class="streak-card"><div class="sc-val" id="an-longest-streak">0</div><div class="sc-lbl">Ilgiausias Streak</div></div>
+    <div class="streak-card"><div class="sc-val" id="an-total-days">0</div><div class="sc-lbl">Dienu is viso</div></div>
+    <div class="streak-card"><div class="sc-val" id="an-adherence">0%</div><div class="sc-lbl">Sios savaites laikymasis</div></div>
+  </div>
+
+  <div class="analytics-grid">
+    <div class="card">
+      <div class="card-title">Laiko paskirstymas pagal kategorija</div>
+      <div class="chart-container"><canvas id="chart-categories"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">DRIP pasiskirstymas (val./sav.)</div>
+      <div class="chart-container"><canvas id="chart-drip"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="card-title">Perfect Week laikymasis (paskutines 30 dienu)</div>
+    <div class="chart-container" style="height:180px"><canvas id="chart-adherence"></canvas></div>
+  </div>
+</div>
+
+</div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- ═══════ MODALS ═══════ -->
+<div class="modal-bg" id="modal-block">
+  <div class="modal">
+    <div class="modal-title" id="modal-block-title">Prideti bloka</div>
+    <div class="form-group">
+      <label>Diena</label>
+      <select id="mb-day">
+        <option value="0">Pirmadienis</option><option value="1">Antradienis</option>
+        <option value="2">Treciadienis</option><option value="3">Ketvirtadienis</option>
+        <option value="4">Penktadienis</option><option value="5">Sestadienis</option>
+        <option value="6">Sekmadienis</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Pradzia</label><input type="time" id="mb-start" value="08:00"></div>
+      <div class="form-group"><label>Pabaiga</label><input type="time" id="mb-end" value="10:00"></div>
+    </div>
+    <div class="form-group">
+      <label>Kategorija</label>
+      <select id="mb-category">
+        <option value="deep_work">Deep Work (Gilus darbas)</option>
+        <option value="people">People (Zmones)</option>
+        <option value="admin">Admin (Administracija)</option>
+        <option value="protected">Protected (Asmeniinis)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Pavadinimas</label>
+      <input type="text" id="mb-label" placeholder="pvz. Turinio kurimas">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="mb-cancel">Atsaukti</button>
+      <button class="btn btn-primary" id="mb-delete" style="background:#DC2626;display:none">Istrinti</button>
+      <button class="btn btn-primary" id="mb-save">Issaugoti</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-drip">
+  <div class="modal">
+    <div class="modal-title" id="modal-drip-title">Prideti uzduoti</div>
+    <div class="form-group">
+      <label>Pavadinimas</label>
+      <input type="text" id="md-name" placeholder="pvz. Atsakyti i emailus">
+    </div>
+    <div class="form-group">
+      <label>Aprasymas</label>
+      <textarea id="md-desc" rows="2" placeholder="Trumpas aprasymas..."></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Pinigu verte</label>
+        <select id="md-money"><option value="low">Zema</option><option value="high">Auksta</option></select>
+      </div>
+      <div class="form-group">
+        <label>Energijos poveikis</label>
+        <select id="md-energy"><option value="low">Zema</option><option value="high">Auksta</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Val./savaite</label>
+        <input type="number" id="md-hours" min="0" step="0.5" placeholder="5">
+      </div>
+      <div class="form-group">
+        <label>Delegavimo kaina (EUR/val.)</label>
+        <input type="number" id="md-cost" min="0" step="1" placeholder="15">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="md-cancel">Atsaukti</button>
+      <button class="btn btn-primary" id="md-delete" style="background:#DC2626;display:none">Istrinti</button>
+      <button class="btn btn-primary" id="md-save">Issaugoti</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-entry">
+  <div class="modal">
+    <div class="modal-title">Prideti irasa</div>
+    <div class="form-row">
+      <div class="form-group"><label>Pradzia</label><input type="time" id="me-start" value="09:00"></div>
+      <div class="form-group"><label>Pabaiga</label><input type="time" id="me-end" value="10:00"></div>
+    </div>
+    <div class="form-group">
+      <label>Kategorija</label>
+      <select id="me-category">
+        <option value="deep_work">Deep Work</option><option value="people">People</option>
+        <option value="admin">Admin</option><option value="protected">Protected</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Pavadinimas</label>
+      <input type="text" id="me-label" placeholder="pvz. Strategijos sesija">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="me-cancel">Atsaukti</button>
+      <button class="btn btn-primary" id="me-save">Issaugoti</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════
+   BUYBACK TIME — Client Application
+   ═══════════════════════════════════════════ */
+const API = window.location.origin;
+const token = localStorage.getItem('bb_token');
+if (!token) window.location.href = '/buyback-login';
+
+const userInfo = JSON.parse(localStorage.getItem('bb_user') || '{}');
+document.getElementById('sb-user-name').textContent = userInfo.name || userInfo.email || '';
+
+function headers() {
+  return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, { headers: headers(), ...opts });
+  if (res.status === 401) { localStorage.removeItem('bb_token'); window.location.href = '/buyback-login'; return; }
+  return res.json();
+}
+
+/* ── Navigation ── */
+const views = document.querySelectorAll('.view');
+const links = document.querySelectorAll('.sb-link[data-view]');
+function showView(name) {
+  views.forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
+  links.forEach(l => l.classList.toggle('active', l.dataset.view === name));
+  document.querySelector('.sidebar').classList.remove('open');
+  if (name === 'perfect-week') loadPerfectWeek();
+  if (name === 'today') loadToday();
+  if (name === 'drip') loadDrip();
+  if (name === 'audit') loadAudit();
+  if (name === 'analytics') loadAnalytics();
+  if (name === 'setup') loadSetup();
+  history.replaceState(null, '', '/buyback/' + name);
+}
+links.forEach(l => l.addEventListener('click', () => showView(l.dataset.view)));
+document.getElementById('btn-logout').addEventListener('click', () => {
+  localStorage.removeItem('bb_token');
+  localStorage.removeItem('bb_user');
+  window.location.href = '/buyback-login';
+});
+
+const path = window.location.pathname.split('/').pop();
+const validViews = ['setup','perfect-week','today','drip','audit','analytics'];
+if (validViews.includes(path)) showView(path);
+else loadSetup();
+
+/* ═══════════════════════════════════════════
+   SETUP
+   ═══════════════════════════════════════════ */
+async function loadSetup() {
+  const p = await api('/bb/profile');
+  if (!p) return;
+  document.getElementById('setup-name').value = p.name || '';
+  document.getElementById('setup-timezone').value = p.timezone || 'Europe/Vilnius';
+  document.getElementById('setup-income').value = p.annual_income || '';
+  updateCalc();
+}
+
+function updateCalc() {
+  const income = parseFloat(document.getElementById('setup-income').value) || 0;
+  document.getElementById('calc-income').textContent = income.toLocaleString();
+  const rate = income > 0 ? (income / 2000 / 4).toFixed(2) : '-';
+  document.getElementById('calc-rate').textContent = rate !== '-' ? rate + ' EUR' : '-';
+}
+
+document.getElementById('setup-income').addEventListener('input', updateCalc);
+
+document.getElementById('btn-save-profile').addEventListener('click', async () => {
+  const income = parseFloat(document.getElementById('setup-income').value);
+  await api('/bb/profile', {
+    method: 'PUT',
+    body: JSON.stringify({
+      name: document.getElementById('setup-name').value || undefined,
+      timezone: document.getElementById('setup-timezone').value,
+      annual_income: income || undefined,
+    }),
+  });
+  const btn = document.getElementById('btn-save-profile');
+  btn.textContent = 'Issaugota!';
+  setTimeout(() => btn.textContent = 'Issaugoti', 2000);
+});
+
+/* ═══════════════════════════════════════════
+   PERFECT WEEK
+   ═══════════════════════════════════════════ */
+const DAYS = ['Pr','An','Tr','Kt','Pn','Se','Sk'];
+const HOURS_START = 6;
+const HOURS_END = 22;
+let pwBlocks = [];
+
+function buildPwGrid() {
+  const grid = document.getElementById('pw-grid');
+  grid.innerHTML = '';
+  // header row
+  grid.innerHTML += '<div class="pw-header"></div>';
+  DAYS.forEach(d => grid.innerHTML += `<div class="pw-header">${d}</div>`);
+  // time rows
+  for (let h = HOURS_START; h < HOURS_END; h++) {
+    const hr = String(h).padStart(2,'0');
+    grid.innerHTML += `<div class="pw-time">${hr}:00</div>`;
+    for (let d = 0; d < 7; d++) {
+      grid.innerHTML += `<div class="pw-cell" data-day="${d}" data-hour="${h}"></div>`;
+    }
+  }
+}
+
+function renderPwBlocks() {
+  document.querySelectorAll('.pw-block').forEach(b => b.remove());
+  const rowH = 32;
+  pwBlocks.forEach(block => {
+    const [sh, sm] = block.start_time.split(':').map(Number);
+    const [eh, em] = block.end_time.split(':').map(Number);
+    const startMin = sh * 60 + sm;
+    const endMin = eh * 60 + em;
+    const top = ((startMin - HOURS_START * 60) / 60) * rowH;
+    const height = ((endMin - startMin) / 60) * rowH;
+
+    const cell = document.querySelector(`.pw-cell[data-day="${block.day_of_week}"][data-hour="${Math.max(HOURS_START, sh)}"]`);
+    if (!cell) return;
+
+    const el = document.createElement('div');
+    el.className = `pw-block cat-${block.category}`;
+    el.style.top = ((startMin - Math.max(HOURS_START, sh) * 60) / 60) * rowH + 'px';
+    el.style.height = Math.max(height, 20) + 'px';
+    el.innerHTML = `<div class="block-label">${block.label}</div>`;
+    el.addEventListener('click', (e) => { e.stopPropagation(); editBlock(block); });
+    cell.appendChild(el);
+  });
+}
+
+async function loadPerfectWeek() {
+  buildPwGrid();
+  pwBlocks = await api('/bb/perfect-week') || [];
+  renderPwBlocks();
+
+  document.querySelectorAll('.pw-cell').forEach(cell => {
+    cell.addEventListener('click', () => {
+      const day = parseInt(cell.dataset.day);
+      const hour = parseInt(cell.dataset.hour);
+      openBlockModal(null, day, String(hour).padStart(2,'0') + ':00', String(hour+1).padStart(2,'0') + ':00');
+    });
+  });
+}
+
+let editingBlockId = null;
+
+function openBlockModal(block, day, start, end) {
+  editingBlockId = block ? block.id : null;
+  document.getElementById('modal-block-title').textContent = block ? 'Redaguoti bloka' : 'Prideti bloka';
+  document.getElementById('mb-day').value = block ? block.day_of_week : (day ?? 0);
+  document.getElementById('mb-start').value = block ? block.start_time.slice(0,5) : (start || '08:00');
+  document.getElementById('mb-end').value = block ? block.end_time.slice(0,5) : (end || '10:00');
+  document.getElementById('mb-category').value = block ? block.category : 'deep_work';
+  document.getElementById('mb-label').value = block ? block.label : '';
+  document.getElementById('mb-delete').style.display = block ? 'inline-flex' : 'none';
+  document.getElementById('modal-block').classList.add('visible');
+}
+
+function editBlock(block) { openBlockModal(block); }
+
+document.getElementById('btn-add-block').addEventListener('click', () => openBlockModal(null));
+document.getElementById('mb-cancel').addEventListener('click', () => document.getElementById('modal-block').classList.remove('visible'));
+
+document.getElementById('mb-save').addEventListener('click', async () => {
+  const data = {
+    day_of_week: parseInt(document.getElementById('mb-day').value),
+    start_time: document.getElementById('mb-start').value,
+    end_time: document.getElementById('mb-end').value,
+    category: document.getElementById('mb-category').value,
+    label: document.getElementById('mb-label').value,
+  };
+  if (!data.label) { alert('Iveskite pavadinima'); return; }
+  if (editingBlockId) {
+    await api('/bb/perfect-week/blocks/' + editingBlockId, { method: 'PUT', body: JSON.stringify(data) });
+  } else {
+    await api('/bb/perfect-week/blocks', { method: 'POST', body: JSON.stringify(data) });
+  }
+  document.getElementById('modal-block').classList.remove('visible');
+  loadPerfectWeek();
+});
+
+document.getElementById('mb-delete').addEventListener('click', async () => {
+  if (!editingBlockId) return;
+  if (!confirm('Istrinti si bloka?')) return;
+  await api('/bb/perfect-week/blocks/' + editingBlockId, { method: 'DELETE' });
+  document.getElementById('modal-block').classList.remove('visible');
+  loadPerfectWeek();
+});
+
+/* ═══════════════════════════════════════════
+   TODAY
+   ═══════════════════════════════════════════ */
+let currentDate = new Date().toISOString().slice(0, 10);
+
+const CAT_LABELS = { deep_work: 'Deep Work', people: 'People', admin: 'Admin', protected: 'Protected' };
+
+async function loadToday() {
+  document.getElementById('today-date').textContent = formatDate(currentDate);
+  const data = await api('/bb/schedule?date=' + currentDate);
+  if (!data) return;
+  const entries = data.entries || [];
+
+  const container = document.getElementById('today-entries');
+  container.innerHTML = '';
+
+  let total = entries.length;
+  let done = entries.filter(e => e.completed).length;
+
+  entries.forEach(entry => {
+    const st = (entry.start_time || '').slice(0, 5);
+    const et = (entry.end_time || '').slice(0, 5);
+    const div = document.createElement('div');
+    div.className = 'today-entry' + (entry.completed ? ' completed' : '');
+    div.innerHTML = `
+      <div class="entry-check ${entry.completed ? 'checked' : ''}" data-id="${entry.id}">
+        ${entry.completed ? '&#10003;' : ''}
+      </div>
+      <div class="entry-time">${st} - ${et}</div>
+      <div class="entry-label">${entry.label}</div>
+      <span class="entry-cat cat-${entry.category}">${CAT_LABELS[entry.category] || entry.category}</span>
+    `;
+    div.querySelector('.entry-check').addEventListener('click', async () => {
+      await api('/bb/schedule/entries/' + entry.id + '/complete', { method: 'PATCH' });
+      loadToday();
+    });
+    container.appendChild(div);
+  });
+
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-text').textContent = `${done}/${total} uzbaigta (${pct}%)`;
+
+  // streak
+  const streak = await api('/bb/analytics/streak');
+  if (streak && streak.current > 0) {
+    document.getElementById('streak-badge').style.display = 'flex';
+    document.getElementById('streak-count').textContent = streak.current;
+  } else {
+    document.getElementById('streak-badge').style.display = 'none';
+  }
+}
+
+function formatDate(d) {
+  const dt = new Date(d + 'T00:00:00');
+  const days = ['Sekmadienis','Pirmadienis','Antradienis','Treciadienis','Ketvirtadienis','Penktadienis','Sestadienis'];
+  return days[dt.getDay()] + ', ' + dt.toLocaleDateString('lt-LT');
+}
+
+function shiftDate(offset) {
+  const d = new Date(currentDate + 'T00:00:00');
+  d.setDate(d.getDate() + offset);
+  currentDate = d.toISOString().slice(0, 10);
+  loadToday();
+}
+
+document.getElementById('btn-prev-day').addEventListener('click', () => shiftDate(-1));
+document.getElementById('btn-next-day').addEventListener('click', () => shiftDate(1));
+document.getElementById('btn-today-now').addEventListener('click', () => {
+  currentDate = new Date().toISOString().slice(0, 10);
+  loadToday();
+});
+
+// Add entry modal
+document.getElementById('btn-add-entry').addEventListener('click', () => {
+  document.getElementById('modal-entry').classList.add('visible');
+});
+document.getElementById('me-cancel').addEventListener('click', () => {
+  document.getElementById('modal-entry').classList.remove('visible');
+});
+document.getElementById('me-save').addEventListener('click', async () => {
+  const data = {
+    entry_date: currentDate,
+    start_time: document.getElementById('me-start').value,
+    end_time: document.getElementById('me-end').value,
+    category: document.getElementById('me-category').value,
+    label: document.getElementById('me-label').value,
+  };
+  if (!data.label) { alert('Iveskite pavadinima'); return; }
+  await api('/bb/schedule/entries', { method: 'POST', body: JSON.stringify(data) });
+  document.getElementById('modal-entry').classList.remove('visible');
+  document.getElementById('me-label').value = '';
+  loadToday();
+});
+
+/* ═══════════════════════════════════════════
+   DRIP MATRIX
+   ═══════════════════════════════════════════ */
+let dripData = { tasks: [], buybackRate: null };
+let editingTaskId = null;
+
+async function loadDrip() {
+  dripData = await api('/bb/drip') || { tasks: [], buybackRate: null };
+  document.getElementById('drip-rate').textContent = dripData.buybackRate
+    ? dripData.buybackRate.toFixed(2)
+    : '-';
+
+  ['delegation','replacement','investment','production'].forEach(q => {
+    const container = document.querySelector(`.drip-tasks[data-q="${q}"]`);
+    container.innerHTML = '';
+    const tasks = (dripData.tasks || []).filter(t => t.quadrant === q);
+    tasks.forEach(task => {
+      const card = document.createElement('div');
+      card.className = 'drip-task-card';
+      let meta = [];
+      if (task.est_hours_week) meta.push(task.est_hours_week + ' val./sav.');
+      if (task.hourly_cost) meta.push(task.hourly_cost + ' EUR/val.');
+      if (task.is_delegated) meta.push('Deleguota: ' + (task.delegated_to || 'taip'));
+
+      let below = '';
+      if (task.hourly_cost && dripData.buybackRate && parseFloat(task.hourly_cost) < dripData.buybackRate) {
+        below = '<div class="drip-below-rate">DELEGUOK!</div>';
+      }
+
+      card.innerHTML = `
+        <div class="drip-task-name">${task.name}</div>
+        ${meta.length ? '<div class="drip-task-meta">' + meta.join(' · ') + '</div>' : ''}
+        ${below}
+      `;
+      card.addEventListener('click', () => editTask(task));
+      container.appendChild(card);
+    });
+  });
+}
+
+function editTask(task) {
+  editingTaskId = task ? task.id : null;
+  document.getElementById('modal-drip-title').textContent = task ? 'Redaguoti uzduoti' : 'Prideti uzduoti';
+  document.getElementById('md-name').value = task ? task.name : '';
+  document.getElementById('md-desc').value = task ? (task.description || '') : '';
+  document.getElementById('md-money').value = task ? task.money_value : 'low';
+  document.getElementById('md-energy').value = task ? task.energy_impact : 'low';
+  document.getElementById('md-hours').value = task ? (task.est_hours_week || '') : '';
+  document.getElementById('md-cost').value = task ? (task.hourly_cost || '') : '';
+  document.getElementById('md-delete').style.display = task ? 'inline-flex' : 'none';
+
+  // auto-determine quadrant from money + energy
+  document.getElementById('modal-drip').classList.add('visible');
+}
+
+function getQuadrant(money, energy) {
+  if (money === 'low' && energy === 'low') return 'delegation';
+  if (money === 'high' && energy === 'low') return 'replacement';
+  if (money === 'low' && energy === 'high') return 'investment';
+  return 'production';
+}
+
+document.getElementById('btn-add-drip').addEventListener('click', () => editTask(null));
+document.getElementById('md-cancel').addEventListener('click', () => document.getElementById('modal-drip').classList.remove('visible'));
+
+document.getElementById('md-save').addEventListener('click', async () => {
+  const money = document.getElementById('md-money').value;
+  const energy = document.getElementById('md-energy').value;
+  const data = {
+    name: document.getElementById('md-name').value,
+    description: document.getElementById('md-desc').value || undefined,
+    money_value: money,
+    energy_impact: energy,
+    quadrant: getQuadrant(money, energy),
+    est_hours_week: parseFloat(document.getElementById('md-hours').value) || undefined,
+    hourly_cost: parseFloat(document.getElementById('md-cost').value) || undefined,
+  };
+  if (!data.name) { alert('Iveskite pavadinima'); return; }
+  if (editingTaskId) {
+    await api('/bb/drip/tasks/' + editingTaskId, { method: 'PUT', body: JSON.stringify(data) });
+  } else {
+    await api('/bb/drip/tasks', { method: 'POST', body: JSON.stringify(data) });
+  }
+  document.getElementById('modal-drip').classList.remove('visible');
+  loadDrip();
+});
+
+document.getElementById('md-delete').addEventListener('click', async () => {
+  if (!editingTaskId) return;
+  if (!confirm('Istrinti sia uzduoti?')) return;
+  await api('/bb/drip/tasks/' + editingTaskId, { method: 'DELETE' });
+  document.getElementById('modal-drip').classList.remove('visible');
+  loadDrip();
+});
+
+/* ═══════════════════════════════════════════
+   TIME AUDIT
+   ═══════════════════════════════════════════ */
+let auditDate = new Date().toISOString().slice(0, 10);
+let auditEntries = [];
+
+function buildAuditTimeline() {
+  const timeline = document.getElementById('audit-timeline');
+  timeline.innerHTML = '';
+  for (let h = HOURS_START; h < HOURS_END; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const slot = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+      const existing = auditEntries.find(e => (e.time_slot || '').slice(0,5) === slot);
+      const div = document.createElement('div');
+      div.className = 'audit-slot';
+      div.innerHTML = `
+        <div class="audit-slot-time">${slot}</div>
+        <div class="audit-slot-activity" contenteditable="true" data-slot="${slot}"
+             style="${existing ? energyBg(existing.energy_level) : ''}"
+        >${existing ? existing.activity : ''}</div>
+        <div class="audit-slot-value">
+          ${[1,2,3,4].map(v => `<div class="dollar ${existing && existing.value_rating >= v ? 'active' : ''}" data-slot="${slot}" data-val="${v}">$</div>`).join('')}
+        </div>
+        <div class="audit-energy">
+          <div class="dot energizing ${existing && existing.energy_level === 'energizing' ? 'active' : ''}" data-slot="${slot}" data-energy="energizing" title="Energizuoja"></div>
+          <div class="dot neutral ${existing && existing.energy_level === 'neutral' ? 'active' : ''}" data-slot="${slot}" data-energy="neutral" title="Neutralu"></div>
+          <div class="dot draining ${existing && existing.energy_level === 'draining' ? 'active' : ''}" data-slot="${slot}" data-energy="draining" title="Issunkia"></div>
+        </div>
+      `;
+      timeline.appendChild(div);
+    }
+  }
+
+  // event delegation
+  timeline.addEventListener('click', (e) => {
+    const dollar = e.target.closest('.dollar');
+    if (dollar) {
+      saveAuditSlot(dollar.dataset.slot, { value_rating: parseInt(dollar.dataset.val) });
+      return;
+    }
+    const dot = e.target.closest('.dot');
+    if (dot) {
+      saveAuditSlot(dot.dataset.slot, { energy_level: dot.dataset.energy });
+      return;
+    }
+  });
+
+  timeline.addEventListener('blur', (e) => {
+    if (e.target.classList.contains('audit-slot-activity')) {
+      const text = e.target.textContent.trim();
+      if (text) saveAuditSlot(e.target.dataset.slot, { activity: text });
+    }
+  }, true);
+}
+
+function energyBg(level) {
+  if (level === 'energizing') return 'background:rgba(22,163,74,0.08)';
+  if (level === 'draining') return 'background:rgba(220,38,38,0.08)';
+  return '';
+}
+
+const auditSaveQueue = {};
+function saveAuditSlot(slot, partial) {
+  clearTimeout(auditSaveQueue[slot]);
+  const existing = auditEntries.find(e => (e.time_slot || '').slice(0,5) === slot);
+  if (existing) {
+    Object.assign(existing, partial);
+  }
+
+  auditSaveQueue[slot] = setTimeout(async () => {
+    const entry = auditEntries.find(e => (e.time_slot || '').slice(0,5) === slot);
+    if (entry && entry.id) {
+      await api('/bb/audit/entries/' + entry.id, {
+        method: 'PUT',
+        body: JSON.stringify(partial),
+      });
+    } else {
+      const actEl = document.querySelector(`.audit-slot-activity[data-slot="${slot}"]`);
+      const activity = (entry && entry.activity) || (actEl && actEl.textContent.trim()) || 'Neivardinta';
+      const data = {
+        audit_date: auditDate,
+        time_slot: slot,
+        activity,
+        value_rating: (entry && entry.value_rating) || partial.value_rating || 1,
+        energy_level: (entry && entry.energy_level) || partial.energy_level || 'neutral',
+        quadrant: partial.quadrant || undefined,
+      };
+      const res = await api('/bb/audit/entries', { method: 'POST', body: JSON.stringify(data) });
+      if (res && res.id) {
+        auditEntries.push(res);
+      }
+    }
+    loadAuditSummary();
+  }, 600);
+}
+
+async function loadAudit() {
+  document.getElementById('audit-date').textContent = formatDate(auditDate);
+  const data = await api('/bb/audit?date=' + auditDate);
+  auditEntries = (data && data.entries) || [];
+  buildAuditTimeline();
+  loadAuditSummary();
+}
+
+async function loadAuditSummary() {
+  const data = await api('/bb/audit/summary');
+  if (!data) return;
+  document.getElementById('audit-total-hrs').textContent = (data.totalHours || 0).toFixed(1);
+  document.getElementById('audit-days').textContent = data.daysTracked || 0;
+
+  const byEnergy = data.byEnergy || [];
+  const totalE = byEnergy.reduce((s, r) => s + r.count, 0) || 1;
+  const energizing = byEnergy.find(r => r.energy_level === 'energizing');
+  const draining = byEnergy.find(r => r.energy_level === 'draining');
+  document.getElementById('audit-energizing').textContent = Math.round(((energizing?.count || 0) / totalE) * 100) + '%';
+  document.getElementById('audit-draining').textContent = Math.round(((draining?.count || 0) / totalE) * 100) + '%';
+}
+
+document.getElementById('btn-audit-prev').addEventListener('click', () => {
+  const d = new Date(auditDate + 'T00:00:00');
+  d.setDate(d.getDate() - 1);
+  auditDate = d.toISOString().slice(0, 10);
+  loadAudit();
+});
+document.getElementById('btn-audit-next').addEventListener('click', () => {
+  const d = new Date(auditDate + 'T00:00:00');
+  d.setDate(d.getDate() + 1);
+  auditDate = d.toISOString().slice(0, 10);
+  loadAudit();
+});
+document.getElementById('btn-audit-today').addEventListener('click', () => {
+  auditDate = new Date().toISOString().slice(0, 10);
+  loadAudit();
+});
+
+/* ═══════════════════════════════════════════
+   ANALYTICS
+   ═══════════════════════════════════════════ */
+async function loadAnalytics() {
+  const [streak, weekly, adherence, drip] = await Promise.all([
+    api('/bb/analytics/streak'),
+    api('/bb/analytics/weekly'),
+    api('/bb/analytics/adherence?days=30'),
+    api('/bb/analytics/drip-distribution'),
+  ]);
+
+  // Streak cards
+  document.getElementById('an-current-streak').textContent = streak?.current || 0;
+  document.getElementById('an-longest-streak').textContent = streak?.longest || 0;
+  document.getElementById('an-total-days').textContent = streak?.totalDays || 0;
+  document.getElementById('an-adherence').textContent = (weekly?.adherence || 0) + '%';
+
+  // Category donut chart
+  drawDonut('chart-categories', weekly?.byCategory || {});
+
+  // DRIP bar chart
+  drawBars('chart-drip', weekly?.byQuadrant || {}, drip || []);
+
+  // Adherence line chart
+  drawLine('chart-adherence', adherence || []);
+}
+
+function drawDonut(canvasId, data) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.parentElement.clientWidth;
+  canvas.height = canvas.parentElement.clientHeight;
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const r = Math.min(cx, cy) - 30;
+  const colors = { deep_work: '#DC2626', people: '#D97706', admin: '#2563EB', protected: '#16A34A' };
+  const labels = { deep_work: 'Deep Work', people: 'People', admin: 'Admin', protected: 'Protected' };
+  const total = Object.values(data).reduce((s, v) => s + v, 0) || 1;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  let startAngle = -Math.PI / 2;
+
+  Object.entries(data).forEach(([key, val]) => {
+    const slice = (val / total) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, startAngle, startAngle + slice);
+    ctx.arc(cx, cy, r * 0.55, startAngle + slice, startAngle, true);
+    ctx.closePath();
+    ctx.fillStyle = colors[key] || '#ccc';
+    ctx.fill();
+    // label
+    if (val > 0) {
+      const midAngle = startAngle + slice / 2;
+      const lx = cx + Math.cos(midAngle) * (r * 0.78);
+      const ly = cy + Math.sin(midAngle) * (r * 0.78);
+      ctx.fillStyle = '#fff';
+      ctx.font = '600 12px Barlow';
+      ctx.textAlign = 'center';
+      ctx.fillText(val.toFixed(1) + 'h', lx, ly + 4);
+    }
+    startAngle += slice;
+  });
+
+  // legend
+  let ly = canvas.height - 10;
+  let lx = 10;
+  ctx.font = '500 12px Barlow';
+  Object.entries(data).forEach(([key]) => {
+    ctx.fillStyle = colors[key] || '#ccc';
+    ctx.fillRect(lx, ly - 10, 12, 12);
+    ctx.fillStyle = '#333';
+    ctx.textAlign = 'left';
+    ctx.fillText(labels[key] || key, lx + 16, ly);
+    lx += 100;
+  });
+}
+
+function drawBars(canvasId, quadrantHours, dripRows) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.parentElement.clientWidth;
+  canvas.height = canvas.parentElement.clientHeight;
+
+  const colors = { delegation: '#9CA3AF', replacement: '#D97706', investment: '#2563EB', production: '#16A34A' };
+  const labels = { delegation: 'D', replacement: 'R', investment: 'I', production: 'P' };
+  const keys = ['delegation', 'replacement', 'investment', 'production'];
+  const vals = keys.map(k => {
+    const row = (dripRows || []).find(r => r.quadrant === k);
+    return row ? parseFloat(row.total_hours) || 0 : (quadrantHours[k] || 0);
+  });
+  const maxVal = Math.max(...vals, 1);
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const barW = (canvas.width - 60) / 4;
+  const chartH = canvas.height - 50;
+  const baseY = chartH + 10;
+
+  keys.forEach((k, i) => {
+    const x = 40 + i * barW;
+    const h = (vals[i] / maxVal) * chartH;
+    ctx.fillStyle = colors[k];
+    ctx.fillRect(x + 10, baseY - h, barW - 20, h);
+    ctx.fillStyle = '#333';
+    ctx.font = '700 13px Barlow';
+    ctx.textAlign = 'center';
+    ctx.fillText(labels[k], x + barW / 2, baseY + 20);
+    if (vals[i] > 0) {
+      ctx.fillText(vals[i].toFixed(1) + 'h', x + barW / 2, baseY - h - 6);
+    }
+  });
+}
+
+function drawLine(canvasId, data) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.parentElement.clientWidth;
+  canvas.height = canvas.parentElement.clientHeight;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!data || data.length === 0) {
+    ctx.fillStyle = '#999';
+    ctx.font = '14px Barlow';
+    ctx.textAlign = 'center';
+    ctx.fillText('Dar nera duomenu', canvas.width / 2, canvas.height / 2);
+    return;
+  }
+
+  const padL = 40, padR = 20, padT = 20, padB = 30;
+  const w = canvas.width - padL - padR;
+  const h = canvas.height - padT - padB;
+
+  // 80% threshold line
+  const threshY = padT + h * (1 - 0.8);
+  ctx.strokeStyle = '#FDE68A';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(padL, threshY);
+  ctx.lineTo(padL + w, threshY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#D97706';
+  ctx.font = '10px Barlow';
+  ctx.textAlign = 'left';
+  ctx.fillText('80%', 4, threshY + 4);
+
+  // data line
+  ctx.strokeStyle = '#16A34A';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  data.forEach((d, i) => {
+    const x = padL + (i / Math.max(data.length - 1, 1)) * w;
+    const y = padT + h * (1 - (parseFloat(d.adherence_pct) || 0) / 100);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // dots
+  data.forEach((d, i) => {
+    const x = padL + (i / Math.max(data.length - 1, 1)) * w;
+    const y = padT + h * (1 - (parseFloat(d.adherence_pct) || 0) / 100);
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#16A34A';
+    ctx.fill();
+  });
+}
+</script>
+</body>
+</html>
