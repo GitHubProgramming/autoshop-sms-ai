@@ -33,8 +33,11 @@ object AppLog {
 
     private var appContext: Context? = null
 
+    private var deviceEmail: String = ""
+
     fun init(context: Context) {
         appContext = context.applicationContext
+        deviceEmail = SecurePrefs.getGoogleAccount(context)?.substringBefore("@") ?: "?"
     }
 
     fun i(tag: String, msg: String) {
@@ -60,7 +63,7 @@ object AppLog {
         logs.add("$time [$level] $tag: $msg")
         while (logs.size > MAX) logs.removeAt(0)
 
-        pendingSheetLogs.add(listOf(date, time, level, tag, msg))
+        pendingSheetLogs.add(listOf(date, time, level, tag, msg, deviceEmail))
         if (pendingSheetLogs.size >= FLUSH_THRESHOLD) {
             flushToSheetAsync()
         }
@@ -93,10 +96,10 @@ object AppLog {
                 ).execute()
 
                 val header = ValueRange().setValues(listOf(
-                    listOf("Data", "Laikas", "Lygis", "Komponentas", "Žinutė") as List<Any>
+                    listOf("Data", "Laikas", "Lygis", "Komponentas", "Žinutė", "Įrenginys") as List<Any>
                 ))
                 service.spreadsheets().values()
-                    .append(spreadsheetId, "$SHEET_NAME!A:E", header)
+                    .append(spreadsheetId, "$SHEET_NAME!A:F", header)
                     .setValueInputOption("RAW")
                     .setInsertDataOption("INSERT_ROWS")
                     .execute()
@@ -126,7 +129,7 @@ object AppLog {
 
                 val body = ValueRange().setValues(toSend.map { it as List<Any> })
                 service.spreadsheets().values()
-                    .append(sheetId, "$SHEET_NAME!A:E", body)
+                    .append(sheetId, "$SHEET_NAME!A:F", body)
                     .setValueInputOption("RAW")
                     .setInsertDataOption("INSERT_ROWS")
                     .execute()

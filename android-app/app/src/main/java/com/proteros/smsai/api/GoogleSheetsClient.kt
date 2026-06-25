@@ -423,12 +423,16 @@ class GoogleSheetsClient(private val context: Context) {
 
     suspend fun reportDeviceStatus(context: Context) = withContext(Dispatchers.IO) {
         try {
-            val sheetId = SecurePrefs.getSheetId(context) ?: return@withContext
-            val email = SecurePrefs.getGoogleAccount(context) ?: return@withContext
+            val sheetId = SecurePrefs.getSheetId(context)
+            if (sheetId == null) { AppLog.w(TAG, "reportDeviceStatus skipped: no sheetId"); return@withContext }
+            val email = SecurePrefs.getGoogleAccount(context)
+            if (email == null) { AppLog.w(TAG, "reportDeviceStatus skipped: no email"); return@withContext }
 
-            val service = getService() ?: return@withContext
+            val service = getService()
+            if (service == null) { AppLog.w(TAG, "reportDeviceStatus skipped: no service for $email"); return@withContext }
 
             val colIndex = findDeviceColumn(service, sheetId, email)
+            AppLog.i(TAG, "reportDeviceStatus: $email -> col $colIndex")
 
             val versionName = try {
                 context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "?"

@@ -36,6 +36,13 @@ function setupDashboard() {
     return;
   }
 
+  try {
+    createNotifikacijosSheet_(ss);
+    Logger.log("Notifikacijos — OK");
+  } catch (e) {
+    Logger.log("Notifikacijos KLAIDA: " + e.message);
+  }
+
   var dashboard = ss.getSheetByName("Dashboard");
   if (dashboard) dashboard.activate();
 
@@ -103,27 +110,124 @@ function diagnoseSheet() {
 
 function diagnoseStatusas() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var st = ss.getSheetByName("Statusas");
-  if (!st) { SpreadsheetApp.getUi().alert("Statusas lapas NERASTAS!"); return; }
-
-  var lastRow = st.getLastRow();
-  var lastCol = st.getLastColumn();
   var report = [];
-  report.push("Statusas: " + lastRow + " eil, " + lastCol + " stulp");
 
-  var data = st.getRange(1, 1, lastRow, lastCol).getValues();
-  for (var r = 0; r < data.length; r++) {
-    var cells = [];
-    for (var c = 0; c < data[r].length; c++) {
-      var v = data[r][c] ? data[r][c].toString() : "";
-      if (v) cells.push("[" + c + "]=" + v);
+  // ===== STATUSAS LAPAS =====
+  var st = ss.getSheetByName("Statusas");
+  if (!st) {
+    report.push("⚠ Statusas lapas NERASTAS!");
+  } else {
+    var lastRow = st.getLastRow();
+    var lastCol = st.getLastColumn();
+    report.push("=== STATUSAS LAPAS ===");
+    report.push("Dydis: " + lastRow + " eil x " + lastCol + " stulp");
+
+    var data = st.getRange(1, 1, lastRow, lastCol).getValues();
+
+    // Rasti devices pagal email
+    var devices = [];
+    for (var r = 0; r < data.length; r++) {
+      for (var c = 0; c < data[r].length; c++) {
+        var v = data[r][c] ? data[r][c].toString().trim() : "";
+        if (v.indexOf("@") > -1) {
+          devices.push({ email: v, row: r, col: c });
+        }
+      }
     }
-    report.push("Row" + r + ": " + cells.join(" | "));
+
+    if (devices.length === 0) {
+      report.push("⚠ JOKIŲ DEVICE EMAIL NERASTA!");
+    } else {
+      report.push("Rasta " + devices.length + " device(s):");
+      for (var d = 0; d < devices.length; d++) {
+        var dev = devices[d];
+        report.push("");
+        report.push("--- Device " + (d + 1) + ": " + dev.email + " ---");
+        report.push("Pozicija: Row" + dev.row + " Col" + dev.col);
+        // Rodyti visas eilutes po email
+        for (var r = dev.row + 1; r < Math.min(dev.row + 11, data.length); r++) {
+          var label = data[r][dev.col] ? data[r][dev.col].toString() : "";
+          var value = (dev.col + 1 < data[r].length && data[r][dev.col + 1]) ? data[r][dev.col + 1].toString() : "";
+          if (label) report.push("  " + label + ": " + value);
+        }
+      }
+    }
+  }
+
+  // ===== LOGAI LAPAS — proteros.servisas =====
+  var logSheet = ss.getSheetByName("Logai");
+  if (!logSheet) {
+    report.push("");
+    report.push("⚠ Logai lapas NERASTAS!");
+  } else {
+    report.push("");
+    report.push("=== LOGAI (proteros.servisas) ===");
+    var logLastRow = logSheet.getLastRow();
+    report.push("Viso logų: " + (logLastRow - 1));
+
+    // Paskutiniai 50 logų — ieškoti proteros.servisas žinučių
+    var startRow = Math.max(2, logLastRow - 200);
+    var logData = logSheet.getRange(startRow, 1, logLastRow - startRow + 1, 5).getValues();
+
+    var servisasLogs = [];
+    var errorLogs = [];
+    var statusLogs = [];
+    for (var i = logData.length - 1; i >= 0; i--) {
+      var date = logData[i][0] ? logData[i][0].toString() : "";
+      var time = logData[i][1] ? logData[i][1].toString() : "";
+      var level = logData[i][2] ? logData[i][2].toString() : "";
+      var component = logData[i][3] ? logData[i][3].toString() : "";
+      var msg = logData[i][4] ? logData[i][4].toString() : "";
+
+      // Rinkti error logus
+      if (level === "E" && errorLogs.length < 10) {
+        errorLogs.push(date + " " + time + " [" + component + "] " + msg);
+      }
+      // Rinkti status reporting logus
+      if (msg.indexOf("status") > -1 || msg.indexOf("Status") > -1 || msg.indexOf("reportDevice") > -1) {
+        if (statusLogs.length < 10) {
+          statusLogs.push(date + " " + time + " [" + component + "] " + msg);
+        }
+      }
+    }
+
+    if (statusLogs.length > 0) {
+      report.push("Status reporting logai (" + statusLogs.length + "):");
+      statusLogs.forEach(function(l) { report.push("  " + l); });
+    } else {
+      report.push("⚠ Jokių status reporting logų nerasta!");
+    }
+
+    if (errorLogs.length > 0) {
+      report.push("");
+      report.push("Paskutinės klaidos (" + errorLogs.length + "):");
+      errorLogs.forEach(function(l) { report.push("  " + l); });
+    } else {
+      report.push("✓ Klaidų nerasta");
+    }
+
+    // Paskutinis log entry
+    if (logData.length > 0) {
+      var last = logData[logData.length - 1];
+      report.push("");
+      report.push("Paskutinis log: " + last[0] + " " + last[1] + " [" + last[3] + "] " + last[4]);
+    }
   }
 
   var text = report.join("\n");
   Logger.log(text);
-  SpreadsheetApp.getUi().alert(text.substring(0, 1500));
+  // Alert limitas 1500 chars, todėl naudojam sheet
+  var diagSheet = ss.getSheetByName("_Diagnostika");
+  if (diagSheet) ss.deleteSheet(diagSheet);
+  diagSheet = ss.insertSheet("_Diagnostika");
+  var lines = text.split("\n");
+  for (var i = 0; i < lines.length; i++) {
+    diagSheet.getRange(i + 1, 1).setValue(lines[i]).setFontFamily("Courier New").setFontSize(10);
+  }
+  diagSheet.setColumnWidth(1, 800);
+  SpreadsheetApp.getUi().alert("Diagnostika paruošta '_Diagnostika' lape!\n\nTrumpa santrauka:\n" +
+    "Devices: " + (st ? devices.length : 0) + "\n" +
+    "Logai: " + (logSheet ? (logSheet.getLastRow() - 1) + " įrašų" : "NĖRA"));
 }
 
 // ==================== DASHBOARD ====================
@@ -529,4 +633,122 @@ function kpiCard_(sheet, startRow, col1, col2, label, value, valueColor, cardBg,
 
   sheet.getRange(col1 + startRow + ":" + col2 + valueRow)
     .setBorder(true, true, true, true, false, false, borderColor, SpreadsheetApp.BorderStyle.SOLID);
+}
+
+// ==================== NOTIFIKACIJOS ====================
+
+function createNotifikacijosSheet_(ss) {
+  var existing = ss.getSheetByName("Notifikacijos");
+  if (existing) ss.deleteSheet(existing);
+
+  var sheet = ss.insertSheet("Notifikacijos");
+
+  var bg = "#FAFAFA";
+  var cardBg = "#FFFFFF";
+  var headerText = "#111111";
+  var subText = "#888888";
+  var borderColor = "#E0E0E0";
+
+  sheet.setColumnWidth(1, 20);
+  sheet.setColumnWidth(2, 200);
+  sheet.setColumnWidth(3, 280);
+  sheet.setColumnWidth(4, 350);
+  sheet.setColumnWidth(5, 200);
+  sheet.setColumnWidth(6, 20);
+
+  sheet.getRange("A1:F30").setBackground(bg).setFontFamily("Google Sans");
+
+  // Header
+  sheet.setRowHeight(1, 40);
+  sheet.getRange("B1:E1").merge().setValue("APP NOTIFIKACIJOS")
+    .setFontSize(18).setFontWeight("bold").setFontColor(headerText)
+    .setHorizontalAlignment("left").setVerticalAlignment("middle");
+
+  sheet.setRowHeight(2, 6);
+
+  // Description
+  sheet.setRowHeight(3, 30);
+  sheet.getRange("B3:E3").merge()
+    .setValue("Visos notifikacijos kurias gauna savininkas telefone iš Proteros SMS AI aplikacijos")
+    .setFontSize(10).setFontColor(subText).setVerticalAlignment("middle");
+
+  sheet.setRowHeight(4, 6);
+
+  // Table header
+  sheet.setRowHeight(5, 28);
+  sheet.getRange("B5:E5").setValues([["Notifikacija", "Pranešimo tekstas", "Kada siunčiama", "Veiksmas"]])
+    .setFontWeight("bold").setFontSize(10).setFontColor("#FFFFFF").setBackground("#222222")
+    .setVerticalAlignment("middle");
+
+  var notifications = [
+    [
+      "✅ Vizitas užregistruotas!",
+      "{tel} — {paslauga} {data laikas}\n✓ Kalendorius",
+      "Kai klientas patvirtina vizitą ir AI užregistruoja booking",
+      "Informacinis — vizitas jau kalendoriuje"
+    ],
+    [
+      "⚠️ Reikia dėmesio\n(per daug žinučių)",
+      "Pokalbis su {tel} perduotas savininkui",
+      "Kai AI ir klientas per 20 žinučių nesusitarė",
+      "Paskambink klientui ir užbaik registraciją"
+    ],
+    [
+      "⚠️ Reikia dėmesio\n(perkėlimo limitas)",
+      "Pokalbis su {tel} perduotas savininkui",
+      "Kai klientas bando perkelti vizitą 2+ kartus",
+      "Paskambink klientui dėl laiko keitimo"
+    ],
+    [
+      "🔴 Laiko konfliktas!",
+      "{tel} norėjo {data laikas} — laikas užimtas. Perimkite pokalbį.",
+      "Kai klientas nori laiko kuris užimtas ir nėra laisvų alternatyvų",
+      "Paskambink ir pasiūlyk kitą laiką"
+    ],
+    [
+      "📱 Klientas neatsako",
+      "Pokalbis su {tel} — jau 30 min. be atsakymo. Paskambink klientui.",
+      "Kai klientas nerašo 30+ min. aktyvaus pokalbio metu (tikrinama kas 5 min.)",
+      "Paskambink klientui ir užbaik registraciją"
+    ],
+    [
+      "📋 Kalendorius nesync",
+      "{tel} — {paslauga} {data laikas}\n⚠ Kalendorius nesync",
+      "Kai vizitas užregistruotas bet Google Calendar sync nepavyko",
+      "Patikrink Google Calendar prieigą ir pridėk vizitą rankiniu būdu"
+    ]
+  ];
+
+  for (var i = 0; i < notifications.length; i++) {
+    var row = 6 + i;
+    sheet.setRowHeight(row, 65);
+    var rowBg = i % 2 === 0 ? cardBg : "#F7F7F7";
+
+    sheet.getRange("B" + row).setValue(notifications[i][0])
+      .setFontSize(10).setFontWeight("bold").setFontColor(headerText)
+      .setBackground(rowBg).setVerticalAlignment("middle").setWrap(true);
+    sheet.getRange("C" + row).setValue(notifications[i][1])
+      .setFontSize(9).setFontColor(headerText).setFontFamily("Roboto Mono")
+      .setBackground(rowBg).setVerticalAlignment("middle").setWrap(true);
+    sheet.getRange("D" + row).setValue(notifications[i][2])
+      .setFontSize(9).setFontColor(subText)
+      .setBackground(rowBg).setVerticalAlignment("middle").setWrap(true);
+    sheet.getRange("E" + row).setValue(notifications[i][3])
+      .setFontSize(9).setFontColor(headerText)
+      .setBackground(rowBg).setVerticalAlignment("middle").setWrap(true);
+  }
+
+  var lastRow = 6 + notifications.length - 1;
+  sheet.getRange("B5:E" + lastRow)
+    .setBorder(true, true, true, true, true, true, borderColor, SpreadsheetApp.BorderStyle.SOLID);
+
+  // Footer note
+  var noteRow = lastRow + 2;
+  sheet.setRowHeight(noteRow, 30);
+  sheet.getRange("B" + noteRow + ":E" + noteRow).merge()
+    .setValue("Visos notifikacijos rodomos telefone kaip Android pranešimai su HIGH priority. Paspaudus ant pranešimo atidaroma Proteros app.")
+    .setFontSize(9).setFontColor(subText).setVerticalAlignment("middle");
+
+  sheet.setHiddenGridlines(true);
+  sheet.protect().setDescription("Notifikacijos — informacinis lapas").setWarningOnly(true);
 }
