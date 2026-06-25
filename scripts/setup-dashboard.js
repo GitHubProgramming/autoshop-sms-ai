@@ -110,27 +110,124 @@ function diagnoseSheet() {
 
 function diagnoseStatusas() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var st = ss.getSheetByName("Statusas");
-  if (!st) { SpreadsheetApp.getUi().alert("Statusas lapas NERASTAS!"); return; }
-
-  var lastRow = st.getLastRow();
-  var lastCol = st.getLastColumn();
   var report = [];
-  report.push("Statusas: " + lastRow + " eil, " + lastCol + " stulp");
 
-  var data = st.getRange(1, 1, lastRow, lastCol).getValues();
-  for (var r = 0; r < data.length; r++) {
-    var cells = [];
-    for (var c = 0; c < data[r].length; c++) {
-      var v = data[r][c] ? data[r][c].toString() : "";
-      if (v) cells.push("[" + c + "]=" + v);
+  // ===== STATUSAS LAPAS =====
+  var st = ss.getSheetByName("Statusas");
+  if (!st) {
+    report.push("⚠ Statusas lapas NERASTAS!");
+  } else {
+    var lastRow = st.getLastRow();
+    var lastCol = st.getLastColumn();
+    report.push("=== STATUSAS LAPAS ===");
+    report.push("Dydis: " + lastRow + " eil x " + lastCol + " stulp");
+
+    var data = st.getRange(1, 1, lastRow, lastCol).getValues();
+
+    // Rasti devices pagal email
+    var devices = [];
+    for (var r = 0; r < data.length; r++) {
+      for (var c = 0; c < data[r].length; c++) {
+        var v = data[r][c] ? data[r][c].toString().trim() : "";
+        if (v.indexOf("@") > -1) {
+          devices.push({ email: v, row: r, col: c });
+        }
+      }
     }
-    report.push("Row" + r + ": " + cells.join(" | "));
+
+    if (devices.length === 0) {
+      report.push("⚠ JOKIŲ DEVICE EMAIL NERASTA!");
+    } else {
+      report.push("Rasta " + devices.length + " device(s):");
+      for (var d = 0; d < devices.length; d++) {
+        var dev = devices[d];
+        report.push("");
+        report.push("--- Device " + (d + 1) + ": " + dev.email + " ---");
+        report.push("Pozicija: Row" + dev.row + " Col" + dev.col);
+        // Rodyti visas eilutes po email
+        for (var r = dev.row + 1; r < Math.min(dev.row + 11, data.length); r++) {
+          var label = data[r][dev.col] ? data[r][dev.col].toString() : "";
+          var value = (dev.col + 1 < data[r].length && data[r][dev.col + 1]) ? data[r][dev.col + 1].toString() : "";
+          if (label) report.push("  " + label + ": " + value);
+        }
+      }
+    }
+  }
+
+  // ===== LOGAI LAPAS — proteros.servisas =====
+  var logSheet = ss.getSheetByName("Logai");
+  if (!logSheet) {
+    report.push("");
+    report.push("⚠ Logai lapas NERASTAS!");
+  } else {
+    report.push("");
+    report.push("=== LOGAI (proteros.servisas) ===");
+    var logLastRow = logSheet.getLastRow();
+    report.push("Viso logų: " + (logLastRow - 1));
+
+    // Paskutiniai 50 logų — ieškoti proteros.servisas žinučių
+    var startRow = Math.max(2, logLastRow - 200);
+    var logData = logSheet.getRange(startRow, 1, logLastRow - startRow + 1, 5).getValues();
+
+    var servisasLogs = [];
+    var errorLogs = [];
+    var statusLogs = [];
+    for (var i = logData.length - 1; i >= 0; i--) {
+      var date = logData[i][0] ? logData[i][0].toString() : "";
+      var time = logData[i][1] ? logData[i][1].toString() : "";
+      var level = logData[i][2] ? logData[i][2].toString() : "";
+      var component = logData[i][3] ? logData[i][3].toString() : "";
+      var msg = logData[i][4] ? logData[i][4].toString() : "";
+
+      // Rinkti error logus
+      if (level === "E" && errorLogs.length < 10) {
+        errorLogs.push(date + " " + time + " [" + component + "] " + msg);
+      }
+      // Rinkti status reporting logus
+      if (msg.indexOf("status") > -1 || msg.indexOf("Status") > -1 || msg.indexOf("reportDevice") > -1) {
+        if (statusLogs.length < 10) {
+          statusLogs.push(date + " " + time + " [" + component + "] " + msg);
+        }
+      }
+    }
+
+    if (statusLogs.length > 0) {
+      report.push("Status reporting logai (" + statusLogs.length + "):");
+      statusLogs.forEach(function(l) { report.push("  " + l); });
+    } else {
+      report.push("⚠ Jokių status reporting logų nerasta!");
+    }
+
+    if (errorLogs.length > 0) {
+      report.push("");
+      report.push("Paskutinės klaidos (" + errorLogs.length + "):");
+      errorLogs.forEach(function(l) { report.push("  " + l); });
+    } else {
+      report.push("✓ Klaidų nerasta");
+    }
+
+    // Paskutinis log entry
+    if (logData.length > 0) {
+      var last = logData[logData.length - 1];
+      report.push("");
+      report.push("Paskutinis log: " + last[0] + " " + last[1] + " [" + last[3] + "] " + last[4]);
+    }
   }
 
   var text = report.join("\n");
   Logger.log(text);
-  SpreadsheetApp.getUi().alert(text.substring(0, 1500));
+  // Alert limitas 1500 chars, todėl naudojam sheet
+  var diagSheet = ss.getSheetByName("_Diagnostika");
+  if (diagSheet) ss.deleteSheet(diagSheet);
+  diagSheet = ss.insertSheet("_Diagnostika");
+  var lines = text.split("\n");
+  for (var i = 0; i < lines.length; i++) {
+    diagSheet.getRange(i + 1, 1).setValue(lines[i]).setFontFamily("Courier New").setFontSize(10);
+  }
+  diagSheet.setColumnWidth(1, 800);
+  SpreadsheetApp.getUi().alert("Diagnostika paruošta '_Diagnostika' lape!\n\nTrumpa santrauka:\n" +
+    "Devices: " + (st ? devices.length : 0) + "\n" +
+    "Logai: " + (logSheet ? (logSheet.getLastRow() - 1) + " įrašų" : "NĖRA"));
 }
 
 // ==================== DASHBOARD ====================
