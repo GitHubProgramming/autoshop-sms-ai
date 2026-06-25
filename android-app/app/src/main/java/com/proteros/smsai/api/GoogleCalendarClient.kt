@@ -39,7 +39,8 @@ class GoogleCalendarClient(private val context: Context) {
         dateTime: String,
         contactName: String? = null,
         conversationSummary: String? = null,
-        durationMin: Int = 60
+        durationMin: Int = 60,
+        carInfo: String? = null
     ): String? = withContext(Dispatchers.IO) {
         try {
             val calService = getService() ?: return@withContext null
@@ -50,6 +51,9 @@ class GoogleCalendarClient(private val context: Context) {
             val desc = buildString {
                 append("👤 Klientas: ${contactName ?: "Nežinomas"}\n")
                 append("📞 Tel: $clientPhone\n")
+                if (!carInfo.isNullOrBlank()) {
+                    append("🚗 Auto: $carInfo\n")
+                }
                 append("🔧 Paslauga: $service\n")
                 if (!conversationSummary.isNullOrBlank()) {
                     append("\n💬 Pokalbis:\n$conversationSummary\n")
@@ -187,6 +191,22 @@ class GoogleCalendarClient(private val context: Context) {
             true
         } catch (e: Exception) {
             AppLog.e("CalendarClient", "deleteEvent failed", e)
+            false
+        }
+    }
+
+    suspend fun updateEventComment(eventId: String, comment: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val calService = getService() ?: return@withContext false
+            val event = calService.events().get(calendarId(), eventId).execute()
+            val desc = event.description ?: ""
+            val commentRegex = Regex("\\n?📝 Komentaras:.*", RegexOption.DOT_MATCHES_ALL)
+            val cleanDesc = desc.replace(commentRegex, "").trimEnd()
+            event.description = if (comment.isBlank()) cleanDesc else "$cleanDesc\n\n📝 Komentaras: $comment"
+            calService.events().update(calendarId(), eventId, event).execute()
+            true
+        } catch (e: Exception) {
+            AppLog.e("CalendarClient", "updateEventComment failed", e)
             false
         }
     }

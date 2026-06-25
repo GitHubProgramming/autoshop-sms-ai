@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 
 class TodayViewModel(private val repo: AppRepository) : ViewModel() {
 
-    data class AppointmentItem(val time: String, val client: String, val contactName: String?, val service: String)
+    data class AppointmentItem(val time: String, val client: String, val contactName: String?, val service: String, val eventId: String? = null)
     data class AttentionItem(val phone: String, val reason: String)
 
     private val _appointments = MutableLiveData<List<AppointmentItem>>(emptyList())
@@ -76,7 +76,8 @@ class TodayViewModel(private val repo: AppRepository) : ViewModel() {
                             time = c.bookingDateTime ?: "Nenurodyta",
                             client = c.phoneNumber,
                             contactName = c.contactName,
-                            service = c.bookingService ?: "Nenurodyta"
+                            service = c.bookingService ?: "Nenurodyta",
+                            eventId = c.calendarEventId
                         )
                     })
                 }
@@ -92,7 +93,7 @@ class TodayViewModel(private val repo: AppRepository) : ViewModel() {
                 val result = calendarClient.getTodayAppointmentsWithStatus()
                 _calendarError.postValue(result.error)
                 _appointments.postValue(result.appointments.map { a ->
-                    AppointmentItem(time = a.time, client = a.clientPhone, contactName = a.contactName, service = a.service)
+                    AppointmentItem(time = a.time, client = a.clientPhone, contactName = a.contactName, service = a.service, eventId = a.eventId)
                 })
             } catch (e: Exception) {
                 AppLog.e("TodayViewModel", "Failed to load calendar appointments", e)
@@ -107,11 +108,38 @@ class TodayViewModel(private val repo: AppRepository) : ViewModel() {
                 val result = calendarClient.getWeekAppointments(start, end)
                 _calendarError.postValue(result.error)
                 _appointments.postValue(result.appointments.map { a ->
-                    AppointmentItem(time = a.time, client = a.clientPhone, contactName = a.contactName, service = a.service)
+                    AppointmentItem(time = a.time, client = a.clientPhone, contactName = a.contactName, service = a.service, eventId = a.eventId)
                 })
             } catch (e: Exception) {
                 AppLog.e("TodayViewModel", "Failed to load week appointments", e)
                 _calendarError.postValue(e.message)
+            }
+        }
+    }
+
+    fun deleteAppointment(calendarClient: GoogleCalendarClient, eventId: String?, phone: String) {
+        viewModelScope.launch {
+            try {
+                if (!eventId.isNullOrBlank()) {
+                    calendarClient.deleteEvent(eventId)
+                }
+                repo.conversationDao.updateStatus(phone, Conversation.STATUS_CLOSED)
+                AppLog.i("TodayViewModel", "Appointment deleted for $phone")
+            } catch (e: Exception) {
+                AppLog.e("TodayViewModel", "deleteAppointment failed", e)
+            }
+        }
+    }
+
+    fun updateBookingComment(calendarClient: GoogleCalendarClient, phone: String, eventId: String?, comment: String) {
+        viewModelScope.launch {
+            try {
+                repo.conversationDao.updateBookingComment(phone, comment)
+                if (!eventId.isNullOrBlank()) {
+                    calendarClient.updateEventComment(eventId, comment)
+                }
+            } catch (e: Exception) {
+                AppLog.e("TodayViewModel", "updateBookingComment failed", e)
             }
         }
     }

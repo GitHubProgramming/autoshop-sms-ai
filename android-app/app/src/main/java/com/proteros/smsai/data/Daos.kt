@@ -58,6 +58,12 @@ interface ConversationDao {
 
     @Query("UPDATE conversations SET inactivityNotified = 0 WHERE phoneNumber = :phone")
     suspend fun resetInactivityNotified(phone: String)
+
+    @Query("UPDATE conversations SET carInfo = :carInfo WHERE phoneNumber = :phone")
+    suspend fun updateCarInfo(phone: String, carInfo: String)
+
+    @Query("UPDATE conversations SET bookingComment = :comment WHERE phoneNumber = :phone")
+    suspend fun updateBookingComment(phone: String, comment: String)
 }
 
 @Dao

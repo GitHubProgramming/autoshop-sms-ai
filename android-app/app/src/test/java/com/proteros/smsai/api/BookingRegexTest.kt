@@ -5,7 +5,7 @@ import org.junit.Test
 
 class BookingRegexTest {
 
-    private val bookingRegex = """\[BOOKING:([^|]+)\|(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})]""".toRegex()
+    private val bookingRegex = """\[BOOKING:([^|]+)\|(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})(?:\|([^]]*))?\]""".toRegex()
 
     @Test
     fun `detects standard booking tag`() {
@@ -14,6 +14,25 @@ class BookingRegexTest {
         assertNotNull(match)
         assertEquals("Stabdžių remontas", match!!.groupValues[1])
         assertEquals("2025-06-18 10:00", match.groupValues[2])
+    }
+
+    @Test
+    fun `detects booking with car info`() {
+        val text = "Užregistruota! [BOOKING:Stabdžių remontas|2025-06-18 10:00|Toyota Avensis]"
+        val match = bookingRegex.find(text)
+        assertNotNull(match)
+        assertEquals("Stabdžių remontas", match!!.groupValues[1])
+        assertEquals("2025-06-18 10:00", match.groupValues[2])
+        assertEquals("Toyota Avensis", match.groupValues[3])
+    }
+
+    @Test
+    fun `detects booking with empty car info`() {
+        val text = "[BOOKING:Diagnostika|2025-07-01 09:00|]"
+        val match = bookingRegex.find(text)
+        assertNotNull(match)
+        assertEquals("Diagnostika", match!!.groupValues[1])
+        assertEquals("", match.groupValues[3])
     }
 
     @Test
@@ -31,10 +50,11 @@ class BookingRegexTest {
 
     @Test
     fun `handles service with special characters`() {
-        val text = "[BOOKING:Tepalų keitimas / filtrai|2025-06-20 14:00]"
+        val text = "[BOOKING:Tepalų keitimas / filtrai|2025-06-20 14:00|VW Golf]"
         val match = bookingRegex.find(text)
         assertNotNull(match)
         assertEquals("Tepalų keitimas / filtrai", match!!.groupValues[1])
+        assertEquals("VW Golf", match.groupValues[3])
     }
 
     @Test
