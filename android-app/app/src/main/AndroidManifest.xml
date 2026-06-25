@@ -72,6 +72,10 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".receiver.ServiceRestartReceiver"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
