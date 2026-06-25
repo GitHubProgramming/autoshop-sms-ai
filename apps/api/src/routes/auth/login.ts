@@ -3,11 +3,13 @@ import { z } from "zod";
 import * as bcrypt from "bcryptjs";
 import { query } from "../../db/client";
 
-// Extend @fastify/jwt types so request.user is typed throughout the app
+type TenantJwt = { tenantId: string; email: string; locale: string; currency: string; timezone: string };
+type BuybackJwt = { userId: string; email: string };
+
 declare module "@fastify/jwt" {
   interface FastifyJWT {
-    payload: { tenantId: string; email: string; locale: string; currency: string; timezone: string };
-    user: { tenantId: string; email: string; locale: string; currency: string; timezone: string };
+    payload: TenantJwt | BuybackJwt;
+    user: TenantJwt | BuybackJwt;
   }
 }
 

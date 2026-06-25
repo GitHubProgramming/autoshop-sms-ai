@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buyback Time — Prisijungimas</title>
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/brand-tokens.css">
+<style>
+:root {
+  --bb-deep-work: #DC2626;
+  --bb-people: #D97706;
+  --bb-admin: #2563EB;
+  --bb-protected: #16A34A;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--color-bg-page);color:var(--color-text-primary);font-family:var(--font-body);min-height:100vh;display:flex;align-items:center;justify-content:center}
+.login-card{background:#fff;border-radius:var(--radius-lg);padding:48px 40px;max-width:420px;width:90%;box-shadow:var(--shadow-lg)}
+.logo{font-family:var(--font-display);font-size:32px;font-weight:800;text-transform:uppercase;letter-spacing:1px;text-align:center;margin-bottom:8px}
+.logo .accent{color:var(--bb-deep-work)}
+.subtitle{text-align:center;color:var(--color-text-secondary);font-size:14px;margin-bottom:32px}
+.color-bar{display:flex;gap:4px;justify-content:center;margin-bottom:24px}
+.color-bar span{width:40px;height:4px;border-radius:2px}
+.tab-row{display:flex;gap:0;margin-bottom:24px;border-bottom:2px solid var(--color-border)}
+.tab-btn{flex:1;padding:10px;text-align:center;font-weight:600;font-size:14px;background:none;border:none;cursor:pointer;color:var(--color-text-tertiary);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s}
+.tab-btn.active{color:var(--color-text-primary);border-bottom-color:var(--bb-deep-work)}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:13px;font-weight:600;color:var(--color-text-secondary);margin-bottom:6px}
+.form-group input{width:100%;padding:10px 14px;border:1px solid var(--color-border);border-radius:var(--radius-sm);font-size:15px;font-family:var(--font-body);outline:none;transition:border .2s}
+.form-group input:focus{border-color:var(--bb-deep-work);box-shadow:0 0 0 3px rgba(220,38,38,0.08)}
+.btn-submit{width:100%;padding:12px;background:var(--bb-deep-work);color:#fff;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:600;cursor:pointer;transition:background .2s;margin-top:8px}
+.btn-submit:hover{background:#B91C1C}
+.error-msg{background:#FEF2F2;color:#DC2626;padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:16px;display:none}
+.hidden{display:none}
+.inspired{text-align:center;margin-top:24px;font-size:12px;color:var(--color-text-tertiary)}
+</style>
+</head>
+<body>
+
+<div class="login-card">
+  <div class="logo">Buyback <span class="accent">Time</span></div>
+  <div class="subtitle">Dan Martell's "Buy Back Your Time" sistema</div>
+  <div class="color-bar">
+    <span style="background:var(--bb-deep-work)"></span>
+    <span style="background:var(--bb-people)"></span>
+    <span style="background:var(--bb-admin)"></span>
+    <span style="background:var(--bb-protected)"></span>
+  </div>
+
+  <div class="tab-row">
+    <button class="tab-btn active" data-tab="login">Prisijungti</button>
+    <button class="tab-btn" data-tab="signup">Registruotis</button>
+  </div>
+
+  <div id="error" class="error-msg"></div>
+
+  <form id="login-form">
+    <div class="form-group">
+      <label>El. pastas</label>
+      <input type="email" id="login-email" required autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label>Slaptazodis</label>
+      <input type="password" id="login-password" required autocomplete="current-password">
+    </div>
+    <button type="submit" class="btn-submit">Prisijungti</button>
+  </form>
+
+  <form id="signup-form" class="hidden">
+    <div class="form-group">
+      <label>Vardas</label>
+      <input type="text" id="signup-name" autocomplete="name">
+    </div>
+    <div class="form-group">
+      <label>El. pastas</label>
+      <input type="email" id="signup-email" required autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label>Slaptazodis (min. 6 simboliai)</label>
+      <input type="password" id="signup-password" required minlength="6" autocomplete="new-password">
+    </div>
+    <button type="submit" class="btn-submit">Sukurti paskyra</button>
+  </form>
+
+  <div class="inspired">Inspired by Dan Martell's "Buy Back Your Time"</div>
+</div>
+
+<script>
+const API = window.location.origin;
+const errEl = document.getElementById('error');
+const loginForm = document.getElementById('login-form');
+const signupForm = document.getElementById('signup-form');
+
+if (localStorage.getItem('bb_token')) {
+  window.location.href = '/buyback';
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    loginForm.classList.toggle('hidden', tab !== 'login');
+    signupForm.classList.toggle('hidden', tab !== 'signup');
+    errEl.style.display = 'none';
+  });
+});
+
+function showError(msg) {
+  errEl.textContent = msg;
+  errEl.style.display = 'block';
+}
+
+loginForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  errEl.style.display = 'none';
+  try {
+    const res = await fetch(`${API}/bb-auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: document.getElementById('login-email').value,
+        password: document.getElementById('login-password').value,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showError(data.error || 'Prisijungimas nepavyko'); return; }
+    localStorage.setItem('bb_token', data.token);
+    localStorage.setItem('bb_user', JSON.stringify(data.user));
+    window.location.href = '/buyback';
+  } catch (err) {
+    showError('Tinklo klaida. Bandykite dar karta.');
+  }
+});
+
+signupForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  errEl.style.display = 'none';
+  try {
+    const res = await fetch(`${API}/bb-auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: document.getElementById('signup-name').value || undefined,
+        email: document.getElementById('signup-email').value,
+        password: document.getElementById('signup-password').value,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showError(data.error || 'Registracija nepavyko'); return; }
+    localStorage.setItem('bb_token', data.token);
+    localStorage.setItem('bb_user', JSON.stringify(data.user));
+    window.location.href = '/buyback';
+  } catch (err) {
+    showError('Tinklo klaida. Bandykite dar karta.');
+  }
+});
+</script>
+</body>
+</html>
