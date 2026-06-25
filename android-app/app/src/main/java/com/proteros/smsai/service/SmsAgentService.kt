@@ -17,6 +17,7 @@ import com.proteros.smsai.data.AppDatabase
 import com.proteros.smsai.data.AppRepository
 import com.proteros.smsai.util.AgentNotification
 import com.proteros.smsai.util.AppLog
+import com.proteros.smsai.receiver.ServiceRestartReceiver
 import com.proteros.smsai.util.SecurePrefs
 import androidx.core.app.NotificationCompat
 import com.proteros.smsai.AutoShopApp
